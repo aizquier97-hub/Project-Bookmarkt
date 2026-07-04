@@ -53,6 +53,8 @@
     .muted { color:#6b7280; font-size:13px; }
     .status-error { color:#dc2626; font-size:13px; }
     .status-success { color:#15803d; font-size:13px; }
+    .status-busy { color:#1d4ed8; font-size:13px; font-weight:600; }
+    .is-busy { opacity:0.72; pointer-events:none; user-select:none; }
     .row { display:flex; gap:8px; align-items:center; }
     .small { font-size:13px; color:#374151; }
     .between { justify-content:space-between; }
@@ -299,12 +301,14 @@
     let loadedCharacters = [];
     let loadedBookImages = [];
     let pendingImageFiles = [];
+    let isBusy = false;
+    let refreshAllPromise = null;
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
 
     // Utility: show dev info
-    function setDevInfo(text, isError) {
+    function setDevInfo(text, isError, busy) {
       devInfo.textContent = text;
-      devInfo.className = isError ? 'status-error' : 'muted';
+      devInfo.className = isError ? 'status-error' : (busy ? 'status-busy' : 'muted');
     }
     function setStatus(el, text) {
       el.textContent = text;
@@ -328,6 +332,13 @@
     function setPendingImagesInfo(text) {
       if (!pendingImagesInfoEl) return;
       pendingImagesInfoEl.textContent = text;
+    }
+    function setBusyState(busy, message) {
+      isBusy = busy;
+      appShell.classList.toggle('is-busy', !!currentUser && busy);
+      appShell.setAttribute('aria-busy', busy ? 'true' : 'false');
+      if (message) setDevInfo(message, false, busy);
+      setSignedInState(currentUser);
     }
 
     function formatAuthError(actionLabel, error) {
@@ -377,33 +388,34 @@
       appShell.style.display = isSignedIn ? 'flex' : 'none';
       if (isSignedIn) closeSignupModal();
 
-      btnLogin.disabled = isSignedIn;
-      btnSignup.disabled = isSignedIn;
-      btnLogout.disabled = !isSignedIn;
+      btnLogin.disabled = isSignedIn || isBusy;
+      btnSignup.disabled = isSignedIn || isBusy;
+      btnLogout.disabled = !isSignedIn || isBusy;
       appUserStatus.textContent = isSignedIn ? `Signed in as ${user.email}` : '';
 
-      newTopicEl.disabled = !isSignedIn;
-      btnAddTopic.disabled = !isSignedIn;
+      newTopicEl.disabled = !isSignedIn || isBusy;
+      btnAddTopic.disabled = !isSignedIn || isBusy;
       syncBookScopedControlState();
     }
 
     function syncBookScopedControlState() {
       const hasSelectedBook = !!currentUser && !!selectedBookId;
-      entryTextEl.disabled = !hasSelectedBook;
-      btnAddEntry.disabled = !hasSelectedBook;
-      btnClearEntries.disabled = !hasSelectedBook;
-      characterNameEl.disabled = !hasSelectedBook;
-      characterRoleEl.disabled = !hasSelectedBook;
-      characterDescriptionEl.disabled = !hasSelectedBook;
-      characterRelationshipsEl.disabled = !hasSelectedBook;
-      btnAddCharacter.disabled = !hasSelectedBook;
-      btnClearCharacterMap.disabled = !hasSelectedBook;
-      imageCaptionEl.disabled = !hasSelectedBook;
+      const disableBookScoped = !hasSelectedBook || isBusy;
+      entryTextEl.disabled = disableBookScoped;
+      btnAddEntry.disabled = disableBookScoped;
+      btnClearEntries.disabled = disableBookScoped;
+      characterNameEl.disabled = disableBookScoped;
+      characterRoleEl.disabled = disableBookScoped;
+      characterDescriptionEl.disabled = disableBookScoped;
+      characterRelationshipsEl.disabled = disableBookScoped;
+      btnAddCharacter.disabled = disableBookScoped;
+      btnClearCharacterMap.disabled = disableBookScoped;
+      imageCaptionEl.disabled = disableBookScoped;
       if (hasImageUI) {
-        btnPickImages.disabled = !hasSelectedBook;
-        btnUploadImages.disabled = !hasSelectedBook || pendingImageFiles.length === 0;
-        bookImageInput.disabled = !hasSelectedBook;
-        if (hasSelectedBook) {
+        btnPickImages.disabled = disableBookScoped;
+        btnUploadImages.disabled = disableBookScoped || pendingImageFiles.length === 0;
+        bookImageInput.disabled = disableBookScoped;
+        if (hasSelectedBook && !isBusy) {
           bookImageDropzone.classList.remove('disabled');
         } else {
           bookImageDropzone.classList.add('disabled');
@@ -501,9 +513,13 @@
     }
 
     async function getCurrentUser() {
-      const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await withTimeout(
+        supabase.auth.getSession(),
+        8000,
+        'Session check timed out. Please try again.'
+      );
       if (error) throw error;
-      return data.user;
+      return data && data.session ? data.session.user : null;
     }
 
     function requireCurrentUser() {
@@ -708,51 +724,68 @@
         return;
       }
       setImageStatus('');
+      setBusyState(true, `Uploading ${imageFiles.length} image(s)...`);
+      try {
+        const caption = imageCaptionEl.value.trim();
+        for (const file of imageFiles) {
+          const fileExtRaw = file.name && file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'jpg';
+          const fileExt = (fileExtRaw || 'jpg').replace(/[^a-z0-9]/g, '') || 'jpg';
+          const filePath = `${user.id}/${selectedBookId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
 
-      const caption = imageCaptionEl.value.trim();
-      for (const file of imageFiles) {
-        const fileExtRaw = file.name && file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'jpg';
-        const fileExt = (fileExtRaw || 'jpg').replace(/[^a-z0-9]/g, '') || 'jpg';
-        const filePath = `${user.id}/${selectedBookId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+          const uploadRes = await withTimeout(
+            supabase.storage
+              .from(BOOK_IMAGES_BUCKET)
+              .upload(filePath, file, { upsert: false }),
+            20000,
+            'Image upload timed out. Please try again.'
+          );
+          if (uploadRes.error) {
+            setImageStatus(`Image upload error: ${uploadRes.error.message}`);
+            setDevInfo(`Image upload error: ${uploadRes.error.message}`, true);
+            return;
+          }
 
-        const uploadRes = await supabase.storage
-          .from(BOOK_IMAGES_BUCKET)
-          .upload(filePath, file, { upsert: false });
-        if (uploadRes.error) {
-          setImageStatus(`Image upload error: ${uploadRes.error.message}`);
-          setDevInfo(`Image upload error: ${uploadRes.error.message}`, true);
-          return;
+          const { data: publicUrlData } = supabase.storage.from(BOOK_IMAGES_BUCKET).getPublicUrl(filePath);
+          const imageUrl = publicUrlData && publicUrlData.publicUrl ? publicUrlData.publicUrl : null;
+          if (!imageUrl) {
+            setImageStatus('Image upload error: Could not retrieve public URL.');
+            setDevInfo('Image upload error: Could not retrieve public URL.', true);
+            return;
+          }
+
+          const insertRes = await withTimeout(
+            supabase
+              .from('book_images')
+              .insert([{
+                user_id: user.id,
+                topic_id: selectedBookId,
+                image_url: imageUrl,
+                caption: caption || null
+              }]),
+            12000,
+            'Saving image metadata timed out. Please try again.'
+          );
+          if (insertRes.error) {
+            setImageStatus(`Save image metadata error: ${insertRes.error.message}`);
+            setDevInfo(`Save image metadata error: ${insertRes.error.message}`, true);
+            return;
+          }
         }
 
-        const { data: publicUrlData } = supabase.storage.from(BOOK_IMAGES_BUCKET).getPublicUrl(filePath);
-        const imageUrl = publicUrlData && publicUrlData.publicUrl ? publicUrlData.publicUrl : null;
-        if (!imageUrl) {
-          setImageStatus('Image upload error: Could not retrieve public URL.');
-          setDevInfo('Image upload error: Could not retrieve public URL.', true);
-          return;
-        }
-
-        const insertRes = await supabase
-          .from('book_images')
-          .insert([{
-            user_id: user.id,
-            topic_id: selectedBookId,
-            image_url: imageUrl,
-            caption: caption || null
-          }]);
-        if (insertRes.error) {
-          setImageStatus(`Save image metadata error: ${insertRes.error.message}`);
-          setDevInfo(`Save image metadata error: ${insertRes.error.message}`, true);
-          return;
-        }
+        imageCaptionEl.value = '';
+        bookImageInput.value = '';
+        pendingImageFiles = [];
+        refreshPendingImagesUI();
+        setImageStatus('Images uploaded successfully.');
+        await withTimeout(
+          loadBookImages(user.id, selectedBookId),
+          12000,
+          'Refreshing image list timed out. Please refresh and try again.'
+        );
+        setDevInfo('Images uploaded and loaded.');
+      } finally {
+        setBusyState(false);
       }
-
-      imageCaptionEl.value = '';
-      bookImageInput.value = '';
-      pendingImageFiles = [];
-      refreshPendingImagesUI();
-      setImageStatus('Images uploaded successfully.');
-      await loadBookImages(user.id, selectedBookId);
     }
 
     async function editBookImage(imageId) {
@@ -1319,28 +1352,55 @@
 
     // Refresh all lists
     async function refreshAll() {
-      try {
-        setDevInfo('Checking client and fetching data...');
-        const user = await getCurrentUser();
-        currentUser = user;
-        setSignedInState(currentUser);
-        if (!currentUser) {
-          setDevInfo('Not signed in');
+      if (refreshAllPromise) return refreshAllPromise;
+      refreshAllPromise = (async () => {
+        setBusyState(true, 'Checking client and fetching data...');
+        try {
+          const user = await getCurrentUser();
+          currentUser = user;
+          setSignedInState(currentUser);
+          if (!currentUser) {
+            setDevInfo('Not signed in');
+            renderEmptyLists();
+            return;
+          }
+          setDevInfo(`Signed in as ${currentUser.email}`, false, true);
+          await withTimeout(
+            loadTopics(currentUser.id),
+            12000,
+            'Loading books timed out. Please refresh and try again.'
+          );
+          await withTimeout(
+            Promise.allSettled([
+              loadEntries(currentUser.id, selectedBookId),
+              loadCharacters(currentUser.id, selectedBookId),
+              loadBookImages(currentUser.id, selectedBookId)
+            ]),
+            15000,
+            'Loading book data timed out. Please refresh and try again.'
+          );
+          setDevInfo('Data loaded');
+        } catch (e) {
+          const message = e && e.message ? e.message : 'Unknown error';
+          if (/bearer token|unauthorized|jwt|refresh token/i.test(message)) {
+            currentUser = null;
+            setSignedInState(null);
+            renderEmptyLists();
+            setAuthStatus('Session expired. Please log in again.');
+            setDevInfo('Session expired. Please log in again.', true);
+            return;
+          }
+          setDevInfo('Data refresh error: ' + message, true);
+          console.error('refreshAll error', e);
           renderEmptyLists();
-          return;
+        } finally {
+          setBusyState(false);
         }
-        setDevInfo(`Signed in as ${currentUser.email}`);
-        await loadTopics(currentUser.id);
-        await Promise.allSettled([
-          loadEntries(currentUser.id, selectedBookId),
-          loadCharacters(currentUser.id, selectedBookId),
-          loadBookImages(currentUser.id, selectedBookId)
-        ]);
-        setDevInfo('Data loaded');
-      } catch (e) {
-        setDevInfo('Auth check failed', true);
-        console.error('refreshAll error', e);
-        renderEmptyLists();
+      })();
+      try {
+        return await refreshAllPromise;
+      } finally {
+        refreshAllPromise = null;
       }
     }
 
