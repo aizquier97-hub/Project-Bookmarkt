@@ -526,7 +526,7 @@
     async function getCurrentUser() {
       const { data, error } = await withTimeout(
         supabase.auth.getSession(),
-        8000,
+        20000,
         'Session check timed out. Please try again.'
       );
       if (error) throw error;
@@ -1371,6 +1371,10 @@
         setAuthStatus('Logged out');
         renderEmptyLists();
       }
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setDevInfo('Session refreshed.');
+        return;
+      }
       await refreshAll();
     });
 
@@ -1406,6 +1410,10 @@
           setDevInfo('Data loaded');
         } catch (e) {
           const message = e && e.message ? e.message : 'Unknown error';
+          if (/timed out/i.test(message)) {
+            setDevInfo('Data refresh is taking longer than expected. Your current data is still shown.', true);
+            return;
+          }
           if (/bearer token|unauthorized|jwt|refresh token/i.test(message)) {
             currentUser = null;
             setSignedInState(null);
