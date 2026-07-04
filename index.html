@@ -130,7 +130,7 @@
 
       <div class="row between">
         <div class="muted" id="appUserStatus"></div>
-        <button id="btnLogout" class="secondary">Log Out</button>
+        <button id="btnLogout" class="secondary" type="button">Log Out</button>
       </div>
 
       <section id="topicsSection">
@@ -138,7 +138,7 @@
         <label>Add book
           <input id="newTopic" type="text" placeholder="e.g., Don Quixote" />
         </label>
-        <button id="btnAddTopic">Add Book</button>
+        <button id="btnAddTopic" type="button">Add Book</button>
         <div id="topicsList" class="list"></div>
       </section>
 
@@ -190,8 +190,8 @@
         <div id="bookImageDropzone" class="image-dropzone">
           <div><strong>Drag and drop images here</strong></div>
           <div class="muted" style="margin-top:4px;">or choose files manually</div>
-          <button id="btnPickImages" class="ghost">Choose Images</button>
-          <button id="btnUploadImages">Upload/Save Images</button>
+          <button id="btnPickImages" class="ghost" type="button">Choose Images</button>
+          <button id="btnUploadImages" type="button">Upload/Save Images</button>
           <input id="bookImageInput" type="file" accept="image/*" multiple class="hidden" />
         </div>
         <div id="pendingImagesInfo" class="muted"></div>
@@ -287,6 +287,7 @@
     const pendingImagesInfoEl = document.getElementById('pendingImagesInfo');
     const imageStatusEl = document.getElementById('imageStatus');
     const bookImagesList = document.getElementById('bookImagesList');
+    const hasImageUI = !!(bookImageDropzone && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -296,6 +297,7 @@
     let loadedCharacters = [];
     let loadedBookImages = [];
     let pendingImageFiles = [];
+    const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
 
     // Utility: show dev info
     function setDevInfo(text, isError) {
@@ -316,9 +318,15 @@
     }
     function setAuthStatus(text) { setStatus(authStatus, text); }
     function setSignupStatus(text) { setStatus(signupStatusEl, text); }
-    function setImageStatus(text) { setStatus(imageStatusEl, text); }
+    function setImageStatus(text) {
+      if (!imageStatusEl) return;
+      setStatus(imageStatusEl, text);
+    }
     function renderListError(message) { return `<div class="item status-error">${escapeHtml(message)}</div>`; }
-    function setPendingImagesInfo(text) { pendingImagesInfoEl.textContent = text; }
+    function setPendingImagesInfo(text) {
+      if (!pendingImagesInfoEl) return;
+      pendingImagesInfoEl.textContent = text;
+    }
 
     function formatAuthError(actionLabel, error) {
       const msg = (error && error.message ? error.message : '').toLowerCase();
@@ -377,13 +385,15 @@
       btnAddCharacter.disabled = !hasSelectedBook;
       btnClearCharacterMap.disabled = !hasSelectedBook;
       imageCaptionEl.disabled = !hasSelectedBook;
-      btnPickImages.disabled = !hasSelectedBook;
-      btnUploadImages.disabled = !hasSelectedBook || pendingImageFiles.length === 0;
-      bookImageInput.disabled = !hasSelectedBook;
-      if (hasSelectedBook) {
-        bookImageDropzone.classList.remove('disabled');
-      } else {
-        bookImageDropzone.classList.add('disabled');
+      if (hasImageUI) {
+        btnPickImages.disabled = !hasSelectedBook;
+        btnUploadImages.disabled = !hasSelectedBook || pendingImageFiles.length === 0;
+        bookImageInput.disabled = !hasSelectedBook;
+        if (hasSelectedBook) {
+          bookImageDropzone.classList.remove('disabled');
+        } else {
+          bookImageDropzone.classList.add('disabled');
+        }
       }
     }
 
@@ -391,6 +401,27 @@
       if (!selectedBookId) return 'None';
       const selectedBook = loadedBooks.find(b => String(b.id) === String(selectedBookId));
       return selectedBook ? selectedBook.name : 'None';
+    }
+
+    function getSelectedBookStorageKey() {
+      if (!currentUser || !currentUser.id) return null;
+      return `${SELECTED_BOOK_KEY_PREFIX}${currentUser.id}`;
+    }
+
+    function persistSelectedBook() {
+      const key = getSelectedBookStorageKey();
+      if (!key) return;
+      if (!selectedBookId) {
+        localStorage.removeItem(key);
+        return;
+      }
+      localStorage.setItem(key, String(selectedBookId));
+    }
+
+    function restoreSelectedBook() {
+      const key = getSelectedBookStorageKey();
+      if (!key) return null;
+      return localStorage.getItem(key);
     }
 
     function updateBookScopedLabels() {
@@ -444,6 +475,7 @@
     async function selectBook(bookId) {
       if (!currentUser) return;
       selectedBookId = String(bookId);
+      persistSelectedBook();
       renderTopics(loadedBooks);
       updateBookScopedLabels();
       syncBookScopedControlState();
@@ -530,11 +562,15 @@
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
         loadedBooks = res.data || [];
+        const restoredBookId = restoreSelectedBook();
         if (!loadedBooks.length) {
           selectedBookId = null;
+        } else if (restoredBookId && loadedBooks.some(b => String(b.id) === String(restoredBookId))) {
+          selectedBookId = String(restoredBookId);
         } else if (!selectedBookId || !loadedBooks.some(b => String(b.id) === String(selectedBookId))) {
           selectedBookId = String(loadedBooks[0].id);
         }
+        persistSelectedBook();
         renderTopics(loadedBooks);
         updateBookScopedLabels();
         syncBookScopedControlState();
@@ -590,6 +626,7 @@
 
     async function loadBookImages(userId, bookId) {
       if (!bookId) {
+        if (!bookImagesList) return;
         bookImagesList.innerHTML = '<div class="item muted">Select a book to view images.</div>';
         loadedBookImages = [];
         return;
@@ -611,11 +648,14 @@
           ? 'book_images table is missing. Run the SQL setup script.'
           : msg;
         setImageStatus(`Images error: ${hint}`);
-        bookImagesList.innerHTML = renderListError(`Error loading images: ${hint}`);
+        if (bookImagesList) {
+          bookImagesList.innerHTML = renderListError(`Error loading images: ${hint}`);
+        }
       }
     }
 
     async function uploadBookImages() {
+      if (!hasImageUI) return;
       const user = requireCurrentUser();
       if (!user) return;
       if (!selectedBookId) return alert('Add and select a book first.');
@@ -733,6 +773,7 @@
       } else {
         newTopicEl.value = '';
         if (data && data.id) selectedBookId = String(data.id);
+        persistSelectedBook();
         await loadTopics(user.id);
         await Promise.allSettled([
           loadEntries(user.id, selectedBookId),
@@ -1001,6 +1042,7 @@
     }
 
     function renderBookImages(items) {
+      if (!bookImagesList) return;
       if (!items.length) {
         bookImagesList.innerHTML = '<div class="item muted">No images yet.</div>';
         setImageStatus('');
@@ -1019,7 +1061,9 @@
       topicsList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       entriesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       charactersList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
-      bookImagesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      if (bookImagesList) {
+        bookImagesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      }
       setImageStatus('');
       selectedBookId = null;
       loadedBooks = [];
@@ -1027,6 +1071,7 @@
       loadedCharacters = [];
       loadedBookImages = [];
       pendingImageFiles = [];
+      persistSelectedBook();
       setPendingImagesInfo('No image files selected.');
       updateBookScopedLabels();
       syncBookScopedControlState();
@@ -1049,44 +1094,46 @@
     btnClearEntries.addEventListener('click', clearEntries);
     btnAddCharacter.addEventListener('click', addCharacter);
     btnClearCharacterMap.addEventListener('click', clearCharacterMapForm);
-    btnPickImages.addEventListener('click', () => {
-      if (btnPickImages.disabled) return;
-      bookImageInput.click();
-    });
-    btnUploadImages.addEventListener('click', async () => {
-      if (btnUploadImages.disabled) return;
-      await uploadBookImages();
-    });
-    bookImageInput.addEventListener('change', async () => {
-      const files = Array.from(bookImageInput.files || []);
-      if (!files.length) return;
-      queueImageFiles(files);
-      bookImageInput.value = '';
-    });
-    bookImageDropzone.addEventListener('dragover', (event) => {
-      event.preventDefault();
-      if (bookImageDropzone.classList.contains('disabled')) return;
-      bookImageDropzone.classList.add('dragover');
-    });
-    bookImageDropzone.addEventListener('dragleave', () => {
-      bookImageDropzone.classList.remove('dragover');
-    });
-    bookImageDropzone.addEventListener('drop', async (event) => {
-      event.preventDefault();
-      bookImageDropzone.classList.remove('dragover');
-      if (bookImageDropzone.classList.contains('disabled')) return;
-      const files = Array.from((event.dataTransfer && event.dataTransfer.files) || []);
-      if (!files.length) return;
-      queueImageFiles(files);
-    });
-    bookImagesList.addEventListener('click', async (event) => {
-      const btn = event.target.closest('[data-image-action]');
-      if (!btn) return;
-      const action = btn.getAttribute('data-image-action');
-      const imageId = btn.getAttribute('data-image-id');
-      if (action === 'edit') await editBookImage(imageId);
-      if (action === 'delete') await deleteBookImage(imageId);
-    });
+    if (hasImageUI) {
+      btnPickImages.addEventListener('click', () => {
+        if (btnPickImages.disabled) return;
+        bookImageInput.click();
+      });
+      btnUploadImages.addEventListener('click', async () => {
+        if (btnUploadImages.disabled) return;
+        await uploadBookImages();
+      });
+      bookImageInput.addEventListener('change', async () => {
+        const files = Array.from(bookImageInput.files || []);
+        if (!files.length) return;
+        queueImageFiles(files);
+        bookImageInput.value = '';
+      });
+      bookImageDropzone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        if (bookImageDropzone.classList.contains('disabled')) return;
+        bookImageDropzone.classList.add('dragover');
+      });
+      bookImageDropzone.addEventListener('dragleave', () => {
+        bookImageDropzone.classList.remove('dragover');
+      });
+      bookImageDropzone.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        bookImageDropzone.classList.remove('dragover');
+        if (bookImageDropzone.classList.contains('disabled')) return;
+        const files = Array.from((event.dataTransfer && event.dataTransfer.files) || []);
+        if (!files.length) return;
+        queueImageFiles(files);
+      });
+      bookImagesList.addEventListener('click', async (event) => {
+        const btn = event.target.closest('[data-image-action]');
+        if (!btn) return;
+        const action = btn.getAttribute('data-image-action');
+        const imageId = btn.getAttribute('data-image-id');
+        if (action === 'edit') await editBookImage(imageId);
+        if (action === 'delete') await deleteBookImage(imageId);
+      });
+    }
     topicsList.addEventListener('click', async (event) => {
       const item = event.target.closest('[data-book-id]');
       if (!item) return;
@@ -1118,6 +1165,18 @@
     };
     emailEl.addEventListener('keydown', loginOnEnter);
     passwordEl.addEventListener('keydown', loginOnEnter);
+    newTopicEl.addEventListener('keydown', async (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        await addTopic();
+      }
+    });
+    entryTextEl.addEventListener('keydown', async (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        await addEntry();
+      }
+    });
     signupModalBackdrop.addEventListener('click', (event) => {
       if (event.target === signupModalBackdrop) closeSignupModal();
     });
