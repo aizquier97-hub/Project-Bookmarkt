@@ -343,6 +343,18 @@
       return `${actionLabel} error: ${error.message}`;
     }
 
+    async function withTimeout(promise, timeoutMs, timeoutMessage) {
+      let timerId = null;
+      try {
+        const timeoutPromise = new Promise((_, reject) => {
+          timerId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+        });
+        return await Promise.race([promise, timeoutPromise]);
+      } finally {
+        if (timerId) clearTimeout(timerId);
+      }
+    }
+
     function openSignupModal() {
       signupEmailEl.value = emailEl.value.trim();
       signupPasswordEl.value = '';
@@ -543,12 +555,28 @@
     }
 
     async function signOut() {
+      setDevInfo('Logging out...');
       let primaryError = null;
-      const primaryRes = await supabase.auth.signOut();
+      let primaryRes;
+      try {
+        primaryRes = await withTimeout(
+          supabase.auth.signOut(),
+          12000,
+          'Logout timed out. Please check your connection and try again.'
+        );
+      } catch (err) {
+        setAuthStatus('Logout error: ' + err.message);
+        setDevInfo('Logout error: ' + err.message, true);
+        return;
+      }
       if (primaryRes.error) {
         primaryError = primaryRes.error;
         // Fallback: clear only local session so user can still leave the account UI.
-        const localRes = await supabase.auth.signOut({ scope: 'local' });
+        const localRes = await withTimeout(
+          supabase.auth.signOut({ scope: 'local' }),
+          8000,
+          'Local logout fallback timed out.'
+        );
         if (localRes.error) {
           setAuthStatus('Logout error: ' + localRes.error.message);
           setDevInfo('Logout error: ' + localRes.error.message, true);
@@ -782,7 +810,19 @@
       const name = newTopicEl.value.trim();
       if (!name) return alert('Enter a book name');
       const payload = { name, user_id: user.id };
-      const { data, error } = await supabase.from('topics').insert([payload]).select().single();
+      setDevInfo('Adding book...');
+      let insertResult;
+      try {
+        insertResult = await withTimeout(
+          supabase.from('topics').insert([payload]).select().single(),
+          12000,
+          'Add book timed out. Please check your connection and try again.'
+        );
+      } catch (err) {
+        setDevInfo('Add book error: ' + err.message, true);
+        return;
+      }
+      const { data, error } = insertResult;
       if (error) {
         setDevInfo('Add book error: ' + error.message, true);
       } else {
@@ -795,6 +835,7 @@
           loadCharacters(user.id, selectedBookId),
           loadBookImages(user.id, selectedBookId)
         ]);
+        setDevInfo('Book added and data loaded.');
       }
     }
 
