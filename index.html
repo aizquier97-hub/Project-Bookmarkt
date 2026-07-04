@@ -244,7 +244,10 @@
     // ==============================
 
     // Create the client (UMD bundle exposes window.supabase)
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // persistSession: false means every page load requires manual login
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false }
+    });
 
     // DOM refs
     const emailEl = document.getElementById('email');
@@ -536,6 +539,57 @@
       refreshPendingImagesUI();
       setImageStatus('');
     }
+    async function readFileAsDataUrl(file) {
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('Could not read image file.'));
+        reader.readAsDataURL(file);
+      });
+    }
+    async function loadImageElement(src) {
+      return await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Could not decode image file.'));
+        img.src = src;
+      });
+    }
+    async function optimizeImageForUpload(file) {
+      const MAX_UPLOAD_BYTES = 900 * 1024;
+      const MAX_DIMENSION = 1600;
+      if (!file || !file.type || !file.type.startsWith('image/')) return file;
+      if (file.size <= MAX_UPLOAD_BYTES) return file;
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const img = await loadImageElement(dataUrl);
+        const largestSide = Math.max(img.naturalWidth || img.width || 1, img.naturalHeight || img.height || 1);
+        const scale = largestSide > MAX_DIMENSION ? (MAX_DIMENSION / largestSide) : 1;
+        const width = Math.max(1, Math.round((img.naturalWidth || img.width || 1) * scale));
+        const height = Math.max(1, Math.round((img.naturalHeight || img.height || 1) * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return file;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const webpBlob = await new Promise((resolve) => {
+          canvas.toBlob((blob) => resolve(blob), 'image/webp', 0.82);
+        });
+        if (!webpBlob) return file;
+        if (webpBlob.size >= file.size * 0.95) return file;
+
+        const baseName = (file.name || 'image').replace(/\.[^.]+$/, '');
+        return new File([webpBlob], `${baseName}.webp`, {
+          type: 'image/webp',
+          lastModified: Date.now()
+        });
+      } catch (_) {
+        return file;
+      }
+    }
 
     async function selectBook(bookId) {
       if (!currentUser) return;
@@ -781,7 +835,10 @@
       setBusyState(true, `Uploading ${imageFiles.length} image(s)...`);
       try {
         const caption = imageCaptionEl.value.trim();
-        for (const file of imageFiles) {
+        for (let i = 0; i < imageFiles.length; i += 1) {
+          const originalFile = imageFiles[i];
+          setImageStatus(`Processing image ${i + 1} of ${imageFiles.length}...`);
+          const file = await optimizeImageForUpload(originalFile);
           const fileExtRaw = file.name && file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'jpg';
           const fileExt = (fileExtRaw || 'jpg').replace(/[^a-z0-9]/g, '') || 'jpg';
           const filePath = `${user.id}/${selectedBookId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
@@ -1475,16 +1532,34 @@
           } else {
             setDevInfo(`Signed in as ${currentUser.email}`, false, true);
           }
-          await loadTopics(currentUser.id);
-          setDevInfo('Books loaded. Loading book details...', false, true);
+          const topicsPromise = loadTopics(currentUser.id);
+          let topicsCompletedQuickly = true;
+          try {
+            await withTimeout(
+              topicsPromise,
+              8000,
+              'Loading books is taking longer than expected.'
+            );
+          } catch (topicsErr) {
+            topicsCompletedQuickly = false;
+            setDevInfo('Signed in. Syncing books in background...', false, true);
+          }
+
           const detailsPromise = Promise.allSettled([
             loadEntries(currentUser.id, selectedBookId),
             loadCharacters(currentUser.id, selectedBookId),
             loadBookImages(currentUser.id, selectedBookId)
           ]);
-          detailsPromise.then(() => {
+
+          if (topicsCompletedQuickly) {
+            setDevInfo('Books loaded. Loading book details...', false, true);
+            await detailsPromise;
             if (currentUser) setDevInfo('Data loaded');
-          });
+          } else {
+            Promise.allSettled([topicsPromise, detailsPromise]).then(() => {
+              if (currentUser) setDevInfo('Data loaded');
+            });
+          }
         } catch (e) {
           const message = e && e.message ? e.message : 'Unknown error';
           if (/bearer token|unauthorized|jwt|refresh token/i.test(message)) {
