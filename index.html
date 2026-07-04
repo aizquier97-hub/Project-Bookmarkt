@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>My Bookshelf App (V17 Improved)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 0; padding: 20px; background:#f6f7fb; color:#111; }
+    .wrap { max-width:1100px; margin:0 auto; display:flex; gap:20px; }
+    .col { background:#fff; padding:18px; border-radius:8px; box-shadow:0 6px 18px rgba(20,20,40,0.06); }
+    .left { flex:1; }
+    .right { width:360px; }
+    h1 { margin:0 0 12px 0; font-size:20px; }
+    label { display:block; margin-top:10px; font-size:13px; color:#444; }
+    input[type="text"], input[type="email"], input[type="password"], textarea {
+      width:100%; padding:8px 10px; margin-top:6px; border:1px solid #e3e6ee; border-radius:6px; font-size:14px;
+    }
+    button { margin-top:10px; padding:8px 12px; border-radius:6px; border:0; background:#2563eb; color:#fff; cursor:pointer; }
+    button.secondary { background:#6b7280; }
+    .list { margin-top:12px; }
+    .item { padding:10px; border-bottom:1px solid #f0f2f7; }
+    .muted { color:#6b7280; font-size:13px; }
+    .row { display:flex; gap:8px; align-items:center; }
+    .small { font-size:13px; color:#374151; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="col left">
+      <h1>My Bookshelf App (V17 Improved)</h1>
+
+      <section id="auth">
+        <h2 class="small">Authentication</h2>
+        <label>Email
+          <input id="email" type="email" placeholder="you@example.com" />
+        </label>
+        <label>Password
+          <input id="password" type="password" placeholder="password" />
+        </label>
+        <div class="row">
+          <button id="btnLogin">Log In</button>
+          <button id="btnSignup" class="secondary">Sign Up</button>
+          <button id="btnLogout" class="secondary">Log Out</button>
+        </div>
+        <div id="authStatus" class="muted"></div>
+      </section>
+
+      <hr />
+
+      <section id="topicsSection">
+        <h2 class="small">Topics</h2>
+        <label>New topic name
+          <input id="newTopic" type="text" placeholder="e.g., Fantasy" />
+        </label>
+        <button id="btnAddTopic">Add Topic</button>
+        <div id="topicsList" class="list"></div>
+      </section>
+
+      <hr />
+
+      <section id="entriesSection">
+        <h2 class="small">Entries</h2>
+        <label>Write your entry...
+          <textarea id="entryText" rows="4" placeholder="Write your entry..."></textarea>
+        </label>
+        <button id="btnAddEntry">Add Entry</button>
+        <div id="entriesList" class="list"></div>
+      </section>
+    </div>
+
+    <div class="col right">
+      <h2 class="small">Character Map</h2>
+      <div id="charactersList" class="list"></div>
+
+      <hr />
+
+      <div class="muted small" style="margin-top:12px;">
+        Dev info:
+        <div id="devInfo"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPORTANT: ensure this file is the UMD bundle you saved locally at /js/supabase.js -->
+  <script src="/js/supabase.js"></script>
+
+  <script>
+    // ======= CONFIGURE THIS =======
+    // Replace the ANON_KEY placeholder below with your Supabase "anon public" key from:
+    // Supabase Console -> Project -> Settings -> API -> anon public
+    const SUPABASE_URL = "https://bfallxtcxxyykcnkedom.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_NzMdHQACfZknql5bcdcExQ_ZI2KllTqE";
+    // ==============================
+
+    // Create the client (UMD bundle exposes window.supabase)
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // DOM refs
+    const emailEl = document.getElementById('email');
+    const passwordEl = document.getElementById('password');
+    const btnLogin = document.getElementById('btnLogin');
+    const btnSignup = document.getElementById('btnSignup');
+    const btnLogout = document.getElementById('btnLogout');
+    const authStatus = document.getElementById('authStatus');
+
+    const newTopicEl = document.getElementById('newTopic');
+    const btnAddTopic = document.getElementById('btnAddTopic');
+    const topicsList = document.getElementById('topicsList');
+
+    const entryTextEl = document.getElementById('entryText');
+    const btnAddEntry = document.getElementById('btnAddEntry');
+    const entriesList = document.getElementById('entriesList');
+
+    const charactersList = document.getElementById('charactersList');
+    const devInfo = document.getElementById('devInfo');
+
+    // Utility: show dev info
+    function setDevInfo(text) { devInfo.textContent = text; }
+
+    // ======= Auth handlers =======
+    async function signUp() {
+      const email = emailEl.value.trim();
+      const password = passwordEl.value;
+      if (!email || !password) return alert('Provide email and password');
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        authStatus.textContent = 'Sign up error: ' + error.message;
+      } else {
+        authStatus.textContent = 'Sign up successful. Check your email to confirm.';
+      }
+    }
+
+    async function signIn() {
+      const email = emailEl.value.trim();
+      const password = passwordEl.value;
+      if (!email || !password) return alert('Provide email and password');
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        authStatus.textContent = 'Login error: ' + error.message;
+      } else {
+        authStatus.textContent = 'Logged in';
+        await refreshAll();
+      }
+    }
+
+    async function signOut() {
+      await supabase.auth.signOut();
+      authStatus.textContent = 'Logged out';
+      renderEmptyLists();
+    }
+
+    // ======= Data operations =======
+    async function loadTopics() {
+      try {
+        const res = await supabase.from('topics').select('*').order('created_at', { ascending: false });
+        if (res.error) throw res.error;
+        renderTopics(res.data || []);
+      } catch (err) {
+        console.error('loadTopics error', err);
+        topicsList.innerHTML = '<div class="item">Error loading topics.</div>';
+      }
+    }
+
+    async function loadEntries() {
+      try {
+        const res = await supabase.from('entries').select('*').order('created_at', { ascending: false });
+        if (res.error) throw res.error;
+        renderEntries(res.data || []);
+      } catch (err) {
+        console.error('loadEntries error', err);
+        entriesList.innerHTML = '<div class="item">Error loading entries.</div>';
+      }
+    }
+
+    async function loadCharacters() {
+      try {
+        const res = await supabase.from('characters').select('*').order('created_at', { ascending: false });
+        if (res.error) throw res.error;
+        renderCharacters(res.data || []);
+      } catch (err) {
+        console.error('loadCharacters error', err);
+        charactersList.innerHTML = '<div class="item">Error loading characters.</div>';
+      }
+    }
+
+    async function addTopic() {
+      const name = newTopicEl.value.trim();
+      if (!name) return alert('Enter a topic name');
+      const payload = { name };
+      // If you later add user_id, include it here
+      const { data, error } = await supabase.from('topics').insert([payload]);
+      if (error) {
+        alert('Add topic error: ' + error.message);
+      } else {
+        newTopicEl.value = '';
+        await loadTopics();
+      }
+    }
+
+    async function addEntry() {
+      const text = entryTextEl.value.trim();
+      if (!text) return alert('Write something first');
+      const payload = { text };
+      const { data, error } = await supabase.from('entries').insert([payload]);
+      if (error) {
+        alert('Add entry error: ' + error.message);
+      } else {
+        entryTextEl.value = '';
+        await loadEntries();
+      }
+    }
+
+    // ======= Render helpers =======
+    function renderTopics(items) {
+      if (!items.length) {
+        topicsList.innerHTML = '<div class="item muted">No topics yet.</div>';
+        return;
+      }
+      topicsList.innerHTML = items.map(t => `<div class="item"><strong>${escapeHtml(t.name)}</strong><div class="muted">${new Date(t.created_at).toLocaleString()}</div></div>`).join('');
+    }
+
+    function renderEntries(items) {
+      if (!items.length) {
+        entriesList.innerHTML = '<div class="item muted">No entries yet.</div>';
+        return;
+      }
+      entriesList.innerHTML = items.map(e => `<div class="item"><div>${escapeHtml(e.text)}</div><div class="muted">${new Date(e.created_at).toLocaleString()}</div></div>`).join('');
+    }
+
+    function renderCharacters(items) {
+      if (!items.length) {
+        charactersList.innerHTML = '<div class="item muted">No characters yet.</div>';
+        return;
+      }
+      charactersList.innerHTML = items.map(c => `<div class="item"><strong>${escapeHtml(c.name)}</strong><div>${escapeHtml(c.description)}</div></div>`).join('');
+    }
+
+    function renderEmptyLists() {
+      topicsList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      entriesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      charactersList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+    }
+
+    // Simple HTML escape
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/[&<>"']/g, function (m) {
+        return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m];
+      });
+    }
+
+    // ======= Init / event wiring =======
+    btnSignup.addEventListener('click', signUp);
+    btnLogin.addEventListener('click', signIn);
+    btnLogout.addEventListener('click', signOut);
+    btnAddTopic.addEventListener('click', addTopic);
+    btnAddEntry.addEventListener('click', addEntry);
+
+    // Refresh all lists
+    async function refreshAll() {
+      setDevInfo('Checking client and fetching data...');
+      try {
+        const user = (await supabase.auth.getUser()).data.user;
+        setDevInfo(user ? `Signed in as ${user.email}` : 'Not signed in (anon)');
+      } catch (e) {
+        setDevInfo('Auth check failed');
+      }
+      await Promise.allSettled([loadTopics(), loadEntries(), loadCharacters()]);
+      setDevInfo('Data loaded');
+    }
+
+    // On load: quick client check and initial fetch
+    (async function init() {
+      try {
+        setDevInfo('Initializing...');
+        // Basic client sanity check
+        console.log('supabase present?', !!window.supabase);
+        console.log('createClient type:', typeof window.supabase?.createClient);
+        // Attempt to fetch entries (will show errors in console if network/policies block)
+        await refreshAll();
+      } catch (err) {
+        console.error('init error', err);
+        setDevInfo('Initialization error. See console.');
+      }
+    })();
+  </script>
+</body>
+</html>
