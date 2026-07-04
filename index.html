@@ -304,6 +304,8 @@
     let isBusy = false;
     let refreshAllPromise = null;
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
+    const CACHE_KEY_PREFIX = 'bookmarkt-cache-';
+    const CACHE_TTL_MS = 5 * 60 * 1000;
 
     // Utility: show dev info
     function setDevInfo(text, isError, busy) {
@@ -443,6 +445,32 @@
     function getSelectedBookStorageKey() {
       if (!currentUser || !currentUser.id) return null;
       return `${SELECTED_BOOK_KEY_PREFIX}${currentUser.id}`;
+    }
+    function getCacheStorageKey(kind, userId, bookId) {
+      const safeBookId = bookId ? String(bookId) : 'none';
+      return `${CACHE_KEY_PREFIX}${kind}-${userId}-${safeBookId}`;
+    }
+    function writeCache(kind, userId, data, bookId) {
+      if (!userId) return;
+      try {
+        const key = getCacheStorageKey(kind, userId, bookId);
+        const payload = { ts: Date.now(), data };
+        localStorage.setItem(key, JSON.stringify(payload));
+      } catch (_) {}
+    }
+    function readCache(kind, userId, bookId) {
+      if (!userId) return null;
+      try {
+        const key = getCacheStorageKey(kind, userId, bookId);
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.ts || !Array.isArray(parsed.data)) return null;
+        if (Date.now() - parsed.ts > CACHE_TTL_MS) return null;
+        return parsed.data;
+      } catch (_) {
+        return null;
+      }
     }
 
     function persistSelectedBook() {
@@ -638,11 +666,12 @@
       try {
         const res = await supabase
           .from('topics')
-          .select('*')
+          .select('id,name,created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
         loadedBooks = res.data || [];
+        writeCache('topics', userId, loadedBooks);
         const restoredBookId = restoreSelectedBook();
         if (!loadedBooks.length) {
           selectedBookId = null;
@@ -670,12 +699,13 @@
       try {
         const res = await supabase
           .from('entries')
-          .select('*')
+          .select('id,text,created_at,updated_at')
           .eq('user_id', userId)
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
         loadedEntries = res.data || [];
+        writeCache('entries', userId, loadedEntries, bookId);
         renderEntries(loadedEntries);
       } catch (err) {
         console.error('loadEntries error', err);
@@ -692,12 +722,13 @@
       try {
         const res = await supabase
           .from('characters')
-          .select('*')
+          .select('id,name,description,created_at,updated_at')
           .eq('user_id', userId)
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
         loadedCharacters = res.data || [];
+        writeCache('characters', userId, loadedCharacters, bookId);
         renderCharacters(loadedCharacters);
       } catch (err) {
         console.error('loadCharacters error', err);
@@ -715,12 +746,13 @@
       try {
         const res = await supabase
           .from('book_images')
-          .select('*')
+          .select('id,image_url,caption,created_at,updated_at')
           .eq('user_id', userId)
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
         loadedBookImages = res.data || [];
+        writeCache('images', userId, loadedBookImages, bookId);
         renderBookImages(loadedBookImages);
       } catch (err) {
         console.error('loadBookImages error', err);
@@ -1407,14 +1439,52 @@
             renderEmptyLists();
             return;
           }
-          setDevInfo(`Signed in as ${currentUser.email}`, false, true);
+          const cachedBooks = readCache('topics', currentUser.id);
+          if (cachedBooks && cachedBooks.length) {
+            loadedBooks = cachedBooks;
+            const restoredBookId = restoreSelectedBook();
+            if (!selectedBookId || !loadedBooks.some(b => String(b.id) === String(selectedBookId))) {
+              if (restoredBookId && loadedBooks.some(b => String(b.id) === String(restoredBookId))) {
+                selectedBookId = String(restoredBookId);
+              } else {
+                selectedBookId = String(loadedBooks[0].id);
+              }
+            }
+            persistSelectedBook();
+            renderTopics(loadedBooks);
+            updateBookScopedLabels();
+            syncBookScopedControlState();
+            if (selectedBookId) {
+              const cachedEntries = readCache('entries', currentUser.id, selectedBookId);
+              const cachedCharacters = readCache('characters', currentUser.id, selectedBookId);
+              const cachedImages = readCache('images', currentUser.id, selectedBookId);
+              if (cachedEntries) {
+                loadedEntries = cachedEntries;
+                renderEntries(loadedEntries);
+              }
+              if (cachedCharacters) {
+                loadedCharacters = cachedCharacters;
+                renderCharacters(loadedCharacters);
+              }
+              if (cachedImages) {
+                loadedBookImages = cachedImages;
+                renderBookImages(loadedBookImages);
+              }
+            }
+            setDevInfo(`Signed in as ${currentUser.email}. Showing cached data, syncing...`, false, true);
+          } else {
+            setDevInfo(`Signed in as ${currentUser.email}`, false, true);
+          }
           await loadTopics(currentUser.id);
-          await Promise.allSettled([
+          setDevInfo('Books loaded. Loading book details...', false, true);
+          const detailsPromise = Promise.allSettled([
             loadEntries(currentUser.id, selectedBookId),
             loadCharacters(currentUser.id, selectedBookId),
             loadBookImages(currentUser.id, selectedBookId)
           ]);
-          setDevInfo('Data loaded');
+          detailsPromise.then(() => {
+            if (currentUser) setDevInfo('Data loaded');
+          });
         } catch (e) {
           const message = e && e.message ? e.message : 'Unknown error';
           if (/bearer token|unauthorized|jwt|refresh token/i.test(message)) {
