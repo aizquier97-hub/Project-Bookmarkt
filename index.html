@@ -6,7 +6,7 @@
   <title>Bookmarkt (dev)</title>
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 0; padding: 20px; background:#f6f7fb; color:#111; }
-    .auth-screen { min-height: calc(100vh - 40px); display:flex; align-items:center; justify-content:center; }
+    .auth-screen { min-height: calc(100vh - 40px); min-height: calc(100dvh - 40px); display:flex; align-items:center; justify-content:center; }
     .auth-card { width:100%; max-width:460px; }
     .wrap { max-width:1100px; margin:0 auto; display:flex; gap:20px; }
     .col { background:#fff; padding:18px; border-radius:8px; box-shadow:0 6px 18px rgba(20,20,40,0.06); }
@@ -33,6 +33,21 @@
     .character-label { font-weight:600; color:#374151; margin-bottom:4px; }
     .character-value { color:#111827; line-height:1.5; white-space:pre-wrap; }
     .character-time { margin-top:10px; color:#6b7280; font-size:13px; }
+    .image-dropzone {
+      margin-top: 10px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      background: #f8fafc;
+    }
+    .image-dropzone.dragover { border-color:#2563eb; background:#eff6ff; }
+    .image-dropzone.disabled { opacity:0.6; pointer-events:none; }
+    .image-grid { margin-top:10px; display:grid; grid-template-columns:1fr; gap:10px; }
+    .image-card { border:1px solid #e5e7eb; border-radius:8px; padding:8px; background:#fff; }
+    .image-card img { width:100%; height:auto; border-radius:6px; display:block; }
+    .image-caption { margin-top:6px; color:#374151; font-size:13px; white-space:pre-wrap; }
+    .image-time { margin-top:4px; color:#6b7280; font-size:12px; }
     .muted { color:#6b7280; font-size:13px; }
     .status-error { color:#dc2626; font-size:13px; }
     .status-success { color:#15803d; font-size:13px; }
@@ -58,6 +73,34 @@
       padding: 16px;
     }
     .hidden { display: none !important; }
+
+    @media (max-width: 900px) {
+      body { padding: 12px; }
+      .auth-screen { min-height: calc(100vh - 24px); min-height: calc(100dvh - 24px); }
+      .wrap { flex-direction: column; gap: 12px; }
+      .col { padding: 14px; }
+      .right { width: auto; }
+      .row { flex-wrap: wrap; }
+      .between { justify-content: flex-start; align-items: flex-start; }
+      #appUserStatus { word-break: break-word; }
+      h1 { font-size: 24px; }
+      .character-name { font-size: 18px; }
+      button { padding: 10px 12px; }
+      #bookImageDropzone button { margin-top: 8px; }
+      .image-grid { grid-template-columns: 1fr; }
+      .modal { max-width: 100%; }
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 10px; }
+      .col { padding: 12px; }
+      h1 { font-size: 22px; }
+      .small { font-size: 12px; }
+      button { width: 100%; }
+      button.small-btn { width: auto; }
+      .row > button.small-btn { width: auto; }
+      .row { gap: 6px; }
+    }
   </style>
 </head>
 <body>
@@ -138,6 +181,26 @@
 
       <hr />
 
+      <section id="imagesSection">
+        <h2 class="small">Book Images</h2>
+        <div class="small" id="imagesForBook"><strong>Images for book:</strong> None</div>
+        <label>Optional image note
+          <input id="imageCaption" type="text" placeholder="e.g., Family estate sketch" />
+        </label>
+        <div id="bookImageDropzone" class="image-dropzone">
+          <div><strong>Drag and drop images here</strong></div>
+          <div class="muted" style="margin-top:4px;">or choose files manually</div>
+          <button id="btnPickImages" class="ghost">Choose Images</button>
+          <button id="btnUploadImages">Upload/Save Images</button>
+          <input id="bookImageInput" type="file" accept="image/*" multiple class="hidden" />
+        </div>
+        <div id="pendingImagesInfo" class="muted"></div>
+        <div id="imageStatus" class="muted"></div>
+        <div id="bookImagesList" class="image-grid"></div>
+      </section>
+
+      <hr />
+
       <div class="muted small" style="margin-top:12px;">
         Dev info:
         <div id="devInfo"></div>
@@ -215,15 +278,30 @@
     const btnClearCharacterMap = document.getElementById('btnClearCharacterMap');
     const characterMapForEl = document.getElementById('characterMapFor');
     const charactersList = document.getElementById('charactersList');
+    const imagesForBookEl = document.getElementById('imagesForBook');
+    const imageCaptionEl = document.getElementById('imageCaption');
+    const bookImageDropzone = document.getElementById('bookImageDropzone');
+    const btnPickImages = document.getElementById('btnPickImages');
+    const btnUploadImages = document.getElementById('btnUploadImages');
+    const bookImageInput = document.getElementById('bookImageInput');
+    const pendingImagesInfoEl = document.getElementById('pendingImagesInfo');
+    const imageStatusEl = document.getElementById('imageStatus');
+    const bookImagesList = document.getElementById('bookImagesList');
     const devInfo = document.getElementById('devInfo');
+    const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
     let selectedBookId = null;
     let loadedBooks = [];
     let loadedEntries = [];
     let loadedCharacters = [];
+    let loadedBookImages = [];
+    let pendingImageFiles = [];
 
     // Utility: show dev info
-    function setDevInfo(text) { devInfo.textContent = text; }
+    function setDevInfo(text, isError) {
+      devInfo.textContent = text;
+      devInfo.className = isError ? 'status-error' : 'muted';
+    }
     function setStatus(el, text) {
       el.textContent = text;
       if (!text) {
@@ -238,6 +316,9 @@
     }
     function setAuthStatus(text) { setStatus(authStatus, text); }
     function setSignupStatus(text) { setStatus(signupStatusEl, text); }
+    function setImageStatus(text) { setStatus(imageStatusEl, text); }
+    function renderListError(message) { return `<div class="item status-error">${escapeHtml(message)}</div>`; }
+    function setPendingImagesInfo(text) { pendingImagesInfoEl.textContent = text; }
 
     function formatAuthError(actionLabel, error) {
       const msg = (error && error.message ? error.message : '').toLowerCase();
@@ -295,6 +376,15 @@
       characterRelationshipsEl.disabled = !hasSelectedBook;
       btnAddCharacter.disabled = !hasSelectedBook;
       btnClearCharacterMap.disabled = !hasSelectedBook;
+      imageCaptionEl.disabled = !hasSelectedBook;
+      btnPickImages.disabled = !hasSelectedBook;
+      btnUploadImages.disabled = !hasSelectedBook || pendingImageFiles.length === 0;
+      bookImageInput.disabled = !hasSelectedBook;
+      if (hasSelectedBook) {
+        bookImageDropzone.classList.remove('disabled');
+      } else {
+        bookImageDropzone.classList.add('disabled');
+      }
     }
 
     function getSelectedBookName() {
@@ -307,6 +397,7 @@
       const bookName = getSelectedBookName();
       entriesForBookEl.innerHTML = `<strong>Entries for book:</strong> ${escapeHtml(bookName)}`;
       characterMapForEl.innerHTML = `<strong>Character map for book:</strong> ${escapeHtml(bookName)}`;
+      imagesForBookEl.innerHTML = `<strong>Images for book:</strong> ${escapeHtml(bookName)}`;
     }
 
     function clearCharacterMapForm() {
@@ -317,6 +408,39 @@
       updateBookScopedLabels();
     }
 
+    function extractStoragePathFromPublicUrl(url) {
+      if (!url) return null;
+      const marker = `/storage/v1/object/public/${BOOK_IMAGES_BUCKET}/`;
+      const idx = url.indexOf(marker);
+      if (idx < 0) return null;
+      const encodedPath = url.substring(idx + marker.length);
+      try {
+        return decodeURIComponent(encodedPath);
+      } catch (e) {
+        return encodedPath;
+      }
+    }
+
+    function refreshPendingImagesUI() {
+      if (!pendingImageFiles.length) {
+        setPendingImagesInfo('No image files selected.');
+      } else {
+        setPendingImagesInfo(`${pendingImageFiles.length} image file(s) selected. Add caption if needed, then click "Upload/Save Images".`);
+      }
+      syncBookScopedControlState();
+    }
+
+    function queueImageFiles(files) {
+      const imageFiles = files.filter(f => f && typeof f.type === 'string' && f.type.startsWith('image/'));
+      if (!imageFiles.length) {
+        setImageStatus('Images error: Please select image files only.');
+        return;
+      }
+      pendingImageFiles = pendingImageFiles.concat(imageFiles);
+      refreshPendingImagesUI();
+      setImageStatus('');
+    }
+
     async function selectBook(bookId) {
       if (!currentUser) return;
       selectedBookId = String(bookId);
@@ -325,7 +449,8 @@
       syncBookScopedControlState();
       await Promise.allSettled([
         loadEntries(currentUser.id, selectedBookId),
-        loadCharacters(currentUser.id, selectedBookId)
+        loadCharacters(currentUser.id, selectedBookId),
+        loadBookImages(currentUser.id, selectedBookId)
       ]);
     }
 
@@ -415,7 +540,7 @@
         syncBookScopedControlState();
       } catch (err) {
         console.error('loadTopics error', err);
-        topicsList.innerHTML = '<div class="item">Error loading books.</div>';
+        topicsList.innerHTML = renderListError(`Error loading books: ${err.message || 'Unknown error'}`);
       }
     }
 
@@ -437,7 +562,7 @@
         renderEntries(loadedEntries);
       } catch (err) {
         console.error('loadEntries error', err);
-        entriesList.innerHTML = '<div class="item">Error loading entries. Ensure entries.topic_id exists in Supabase.</div>';
+        entriesList.innerHTML = renderListError(`Error loading entries: ${err.message || 'Unknown error'}`);
       }
     }
 
@@ -459,8 +584,141 @@
         renderCharacters(loadedCharacters);
       } catch (err) {
         console.error('loadCharacters error', err);
-        charactersList.innerHTML = '<div class="item">Error loading characters. Ensure characters.topic_id exists in Supabase.</div>';
+        charactersList.innerHTML = renderListError(`Error loading characters: ${err.message || 'Unknown error'}`);
       }
+    }
+
+    async function loadBookImages(userId, bookId) {
+      if (!bookId) {
+        bookImagesList.innerHTML = '<div class="item muted">Select a book to view images.</div>';
+        loadedBookImages = [];
+        return;
+      }
+      try {
+        const res = await supabase
+          .from('book_images')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('topic_id', bookId)
+          .order('created_at', { ascending: false });
+        if (res.error) throw res.error;
+        loadedBookImages = res.data || [];
+        renderBookImages(loadedBookImages);
+      } catch (err) {
+        console.error('loadBookImages error', err);
+        const msg = err && err.message ? err.message : 'Unknown error';
+        const hint = msg.toLowerCase().includes('book_images')
+          ? 'book_images table is missing. Run the SQL setup script.'
+          : msg;
+        setImageStatus(`Images error: ${hint}`);
+        bookImagesList.innerHTML = renderListError(`Error loading images: ${hint}`);
+      }
+    }
+
+    async function uploadBookImages() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!selectedBookId) return alert('Add and select a book first.');
+      const imageFiles = pendingImageFiles.slice();
+      if (!imageFiles.length) {
+        setImageStatus('Images error: Select images first, then click Upload/Save Images.');
+        return;
+      }
+      setImageStatus('');
+
+      const caption = imageCaptionEl.value.trim();
+      for (const file of imageFiles) {
+        const fileExtRaw = file.name && file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'jpg';
+        const fileExt = (fileExtRaw || 'jpg').replace(/[^a-z0-9]/g, '') || 'jpg';
+        const filePath = `${user.id}/${selectedBookId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+
+        const uploadRes = await supabase.storage
+          .from(BOOK_IMAGES_BUCKET)
+          .upload(filePath, file, { upsert: false });
+        if (uploadRes.error) {
+          setImageStatus(`Image upload error: ${uploadRes.error.message}`);
+          setDevInfo(`Image upload error: ${uploadRes.error.message}`, true);
+          return;
+        }
+
+        const { data: publicUrlData } = supabase.storage.from(BOOK_IMAGES_BUCKET).getPublicUrl(filePath);
+        const imageUrl = publicUrlData && publicUrlData.publicUrl ? publicUrlData.publicUrl : null;
+        if (!imageUrl) {
+          setImageStatus('Image upload error: Could not retrieve public URL.');
+          setDevInfo('Image upload error: Could not retrieve public URL.', true);
+          return;
+        }
+
+        const insertRes = await supabase
+          .from('book_images')
+          .insert([{
+            user_id: user.id,
+            topic_id: selectedBookId,
+            image_url: imageUrl,
+            caption: caption || null
+          }]);
+        if (insertRes.error) {
+          setImageStatus(`Save image metadata error: ${insertRes.error.message}`);
+          setDevInfo(`Save image metadata error: ${insertRes.error.message}`, true);
+          return;
+        }
+      }
+
+      imageCaptionEl.value = '';
+      bookImageInput.value = '';
+      pendingImageFiles = [];
+      refreshPendingImagesUI();
+      setImageStatus('Images uploaded successfully.');
+      await loadBookImages(user.id, selectedBookId);
+    }
+
+    async function editBookImage(imageId) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      const existing = loadedBookImages.find(img => String(img.id) === String(imageId));
+      if (!existing) return;
+      const nextCaption = prompt('Edit image caption:', existing.caption || '');
+      if (nextCaption === null) return;
+      const { error } = await supabase
+        .from('book_images')
+        .update({ caption: nextCaption.trim() || null, updated_at: new Date().toISOString() })
+        .eq('id', imageId)
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId);
+      if (error) {
+        setImageStatus('Images error: ' + error.message);
+        return;
+      }
+      await loadBookImages(user.id, selectedBookId);
+    }
+
+    async function deleteBookImage(imageId) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      const existing = loadedBookImages.find(img => String(img.id) === String(imageId));
+      if (!existing) return;
+      if (!confirm('Delete this image?')) return;
+
+      const storagePath = extractStoragePathFromPublicUrl(existing.image_url);
+      if (storagePath) {
+        const removeRes = await supabase.storage.from(BOOK_IMAGES_BUCKET).remove([storagePath]);
+        if (removeRes.error) {
+          setImageStatus('Images error: ' + removeRes.error.message);
+          return;
+        }
+      }
+
+      const { error } = await supabase
+        .from('book_images')
+        .delete()
+        .eq('id', imageId)
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId);
+      if (error) {
+        setImageStatus('Images error: ' + error.message);
+        return;
+      }
+      await loadBookImages(user.id, selectedBookId);
     }
 
     async function addTopic() {
@@ -471,14 +729,15 @@
       const payload = { name, user_id: user.id };
       const { data, error } = await supabase.from('topics').insert([payload]).select().single();
       if (error) {
-        alert('Add book error: ' + error.message);
+        setDevInfo('Add book error: ' + error.message, true);
       } else {
         newTopicEl.value = '';
         if (data && data.id) selectedBookId = String(data.id);
         await loadTopics(user.id);
         await Promise.allSettled([
           loadEntries(user.id, selectedBookId),
-          loadCharacters(user.id, selectedBookId)
+          loadCharacters(user.id, selectedBookId),
+          loadBookImages(user.id, selectedBookId)
         ]);
       }
     }
@@ -492,7 +751,7 @@
       const payload = { text, user_id: user.id, topic_id: selectedBookId };
       const { error } = await supabase.from('entries').insert([payload]);
       if (error) {
-        alert('Add entry error: ' + error.message);
+        setDevInfo('Add entry error: ' + error.message, true);
       } else {
         entryTextEl.value = '';
         await loadEntries(user.id, selectedBookId);
@@ -510,7 +769,7 @@
         .eq('user_id', user.id)
         .eq('topic_id', selectedBookId);
       if (error) {
-        alert('Clear entries error: ' + error.message);
+        setDevInfo('Clear entries error: ' + error.message, true);
       } else {
         await loadEntries(user.id, selectedBookId);
       }
@@ -536,7 +795,7 @@
       const payload = { name, description: mergedDescription, user_id: user.id, topic_id: selectedBookId };
       const { error } = await supabase.from('characters').insert([payload]);
       if (error) {
-        alert('Add character error: ' + error.message);
+        setDevInfo('Add character error: ' + error.message, true);
       } else {
         clearCharacterMapForm();
         await loadCharacters(user.id, selectedBookId);
@@ -566,7 +825,7 @@
           .eq('user_id', user.id)
           .eq('topic_id', selectedBookId);
         if (fallbackError) {
-          alert('Edit entry error: ' + fallbackError.message);
+          setDevInfo('Edit entry error: ' + fallbackError.message, true);
           return;
         }
       }
@@ -584,7 +843,7 @@
         .eq('user_id', user.id)
         .eq('topic_id', selectedBookId);
       if (error) {
-        alert('Delete entry error: ' + error.message);
+        setDevInfo('Delete entry error: ' + error.message, true);
       } else {
         await loadEntries(user.id, selectedBookId);
       }
@@ -635,7 +894,7 @@
           .eq('user_id', user.id)
           .eq('topic_id', selectedBookId);
         if (fallbackError) {
-          alert('Edit character error: ' + fallbackError.message);
+          setDevInfo('Edit character error: ' + fallbackError.message, true);
           return;
         }
       }
@@ -653,7 +912,7 @@
         .eq('user_id', user.id)
         .eq('topic_id', selectedBookId);
       if (error) {
-        alert('Delete character error: ' + error.message);
+        setDevInfo('Delete character error: ' + error.message, true);
       } else {
         await loadCharacters(user.id, selectedBookId);
       }
@@ -741,14 +1000,34 @@
         .join('');
     }
 
+    function renderBookImages(items) {
+      if (!items.length) {
+        bookImagesList.innerHTML = '<div class="item muted">No images yet.</div>';
+        setImageStatus('');
+        return;
+      }
+      bookImagesList.innerHTML = items
+        .map(img => {
+          const caption = img.caption ? `<div class="image-caption">${escapeHtml(img.caption)}</div>` : '';
+          const imageUrl = escapeHtml(img.image_url || '');
+          return `<div class="image-card"><img src="${imageUrl}" alt="Book related image" loading="lazy" />${caption}<div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-image-action="edit" data-image-id="${img.id}">Edit</button><button class="small-btn danger" data-image-action="delete" data-image-id="${img.id}">Delete</button></div><div class="image-time">${formatRecordTimestamp(img)}</div></div>`;
+        })
+        .join('');
+    }
+
     function renderEmptyLists() {
       topicsList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       entriesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       charactersList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      bookImagesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      setImageStatus('');
       selectedBookId = null;
       loadedBooks = [];
       loadedEntries = [];
       loadedCharacters = [];
+      loadedBookImages = [];
+      pendingImageFiles = [];
+      setPendingImagesInfo('No image files selected.');
       updateBookScopedLabels();
       syncBookScopedControlState();
     }
@@ -770,6 +1049,44 @@
     btnClearEntries.addEventListener('click', clearEntries);
     btnAddCharacter.addEventListener('click', addCharacter);
     btnClearCharacterMap.addEventListener('click', clearCharacterMapForm);
+    btnPickImages.addEventListener('click', () => {
+      if (btnPickImages.disabled) return;
+      bookImageInput.click();
+    });
+    btnUploadImages.addEventListener('click', async () => {
+      if (btnUploadImages.disabled) return;
+      await uploadBookImages();
+    });
+    bookImageInput.addEventListener('change', async () => {
+      const files = Array.from(bookImageInput.files || []);
+      if (!files.length) return;
+      queueImageFiles(files);
+      bookImageInput.value = '';
+    });
+    bookImageDropzone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      if (bookImageDropzone.classList.contains('disabled')) return;
+      bookImageDropzone.classList.add('dragover');
+    });
+    bookImageDropzone.addEventListener('dragleave', () => {
+      bookImageDropzone.classList.remove('dragover');
+    });
+    bookImageDropzone.addEventListener('drop', async (event) => {
+      event.preventDefault();
+      bookImageDropzone.classList.remove('dragover');
+      if (bookImageDropzone.classList.contains('disabled')) return;
+      const files = Array.from((event.dataTransfer && event.dataTransfer.files) || []);
+      if (!files.length) return;
+      queueImageFiles(files);
+    });
+    bookImagesList.addEventListener('click', async (event) => {
+      const btn = event.target.closest('[data-image-action]');
+      if (!btn) return;
+      const action = btn.getAttribute('data-image-action');
+      const imageId = btn.getAttribute('data-image-id');
+      if (action === 'edit') await editBookImage(imageId);
+      if (action === 'delete') await deleteBookImage(imageId);
+    });
     topicsList.addEventListener('click', async (event) => {
       const item = event.target.closest('[data-book-id]');
       if (!item) return;
@@ -839,11 +1156,12 @@
         await loadTopics(currentUser.id);
         await Promise.allSettled([
           loadEntries(currentUser.id, selectedBookId),
-          loadCharacters(currentUser.id, selectedBookId)
+          loadCharacters(currentUser.id, selectedBookId),
+          loadBookImages(currentUser.id, selectedBookId)
         ]);
         setDevInfo('Data loaded');
       } catch (e) {
-        setDevInfo('Auth check failed');
+        setDevInfo('Auth check failed', true);
         console.error('refreshAll error', e);
         renderEmptyLists();
       }
@@ -862,10 +1180,11 @@
         // Attempt to fetch entries (will show errors in console if network/policies block)
         setSignedInState(null);
         updateBookScopedLabels();
+        setPendingImagesInfo('No image files selected.');
         await refreshAll();
       } catch (err) {
         console.error('init error', err);
-        setDevInfo('Initialization error. See console.');
+        setDevInfo('Initialization error. See console.', true);
       }
     })();
   </script>
