@@ -27,6 +27,8 @@
     .item { padding:10px; border-bottom:1px solid #f0f2f7; }
     .item.selectable { cursor:pointer; }
     .item.selected { background:#eff6ff; border-radius:6px; }
+    .book-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .book-main { flex:1; min-width:0; }
     .character-card { padding:14px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:10px; background:#fafafa; }
     .character-name { margin:0 0 8px 0; font-size:20px; line-height:1.2; }
     .character-section { margin-top:10px; }
@@ -783,6 +785,51 @@
       }
     }
 
+    async function deleteBook(bookId) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!bookId) return;
+      if (!confirm('Delete this book and all related entries, character maps, and image records?')) return;
+
+      try {
+        // Remove related image files from storage first (DB rows will cascade on topic delete).
+        const imagesRes = await supabase
+          .from('book_images')
+          .select('image_url')
+          .eq('user_id', user.id)
+          .eq('topic_id', bookId);
+        if (imagesRes.error) throw imagesRes.error;
+
+        const storagePaths = (imagesRes.data || [])
+          .map(img => extractStoragePathFromPublicUrl(img.image_url))
+          .filter(Boolean);
+        if (storagePaths.length) {
+          const removeRes = await supabase.storage.from(BOOK_IMAGES_BUCKET).remove(storagePaths);
+          if (removeRes.error) throw removeRes.error;
+        }
+
+        const deleteRes = await supabase
+          .from('topics')
+          .delete()
+          .eq('id', bookId)
+          .eq('user_id', user.id);
+        if (deleteRes.error) throw deleteRes.error;
+
+        if (String(selectedBookId) === String(bookId)) {
+          selectedBookId = null;
+          persistSelectedBook();
+        }
+        await loadTopics(user.id);
+        await Promise.allSettled([
+          loadEntries(user.id, selectedBookId),
+          loadCharacters(user.id, selectedBookId),
+          loadBookImages(user.id, selectedBookId)
+        ]);
+      } catch (err) {
+        setDevInfo('Delete book error: ' + (err && err.message ? err.message : 'Unknown error'), true);
+      }
+    }
+
     async function addEntry() {
       const user = requireCurrentUser();
       if (!user) return;
@@ -1004,7 +1051,15 @@
         .map(t => {
           const isSelected = String(t.id) === String(selectedBookId);
           const selectedClass = isSelected ? ' selected' : '';
-          return `<div class="item selectable${selectedClass}" data-book-id="${t.id}"><strong>${escapeHtml(t.name)}</strong><div class="muted">${formatTimestamp(t.created_at)}</div></div>`;
+          return `<div class="item selectable${selectedClass}" data-book-id="${t.id}">
+            <div class="book-row">
+              <div class="book-main">
+                <strong>${escapeHtml(t.name)}</strong>
+                <div class="muted">${formatTimestamp(t.created_at)}</div>
+              </div>
+              <button type="button" class="small-btn danger" data-book-action="delete" data-book-id="${t.id}">Delete</button>
+            </div>
+          </div>`;
         })
         .join('');
     }
@@ -1135,6 +1190,15 @@
       });
     }
     topicsList.addEventListener('click', async (event) => {
+      const actionBtn = event.target.closest('[data-book-action]');
+      if (actionBtn) {
+        const action = actionBtn.getAttribute('data-book-action');
+        const bookId = actionBtn.getAttribute('data-book-id');
+        if (action === 'delete') {
+          await deleteBook(bookId);
+        }
+        return;
+      }
       const item = event.target.closest('[data-book-id]');
       if (!item) return;
       await selectBook(item.getAttribute('data-book-id'));
