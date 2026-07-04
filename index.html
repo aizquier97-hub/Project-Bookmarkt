@@ -560,7 +560,6 @@
         if (data.session && data.user) {
           setAuthStatus('Sign up successful and logged in.');
           closeSignupModal();
-          await refreshAll();
         } else {
           setSignupStatus('Sign up successful. Check your email to confirm your account.');
           setAuthStatus('Sign up successful. Check your email to confirm your account.');
@@ -576,8 +575,7 @@
       if (error) {
         setAuthStatus(formatAuthError('Login', error));
       } else {
-        setAuthStatus('Logged in');
-        await refreshAll();
+        setAuthStatus('Logged in. Loading data...');
       }
     }
 
@@ -1362,20 +1360,31 @@
     });
 
     supabase.auth.onAuthStateChange(async (event, session) => {
+      const previousUserId = currentUser && currentUser.id ? String(currentUser.id) : null;
       currentUser = session ? session.user : null;
+      const currentUserId = currentUser && currentUser.id ? String(currentUser.id) : null;
       setSignedInState(currentUser);
       if (event === 'SIGNED_IN' && currentUser) {
         setAuthStatus('Logged in as ' + currentUser.email);
+        // Avoid expensive full reloads when the same signed-in user is re-emitted on tab/window activity.
+        if (currentUserId && currentUserId !== previousUserId) {
+          await refreshAll();
+        }
+        return;
       }
       if (event === 'SIGNED_OUT') {
         setAuthStatus('Logged out');
         renderEmptyLists();
+        return;
+      }
+      if (event === 'INITIAL_SESSION') {
+        if (currentUser) setAuthStatus('Logged in as ' + currentUser.email);
+        return;
       }
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         setDevInfo('Session refreshed.');
         return;
       }
-      await refreshAll();
     });
 
     // Refresh all lists
