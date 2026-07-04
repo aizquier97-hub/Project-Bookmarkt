@@ -526,7 +526,7 @@
     async function getCurrentUser() {
       const { data, error } = await withTimeout(
         supabase.auth.getSession(),
-        45000,
+        30000,
         'Session check timed out. Please try again.'
       );
       if (error) throw error;
@@ -1408,27 +1408,15 @@
             return;
           }
           setDevInfo(`Signed in as ${currentUser.email}`, false, true);
-          await withTimeout(
-            loadTopics(currentUser.id),
-            12000,
-            'Loading books timed out. Please refresh and try again.'
-          );
-          await withTimeout(
-            Promise.allSettled([
-              loadEntries(currentUser.id, selectedBookId),
-              loadCharacters(currentUser.id, selectedBookId),
-              loadBookImages(currentUser.id, selectedBookId)
-            ]),
-            15000,
-            'Loading book data timed out. Please refresh and try again.'
-          );
+          await loadTopics(currentUser.id);
+          await Promise.allSettled([
+            loadEntries(currentUser.id, selectedBookId),
+            loadCharacters(currentUser.id, selectedBookId),
+            loadBookImages(currentUser.id, selectedBookId)
+          ]);
           setDevInfo('Data loaded');
         } catch (e) {
           const message = e && e.message ? e.message : 'Unknown error';
-          if (/timed out/i.test(message)) {
-            setDevInfo('Data refresh is taking longer than expected. Your current data is still shown.', true);
-            return;
-          }
           if (/bearer token|unauthorized|jwt|refresh token/i.test(message)) {
             currentUser = null;
             setSignedInState(null);
@@ -1437,9 +1425,9 @@
             setDevInfo('Session expired. Please log in again.', true);
             return;
           }
-          setDevInfo('Data refresh error: ' + message, true);
+          // Keep current data visible on transient network/cache/device issues.
+          setDevInfo('Data refresh delayed: ' + message + '. Current data is still shown.', true);
           console.error('refreshAll error', e);
-          renderEmptyLists();
         } finally {
           setBusyState(false);
         }
