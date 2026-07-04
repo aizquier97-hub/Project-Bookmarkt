@@ -1475,16 +1475,34 @@
           } else {
             setDevInfo(`Signed in as ${currentUser.email}`, false, true);
           }
-          await loadTopics(currentUser.id);
-          setDevInfo('Books loaded. Loading book details...', false, true);
+          const topicsPromise = loadTopics(currentUser.id);
+          let topicsCompletedQuickly = true;
+          try {
+            await withTimeout(
+              topicsPromise,
+              8000,
+              'Loading books is taking longer than expected.'
+            );
+          } catch (topicsErr) {
+            topicsCompletedQuickly = false;
+            setDevInfo('Signed in. Syncing books in background...', false, true);
+          }
+
           const detailsPromise = Promise.allSettled([
             loadEntries(currentUser.id, selectedBookId),
             loadCharacters(currentUser.id, selectedBookId),
             loadBookImages(currentUser.id, selectedBookId)
           ]);
-          detailsPromise.then(() => {
+
+          if (topicsCompletedQuickly) {
+            setDevInfo('Books loaded. Loading book details...', false, true);
+            await detailsPromise;
             if (currentUser) setDevInfo('Data loaded');
-          });
+          } else {
+            Promise.allSettled([topicsPromise, detailsPromise]).then(() => {
+              if (currentUser) setDevInfo('Data loaded');
+            });
+          }
         } catch (e) {
           const message = e && e.message ? e.message : 'Unknown error';
           if (/bearer token|unauthorized|jwt|refresh token/i.test(message)) {
