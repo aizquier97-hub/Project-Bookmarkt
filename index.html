@@ -3,9 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>My Bookshelf App (V17 Improved)</title>
+  <title>Bookmarkt (dev)</title>
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 0; padding: 20px; background:#f6f7fb; color:#111; }
+    .auth-screen { min-height: calc(100vh - 40px); display:flex; align-items:center; justify-content:center; }
+    .auth-card { width:100%; max-width:460px; }
     .wrap { max-width:1100px; margin:0 auto; display:flex; gap:20px; }
     .col { background:#fff; padding:18px; border-radius:8px; box-shadow:0 6px 18px rgba(20,20,40,0.06); }
     .left { flex:1; }
@@ -14,21 +16,54 @@
     label { display:block; margin-top:10px; font-size:13px; color:#444; }
     input[type="text"], input[type="email"], input[type="password"], textarea {
       width:100%; padding:8px 10px; margin-top:6px; border:1px solid #e3e6ee; border-radius:6px; font-size:14px;
+      box-sizing: border-box;
     }
     button { margin-top:10px; padding:8px 12px; border-radius:6px; border:0; background:#2563eb; color:#fff; cursor:pointer; }
     button.secondary { background:#6b7280; }
+    button.danger { background:#dc2626; }
+    button.ghost { background:#eef2ff; color:#1e3a8a; border:1px solid #c7d2fe; }
+    button.small-btn { margin-top:0; padding:4px 8px; font-size:12px; border-radius:5px; }
     .list { margin-top:12px; }
     .item { padding:10px; border-bottom:1px solid #f0f2f7; }
+    .item.selectable { cursor:pointer; }
+    .item.selected { background:#eff6ff; border-radius:6px; }
+    .character-card { padding:14px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:10px; background:#fafafa; }
+    .character-name { margin:0 0 8px 0; font-size:20px; line-height:1.2; }
+    .character-section { margin-top:10px; }
+    .character-label { font-weight:600; color:#374151; margin-bottom:4px; }
+    .character-value { color:#111827; line-height:1.5; white-space:pre-wrap; }
+    .character-time { margin-top:10px; color:#6b7280; font-size:13px; }
     .muted { color:#6b7280; font-size:13px; }
+    .status-error { color:#dc2626; font-size:13px; }
+    .status-success { color:#15803d; font-size:13px; }
     .row { display:flex; gap:8px; align-items:center; }
     .small { font-size:13px; color:#374151; }
+    .between { justify-content:space-between; }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1000;
+    }
+    .modal {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      padding: 16px;
+    }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="col left">
-      <h1>My Bookshelf App (V17 Improved)</h1>
-
+  <div id="authScreen" class="auth-screen">
+    <div class="col auth-card">
+      <h1>Bookmarkt (dev)</h1>
       <section id="auth">
         <h2 class="small">Authentication</h2>
         <label>Email
@@ -40,19 +75,27 @@
         <div class="row">
           <button id="btnLogin">Log In</button>
           <button id="btnSignup" class="secondary">Sign Up</button>
-          <button id="btnLogout" class="secondary">Log Out</button>
         </div>
         <div id="authStatus" class="muted"></div>
       </section>
+    </div>
+  </div>
 
-      <hr />
+  <div id="appShell" class="wrap" style="display:none;">
+    <div class="col left">
+      <h1>Bookmarkt (dev)</h1>
+
+      <div class="row between">
+        <div class="muted" id="appUserStatus"></div>
+        <button id="btnLogout" class="secondary">Log Out</button>
+      </div>
 
       <section id="topicsSection">
-        <h2 class="small">Topics</h2>
-        <label>New topic name
-          <input id="newTopic" type="text" placeholder="e.g., Fantasy" />
+        <h2 class="small">Books</h2>
+        <label>Add book
+          <input id="newTopic" type="text" placeholder="e.g., Don Quixote" />
         </label>
-        <button id="btnAddTopic">Add Topic</button>
+        <button id="btnAddTopic">Add Book</button>
         <div id="topicsList" class="list"></div>
       </section>
 
@@ -60,16 +103,37 @@
 
       <section id="entriesSection">
         <h2 class="small">Entries</h2>
+        <div class="small" id="entriesForBook"><strong>Entries for book:</strong> None</div>
         <label>Write your entry...
           <textarea id="entryText" rows="4" placeholder="Write your entry..."></textarea>
         </label>
-        <button id="btnAddEntry">Add Entry</button>
+        <div class="row">
+          <button id="btnAddEntry">Add Entry</button>
+          <button id="btnClearEntries" class="danger">Clear Entries</button>
+        </div>
         <div id="entriesList" class="list"></div>
       </section>
     </div>
 
     <div class="col right">
       <h2 class="small">Character Map</h2>
+      <div class="small" id="characterMapFor"><strong>Character map for book:</strong> None</div>
+      <label>Character name
+        <input id="characterName" type="text" placeholder="e.g., Frodo Baggins" />
+      </label>
+      <label>Role in story
+        <input id="characterRole" type="text" placeholder="e.g., Main protagonist" />
+      </label>
+      <label>Character description
+        <textarea id="characterDescription" rows="3" placeholder="Role, traits, and relationships..."></textarea>
+      </label>
+      <label>Relationships
+        <textarea id="characterRelationships" rows="2" placeholder="e.g., Sam (best friend), Gandalf (mentor)"></textarea>
+      </label>
+      <div class="row">
+        <button id="btnAddCharacter">Add Character</button>
+        <button id="btnClearCharacterMap" class="danger">Clear Character Map</button>
+      </div>
       <div id="charactersList" class="list"></div>
 
       <hr />
@@ -81,15 +145,35 @@
     </div>
   </div>
 
-  <!-- IMPORTANT: ensure this file is the UMD bundle you saved locally at /js/supabase.js -->
-  <script src="/js/supabase.js"></script>
+  <div id="signupModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
+      <h2 id="signupTitle" class="small" style="font-size:18px; margin:0 0 10px 0;">Create account</h2>
+      <label>Email
+        <input id="signupEmail" type="email" placeholder="you@example.com" />
+      </label>
+      <label>Password
+        <input id="signupPassword" type="password" placeholder="password" />
+      </label>
+      <label>Confirm password
+        <input id="signupConfirmPassword" type="password" placeholder="confirm password" />
+      </label>
+      <div class="row">
+        <button id="btnSignupConfirm">Create account</button>
+        <button id="btnSignupCancel" class="secondary">Cancel</button>
+      </div>
+      <div id="signupStatus" class="muted"></div>
+    </div>
+  </div>
+
+  <!-- IMPORTANT: ensure this file points to your local UMD bundle -->
+  <script src="./supabase.js"></script>
 
   <script>
     // ======= CONFIGURE THIS =======
     // Replace the ANON_KEY placeholder below with your Supabase "anon public" key from:
     // Supabase Console -> Project -> Settings -> API -> anon public
     const SUPABASE_URL = "https://bfallxtcxxyykcnkedom.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_NzMdHQACfZknql5bcdcExQ_ZI2KllTqE";
+    const SUPABASE_ANON_KEY = "sb_publishable_NzMdHQACfZknql5bcdcExQ_ZI2KllTq";
     // ==============================
 
     // Create the client (UMD bundle exposes window.supabase)
@@ -102,31 +186,187 @@
     const btnSignup = document.getElementById('btnSignup');
     const btnLogout = document.getElementById('btnLogout');
     const authStatus = document.getElementById('authStatus');
+    const appUserStatus = document.getElementById('appUserStatus');
+    const authScreen = document.getElementById('authScreen');
+    const appShell = document.getElementById('appShell');
+    const signupModalBackdrop = document.getElementById('signupModalBackdrop');
+    const signupEmailEl = document.getElementById('signupEmail');
+    const signupPasswordEl = document.getElementById('signupPassword');
+    const signupConfirmPasswordEl = document.getElementById('signupConfirmPassword');
+    const signupStatusEl = document.getElementById('signupStatus');
+    const btnSignupConfirm = document.getElementById('btnSignupConfirm');
+    const btnSignupCancel = document.getElementById('btnSignupCancel');
 
     const newTopicEl = document.getElementById('newTopic');
     const btnAddTopic = document.getElementById('btnAddTopic');
     const topicsList = document.getElementById('topicsList');
+    const entriesForBookEl = document.getElementById('entriesForBook');
 
     const entryTextEl = document.getElementById('entryText');
     const btnAddEntry = document.getElementById('btnAddEntry');
+    const btnClearEntries = document.getElementById('btnClearEntries');
     const entriesList = document.getElementById('entriesList');
 
+    const characterNameEl = document.getElementById('characterName');
+    const characterRoleEl = document.getElementById('characterRole');
+    const characterDescriptionEl = document.getElementById('characterDescription');
+    const characterRelationshipsEl = document.getElementById('characterRelationships');
+    const btnAddCharacter = document.getElementById('btnAddCharacter');
+    const btnClearCharacterMap = document.getElementById('btnClearCharacterMap');
+    const characterMapForEl = document.getElementById('characterMapFor');
     const charactersList = document.getElementById('charactersList');
     const devInfo = document.getElementById('devInfo');
+    let currentUser = null;
+    let selectedBookId = null;
+    let loadedBooks = [];
+    let loadedEntries = [];
+    let loadedCharacters = [];
 
     // Utility: show dev info
     function setDevInfo(text) { devInfo.textContent = text; }
+    function setStatus(el, text) {
+      el.textContent = text;
+      if (!text) {
+        el.className = 'muted';
+        return;
+      }
+      if (text.toLowerCase().includes('error')) {
+        el.className = 'status-error';
+      } else {
+        el.className = 'status-success';
+      }
+    }
+    function setAuthStatus(text) { setStatus(authStatus, text); }
+    function setSignupStatus(text) { setStatus(signupStatusEl, text); }
+
+    function formatAuthError(actionLabel, error) {
+      const msg = (error && error.message ? error.message : '').toLowerCase();
+      if (
+        msg.includes('invalid login credentials') ||
+        msg.includes('invalid email or password') ||
+        msg.includes('email not confirmed') ||
+        msg.includes('user not found')
+      ) {
+        return `${actionLabel} error: Invalid email or password, or account does not exist.`;
+      }
+      return `${actionLabel} error: ${error.message}`;
+    }
+
+    function openSignupModal() {
+      signupEmailEl.value = emailEl.value.trim();
+      signupPasswordEl.value = '';
+      signupConfirmPasswordEl.value = '';
+      setSignupStatus('');
+      signupModalBackdrop.classList.remove('hidden');
+      signupModalBackdrop.setAttribute('aria-hidden', 'false');
+      signupEmailEl.focus();
+    }
+
+    function closeSignupModal() {
+      signupModalBackdrop.classList.add('hidden');
+      signupModalBackdrop.setAttribute('aria-hidden', 'true');
+      setSignupStatus('');
+    }
+
+    function setSignedInState(user) {
+      const isSignedIn = !!user;
+      authScreen.style.display = isSignedIn ? 'none' : 'flex';
+      appShell.style.display = isSignedIn ? 'flex' : 'none';
+      if (isSignedIn) closeSignupModal();
+
+      btnLogin.disabled = isSignedIn;
+      btnSignup.disabled = isSignedIn;
+      btnLogout.disabled = !isSignedIn;
+      appUserStatus.textContent = isSignedIn ? `Signed in as ${user.email}` : '';
+
+      newTopicEl.disabled = !isSignedIn;
+      btnAddTopic.disabled = !isSignedIn;
+      syncBookScopedControlState();
+    }
+
+    function syncBookScopedControlState() {
+      const hasSelectedBook = !!currentUser && !!selectedBookId;
+      entryTextEl.disabled = !hasSelectedBook;
+      btnAddEntry.disabled = !hasSelectedBook;
+      btnClearEntries.disabled = !hasSelectedBook;
+      characterNameEl.disabled = !hasSelectedBook;
+      characterRoleEl.disabled = !hasSelectedBook;
+      characterDescriptionEl.disabled = !hasSelectedBook;
+      characterRelationshipsEl.disabled = !hasSelectedBook;
+      btnAddCharacter.disabled = !hasSelectedBook;
+      btnClearCharacterMap.disabled = !hasSelectedBook;
+    }
+
+    function getSelectedBookName() {
+      if (!selectedBookId) return 'None';
+      const selectedBook = loadedBooks.find(b => String(b.id) === String(selectedBookId));
+      return selectedBook ? selectedBook.name : 'None';
+    }
+
+    function updateBookScopedLabels() {
+      const bookName = getSelectedBookName();
+      entriesForBookEl.innerHTML = `<strong>Entries for book:</strong> ${escapeHtml(bookName)}`;
+      characterMapForEl.innerHTML = `<strong>Character map for book:</strong> ${escapeHtml(bookName)}`;
+    }
+
+    function clearCharacterMapForm() {
+      characterNameEl.value = '';
+      characterRoleEl.value = '';
+      characterDescriptionEl.value = '';
+      characterRelationshipsEl.value = '';
+      updateBookScopedLabels();
+    }
+
+    async function selectBook(bookId) {
+      if (!currentUser) return;
+      selectedBookId = String(bookId);
+      renderTopics(loadedBooks);
+      updateBookScopedLabels();
+      syncBookScopedControlState();
+      await Promise.allSettled([
+        loadEntries(currentUser.id, selectedBookId),
+        loadCharacters(currentUser.id, selectedBookId)
+      ]);
+    }
+
+    async function getCurrentUser() {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return data.user;
+    }
+
+    function requireCurrentUser() {
+      if (!currentUser) {
+        alert('Please log in first.');
+        return null;
+      }
+      return currentUser;
+    }
 
     // ======= Auth handlers =======
     async function signUp() {
-      const email = emailEl.value.trim();
-      const password = passwordEl.value;
+      const email = signupEmailEl.value.trim();
+      const password = signupPasswordEl.value;
+      const confirmPassword = signupConfirmPasswordEl.value;
       if (!email || !password) return alert('Provide email and password');
+      if (password !== confirmPassword) {
+        setSignupStatus('Sign up error: Password and confirm password must match.');
+        return;
+      }
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
-        authStatus.textContent = 'Sign up error: ' + error.message;
+        const errMsg = formatAuthError('Sign up', error);
+        setSignupStatus(errMsg);
+        setAuthStatus(errMsg);
       } else {
-        authStatus.textContent = 'Sign up successful. Check your email to confirm.';
+        if (data.session && data.user) {
+          setAuthStatus('Sign up successful and logged in.');
+          closeSignupModal();
+          await refreshAll();
+        } else {
+          setSignupStatus('Sign up successful. Check your email to confirm your account.');
+          setAuthStatus('Sign up successful. Check your email to confirm your account.');
+        }
       }
     }
 
@@ -134,89 +374,339 @@
       const email = emailEl.value.trim();
       const password = passwordEl.value;
       if (!email || !password) return alert('Provide email and password');
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        authStatus.textContent = 'Login error: ' + error.message;
+        setAuthStatus(formatAuthError('Login', error));
       } else {
-        authStatus.textContent = 'Logged in';
+        setAuthStatus('Logged in');
         await refreshAll();
       }
     }
 
     async function signOut() {
-      await supabase.auth.signOut();
-      authStatus.textContent = 'Logged out';
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        setAuthStatus('Logout error: ' + error.message);
+        return;
+      }
+      currentUser = null;
+      setSignedInState(null);
+      setAuthStatus('Logged out');
       renderEmptyLists();
     }
 
     // ======= Data operations =======
-    async function loadTopics() {
+    async function loadTopics(userId) {
       try {
-        const res = await supabase.from('topics').select('*').order('created_at', { ascending: false });
+        const res = await supabase
+          .from('topics')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
         if (res.error) throw res.error;
-        renderTopics(res.data || []);
+        loadedBooks = res.data || [];
+        if (!loadedBooks.length) {
+          selectedBookId = null;
+        } else if (!selectedBookId || !loadedBooks.some(b => String(b.id) === String(selectedBookId))) {
+          selectedBookId = String(loadedBooks[0].id);
+        }
+        renderTopics(loadedBooks);
+        updateBookScopedLabels();
+        syncBookScopedControlState();
       } catch (err) {
         console.error('loadTopics error', err);
-        topicsList.innerHTML = '<div class="item">Error loading topics.</div>';
+        topicsList.innerHTML = '<div class="item">Error loading books.</div>';
       }
     }
 
-    async function loadEntries() {
+    async function loadEntries(userId, bookId) {
+      if (!bookId) {
+        entriesList.innerHTML = '<div class="item muted">Select a book to view entries.</div>';
+        loadedEntries = [];
+        return;
+      }
       try {
-        const res = await supabase.from('entries').select('*').order('created_at', { ascending: false });
+        const res = await supabase
+          .from('entries')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('topic_id', bookId)
+          .order('created_at', { ascending: false });
         if (res.error) throw res.error;
-        renderEntries(res.data || []);
+        loadedEntries = res.data || [];
+        renderEntries(loadedEntries);
       } catch (err) {
         console.error('loadEntries error', err);
-        entriesList.innerHTML = '<div class="item">Error loading entries.</div>';
+        entriesList.innerHTML = '<div class="item">Error loading entries. Ensure entries.topic_id exists in Supabase.</div>';
       }
     }
 
-    async function loadCharacters() {
+    async function loadCharacters(userId, bookId) {
+      if (!bookId) {
+        charactersList.innerHTML = '<div class="item muted">Select a book to view character maps.</div>';
+        loadedCharacters = [];
+        return;
+      }
       try {
-        const res = await supabase.from('characters').select('*').order('created_at', { ascending: false });
+        const res = await supabase
+          .from('characters')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('topic_id', bookId)
+          .order('created_at', { ascending: false });
         if (res.error) throw res.error;
-        renderCharacters(res.data || []);
+        loadedCharacters = res.data || [];
+        renderCharacters(loadedCharacters);
       } catch (err) {
         console.error('loadCharacters error', err);
-        charactersList.innerHTML = '<div class="item">Error loading characters.</div>';
+        charactersList.innerHTML = '<div class="item">Error loading characters. Ensure characters.topic_id exists in Supabase.</div>';
       }
     }
 
     async function addTopic() {
+      const user = requireCurrentUser();
+      if (!user) return;
       const name = newTopicEl.value.trim();
-      if (!name) return alert('Enter a topic name');
-      const payload = { name };
-      // If you later add user_id, include it here
-      const { data, error } = await supabase.from('topics').insert([payload]);
+      if (!name) return alert('Enter a book name');
+      const payload = { name, user_id: user.id };
+      const { data, error } = await supabase.from('topics').insert([payload]).select().single();
       if (error) {
-        alert('Add topic error: ' + error.message);
+        alert('Add book error: ' + error.message);
       } else {
         newTopicEl.value = '';
-        await loadTopics();
+        if (data && data.id) selectedBookId = String(data.id);
+        await loadTopics(user.id);
+        await Promise.allSettled([
+          loadEntries(user.id, selectedBookId),
+          loadCharacters(user.id, selectedBookId)
+        ]);
       }
     }
 
     async function addEntry() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!selectedBookId) return alert('Add and select a book first.');
       const text = entryTextEl.value.trim();
       if (!text) return alert('Write something first');
-      const payload = { text };
-      const { data, error } = await supabase.from('entries').insert([payload]);
+      const payload = { text, user_id: user.id, topic_id: selectedBookId };
+      const { error } = await supabase.from('entries').insert([payload]);
       if (error) {
         alert('Add entry error: ' + error.message);
       } else {
         entryTextEl.value = '';
-        await loadEntries();
+        await loadEntries(user.id, selectedBookId);
+      }
+    }
+
+    async function clearEntries() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!selectedBookId) return alert('Select a book first.');
+      if (!confirm('Clear all entries for this selected book?')) return;
+      const { error } = await supabase
+        .from('entries')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId);
+      if (error) {
+        alert('Clear entries error: ' + error.message);
+      } else {
+        await loadEntries(user.id, selectedBookId);
+      }
+    }
+
+    async function addCharacter() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!selectedBookId) return alert('Add and select a book first.');
+      const name = characterNameEl.value.trim();
+      const role = characterRoleEl.value.trim();
+      const description = characterDescriptionEl.value.trim();
+      const relationships = characterRelationshipsEl.value.trim();
+      if (!name) return alert('Enter a character name');
+
+      // Store extended map fields in the existing "description" column to keep schema compatibility.
+      const descriptionParts = [];
+      if (role) descriptionParts.push(`Role: ${role}`);
+      if (description) descriptionParts.push(`Description: ${description}`);
+      if (relationships) descriptionParts.push(`Relationships: ${relationships}`);
+      const mergedDescription = descriptionParts.join('\n');
+
+      const payload = { name, description: mergedDescription, user_id: user.id, topic_id: selectedBookId };
+      const { error } = await supabase.from('characters').insert([payload]);
+      if (error) {
+        alert('Add character error: ' + error.message);
+      } else {
+        clearCharacterMapForm();
+        await loadCharacters(user.id, selectedBookId);
+      }
+    }
+
+    async function editEntry(entryId) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      const existing = loadedEntries.find(e => String(e.id) === String(entryId));
+      if (!existing) return;
+      const nextText = prompt('Edit entry:', existing.text || '');
+      if (nextText === null) return;
+      const trimmed = nextText.trim();
+      if (!trimmed) return alert('Entry text cannot be empty.');
+      const { error } = await supabase
+        .from('entries')
+        .update({ text: trimmed, updated_at: new Date().toISOString() })
+        .eq('id', entryId)
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId);
+      if (error) {
+        const { error: fallbackError } = await supabase
+          .from('entries')
+          .update({ text: trimmed })
+          .eq('id', entryId)
+          .eq('user_id', user.id)
+          .eq('topic_id', selectedBookId);
+        if (fallbackError) {
+          alert('Edit entry error: ' + fallbackError.message);
+          return;
+        }
+      }
+      await loadEntries(user.id, selectedBookId);
+    }
+
+    async function deleteEntry(entryId) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!confirm('Delete this entry?')) return;
+      const { error } = await supabase
+        .from('entries')
+        .delete()
+        .eq('id', entryId)
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId);
+      if (error) {
+        alert('Delete entry error: ' + error.message);
+      } else {
+        await loadEntries(user.id, selectedBookId);
+      }
+    }
+
+    function mergeCharacterDescription(role, description, relationships) {
+      const descriptionParts = [];
+      if (role) descriptionParts.push(`Role: ${role}`);
+      if (description) descriptionParts.push(`Description: ${description}`);
+      if (relationships) descriptionParts.push(`Relationships: ${relationships}`);
+      return descriptionParts.join('\n');
+    }
+
+    async function editCharacter(characterId) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      const existing = loadedCharacters.find(c => String(c.id) === String(characterId));
+      if (!existing) return;
+      const details = parseCharacterDescription(existing.description || '');
+      const nextName = prompt('Edit character name:', existing.name || '');
+      if (nextName === null) return;
+      const trimmedName = nextName.trim();
+      if (!trimmedName) return alert('Character name cannot be empty.');
+      const nextRole = prompt('Edit role:', details.role || '');
+      if (nextRole === null) return;
+      const nextDescription = prompt('Edit description:', details.description || '');
+      if (nextDescription === null) return;
+      const nextRelationships = prompt('Edit relationships:', details.relationships || '');
+      if (nextRelationships === null) return;
+
+      const mergedDescription = mergeCharacterDescription(
+        nextRole.trim(),
+        nextDescription.trim(),
+        nextRelationships.trim()
+      );
+
+      const { error } = await supabase
+        .from('characters')
+        .update({ name: trimmedName, description: mergedDescription, updated_at: new Date().toISOString() })
+        .eq('id', characterId)
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId);
+      if (error) {
+        const { error: fallbackError } = await supabase
+          .from('characters')
+          .update({ name: trimmedName, description: mergedDescription })
+          .eq('id', characterId)
+          .eq('user_id', user.id)
+          .eq('topic_id', selectedBookId);
+        if (fallbackError) {
+          alert('Edit character error: ' + fallbackError.message);
+          return;
+        }
+      }
+      await loadCharacters(user.id, selectedBookId);
+    }
+
+    async function deleteCharacter(characterId) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!confirm('Delete this character map entry?')) return;
+      const { error } = await supabase
+        .from('characters')
+        .delete()
+        .eq('id', characterId)
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId);
+      if (error) {
+        alert('Delete character error: ' + error.message);
+      } else {
+        await loadCharacters(user.id, selectedBookId);
       }
     }
 
     // ======= Render helpers =======
+    function formatTimestamp(value) {
+      if (!value) return 'No date';
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? 'Invalid date' : d.toLocaleString();
+    }
+
+    function formatRecordTimestamp(record) {
+      const created = formatTimestamp(record.created_at);
+      const hasUpdatedAt = !!record.updated_at;
+      if (!hasUpdatedAt) return created;
+      const createdMs = record.created_at ? new Date(record.created_at).getTime() : 0;
+      const updatedMs = record.updated_at ? new Date(record.updated_at).getTime() : 0;
+      const edited = Number.isFinite(createdMs) && Number.isFinite(updatedMs) && updatedMs - createdMs > 1000;
+      return edited ? `${created} (edited)` : created;
+    }
+
+    function parseCharacterDescription(description) {
+      const parsed = { role: '', description: '', relationships: '' };
+      const text = description || '';
+      const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+      for (const line of lines) {
+        if (line.startsWith('Role:')) {
+          parsed.role = line.substring(5).trim();
+        } else if (line.startsWith('Description:')) {
+          parsed.description = line.substring(12).trim();
+        } else if (line.startsWith('Relationships:')) {
+          parsed.relationships = line.substring(14).trim();
+        }
+      }
+      if (!parsed.role && !parsed.description && !parsed.relationships) {
+        parsed.description = text.trim();
+      }
+      return parsed;
+    }
+
     function renderTopics(items) {
       if (!items.length) {
-        topicsList.innerHTML = '<div class="item muted">No topics yet.</div>';
+        topicsList.innerHTML = '<div class="item muted">No books yet.</div>';
         return;
       }
-      topicsList.innerHTML = items.map(t => `<div class="item"><strong>${escapeHtml(t.name)}</strong><div class="muted">${new Date(t.created_at).toLocaleString()}</div></div>`).join('');
+      topicsList.innerHTML = items
+        .map(t => {
+          const isSelected = String(t.id) === String(selectedBookId);
+          const selectedClass = isSelected ? ' selected' : '';
+          return `<div class="item selectable${selectedClass}" data-book-id="${t.id}"><strong>${escapeHtml(t.name)}</strong><div class="muted">${formatTimestamp(t.created_at)}</div></div>`;
+        })
+        .join('');
     }
 
     function renderEntries(items) {
@@ -224,7 +714,9 @@
         entriesList.innerHTML = '<div class="item muted">No entries yet.</div>';
         return;
       }
-      entriesList.innerHTML = items.map(e => `<div class="item"><div>${escapeHtml(e.text)}</div><div class="muted">${new Date(e.created_at).toLocaleString()}</div></div>`).join('');
+      entriesList.innerHTML = items
+        .map(e => `<div class="item"><div>${escapeHtml(e.text)}</div><div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-entry-action="edit" data-entry-id="${e.id}">Edit</button><button class="small-btn danger" data-entry-action="delete" data-entry-id="${e.id}">Delete</button></div><div class="muted" style="margin-top:6px;">${formatRecordTimestamp(e)}</div></div>`)
+        .join('');
     }
 
     function renderCharacters(items) {
@@ -232,13 +724,33 @@
         charactersList.innerHTML = '<div class="item muted">No characters yet.</div>';
         return;
       }
-      charactersList.innerHTML = items.map(c => `<div class="item"><strong>${escapeHtml(c.name)}</strong><div>${escapeHtml(c.description)}</div></div>`).join('');
+      charactersList.innerHTML = items
+        .map(c => {
+          const details = parseCharacterDescription(c.description || '');
+          const roleHtml = details.role
+            ? `<div class="character-section"><div class="character-label">Role</div><div class="character-value">${escapeHtml(details.role)}</div></div>`
+            : '';
+          const descriptionHtml = details.description
+            ? `<div class="character-section"><div class="character-label">Description</div><div class="character-value">${escapeHtml(details.description)}</div></div>`
+            : '';
+          const relationshipsHtml = details.relationships
+            ? `<div class="character-section"><div class="character-label">Relationships</div><div class="character-value">${escapeHtml(details.relationships)}</div></div>`
+            : '';
+          return `<div class="character-card"><h3 class="character-name">${escapeHtml(c.name)}</h3>${roleHtml}${descriptionHtml}${relationshipsHtml}<div class="row" style="margin-top:10px;"><button class="small-btn ghost" data-character-action="edit" data-character-id="${c.id}">Edit</button><button class="small-btn danger" data-character-action="delete" data-character-id="${c.id}">Delete</button></div><div class="character-time">${formatRecordTimestamp(c)}</div></div>`;
+        })
+        .join('');
     }
 
     function renderEmptyLists() {
       topicsList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       entriesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       charactersList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      selectedBookId = null;
+      loadedBooks = [];
+      loadedEntries = [];
+      loadedCharacters = [];
+      updateBookScopedLabels();
+      syncBookScopedControlState();
     }
 
     // Simple HTML escape
@@ -250,33 +762,106 @@
     }
 
     // ======= Init / event wiring =======
-    btnSignup.addEventListener('click', signUp);
+    btnSignup.addEventListener('click', openSignupModal);
     btnLogin.addEventListener('click', signIn);
     btnLogout.addEventListener('click', signOut);
     btnAddTopic.addEventListener('click', addTopic);
     btnAddEntry.addEventListener('click', addEntry);
+    btnClearEntries.addEventListener('click', clearEntries);
+    btnAddCharacter.addEventListener('click', addCharacter);
+    btnClearCharacterMap.addEventListener('click', clearCharacterMapForm);
+    topicsList.addEventListener('click', async (event) => {
+      const item = event.target.closest('[data-book-id]');
+      if (!item) return;
+      await selectBook(item.getAttribute('data-book-id'));
+    });
+    entriesList.addEventListener('click', async (event) => {
+      const btn = event.target.closest('[data-entry-action]');
+      if (!btn) return;
+      const action = btn.getAttribute('data-entry-action');
+      const entryId = btn.getAttribute('data-entry-id');
+      if (action === 'edit') await editEntry(entryId);
+      if (action === 'delete') await deleteEntry(entryId);
+    });
+    charactersList.addEventListener('click', async (event) => {
+      const btn = event.target.closest('[data-character-action]');
+      if (!btn) return;
+      const action = btn.getAttribute('data-character-action');
+      const characterId = btn.getAttribute('data-character-id');
+      if (action === 'edit') await editCharacter(characterId);
+      if (action === 'delete') await deleteCharacter(characterId);
+    });
+    btnSignupConfirm.addEventListener('click', signUp);
+    btnSignupCancel.addEventListener('click', closeSignupModal);
+    const loginOnEnter = async (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        await signIn();
+      }
+    };
+    emailEl.addEventListener('keydown', loginOnEnter);
+    passwordEl.addEventListener('keydown', loginOnEnter);
+    signupModalBackdrop.addEventListener('click', (event) => {
+      if (event.target === signupModalBackdrop) closeSignupModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !signupModalBackdrop.classList.contains('hidden')) {
+        closeSignupModal();
+      }
+    });
+
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      currentUser = session ? session.user : null;
+      setSignedInState(currentUser);
+      if (event === 'SIGNED_IN' && currentUser) {
+        setAuthStatus('Logged in as ' + currentUser.email);
+      }
+      if (event === 'SIGNED_OUT') {
+        setAuthStatus('Logged out');
+        renderEmptyLists();
+      }
+      await refreshAll();
+    });
 
     // Refresh all lists
     async function refreshAll() {
-      setDevInfo('Checking client and fetching data...');
       try {
-        const user = (await supabase.auth.getUser()).data.user;
-        setDevInfo(user ? `Signed in as ${user.email}` : 'Not signed in (anon)');
+        setDevInfo('Checking client and fetching data...');
+        const user = await getCurrentUser();
+        currentUser = user;
+        setSignedInState(currentUser);
+        if (!currentUser) {
+          setDevInfo('Not signed in');
+          renderEmptyLists();
+          return;
+        }
+        setDevInfo(`Signed in as ${currentUser.email}`);
+        await loadTopics(currentUser.id);
+        await Promise.allSettled([
+          loadEntries(currentUser.id, selectedBookId),
+          loadCharacters(currentUser.id, selectedBookId)
+        ]);
+        setDevInfo('Data loaded');
       } catch (e) {
         setDevInfo('Auth check failed');
+        console.error('refreshAll error', e);
+        renderEmptyLists();
       }
-      await Promise.allSettled([loadTopics(), loadEntries(), loadCharacters()]);
-      setDevInfo('Data loaded');
     }
 
     // On load: quick client check and initial fetch
     (async function init() {
       try {
         setDevInfo('Initializing...');
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+          throw new Error('Supabase client bundle not loaded. Check ./supabase.js path.');
+        }
         // Basic client sanity check
         console.log('supabase present?', !!window.supabase);
-        console.log('createClient type:', typeof window.supabase?.createClient);
+        console.log('createClient type:', typeof window.supabase.createClient);
         // Attempt to fetch entries (will show errors in console if network/policies block)
+        setSignedInState(null);
+        updateBookScopedLabels();
         await refreshAll();
       } catch (err) {
         console.error('init error', err);
