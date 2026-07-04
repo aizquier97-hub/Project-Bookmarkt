@@ -304,6 +304,8 @@
     let isBusy = false;
     let refreshAllPromise = null;
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
+    const CACHE_KEY_PREFIX = 'bookmarkt-cache-';
+    const CACHE_TTL_MS = 5 * 60 * 1000;
 
     // Utility: show dev info
     function setDevInfo(text, isError, busy) {
@@ -444,6 +446,32 @@
       if (!currentUser || !currentUser.id) return null;
       return `${SELECTED_BOOK_KEY_PREFIX}${currentUser.id}`;
     }
+    function getCacheStorageKey(kind, userId, bookId) {
+      const safeBookId = bookId ? String(bookId) : 'none';
+      return `${CACHE_KEY_PREFIX}${kind}-${userId}-${safeBookId}`;
+    }
+    function writeCache(kind, userId, data, bookId) {
+      if (!userId) return;
+      try {
+        const key = getCacheStorageKey(kind, userId, bookId);
+        const payload = { ts: Date.now(), data };
+        localStorage.setItem(key, JSON.stringify(payload));
+      } catch (_) {}
+    }
+    function readCache(kind, userId, bookId) {
+      if (!userId) return null;
+      try {
+        const key = getCacheStorageKey(kind, userId, bookId);
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.ts || !Array.isArray(parsed.data)) return null;
+        if (Date.now() - parsed.ts > CACHE_TTL_MS) return null;
+        return parsed.data;
+      } catch (_) {
+        return null;
+      }
+    }
 
     function persistSelectedBook() {
       const key = getSelectedBookStorageKey();
@@ -526,7 +554,7 @@
     async function getCurrentUser() {
       const { data, error } = await withTimeout(
         supabase.auth.getSession(),
-        20000,
+        30000,
         'Session check timed out. Please try again.'
       );
       if (error) throw error;
@@ -638,11 +666,12 @@
       try {
         const res = await supabase
           .from('topics')
-          .select('*')
+          .select('id,name,created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
         loadedBooks = res.data || [];
+        writeCache('topics', userId, loadedBooks);
         const restoredBookId = restoreSelectedBook();
         if (!loadedBooks.length) {
           selectedBookId = null;
@@ -670,12 +699,13 @@
       try {
         const res = await supabase
           .from('entries')
-          .select('*')
+          .select('id,text,created_at,updated_at')
           .eq('user_id', userId)
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
         loadedEntries = res.data || [];
+        writeCache('entries', userId, loadedEntries, bookId);
         renderEntries(loadedEntries);
       } catch (err) {
         console.error('loadEntries error', err);
@@ -692,12 +722,13 @@
       try {
         const res = await supabase
           .from('characters')
-          .select('*')
+          .select('id,name,description,created_at,updated_at')
           .eq('user_id', userId)
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
         loadedCharacters = res.data || [];
+        writeCache('characters', userId, loadedCharacters, bookId);
         renderCharacters(loadedCharacters);
       } catch (err) {
         console.error('loadCharacters error', err);
@@ -715,12 +746,13 @@
       try {
         const res = await supabase
           .from('book_images')
-          .select('*')
+          .select('id,image_url,caption,created_at,updated_at')
           .eq('user_id', userId)
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
         loadedBookImages = res.data || [];
+        writeCache('images', userId, loadedBookImages, bookId);
         renderBookImages(loadedBookImages);
       } catch (err) {
         console.error('loadBookImages error', err);
@@ -1368,7 +1400,7 @@
         setAuthStatus('Logged in as ' + currentUser.email);
         // Avoid expensive full reloads when the same signed-in user is re-emitted on tab/window activity.
         if (currentUserId && currentUserId !== previousUserId) {
-          await refreshAll();
+          await refreshAll(currentUser);
         }
         return;
       }
@@ -1378,7 +1410,13 @@
         return;
       }
       if (event === 'INITIAL_SESSION') {
-        if (currentUser) setAuthStatus('Logged in as ' + currentUser.email);
+        if (currentUser) {
+          setAuthStatus('Logged in as ' + currentUser.email);
+          await refreshAll(currentUser);
+        } else {
+          setDevInfo('Not signed in');
+          renderEmptyLists();
+        }
         return;
       }
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
@@ -1388,12 +1426,12 @@
     });
 
     // Refresh all lists
-    async function refreshAll() {
+    async function refreshAll(preloadedUser) {
       if (refreshAllPromise) return refreshAllPromise;
       refreshAllPromise = (async () => {
         setBusyState(true, 'Checking client and fetching data...');
         try {
-          const user = await getCurrentUser();
+          const user = preloadedUser || await getCurrentUser();
           currentUser = user;
           setSignedInState(currentUser);
           if (!currentUser) {
@@ -1401,28 +1439,54 @@
             renderEmptyLists();
             return;
           }
-          setDevInfo(`Signed in as ${currentUser.email}`, false, true);
-          await withTimeout(
-            loadTopics(currentUser.id),
-            12000,
-            'Loading books timed out. Please refresh and try again.'
-          );
-          await withTimeout(
-            Promise.allSettled([
-              loadEntries(currentUser.id, selectedBookId),
-              loadCharacters(currentUser.id, selectedBookId),
-              loadBookImages(currentUser.id, selectedBookId)
-            ]),
-            15000,
-            'Loading book data timed out. Please refresh and try again.'
-          );
-          setDevInfo('Data loaded');
+          const cachedBooks = readCache('topics', currentUser.id);
+          if (cachedBooks && cachedBooks.length) {
+            loadedBooks = cachedBooks;
+            const restoredBookId = restoreSelectedBook();
+            if (!selectedBookId || !loadedBooks.some(b => String(b.id) === String(selectedBookId))) {
+              if (restoredBookId && loadedBooks.some(b => String(b.id) === String(restoredBookId))) {
+                selectedBookId = String(restoredBookId);
+              } else {
+                selectedBookId = String(loadedBooks[0].id);
+              }
+            }
+            persistSelectedBook();
+            renderTopics(loadedBooks);
+            updateBookScopedLabels();
+            syncBookScopedControlState();
+            if (selectedBookId) {
+              const cachedEntries = readCache('entries', currentUser.id, selectedBookId);
+              const cachedCharacters = readCache('characters', currentUser.id, selectedBookId);
+              const cachedImages = readCache('images', currentUser.id, selectedBookId);
+              if (cachedEntries) {
+                loadedEntries = cachedEntries;
+                renderEntries(loadedEntries);
+              }
+              if (cachedCharacters) {
+                loadedCharacters = cachedCharacters;
+                renderCharacters(loadedCharacters);
+              }
+              if (cachedImages) {
+                loadedBookImages = cachedImages;
+                renderBookImages(loadedBookImages);
+              }
+            }
+            setDevInfo(`Signed in as ${currentUser.email}. Showing cached data, syncing...`, false, true);
+          } else {
+            setDevInfo(`Signed in as ${currentUser.email}`, false, true);
+          }
+          await loadTopics(currentUser.id);
+          setDevInfo('Books loaded. Loading book details...', false, true);
+          const detailsPromise = Promise.allSettled([
+            loadEntries(currentUser.id, selectedBookId),
+            loadCharacters(currentUser.id, selectedBookId),
+            loadBookImages(currentUser.id, selectedBookId)
+          ]);
+          detailsPromise.then(() => {
+            if (currentUser) setDevInfo('Data loaded');
+          });
         } catch (e) {
           const message = e && e.message ? e.message : 'Unknown error';
-          if (/timed out/i.test(message)) {
-            setDevInfo('Data refresh is taking longer than expected. Your current data is still shown.', true);
-            return;
-          }
           if (/bearer token|unauthorized|jwt|refresh token/i.test(message)) {
             currentUser = null;
             setSignedInState(null);
@@ -1431,9 +1495,9 @@
             setDevInfo('Session expired. Please log in again.', true);
             return;
           }
-          setDevInfo('Data refresh error: ' + message, true);
+          // Keep current data visible on transient network/cache/device issues.
+          setDevInfo('Data refresh delayed: ' + message + '. Current data is still shown.', true);
           console.error('refreshAll error', e);
-          renderEmptyLists();
         } finally {
           setBusyState(false);
         }
@@ -1459,7 +1523,7 @@
         setSignedInState(null);
         updateBookScopedLabels();
         setPendingImagesInfo('No image files selected.');
-        await refreshAll();
+        setDevInfo('Waiting for session state...');
       } catch (err) {
         console.error('init error', err);
         setDevInfo('Initialization error. See console.', true);
