@@ -543,14 +543,27 @@
     }
 
     async function signOut() {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        setAuthStatus('Logout error: ' + error.message);
-        return;
+      let primaryError = null;
+      const primaryRes = await supabase.auth.signOut();
+      if (primaryRes.error) {
+        primaryError = primaryRes.error;
+        // Fallback: clear only local session so user can still leave the account UI.
+        const localRes = await supabase.auth.signOut({ scope: 'local' });
+        if (localRes.error) {
+          setAuthStatus('Logout error: ' + localRes.error.message);
+          setDevInfo('Logout error: ' + localRes.error.message, true);
+          return;
+        }
       }
       currentUser = null;
       setSignedInState(null);
-      setAuthStatus('Logged out');
+      if (primaryError) {
+        setAuthStatus('Logged out (local session cleared).');
+        setDevInfo('Logged out with local fallback. Global logout had an error: ' + primaryError.message, true);
+      } else {
+        setAuthStatus('Logged out');
+        setDevInfo('Logged out.');
+      }
       renderEmptyLists();
     }
 
