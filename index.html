@@ -526,7 +526,7 @@
     async function getCurrentUser() {
       const { data, error } = await withTimeout(
         supabase.auth.getSession(),
-        20000,
+        45000,
         'Session check timed out. Please try again.'
       );
       if (error) throw error;
@@ -1368,7 +1368,7 @@
         setAuthStatus('Logged in as ' + currentUser.email);
         // Avoid expensive full reloads when the same signed-in user is re-emitted on tab/window activity.
         if (currentUserId && currentUserId !== previousUserId) {
-          await refreshAll();
+          await refreshAll(currentUser);
         }
         return;
       }
@@ -1378,7 +1378,13 @@
         return;
       }
       if (event === 'INITIAL_SESSION') {
-        if (currentUser) setAuthStatus('Logged in as ' + currentUser.email);
+        if (currentUser) {
+          setAuthStatus('Logged in as ' + currentUser.email);
+          await refreshAll(currentUser);
+        } else {
+          setDevInfo('Not signed in');
+          renderEmptyLists();
+        }
         return;
       }
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
@@ -1388,12 +1394,12 @@
     });
 
     // Refresh all lists
-    async function refreshAll() {
+    async function refreshAll(preloadedUser) {
       if (refreshAllPromise) return refreshAllPromise;
       refreshAllPromise = (async () => {
         setBusyState(true, 'Checking client and fetching data...');
         try {
-          const user = await getCurrentUser();
+          const user = preloadedUser || await getCurrentUser();
           currentUser = user;
           setSignedInState(currentUser);
           if (!currentUser) {
@@ -1459,7 +1465,7 @@
         setSignedInState(null);
         updateBookScopedLabels();
         setPendingImagesInfo('No image files selected.');
-        await refreshAll();
+        setDevInfo('Waiting for session state...');
       } catch (err) {
         console.error('init error', err);
         setDevInfo('Initialization error. See console.', true);
