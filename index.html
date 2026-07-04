@@ -353,6 +353,17 @@
       }
       return `${actionLabel} error: ${error.message}`;
     }
+    function isRecoverableLogoutError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      return (
+        message.includes('session from session_id claim in jwt does not exist') ||
+        message.includes('session does not exist') ||
+        message.includes('session not found') ||
+        message.includes('invalid refresh token') ||
+        message.includes('refresh token not found') ||
+        message.includes('jwt expired')
+      );
+    }
 
     async function withTimeout(promise, timeoutMs, timeoutMessage) {
       let timerId = null;
@@ -581,29 +592,42 @@
           'Logout timed out. Please check your connection and try again.'
         );
       } catch (err) {
-        setAuthStatus('Logout error: ' + err.message);
-        setDevInfo('Logout error: ' + err.message, true);
-        return;
-      }
-      if (primaryRes.error) {
-        primaryError = primaryRes.error;
-        // Fallback: clear only local session so user can still leave the account UI.
-        const localRes = await withTimeout(
-          supabase.auth.signOut({ scope: 'local' }),
-          8000,
-          'Local logout fallback timed out.'
-        );
-        if (localRes.error) {
-          setAuthStatus('Logout error: ' + localRes.error.message);
-          setDevInfo('Logout error: ' + localRes.error.message, true);
+        if (!isRecoverableLogoutError(err)) {
+          setAuthStatus('Logout error: ' + err.message);
+          setDevInfo('Logout error: ' + err.message, true);
           return;
+        }
+        primaryError = err;
+      }
+      if (!primaryError && primaryRes && primaryRes.error) {
+        primaryError = primaryRes.error;
+      }
+      if (primaryError) {
+        // Fallback: clear only local session so user can still leave the account UI.
+        try {
+          const localRes = await withTimeout(
+            supabase.auth.signOut({ scope: 'local' }),
+            8000,
+            'Local logout fallback timed out.'
+          );
+          if (localRes.error && !isRecoverableLogoutError(localRes.error)) {
+            setAuthStatus('Logout error: ' + localRes.error.message);
+            setDevInfo('Logout error: ' + localRes.error.message, true);
+            return;
+          }
+        } catch (localErr) {
+          if (!isRecoverableLogoutError(localErr)) {
+            setAuthStatus('Logout error: ' + localErr.message);
+            setDevInfo('Logout error: ' + localErr.message, true);
+            return;
+          }
         }
       }
       currentUser = null;
       setSignedInState(null);
       if (primaryError) {
         setAuthStatus('Logged out (local session cleared).');
-        setDevInfo('Logged out with local fallback. Global logout had an error: ' + primaryError.message, true);
+        setDevInfo('Logged out. Previous server session was already invalid, and local session was cleared.');
       } else {
         setAuthStatus('Logged out');
         setDevInfo('Logged out.');
