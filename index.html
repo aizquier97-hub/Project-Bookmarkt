@@ -42,6 +42,27 @@
     .character-label { font-weight:600; color:#374151; margin-bottom:4px; }
     .character-value { color:#111827; line-height:1.5; white-space:pre-wrap; }
     .character-time { margin-top:10px; color:#6b7280; font-size:13px; }
+    .content-section {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid #dbeafe;
+      border-left: 4px solid #2563eb;
+      border-radius: 10px;
+      background: #f8fbff;
+    }
+    .content-section h2 { margin-top: 0; }
+    .section-entries { border-left-color:#0891b2; background:#f0fdfa; }
+    .section-characters { border-left-color:#7c3aed; background:#faf5ff; }
+    .section-images { border-left-color:#ea580c; background:#fff7ed; }
+    .pagination-row {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .pagination-row .row { gap: 6px; }
+    .pagination-info { color:#475569; font-size:12px; }
     .character-node-map { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; }
     .character-node {
       margin-top:0;
@@ -188,7 +209,7 @@
 
       <hr />
 
-      <section id="entriesSection">
+      <section id="entriesSection" class="content-section section-entries">
         <h2 class="small">Entries</h2>
         <div class="small" id="entriesForBook"><strong>Entries for book:</strong> None</div>
         <label>Write your entry...
@@ -199,37 +220,44 @@
           <button id="btnClearEntries" class="danger">Clear Entries</button>
         </div>
         <div id="entriesList" class="list"></div>
+        <div id="entriesPagination" class="pagination-row" style="display:none;">
+          <div id="entriesPageInfo" class="pagination-info"></div>
+          <div class="row">
+            <button id="btnEntriesPrev" type="button" class="small-btn ghost">Newer</button>
+            <button id="btnEntriesNext" type="button" class="small-btn ghost">Older</button>
+          </div>
+        </div>
       </section>
     </div>
 
     <div class="col right">
-      <h2 class="small">Character Map</h2>
-      <div class="small" id="characterMapFor"><strong>Character map for book:</strong> None</div>
-      <label>Character name
-        <input id="characterName" type="text" placeholder="e.g., Frodo Baggins" />
-      </label>
-      <label>Role in story
-        <input id="characterRole" type="text" placeholder="e.g., Main protagonist" />
-      </label>
-      <label>Character description
-        <textarea id="characterDescription" rows="3" placeholder="Role, traits, and relationships..."></textarea>
-      </label>
-      <label>Relationships
-        <textarea id="characterRelationships" rows="2" placeholder="e.g., Sam (best friend), Gandalf (mentor)"></textarea>
-      </label>
-      <div class="row">
-        <button id="btnAddCharacter">Add Character</button>
-        <button id="btnClearCharacterMap" class="danger">Clear Character Map</button>
-      </div>
-      <label>Search character
-        <input id="characterSearch" type="text" placeholder="Search by name, role, or relationship..." />
-      </label>
-      <div id="characterSearchMeta" class="character-meta"></div>
-      <div id="charactersList" class="list"></div>
+      <section id="characterMapSection" class="content-section section-characters">
+        <h2 class="small">Character Map</h2>
+        <div class="small" id="characterMapFor"><strong>Character map for book:</strong> None</div>
+        <label>Character name
+          <input id="characterName" type="text" placeholder="e.g., Frodo Baggins" />
+        </label>
+        <label>Role in story
+          <input id="characterRole" type="text" placeholder="e.g., Main protagonist" />
+        </label>
+        <label>Character description
+          <textarea id="characterDescription" rows="3" placeholder="Role, traits, and relationships..."></textarea>
+        </label>
+        <label>Relationships
+          <textarea id="characterRelationships" rows="2" placeholder="e.g., Sam (best friend), Gandalf (mentor)"></textarea>
+        </label>
+        <div class="row">
+          <button id="btnAddCharacter">Add Character</button>
+          <button id="btnClearCharacterMap" class="danger">Clear Character Map</button>
+        </div>
+        <label>Search character
+          <input id="characterSearch" type="text" placeholder="Search by name, role, or relationship..." />
+        </label>
+        <div id="characterSearchMeta" class="character-meta"></div>
+        <div id="charactersList" class="list"></div>
+      </section>
 
-      <hr />
-
-      <section id="imagesSection">
+      <section id="imagesSection" class="content-section section-images">
         <h2 class="small">Book Images</h2>
         <div class="small" id="imagesForBook"><strong>Images for book:</strong> None</div>
         <label>Optional image note
@@ -320,6 +348,10 @@
     const btnAddEntry = document.getElementById('btnAddEntry');
     const btnClearEntries = document.getElementById('btnClearEntries');
     const entriesList = document.getElementById('entriesList');
+    const entriesPaginationEl = document.getElementById('entriesPagination');
+    const entriesPageInfoEl = document.getElementById('entriesPageInfo');
+    const btnEntriesPrev = document.getElementById('btnEntriesPrev');
+    const btnEntriesNext = document.getElementById('btnEntriesNext');
 
     const characterNameEl = document.getElementById('characterName');
     const characterRoleEl = document.getElementById('characterRole');
@@ -351,8 +383,10 @@
     let loadedBookImages = [];
     let pendingImageFiles = [];
     let selectedCharacterId = null;
+    let entriesPage = 1;
     let isBusy = false;
     let refreshAllPromise = null;
+    const ENTRIES_PAGE_SIZE = 7;
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
     const CACHE_KEY_PREFIX = 'bookmarkt-cache-';
     const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -467,6 +501,8 @@
       entryTextEl.disabled = disableBookScoped;
       btnAddEntry.disabled = disableBookScoped;
       btnClearEntries.disabled = disableBookScoped;
+      btnEntriesPrev.disabled = disableBookScoped || entriesPage <= 1;
+      btnEntriesNext.disabled = disableBookScoped;
       characterNameEl.disabled = disableBookScoped;
       characterRoleEl.disabled = disableBookScoped;
       characterDescriptionEl.disabled = disableBookScoped;
@@ -648,6 +684,7 @@
     async function selectBook(bookId) {
       if (!currentUser) return;
       selectedBookId = String(bookId);
+      entriesPage = 1;
       selectedCharacterId = null;
       characterSearchEl.value = '';
       persistSelectedBook();
@@ -802,7 +839,9 @@
 
     async function loadEntries(userId, bookId) {
       if (!bookId) {
+        entriesPage = 1;
         entriesList.innerHTML = '<div class="item muted">Select a book to view entries.</div>';
+        entriesPaginationEl.style.display = 'none';
         loadedEntries = [];
         return;
       }
@@ -1097,6 +1136,7 @@
         setDevInfo('Add entry error: ' + error.message, true);
       } else {
         entryTextEl.value = '';
+        entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
       }
     }
@@ -1114,6 +1154,7 @@
       if (error) {
         setDevInfo('Clear entries error: ' + error.message, true);
       } else {
+        entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
       }
     }
@@ -1322,11 +1363,23 @@
     function renderEntries(items) {
       if (!items.length) {
         entriesList.innerHTML = '<div class="item muted">No entries yet.</div>';
+        entriesPaginationEl.style.display = 'none';
         return;
       }
-      entriesList.innerHTML = items
+      const totalPages = Math.max(1, Math.ceil(items.length / ENTRIES_PAGE_SIZE));
+      entriesPage = Math.min(entriesPage, totalPages);
+      entriesPage = Math.max(entriesPage, 1);
+      const startIndex = (entriesPage - 1) * ENTRIES_PAGE_SIZE;
+      const pageItems = items.slice(startIndex, startIndex + ENTRIES_PAGE_SIZE);
+
+      entriesList.innerHTML = pageItems
         .map(e => `<div class="item"><div>${escapeHtml(e.text)}</div><div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-entry-action="edit" data-entry-id="${e.id}">Edit</button><button class="small-btn danger" data-entry-action="delete" data-entry-id="${e.id}">Delete</button></div><div class="muted" style="margin-top:6px;">${formatRecordTimestamp(e)}</div></div>`)
         .join('');
+
+      entriesPaginationEl.style.display = totalPages > 1 ? 'flex' : 'none';
+      entriesPageInfoEl.textContent = `Page ${entriesPage} of ${totalPages} (${items.length} total entries)`;
+      btnEntriesPrev.disabled = entriesPage <= 1 || isBusy;
+      btnEntriesNext.disabled = entriesPage >= totalPages || isBusy;
     }
 
     function renderCharacters(items) {
@@ -1409,7 +1462,9 @@
 
     function renderEmptyLists() {
       topicsList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      entriesPage = 1;
       entriesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      entriesPaginationEl.style.display = 'none';
       resetCharacterViewState();
       charactersList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       if (bookImagesList) {
@@ -1506,6 +1561,17 @@
       const entryId = btn.getAttribute('data-entry-id');
       if (action === 'edit') await editEntry(entryId);
       if (action === 'delete') await deleteEntry(entryId);
+    });
+    btnEntriesPrev.addEventListener('click', () => {
+      if (entriesPage <= 1) return;
+      entriesPage -= 1;
+      renderEntries(loadedEntries);
+    });
+    btnEntriesNext.addEventListener('click', () => {
+      const totalPages = Math.max(1, Math.ceil(loadedEntries.length / ENTRIES_PAGE_SIZE));
+      if (entriesPage >= totalPages) return;
+      entriesPage += 1;
+      renderEntries(loadedEntries);
     });
     charactersList.addEventListener('click', async (event) => {
       const nodeBtn = event.target.closest('[data-character-node-id]');
