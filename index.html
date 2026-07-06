@@ -115,6 +115,21 @@
   </style>
 </head>
 <body>
+  <!-- PWA install banner -->
+  <div id="installBanner" style="display:none; position:fixed; bottom:0; left:0; right:0; background:#2563eb; color:#fff; padding:14px 18px; display:none; align-items:center; justify-content:space-between; gap:12px; z-index:9999; box-shadow:0 -2px 12px rgba(0,0,0,0.18);">
+    <span style="font-size:0.97rem;">📲 <strong>Add Bookmarkt to your home screen</strong> for the best experience</span>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button id="btnInstall" style="background:#fff;color:#2563eb;border:none;padding:8px 16px;border-radius:6px;font-weight:600;cursor:pointer;">Install</button>
+      <button id="btnDismissInstall" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.5);padding:8px 12px;border-radius:6px;cursor:pointer;">Later</button>
+    </div>
+  </div>
+
+  <!-- iOS install hint (shown only on iPhone/iPad) -->
+  <div id="iosBanner" style="display:none; position:fixed; bottom:0; left:0; right:0; background:#1e40af; color:#fff; padding:14px 18px; align-items:center; justify-content:space-between; gap:12px; z-index:9999; box-shadow:0 -2px 12px rgba(0,0,0,0.18);">
+    <span style="font-size:0.92rem;">📲 To install: tap <strong>Share ↑</strong> then <strong>"Add to Home Screen"</strong></span>
+    <button id="btnDismissIos" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.5);padding:8px 12px;border-radius:6px;cursor:pointer;flex-shrink:0;">Got it</button>
+  </div>
+
   <div id="authScreen" class="auth-screen">
     <div class="col auth-card">
       <h1>Bookmarkt (dev)</h1>
@@ -1609,6 +1624,45 @@
       } catch (err) {
         console.error('init error', err);
         setDevInfo('Initialization error. See console.', true);
+      }
+    })();
+
+    // PWA install prompt
+    (function() {
+      var deferredPrompt = null;
+      var installBanner = document.getElementById('installBanner');
+      var iosBanner = document.getElementById('iosBanner');
+      var dismissed = localStorage.getItem('pwa-install-dismissed');
+
+      var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      var isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+      if (!isInStandaloneMode && !dismissed) {
+        if (isIos) {
+          iosBanner.style.display = 'flex';
+          document.getElementById('btnDismissIos').addEventListener('click', function() {
+            iosBanner.style.display = 'none';
+            localStorage.setItem('pwa-install-dismissed', '1');
+          });
+        } else {
+          window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBanner.style.display = 'flex';
+          });
+
+          document.getElementById('btnInstall').addEventListener('click', function() {
+            if (!deferredPrompt) return;
+            installBanner.style.display = 'none';
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function() { deferredPrompt = null; });
+          });
+
+          document.getElementById('btnDismissInstall').addEventListener('click', function() {
+            installBanner.style.display = 'none';
+            localStorage.setItem('pwa-install-dismissed', '1');
+          });
+        }
       }
     })();
 
