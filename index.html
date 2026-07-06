@@ -42,6 +42,23 @@
     .character-label { font-weight:600; color:#374151; margin-bottom:4px; }
     .character-value { color:#111827; line-height:1.5; white-space:pre-wrap; }
     .character-time { margin-top:10px; color:#6b7280; font-size:13px; }
+    .character-node-map { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; }
+    .character-node {
+      margin-top:0;
+      border:1px solid #bfdbfe;
+      background:#eff6ff;
+      color:#1e3a8a;
+      border-radius:999px;
+      padding:6px 12px;
+      font-size:13px;
+      line-height:1.2;
+      max-width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .character-node.active { background:#2563eb; color:#fff; border-color:#1d4ed8; }
+    .character-meta { margin-top:8px; font-size:12px; color:#6b7280; }
     .image-dropzone {
       margin-top: 10px;
       border: 2px dashed #cbd5e1;
@@ -108,6 +125,7 @@
       h1 { font-size: 22px; }
       .small { font-size: 12px; }
       button { width: 100%; }
+      .character-node { width: auto; max-width: 100%; }
       button.small-btn { width: auto; }
       .row > button.small-btn { width: auto; }
       .row { gap: 6px; }
@@ -203,6 +221,10 @@
         <button id="btnAddCharacter">Add Character</button>
         <button id="btnClearCharacterMap" class="danger">Clear Character Map</button>
       </div>
+      <label>Search character
+        <input id="characterSearch" type="text" placeholder="Search by name, role, or relationship..." />
+      </label>
+      <div id="characterSearchMeta" class="character-meta"></div>
       <div id="charactersList" class="list"></div>
 
       <hr />
@@ -306,6 +328,8 @@
     const btnAddCharacter = document.getElementById('btnAddCharacter');
     const btnClearCharacterMap = document.getElementById('btnClearCharacterMap');
     const characterMapForEl = document.getElementById('characterMapFor');
+    const characterSearchEl = document.getElementById('characterSearch');
+    const characterSearchMetaEl = document.getElementById('characterSearchMeta');
     const charactersList = document.getElementById('charactersList');
     const imagesForBookEl = document.getElementById('imagesForBook');
     const imageCaptionEl = document.getElementById('imageCaption');
@@ -326,6 +350,7 @@
     let loadedCharacters = [];
     let loadedBookImages = [];
     let pendingImageFiles = [];
+    let selectedCharacterId = null;
     let isBusy = false;
     let refreshAllPromise = null;
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
@@ -448,6 +473,7 @@
       characterRelationshipsEl.disabled = disableBookScoped;
       btnAddCharacter.disabled = disableBookScoped;
       btnClearCharacterMap.disabled = disableBookScoped;
+      characterSearchEl.disabled = disableBookScoped;
       imageCaptionEl.disabled = disableBookScoped;
       if (hasImageUI) {
         btnPickImages.disabled = disableBookScoped;
@@ -527,6 +553,12 @@
       characterDescriptionEl.value = '';
       characterRelationshipsEl.value = '';
       updateBookScopedLabels();
+    }
+
+    function resetCharacterViewState() {
+      selectedCharacterId = null;
+      characterSearchEl.value = '';
+      characterSearchMetaEl.textContent = '';
     }
 
     function extractStoragePathFromPublicUrl(url) {
@@ -616,6 +648,8 @@
     async function selectBook(bookId) {
       if (!currentUser) return;
       selectedBookId = String(bookId);
+      selectedCharacterId = null;
+      characterSearchEl.value = '';
       persistSelectedBook();
       renderTopics(loadedBooks);
       updateBookScopedLabels();
@@ -791,6 +825,7 @@
 
     async function loadCharacters(userId, bookId) {
       if (!bookId) {
+        resetCharacterViewState();
         charactersList.innerHTML = '<div class="item muted">Select a book to view character maps.</div>';
         loadedCharacters = [];
         return;
@@ -1296,24 +1331,64 @@
 
     function renderCharacters(items) {
       if (!items.length) {
+        selectedCharacterId = null;
+        characterSearchMetaEl.textContent = '';
         charactersList.innerHTML = '<div class="item muted">No characters yet.</div>';
         return;
       }
-      charactersList.innerHTML = items
+      const searchTerm = characterSearchEl.value.trim().toLowerCase();
+      const filteredItems = items.filter((c) => {
+        if (!searchTerm) return true;
+        const details = parseCharacterDescription(c.description || '');
+        const searchableText = `${c.name || ''} ${details.role || ''} ${details.description || ''} ${details.relationships || ''}`.toLowerCase();
+        return searchableText.includes(searchTerm);
+      });
+
+      characterSearchMetaEl.textContent = searchTerm
+        ? `Showing ${filteredItems.length} of ${items.length} characters.`
+        : `${items.length} character(s).`;
+
+      if (!filteredItems.length) {
+        selectedCharacterId = null;
+        charactersList.innerHTML = '<div class="item muted">No characters match your search.</div>';
+        return;
+      }
+
+      let selectedCharacter = filteredItems.find(c => String(c.id) === String(selectedCharacterId));
+      if (!selectedCharacter) selectedCharacter = filteredItems[0];
+      selectedCharacterId = String(selectedCharacter.id);
+
+      const selectedDetails = parseCharacterDescription(selectedCharacter.description || '');
+      const roleHtml = selectedDetails.role
+        ? `<div class="character-section"><div class="character-label">Role</div><div class="character-value">${escapeHtml(selectedDetails.role)}</div></div>`
+        : '';
+      const descriptionHtml = selectedDetails.description
+        ? `<div class="character-section"><div class="character-label">Description</div><div class="character-value">${escapeHtml(selectedDetails.description)}</div></div>`
+        : '';
+      const relationshipsHtml = selectedDetails.relationships
+        ? `<div class="character-section"><div class="character-label">Relationships</div><div class="character-value">${escapeHtml(selectedDetails.relationships)}</div></div>`
+        : '';
+
+      const nodesHtml = filteredItems
         .map(c => {
-          const details = parseCharacterDescription(c.description || '');
-          const roleHtml = details.role
-            ? `<div class="character-section"><div class="character-label">Role</div><div class="character-value">${escapeHtml(details.role)}</div></div>`
-            : '';
-          const descriptionHtml = details.description
-            ? `<div class="character-section"><div class="character-label">Description</div><div class="character-value">${escapeHtml(details.description)}</div></div>`
-            : '';
-          const relationshipsHtml = details.relationships
-            ? `<div class="character-section"><div class="character-label">Relationships</div><div class="character-value">${escapeHtml(details.relationships)}</div></div>`
-            : '';
-          return `<div class="character-card"><h3 class="character-name">${escapeHtml(c.name)}</h3>${roleHtml}${descriptionHtml}${relationshipsHtml}<div class="row" style="margin-top:10px;"><button class="small-btn ghost" data-character-action="edit" data-character-id="${c.id}">Edit</button><button class="small-btn danger" data-character-action="delete" data-character-id="${c.id}">Delete</button></div><div class="character-time">${formatRecordTimestamp(c)}</div></div>`;
+          const isActive = String(c.id) === String(selectedCharacterId);
+          const activeClass = isActive ? ' active' : '';
+          return `<button type="button" class="character-node${activeClass}" data-character-node-id="${c.id}" title="${escapeHtml(c.name || '')}">${escapeHtml(c.name || 'Unnamed')}</button>`;
         })
         .join('');
+
+      charactersList.innerHTML = `<div class="character-node-map">${nodesHtml}</div>
+        <div class="character-card">
+          <h3 class="character-name">${escapeHtml(selectedCharacter.name || 'Unnamed')}</h3>
+          ${roleHtml}
+          ${descriptionHtml}
+          ${relationshipsHtml}
+          <div class="row" style="margin-top:10px;">
+            <button class="small-btn ghost" data-character-action="edit" data-character-id="${selectedCharacter.id}">Edit</button>
+            <button class="small-btn danger" data-character-action="delete" data-character-id="${selectedCharacter.id}">Delete</button>
+          </div>
+          <div class="character-time">${formatRecordTimestamp(selectedCharacter)}</div>
+        </div>`;
     }
 
     function renderBookImages(items) {
@@ -1335,6 +1410,7 @@
     function renderEmptyLists() {
       topicsList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       entriesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      resetCharacterViewState();
       charactersList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       if (bookImagesList) {
         bookImagesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
@@ -1432,12 +1508,21 @@
       if (action === 'delete') await deleteEntry(entryId);
     });
     charactersList.addEventListener('click', async (event) => {
+      const nodeBtn = event.target.closest('[data-character-node-id]');
+      if (nodeBtn) {
+        selectedCharacterId = nodeBtn.getAttribute('data-character-node-id');
+        renderCharacters(loadedCharacters);
+        return;
+      }
       const btn = event.target.closest('[data-character-action]');
       if (!btn) return;
       const action = btn.getAttribute('data-character-action');
       const characterId = btn.getAttribute('data-character-id');
       if (action === 'edit') await editCharacter(characterId);
       if (action === 'delete') await deleteCharacter(characterId);
+    });
+    characterSearchEl.addEventListener('input', () => {
+      renderCharacters(loadedCharacters);
     });
     btnSignupConfirm.addEventListener('click', signUp);
     btnSignupCancel.addEventListener('click', closeSignupModal);
