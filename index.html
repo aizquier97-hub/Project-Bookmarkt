@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -50,7 +50,7 @@
       border-radius: 10px;
       background: #f8fbff;
     }
-    .content-section h2 { margin-top: 0; }
+    .content-section h2 { margin-top: 0; font-size: 17px; font-weight: 700; color: #111; letter-spacing: -0.01em; }
     .section-entries { border-left-color:#0891b2; background:#f0fdfa; }
     .section-characters { border-left-color:#7c3aed; background:#faf5ff; }
     .section-images { border-left-color:#ea580c; background:#fff7ed; }
@@ -63,6 +63,9 @@
     }
     .pagination-row .row { gap: 6px; }
     .pagination-info { color:#475569; font-size:12px; }
+    .page-numbers-row { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+    .page-num { margin-top:0; padding:5px 9px; font-size:13px; border-radius:5px; background:#eef2ff; color:#1e3a8a; border:1px solid #c7d2fe; min-width:28px; text-align:center; cursor:pointer; }
+    .page-num.active { background:#2563eb; color:#fff; border-color:#1d4ed8; font-weight:700; }
     .character-node-map { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; }
     .character-node {
       margin-top:0;
@@ -221,11 +224,9 @@
         </div>
         <div id="entriesList" class="list"></div>
         <div id="entriesPagination" class="pagination-row" style="display:none;">
-          <div id="entriesPageInfo" class="pagination-info"></div>
-          <div class="row">
-            <button id="btnEntriesPrev" type="button" class="small-btn ghost">Newer</button>
-            <button id="btnEntriesNext" type="button" class="small-btn ghost">Older</button>
-          </div>
+          <button id="btnEntriesPrev" type="button" class="small-btn ghost" title="Previous page">&#8592;</button>
+          <div id="entriesPageNumbers" class="page-numbers-row"></div>
+          <button id="btnEntriesNext" type="button" class="small-btn ghost" title="Next page">&#8594;</button>
         </div>
       </section>
     </div>
@@ -352,6 +353,7 @@
     const entriesPageInfoEl = document.getElementById('entriesPageInfo');
     const btnEntriesPrev = document.getElementById('btnEntriesPrev');
     const btnEntriesNext = document.getElementById('btnEntriesNext');
+    const entriesPageNumbersEl = document.getElementById('entriesPageNumbers');
 
     const characterNameEl = document.getElementById('characterName');
     const characterRoleEl = document.getElementById('characterRole');
@@ -386,7 +388,7 @@
     let entriesPage = 1;
     let isBusy = false;
     let refreshAllPromise = null;
-    const ENTRIES_PAGE_SIZE = 7;
+    const ENTRIES_PAGE_SIZE = 5;
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
     const CACHE_KEY_PREFIX = 'bookmarkt-cache-';
     const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -1377,9 +1379,9 @@
         .join('');
 
       entriesPaginationEl.style.display = totalPages > 1 ? 'flex' : 'none';
-      entriesPageInfoEl.textContent = `Page ${entriesPage} of ${totalPages} (${items.length} total entries)`;
       btnEntriesPrev.disabled = entriesPage <= 1 || isBusy;
       btnEntriesNext.disabled = entriesPage >= totalPages || isBusy;
+      entriesPageNumbersEl.innerHTML = Array.from({length: totalPages}, function(_, i) { var p = i + 1; var ac = p === entriesPage ? ' active' : ''; return '<button type="button" class="page-num' + ac + '" data-entries-page="' + p + '">' + p + '</button>'; }).join('');
     }
 
     function renderCharacters(items) {
@@ -1573,6 +1575,7 @@
       entriesPage += 1;
       renderEntries(loadedEntries);
     });
+    entriesPageNumbersEl.addEventListener('click', function(event) { var b = event.target.closest('[data-entries-page]'); if (!b) return; var p = parseInt(b.getAttribute('data-entries-page'), 10); if (!p || p === entriesPage) return; entriesPage = p; renderEntries(loadedEntries); });
     charactersList.addEventListener('click', async (event) => {
       const nodeBtn = event.target.closest('[data-character-node-id]');
       if (nodeBtn) {
