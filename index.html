@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -21,7 +21,7 @@
     .right { width:360px; }
     h1 { margin:0 0 12px 0; font-size:20px; }
     label { display:block; margin-top:10px; font-size:13px; color:#444; }
-    input[type="text"], input[type="email"], input[type="password"], textarea {
+    input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
       width:100%; padding:8px 10px; margin-top:6px; border:1px solid #e3e6ee; border-radius:6px; font-size:14px;
       box-sizing: border-box;
     }
@@ -54,6 +54,12 @@
     .section-entries { border-left-color:#0891b2; background:#f0fdfa; }
     .section-characters { border-left-color:#7c3aed; background:#faf5ff; }
     .section-images { border-left-color:#ea580c; background:#fff7ed; }
+    .section-ai { border-left-color:#16a34a; background:#f0fdf4; }
+    .ai-mode-result { margin-top:8px; color:#14532d; font-size:13px; }
+    .ai-generated-grid { margin-top:10px; display:grid; grid-template-columns:1fr; gap:10px; }
+    .ai-generated-card { border:1px solid #bbf7d0; border-radius:8px; padding:8px; background:#fff; }
+    .ai-generated-card img { width:100%; height:auto; border-radius:6px; display:block; }
+    .ai-generated-prompt { margin-top:6px; font-size:12px; color:#334155; white-space:pre-wrap; }
     .pagination-row {
       margin-top: 10px;
       display: flex;
@@ -258,6 +264,41 @@
         <div id="charactersList" class="list"></div>
       </section>
 
+      <section id="aiAssistantSection" class="content-section section-ai">
+        <h2 class="small">AI Assistant</h2>
+        <div class="small" id="aiForBook"><strong>AI for book:</strong> None</div>
+        <label>AI Book Title
+          <input id="aiBookTitle" type="text" placeholder="Book title" />
+        </label>
+        <label>AI Author
+          <input id="aiAuthor" type="text" placeholder="Author name" />
+        </label>
+        <label>Progress Type
+          <select id="aiProgressType">
+            <option value="chapter">Chapter</option>
+            <option value="page">Page</option>
+          </select>
+        </label>
+        <label>Progress Value
+          <input id="aiProgressValue" type="number" min="1" step="1" placeholder="e.g., 12" />
+        </label>
+        <label>Mode
+          <select id="aiMode">
+            <option value="summary">Summary</option>
+            <option value="characters">Characters</option>
+            <option value="locations">Locations</option>
+          </select>
+        </label>
+        <label>Optional Notes
+          <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
+        </label>
+        <div id="aiSpoilerBoundary" class="ai-mode-result">Spoiler-safe up to Chapter —</div>
+        <button id="btnGenerateAI" type="button">Generate with AI</button>
+        <div id="aiStatus" class="muted"></div>
+        <div id="aiResultText" class="small" style="margin-top:8px;"></div>
+        <div id="aiGeneratedImages" class="ai-generated-grid"></div>
+      </section>
+
       <section id="imagesSection" class="content-section section-images">
         <h2 class="small">Book Images</h2>
         <div class="small" id="imagesForBook"><strong>Images for book:</strong> None</div>
@@ -418,6 +459,18 @@
     const characterSearchMetaEl = document.getElementById('characterSearchMeta');
     const charactersList = document.getElementById('charactersList');
     const imagesForBookEl = document.getElementById('imagesForBook');
+    const aiForBookEl = document.getElementById('aiForBook');
+    const aiBookTitleEl = document.getElementById('aiBookTitle');
+    const aiAuthorEl = document.getElementById('aiAuthor');
+    const aiProgressTypeEl = document.getElementById('aiProgressType');
+    const aiProgressValueEl = document.getElementById('aiProgressValue');
+    const aiModeEl = document.getElementById('aiMode');
+    const aiNotesEl = document.getElementById('aiNotes');
+    const btnGenerateAI = document.getElementById('btnGenerateAI');
+    const aiSpoilerBoundaryEl = document.getElementById('aiSpoilerBoundary');
+    const aiStatusEl = document.getElementById('aiStatus');
+    const aiResultTextEl = document.getElementById('aiResultText');
+    const aiGeneratedImagesEl = document.getElementById('aiGeneratedImages');
     const imageCaptionEl = document.getElementById('imageCaption');
     const bookImageDropzone = document.getElementById('bookImageDropzone');
     const btnPickImages = document.getElementById('btnPickImages');
@@ -427,6 +480,7 @@
     const imageStatusEl = document.getElementById('imageStatus');
     const bookImagesList = document.getElementById('bookImagesList');
     const hasImageUI = !!(bookImageDropzone && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiProgressTypeEl && aiProgressValueEl && aiModeEl && aiNotesEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -443,7 +497,9 @@
     const ENTRIES_PAGE_SIZE = 5;
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
     const CACHE_KEY_PREFIX = 'bookmarkt-cache-';
+    const AI_FORM_KEY_PREFIX = 'bookmarkt-ai-form-';
     const CACHE_TTL_MS = 5 * 60 * 1000;
+    let aiGeneratedImagesCache = [];
 
     // Utility: show dev info
     function setDevInfo(text, isError, busy) {
@@ -467,6 +523,10 @@
     function setImageStatus(text) {
       if (!imageStatusEl) return;
       setStatus(imageStatusEl, text);
+    }
+    function setAIStatus(text) {
+      if (!aiStatusEl) return;
+      setStatus(aiStatusEl, text);
     }
     function renderListError(message) { return `<div class="item status-error">${escapeHtml(message)}</div>`; }
     function setPendingImagesInfo(text) {
@@ -565,6 +625,15 @@
       btnClearCharacterMap.disabled = disableBookScoped;
       characterSearchEl.disabled = disableBookScoped;
       imageCaptionEl.disabled = disableBookScoped;
+      if (hasAIUI) {
+        aiBookTitleEl.disabled = disableBookScoped;
+        aiAuthorEl.disabled = disableBookScoped;
+        aiProgressTypeEl.disabled = disableBookScoped;
+        aiProgressValueEl.disabled = disableBookScoped;
+        aiModeEl.disabled = disableBookScoped;
+        aiNotesEl.disabled = disableBookScoped;
+        btnGenerateAI.disabled = disableBookScoped;
+      }
       if (hasImageUI) {
         btnPickImages.disabled = disableBookScoped;
         btnUploadImages.disabled = disableBookScoped || pendingImageFiles.length === 0;
@@ -590,6 +659,10 @@
     function getCacheStorageKey(kind, userId, bookId) {
       const safeBookId = bookId ? String(bookId) : 'none';
       return `${CACHE_KEY_PREFIX}${kind}-${userId}-${safeBookId}`;
+    }
+    function getAIFormStorageKey(userId, bookId) {
+      if (!userId || !bookId) return null;
+      return `${AI_FORM_KEY_PREFIX}${userId}-${bookId}`;
     }
     function writeCache(kind, userId, data, bookId) {
       if (!userId) return;
@@ -635,6 +708,237 @@
       entriesForBookEl.innerHTML = `<strong>Entries for book:</strong> ${escapeHtml(bookName)}`;
       characterMapForEl.innerHTML = `<strong>Character map for book:</strong> ${escapeHtml(bookName)}`;
       imagesForBookEl.innerHTML = `<strong>Images for book:</strong> ${escapeHtml(bookName)}`;
+      if (aiForBookEl) {
+        aiForBookEl.innerHTML = `<strong>AI for book:</strong> ${escapeHtml(bookName)}`;
+      }
+    }
+
+    function updateAISpoilerBoundaryLabel() {
+      if (!hasAIUI) return;
+      const progressType = aiProgressTypeEl.value === 'page' ? 'Page' : 'Chapter';
+      const rawValue = (aiProgressValueEl.value || '').trim();
+      const progressValue = rawValue || '—';
+      aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${progressType} ${progressValue}`;
+    }
+
+    function renderAIResultText(text) {
+      if (!hasAIUI) return;
+      aiResultTextEl.textContent = text || '';
+    }
+
+    function resetAIResults() {
+      if (!hasAIUI) return;
+      aiGeneratedImagesCache = [];
+      renderAIResultText('');
+      aiGeneratedImagesEl.innerHTML = '';
+      setAIStatus('');
+    }
+
+    function persistAIFormValues() {
+      if (!hasAIUI || !currentUser || !selectedBookId) return;
+      const key = getAIFormStorageKey(currentUser.id, selectedBookId);
+      if (!key) return;
+      const payload = {
+        bookTitle: aiBookTitleEl.value.trim(),
+        author: aiAuthorEl.value.trim(),
+        progressType: aiProgressTypeEl.value === 'page' ? 'page' : 'chapter',
+        progressValue: aiProgressValueEl.value.trim(),
+        mode: aiModeEl.value || 'summary',
+        notes: aiNotesEl.value || ''
+      };
+      try {
+        localStorage.setItem(key, JSON.stringify(payload));
+      } catch (err) {
+        setDevInfo('AI form save error: ' + (err && err.message ? err.message : String(err)), true);
+      }
+    }
+
+    function loadAIFormValuesForSelectedBook() {
+      if (!hasAIUI) return;
+      resetAIResults();
+      if (!currentUser || !selectedBookId) {
+        aiBookTitleEl.value = '';
+        aiAuthorEl.value = '';
+        aiProgressTypeEl.value = 'chapter';
+        aiProgressValueEl.value = '';
+        aiModeEl.value = 'summary';
+        aiNotesEl.value = '';
+        updateAISpoilerBoundaryLabel();
+        return;
+      }
+      const selectedBookName = getSelectedBookName();
+      const key = getAIFormStorageKey(currentUser.id, selectedBookId);
+      if (!key) return;
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) {
+          aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
+          aiAuthorEl.value = '';
+          aiProgressTypeEl.value = 'chapter';
+          aiProgressValueEl.value = '';
+          aiModeEl.value = 'summary';
+          aiNotesEl.value = '';
+          updateAISpoilerBoundaryLabel();
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        aiBookTitleEl.value = (parsed && parsed.bookTitle) ? String(parsed.bookTitle) : (selectedBookName === 'None' ? '' : selectedBookName);
+        aiAuthorEl.value = (parsed && parsed.author) ? String(parsed.author) : '';
+        aiProgressTypeEl.value = (parsed && parsed.progressType === 'page') ? 'page' : 'chapter';
+        aiProgressValueEl.value = (parsed && parsed.progressValue) ? String(parsed.progressValue) : '';
+        aiModeEl.value = (parsed && typeof parsed.mode === 'string') ? parsed.mode : 'summary';
+        aiNotesEl.value = (parsed && parsed.notes) ? String(parsed.notes) : '';
+      } catch (err) {
+        setDevInfo('AI form load error: ' + (err && err.message ? err.message : String(err)), true);
+        aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
+        aiAuthorEl.value = '';
+        aiProgressTypeEl.value = 'chapter';
+        aiProgressValueEl.value = '';
+        aiModeEl.value = 'summary';
+        aiNotesEl.value = '';
+      }
+      updateAISpoilerBoundaryLabel();
+    }
+
+    function base64ToBytes(base64Data) {
+      const raw = atob(base64Data || '');
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i += 1) {
+        bytes[i] = raw.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    function queueGeneratedImageAtIndex(index) {
+      const imageItem = aiGeneratedImagesCache[index];
+      if (!imageItem) {
+        setAIStatus('AI error: Generated image not found.');
+        return;
+      }
+      if (!imageItem.base64Data) {
+        setAIStatus('AI error: Generated image is missing binary data.');
+        return;
+      }
+      try {
+        const mimeType = imageItem.mimeType || 'image/png';
+        const bytes = base64ToBytes(imageItem.base64Data);
+        const extension = (mimeType.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '') || 'png';
+        const safeName = (imageItem.title || 'location-image').toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'location-image';
+        const file = new File([bytes], `${safeName}.${extension}`, { type: mimeType, lastModified: Date.now() });
+        queueImageFiles([file]);
+        setAIStatus('Generated image added to book image upload queue.');
+      } catch (err) {
+        setAIStatus('AI error: Could not queue generated image.');
+        setDevInfo('Queue generated image error: ' + (err && err.message ? err.message : String(err)), true);
+      }
+    }
+
+    function renderAIGeneratedImages(items) {
+      if (!hasAIUI) return;
+      aiGeneratedImagesCache = Array.isArray(items) ? items : [];
+      if (!aiGeneratedImagesCache.length) {
+        aiGeneratedImagesEl.innerHTML = '';
+        return;
+      }
+      aiGeneratedImagesEl.innerHTML = aiGeneratedImagesCache
+        .map((img, index) => {
+          const title = escapeHtml(img.title || `Location ${index + 1}`);
+          const prompt = escapeHtml(img.prompt || '');
+          const mimeType = img.mimeType || 'image/png';
+          const base64Data = img.base64Data || '';
+          const src = `data:${mimeType};base64,${base64Data}`;
+          return `<div class="ai-generated-card"><strong>${title}</strong><img src="${src}" alt="Generated location image" loading="lazy" /><div class="ai-generated-prompt">${prompt}</div><div class="row" style="margin-top:8px;"><button type="button" class="small-btn ghost" data-ai-image-index="${index}">Use in Book Images</button></div></div>`;
+        })
+        .join('');
+    }
+
+    async function generateWithAI() {
+      if (!hasAIUI) return;
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!selectedBookId) {
+        setAIStatus('AI error: Select a book first.');
+        return;
+      }
+      const bookTitle = aiBookTitleEl.value.trim();
+      const author = aiAuthorEl.value.trim();
+      const progressType = aiProgressTypeEl.value === 'page' ? 'page' : 'chapter';
+      const progressValue = aiProgressValueEl.value.trim();
+      const mode = aiModeEl.value;
+      const notes = aiNotesEl.value.trim();
+
+      if (!bookTitle || !author || !progressValue) {
+        setAIStatus('AI error: Book title, author, and progress value are required.');
+        return;
+      }
+      const progressNumber = Number(progressValue);
+      if (!Number.isFinite(progressNumber) || progressNumber <= 0) {
+        setAIStatus('AI error: Progress value must be a positive number.');
+        return;
+      }
+
+      persistAIFormValues();
+      renderAIResultText('');
+      renderAIGeneratedImages([]);
+      setAIStatus('Generating...');
+      setBusyState(true, 'Generating spoiler-safe AI response...');
+      try {
+        const invokeRes = await supabase.functions.invoke('ai-bookmate', {
+          body: {
+            mode,
+            bookTitle,
+            author,
+            progressType,
+            progressValue: progressNumber,
+            notes
+          }
+        });
+        const data = invokeRes && invokeRes.data ? invokeRes.data : null;
+        if (invokeRes.error) {
+          throw new Error(invokeRes.error.message || 'Unknown invoke error');
+        }
+        if (!data || data.ok !== true) {
+          throw new Error((data && data.error) ? data.error : 'AI function returned an invalid response.');
+        }
+
+        if (data.spoilerBoundary) {
+          aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${data.spoilerBoundary}`;
+        } else {
+          updateAISpoilerBoundaryLabel();
+        }
+
+        if (mode === 'locations') {
+          const locationPrompts = Array.isArray(data.locationPrompts) ? data.locationPrompts : [];
+          const promptLines = locationPrompts
+            .map((item, index) => {
+              const title = item && item.title ? String(item.title) : `Location ${index + 1}`;
+              const prompt = item && item.prompt ? String(item.prompt) : '';
+              return `${index + 1}. ${title}: ${prompt}`;
+            })
+            .filter(Boolean);
+          const textParts = [];
+          if (data.text) textParts.push(String(data.text));
+          if (promptLines.length) textParts.push(`Image prompts:\n${promptLines.join('\n')}`);
+          renderAIResultText(textParts.join('\n\n'));
+          const generatedImages = Array.isArray(data.generatedImages) ? data.generatedImages : [];
+          renderAIGeneratedImages(generatedImages);
+          if (data.imageGenerationError) {
+            setAIStatus(`Generated locations with partial image errors. ${generatedImages.length} image(s) ready.`);
+          } else {
+            setAIStatus(`Locations generated successfully. ${generatedImages.length} image(s) ready.`);
+          }
+          return;
+        }
+
+        renderAIResultText(String(data.text || ''));
+        setAIStatus('AI content generated successfully.');
+      } catch (err) {
+        const message = err && err.message ? err.message : String(err);
+        setAIStatus('AI error: ' + message);
+        setDevInfo('AI generation error: ' + message, true);
+      } finally {
+        setBusyState(false);
+      }
     }
 
     function clearCharacterMapForm() {
@@ -744,6 +1048,7 @@
       persistSelectedBook();
       renderTopics(loadedBooks);
       updateBookScopedLabels();
+      loadAIFormValuesForSelectedBook();
       syncBookScopedControlState();
       await Promise.allSettled([
         loadEntries(currentUser.id, selectedBookId),
@@ -884,6 +1189,7 @@
         persistSelectedBook();
         renderTopics(loadedBooks);
         updateBookScopedLabels();
+        loadAIFormValuesForSelectedBook();
         syncBookScopedControlState();
       } catch (err) {
         console.error('loadTopics error', err);
@@ -1569,6 +1875,7 @@
       persistSelectedBook();
       setPendingImagesInfo('No image files selected.');
       updateBookScopedLabels();
+      loadAIFormValuesForSelectedBook();
       syncBookScopedControlState();
     }
 
@@ -1589,6 +1896,27 @@
     btnClearEntries.addEventListener('click', clearEntries);
     btnAddCharacter.addEventListener('click', addCharacter);
     btnClearCharacterMap.addEventListener('click', clearCharacterMapForm);
+    if (hasAIUI) {
+      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiModeEl, aiNotesEl];
+      aiInputElements.forEach((el) => {
+        const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
+        el.addEventListener(eventName, () => {
+          updateAISpoilerBoundaryLabel();
+          persistAIFormValues();
+        });
+      });
+      btnGenerateAI.addEventListener('click', async () => {
+        if (btnGenerateAI.disabled) return;
+        await generateWithAI();
+      });
+      aiGeneratedImagesEl.addEventListener('click', (event) => {
+        const btn = event.target.closest('[data-ai-image-index]');
+        if (!btn) return;
+        const index = Number(btn.getAttribute('data-ai-image-index'));
+        if (!Number.isFinite(index) || index < 0) return;
+        queueGeneratedImageAtIndex(index);
+      });
+    }
     if (hasImageUI) {
       btnPickImages.addEventListener('click', () => {
         if (btnPickImages.disabled) return;
@@ -1775,6 +2103,7 @@
             persistSelectedBook();
             renderTopics(loadedBooks);
             updateBookScopedLabels();
+            loadAIFormValuesForSelectedBook();
             syncBookScopedControlState();
             if (selectedBookId) {
               const cachedEntries = readCache('entries', currentUser.id, selectedBookId);
@@ -1862,6 +2191,7 @@
         // Attempt to fetch entries (will show errors in console if network/policies block)
         setSignedInState(null);
         updateBookScopedLabels();
+        loadAIFormValuesForSelectedBook();
         setPendingImagesInfo('No image files selected.');
         setDevInfo('Waiting for session state...');
       } catch (err) {
