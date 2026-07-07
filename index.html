@@ -715,10 +715,36 @@
         localStorage.setItem(key, JSON.stringify(map));
       } catch (_) {}
     }
+    function getBookAuthorForTopic(userId, topicId) {
+      if (!userId || !topicId) return '';
+      const map = readBookAuthorMap(userId);
+      return map[String(topicId)] || '';
+    }
+    function findSavedAuthorForBookName(userId, bookName) {
+      if (!userId || !bookName) return '';
+      const normalizedTarget = String(bookName).trim().toLowerCase();
+      if (!normalizedTarget) return '';
+      const map = readBookAuthorMap(userId);
+      const matchedBook = loadedBooks.find((book) => {
+        const normalizedName = book && book.name ? String(book.name).trim().toLowerCase() : '';
+        return normalizedName === normalizedTarget;
+      });
+      if (!matchedBook) return '';
+      return map[String(matchedBook.id)] || '';
+    }
     function getBookAuthorForSelectedTopic() {
       if (!currentUser || !selectedBookId) return '';
-      const map = readBookAuthorMap(currentUser.id);
-      return map[String(selectedBookId)] || '';
+      return getBookAuthorForTopic(currentUser.id, selectedBookId);
+    }
+    function syncDraftBookAuthorFromKnownBooks() {
+      if (!currentUser || !bookCreationAuthorEl || !newTopicEl) return;
+      const draftBookName = newTopicEl.value.trim();
+      if (!draftBookName) return;
+      const knownAuthor = findSavedAuthorForBookName(currentUser.id, draftBookName);
+      if (!knownAuthor) return;
+      if (!bookCreationAuthorEl.value.trim()) {
+        bookCreationAuthorEl.value = knownAuthor;
+      }
     }
     function writeCache(kind, userId, data, bookId) {
       if (!userId) return;
@@ -992,11 +1018,64 @@
     }
 
     async function invokeAIForMode(mode, payload) {
+      function extractMessageFromUnknown(value) {
+        if (!value) return '';
+        if (typeof value === 'string') return value.trim();
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        if (Array.isArray(value)) {
+          for (let i = 0; i < value.length; i += 1) {
+            const found = extractMessageFromUnknown(value[i]);
+            if (found) return found;
+          }
+          return '';
+        }
+        if (typeof value === 'object') {
+          const candidateKeys = ['error', 'message', 'details', 'msg', 'cause', 'reason', 'description'];
+          for (let i = 0; i < candidateKeys.length; i += 1) {
+            const key = candidateKeys[i];
+            if (Object.prototype.hasOwnProperty.call(value, key)) {
+              const found = extractMessageFromUnknown(value[key]);
+              if (found) return found;
+            }
+          }
+        }
+        return '';
+      }
+      async function readEdgeErrorPayload(errorLike) {
+        if (!errorLike) return null;
+        const context = errorLike.context || errorLike.response || null;
+        if (!context) return null;
+        try {
+          if (typeof context.clone === 'function' && typeof context.text === 'function') {
+            const raw = await context.clone().text();
+            if (!raw) return null;
+            try {
+              return JSON.parse(raw);
+            } catch (_) {
+              return raw;
+            }
+          }
+        } catch (_) {}
+        return null;
+      }
+      async function getInvokeErrorMessage(errorLike, responseData) {
+        const fallback = extractMessageFromUnknown(errorLike) || `AI ${mode} invoke error`;
+        const responsePayloadMessage = extractMessageFromUnknown(responseData);
+        if (responsePayloadMessage) return responsePayloadMessage;
+        const contextPayload = await readEdgeErrorPayload(errorLike);
+        const contextMessage = extractMessageFromUnknown(contextPayload);
+        if (contextMessage) return contextMessage;
+        return fallback;
+      }
+
       const invokeRes = await supabase.functions.invoke('ai-bookmate', { body: { mode, ...payload } });
       const data = invokeRes && invokeRes.data ? invokeRes.data : null;
-      if (invokeRes.error) throw new Error(invokeRes.error.message || `AI ${mode} invoke error`);
+      if (invokeRes.error) {
+        const invokeMessage = await getInvokeErrorMessage(invokeRes.error, data);
+        throw new Error(invokeMessage);
+      }
       if (!data || data.ok !== true) {
-        const detailMsg = data && data.error ? data.error : `AI ${mode} returned an invalid response.`;
+        const detailMsg = extractMessageFromUnknown(data) || `AI ${mode} returned an invalid response.`;
         throw new Error(detailMsg);
       }
       return data;
@@ -1586,7 +1665,9 @@
       }
       const creationMode = bookCreationModeEl && bookCreationModeEl.value === 'ai' ? 'ai' : 'manual';
       const creationAuthor = bookCreationAuthorEl ? bookCreationAuthorEl.value.trim() : '';
-      if (creationMode === 'ai' && !creationAuthor) {
+      const knownAuthor = findSavedAuthorForBookName(user.id, name);
+      const effectiveAuthor = creationAuthor || knownAuthor;
+      if (creationMode === 'ai' && !effectiveAuthor) {
         setDevInfo('Add book error: Author is required for AI book creation mode.', true);
         return;
       }
@@ -1611,7 +1692,7 @@
         if (bookCreationAuthorEl) bookCreationAuthorEl.value = '';
         if (data && data.id) selectedBookId = String(data.id);
         if (creationMode === 'ai' && data && data.id) {
-          saveBookAuthorForTopic(user.id, data.id, creationAuthor);
+          saveBookAuthorForTopic(user.id, data.id, effectiveAuthor);
         }
         persistSelectedBook();
         await loadTopics(user.id);
@@ -1622,6 +1703,25 @@
         ]);
         setDevInfo('Book added and data loaded.');
       }
+    }
+
+    async function editBookAuthor(bookId) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!bookId) return;
+      const selectedBook = loadedBooks.find(b => String(b.id) === String(bookId));
+      if (!selectedBook) return;
+      const currentAuthor = getBookAuthorForTopic(user.id, bookId);
+      const nextAuthor = prompt(`Edit author for "${selectedBook.name}":`, currentAuthor || '');
+      if (nextAuthor === null) return;
+      const authorValue = nextAuthor.trim();
+      saveBookAuthorForTopic(user.id, bookId, authorValue);
+      if (String(selectedBookId) === String(bookId) && hasAIUI) {
+        aiAuthorEl.value = authorValue;
+        persistAIFormValues();
+      }
+      renderTopics(loadedBooks);
+      setDevInfo(authorValue ? 'Book author saved.' : 'Book author removed.');
     }
 
     async function deleteBook(bookId) {
@@ -1653,6 +1753,7 @@
           .eq('id', bookId)
           .eq('user_id', user.id);
         if (deleteRes.error) throw deleteRes.error;
+        saveBookAuthorForTopic(user.id, bookId, '');
 
         if (String(selectedBookId) === String(bookId)) {
           selectedBookId = null;
@@ -1923,16 +2024,21 @@
         topicsList.innerHTML = '<div class="item muted">No books yet.</div>';
         return;
       }
+      const authorMap = currentUser ? readBookAuthorMap(currentUser.id) : {};
       topicsList.innerHTML = items
         .map(t => {
           const isSelected = String(t.id) === String(selectedBookId);
           const selectedClass = isSelected ? ' selected' : '';
+          const author = authorMap[String(t.id)] || '';
+          const authorLine = author ? `<div class="muted">Author: ${escapeHtml(author)}</div>` : '';
           return `<div class="item selectable${selectedClass}" data-book-id="${t.id}">
             <div class="book-row">
               <div class="book-main">
                 <strong>${escapeHtml(t.name)}</strong>
+                ${authorLine}
                 <div class="muted">${formatTimestamp(t.created_at)}</div>
               </div>
+              <button type="button" class="small-btn ghost" data-book-action="edit-author" data-book-id="${t.id}">Edit Author</button>
               <button type="button" class="small-btn danger" data-book-action="delete" data-book-id="${t.id}">Delete</button>
             </div>
           </div>`;
@@ -2077,8 +2183,12 @@
     btnLogin.addEventListener('click', signIn);
     btnLogout.addEventListener('click', signOut);
     if (bookCreationModeEl) {
-      bookCreationModeEl.addEventListener('change', syncBookCreationModeUI);
+      bookCreationModeEl.addEventListener('change', () => {
+        syncBookCreationModeUI();
+        syncDraftBookAuthorFromKnownBooks();
+      });
     }
+    newTopicEl.addEventListener('input', syncDraftBookAuthorFromKnownBooks);
     btnAddTopic.addEventListener('click', addTopic);
     btnAddEntry.addEventListener('click', addEntry);
     btnClearEntries.addEventListener('click', clearEntries);
@@ -2156,6 +2266,9 @@
       if (actionBtn) {
         const action = actionBtn.getAttribute('data-book-action');
         const bookId = actionBtn.getAttribute('data-book-id');
+        if (action === 'edit-author') {
+          await editBookAuthor(bookId);
+        }
         if (action === 'delete') {
           await deleteBook(bookId);
         }
