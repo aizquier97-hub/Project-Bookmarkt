@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -42,6 +42,47 @@
     .character-label { font-weight:600; color:#374151; margin-bottom:4px; }
     .character-value { color:#111827; line-height:1.5; white-space:pre-wrap; }
     .character-time { margin-top:10px; color:#6b7280; font-size:13px; }
+    .content-section {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid #dbeafe;
+      border-left: 4px solid #2563eb;
+      border-radius: 10px;
+      background: #f8fbff;
+    }
+    .content-section h2 { margin-top: 0; font-size: 17px; font-weight: 700; color: #111; letter-spacing: -0.01em; }
+    .section-entries { border-left-color:#0891b2; background:#f0fdfa; }
+    .section-characters { border-left-color:#7c3aed; background:#faf5ff; }
+    .section-images { border-left-color:#ea580c; background:#fff7ed; }
+    .pagination-row {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .pagination-row .row { gap: 6px; }
+    .pagination-info { color:#475569; font-size:12px; }
+    .page-numbers-row { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+    .page-num { margin-top:0; padding:5px 9px; font-size:13px; border-radius:5px; background:#eef2ff; color:#1e3a8a; border:1px solid #c7d2fe; min-width:28px; text-align:center; cursor:pointer; }
+    .page-num.active { background:#2563eb; color:#fff; border-color:#1d4ed8; font-weight:700; }
+    .character-node-map { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; }
+    .character-node {
+      margin-top:0;
+      border:1px solid #bfdbfe;
+      background:#eff6ff;
+      color:#1e3a8a;
+      border-radius:999px;
+      padding:6px 12px;
+      font-size:13px;
+      line-height:1.2;
+      max-width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .character-node.active { background:#2563eb; color:#fff; border-color:#1d4ed8; }
+    .character-meta { margin-top:8px; font-size:12px; color:#6b7280; }
     .image-dropzone {
       margin-top: 10px;
       border: 2px dashed #cbd5e1;
@@ -108,6 +149,7 @@
       h1 { font-size: 22px; }
       .small { font-size: 12px; }
       button { width: 100%; }
+      .character-node { width: auto; max-width: 100%; }
       button.small-btn { width: auto; }
       .row > button.small-btn { width: auto; }
       .row { gap: 6px; }
@@ -170,7 +212,7 @@
 
       <hr />
 
-      <section id="entriesSection">
+      <section id="entriesSection" class="content-section section-entries">
         <h2 class="small">Entries</h2>
         <div class="small" id="entriesForBook"><strong>Entries for book:</strong> None</div>
         <label>Write your entry...
@@ -181,33 +223,42 @@
           <button id="btnClearEntries" class="danger">Clear Entries</button>
         </div>
         <div id="entriesList" class="list"></div>
+        <div id="entriesPagination" class="pagination-row" style="display:none;">
+          <button id="btnEntriesPrev" type="button" class="small-btn ghost" title="Previous page">&#8592;</button>
+          <div id="entriesPageNumbers" class="page-numbers-row"></div>
+          <button id="btnEntriesNext" type="button" class="small-btn ghost" title="Next page">&#8594;</button>
+        </div>
       </section>
     </div>
 
     <div class="col right">
-      <h2 class="small">Character Map</h2>
-      <div class="small" id="characterMapFor"><strong>Character map for book:</strong> None</div>
-      <label>Character name
-        <input id="characterName" type="text" placeholder="e.g., Frodo Baggins" />
-      </label>
-      <label>Role in story
-        <input id="characterRole" type="text" placeholder="e.g., Main protagonist" />
-      </label>
-      <label>Character description
-        <textarea id="characterDescription" rows="3" placeholder="Role, traits, and relationships..."></textarea>
-      </label>
-      <label>Relationships
-        <textarea id="characterRelationships" rows="2" placeholder="e.g., Sam (best friend), Gandalf (mentor)"></textarea>
-      </label>
-      <div class="row">
-        <button id="btnAddCharacter">Add Character</button>
-        <button id="btnClearCharacterMap" class="danger">Clear Character Map</button>
-      </div>
-      <div id="charactersList" class="list"></div>
+      <section id="characterMapSection" class="content-section section-characters">
+        <h2 class="small">Character Map</h2>
+        <div class="small" id="characterMapFor"><strong>Character map for book:</strong> None</div>
+        <label>Character name
+          <input id="characterName" type="text" placeholder="e.g., Frodo Baggins" />
+        </label>
+        <label>Role in story
+          <input id="characterRole" type="text" placeholder="e.g., Main protagonist" />
+        </label>
+        <label>Character description
+          <textarea id="characterDescription" rows="3" placeholder="Role, traits, and relationships..."></textarea>
+        </label>
+        <label>Relationships
+          <textarea id="characterRelationships" rows="2" placeholder="e.g., Sam (best friend), Gandalf (mentor)"></textarea>
+        </label>
+        <div class="row">
+          <button id="btnAddCharacter">Add Character</button>
+          <button id="btnClearCharacterMap" class="danger">Clear Character Map</button>
+        </div>
+        <label>Search character
+          <input id="characterSearch" type="text" placeholder="Search by name, role, or relationship..." />
+        </label>
+        <div id="characterSearchMeta" class="character-meta"></div>
+        <div id="charactersList" class="list"></div>
+      </section>
 
-      <hr />
-
-      <section id="imagesSection">
+      <section id="imagesSection" class="content-section section-images">
         <h2 class="small">Book Images</h2>
         <div class="small" id="imagesForBook"><strong>Images for book:</strong> None</div>
         <label>Optional image note
@@ -231,6 +282,45 @@
         Dev info:
         <div id="devInfo"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Edit Entry Modal -->
+  <div id="editEntryModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editEntryTitle">
+      <h2 id="editEntryTitle" style="font-size:18px; margin:0 0 12px 0; font-weight:700;">Edit Entry</h2>
+      <label>Entry text
+        <textarea id="editEntryText" rows="5" placeholder="Write your entry..."></textarea>
+      </label>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnEditEntryConfirm">Save changes</button>
+        <button id="btnEditEntryCancel" class="secondary">Cancel</button>
+      </div>
+      <div id="editEntryStatus" class="muted"></div>
+    </div>
+  </div>
+
+  <!-- Edit Character Modal -->
+  <div id="editCharacterModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editCharTitle">
+      <h2 id="editCharTitle" style="font-size:18px; margin:0 0 12px 0; font-weight:700;">Edit Character</h2>
+      <label>Character name
+        <input id="editCharName" type="text" placeholder="e.g., Frodo Baggins" />
+      </label>
+      <label>Role in story
+        <input id="editCharRole" type="text" placeholder="e.g., Main protagonist" />
+      </label>
+      <label>Description
+        <textarea id="editCharDescription" rows="3" placeholder="Role, traits..."></textarea>
+      </label>
+      <label>Relationships
+        <textarea id="editCharRelationships" rows="2" placeholder="e.g., Sam (best friend)"></textarea>
+      </label>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnEditCharConfirm">Save changes</button>
+        <button id="btnEditCharCancel" class="secondary">Cancel</button>
+      </div>
+      <div id="editCharStatus" class="muted"></div>
     </div>
   </div>
 
@@ -281,6 +371,19 @@
     const appUserStatus = document.getElementById('appUserStatus');
     const authScreen = document.getElementById('authScreen');
     const appShell = document.getElementById('appShell');
+    const editEntryModalBackdrop = document.getElementById('editEntryModalBackdrop');
+    const editEntryTextEl = document.getElementById('editEntryText');
+    const btnEditEntryConfirm = document.getElementById('btnEditEntryConfirm');
+    const btnEditEntryCancel = document.getElementById('btnEditEntryCancel');
+    const editEntryStatusEl = document.getElementById('editEntryStatus');
+    const editCharModalBackdrop = document.getElementById('editCharacterModalBackdrop');
+    const editCharNameEl = document.getElementById('editCharName');
+    const editCharRoleEl = document.getElementById('editCharRole');
+    const editCharDescriptionEl = document.getElementById('editCharDescription');
+    const editCharRelationshipsEl = document.getElementById('editCharRelationships');
+    const btnEditCharConfirm = document.getElementById('btnEditCharConfirm');
+    const btnEditCharCancel = document.getElementById('btnEditCharCancel');
+    const editCharStatusEl = document.getElementById('editCharStatus');
     const signupModalBackdrop = document.getElementById('signupModalBackdrop');
     const signupEmailEl = document.getElementById('signupEmail');
     const signupPasswordEl = document.getElementById('signupPassword');
@@ -298,6 +401,11 @@
     const btnAddEntry = document.getElementById('btnAddEntry');
     const btnClearEntries = document.getElementById('btnClearEntries');
     const entriesList = document.getElementById('entriesList');
+    const entriesPaginationEl = document.getElementById('entriesPagination');
+    const entriesPageInfoEl = document.getElementById('entriesPageInfo');
+    const btnEntriesPrev = document.getElementById('btnEntriesPrev');
+    const btnEntriesNext = document.getElementById('btnEntriesNext');
+    const entriesPageNumbersEl = document.getElementById('entriesPageNumbers');
 
     const characterNameEl = document.getElementById('characterName');
     const characterRoleEl = document.getElementById('characterRole');
@@ -306,6 +414,8 @@
     const btnAddCharacter = document.getElementById('btnAddCharacter');
     const btnClearCharacterMap = document.getElementById('btnClearCharacterMap');
     const characterMapForEl = document.getElementById('characterMapFor');
+    const characterSearchEl = document.getElementById('characterSearch');
+    const characterSearchMetaEl = document.getElementById('characterSearchMeta');
     const charactersList = document.getElementById('charactersList');
     const imagesForBookEl = document.getElementById('imagesForBook');
     const imageCaptionEl = document.getElementById('imageCaption');
@@ -326,8 +436,11 @@
     let loadedCharacters = [];
     let loadedBookImages = [];
     let pendingImageFiles = [];
+    let selectedCharacterId = null;
+    let entriesPage = 1;
     let isBusy = false;
     let refreshAllPromise = null;
+    const ENTRIES_PAGE_SIZE = 5;
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
     const CACHE_KEY_PREFIX = 'bookmarkt-cache-';
     const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -442,12 +555,15 @@
       entryTextEl.disabled = disableBookScoped;
       btnAddEntry.disabled = disableBookScoped;
       btnClearEntries.disabled = disableBookScoped;
+      btnEntriesPrev.disabled = disableBookScoped || entriesPage <= 1;
+      btnEntriesNext.disabled = disableBookScoped;
       characterNameEl.disabled = disableBookScoped;
       characterRoleEl.disabled = disableBookScoped;
       characterDescriptionEl.disabled = disableBookScoped;
       characterRelationshipsEl.disabled = disableBookScoped;
       btnAddCharacter.disabled = disableBookScoped;
       btnClearCharacterMap.disabled = disableBookScoped;
+      characterSearchEl.disabled = disableBookScoped;
       imageCaptionEl.disabled = disableBookScoped;
       if (hasImageUI) {
         btnPickImages.disabled = disableBookScoped;
@@ -527,6 +643,12 @@
       characterDescriptionEl.value = '';
       characterRelationshipsEl.value = '';
       updateBookScopedLabels();
+    }
+
+    function resetCharacterViewState() {
+      selectedCharacterId = null;
+      characterSearchEl.value = '';
+      characterSearchMetaEl.textContent = '';
     }
 
     function extractStoragePathFromPublicUrl(url) {
@@ -616,6 +738,9 @@
     async function selectBook(bookId) {
       if (!currentUser) return;
       selectedBookId = String(bookId);
+      entriesPage = 1;
+      selectedCharacterId = null;
+      characterSearchEl.value = '';
       persistSelectedBook();
       renderTopics(loadedBooks);
       updateBookScopedLabels();
@@ -768,7 +893,9 @@
 
     async function loadEntries(userId, bookId) {
       if (!bookId) {
+        entriesPage = 1;
         entriesList.innerHTML = '<div class="item muted">Select a book to view entries.</div>';
+        entriesPaginationEl.style.display = 'none';
         loadedEntries = [];
         return;
       }
@@ -791,6 +918,7 @@
 
     async function loadCharacters(userId, bookId) {
       if (!bookId) {
+        resetCharacterViewState();
         charactersList.innerHTML = '<div class="item muted">Select a book to view character maps.</div>';
         loadedCharacters = [];
         return;
@@ -1062,6 +1190,7 @@
         setDevInfo('Add entry error: ' + error.message, true);
       } else {
         entryTextEl.value = '';
+        entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
       }
     }
@@ -1079,6 +1208,7 @@
       if (error) {
         setDevInfo('Clear entries error: ' + error.message, true);
       } else {
+        entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
       }
     }
@@ -1115,29 +1245,49 @@
       if (!user) return;
       const existing = loadedEntries.find(e => String(e.id) === String(entryId));
       if (!existing) return;
-      const nextText = prompt('Edit entry:', existing.text || '');
-      if (nextText === null) return;
-      const trimmed = nextText.trim();
-      if (!trimmed) return alert('Entry text cannot be empty.');
-      const { error } = await supabase
-        .from('entries')
-        .update({ text: trimmed, updated_at: new Date().toISOString() })
-        .eq('id', entryId)
-        .eq('user_id', user.id)
-        .eq('topic_id', selectedBookId);
-      if (error) {
-        const { error: fallbackError } = await supabase
-          .from('entries')
-          .update({ text: trimmed })
-          .eq('id', entryId)
-          .eq('user_id', user.id)
-          .eq('topic_id', selectedBookId);
-        if (fallbackError) {
-          setDevInfo('Edit entry error: ' + fallbackError.message, true);
-          return;
+      editEntryTextEl.value = existing.text || '';
+      editEntryStatusEl.textContent = '';
+      editEntryModalBackdrop.classList.remove('hidden');
+      editEntryModalBackdrop.setAttribute('aria-hidden', 'false');
+      editEntryTextEl.focus();
+      await new Promise((resolve) => {
+        function cleanup() {
+          editEntryModalBackdrop.classList.add('hidden');
+          editEntryModalBackdrop.setAttribute('aria-hidden', 'true');
+          btnEditEntryConfirm.onclick = null;
+          btnEditEntryCancel.onclick = null;
+          resolve();
         }
-      }
-      await loadEntries(user.id, selectedBookId);
+        btnEditEntryCancel.onclick = cleanup;
+        btnEditEntryConfirm.onclick = async function() {
+          const trimmed = editEntryTextEl.value.trim();
+          if (!trimmed) { editEntryStatusEl.textContent = 'Entry text cannot be empty.'; return; }
+          editEntryStatusEl.textContent = 'Saving...';
+          btnEditEntryConfirm.disabled = true;
+          const { error } = await supabase
+            .from('entries')
+            .update({ text: trimmed, updated_at: new Date().toISOString() })
+            .eq('id', entryId)
+            .eq('user_id', user.id)
+            .eq('topic_id', selectedBookId);
+          if (error) {
+            const { error: fallbackError } = await supabase
+              .from('entries')
+              .update({ text: trimmed })
+              .eq('id', entryId)
+              .eq('user_id', user.id)
+              .eq('topic_id', selectedBookId);
+            if (fallbackError) {
+              editEntryStatusEl.textContent = 'Error: ' + fallbackError.message;
+              btnEditEntryConfirm.disabled = false;
+              return;
+            }
+          }
+          btnEditEntryConfirm.disabled = false;
+          cleanup();
+          await loadEntries(user.id, selectedBookId);
+        };
+      });
     }
 
     async function deleteEntry(entryId) {
@@ -1171,42 +1321,57 @@
       const existing = loadedCharacters.find(c => String(c.id) === String(characterId));
       if (!existing) return;
       const details = parseCharacterDescription(existing.description || '');
-      const nextName = prompt('Edit character name:', existing.name || '');
-      if (nextName === null) return;
-      const trimmedName = nextName.trim();
-      if (!trimmedName) return alert('Character name cannot be empty.');
-      const nextRole = prompt('Edit role:', details.role || '');
-      if (nextRole === null) return;
-      const nextDescription = prompt('Edit description:', details.description || '');
-      if (nextDescription === null) return;
-      const nextRelationships = prompt('Edit relationships:', details.relationships || '');
-      if (nextRelationships === null) return;
-
-      const mergedDescription = mergeCharacterDescription(
-        nextRole.trim(),
-        nextDescription.trim(),
-        nextRelationships.trim()
-      );
-
-      const { error } = await supabase
-        .from('characters')
-        .update({ name: trimmedName, description: mergedDescription, updated_at: new Date().toISOString() })
-        .eq('id', characterId)
-        .eq('user_id', user.id)
-        .eq('topic_id', selectedBookId);
-      if (error) {
-        const { error: fallbackError } = await supabase
-          .from('characters')
-          .update({ name: trimmedName, description: mergedDescription })
-          .eq('id', characterId)
-          .eq('user_id', user.id)
-          .eq('topic_id', selectedBookId);
-        if (fallbackError) {
-          setDevInfo('Edit character error: ' + fallbackError.message, true);
-          return;
+      editCharNameEl.value = existing.name || '';
+      editCharRoleEl.value = details.role || '';
+      editCharDescriptionEl.value = details.description || '';
+      editCharRelationshipsEl.value = details.relationships || '';
+      editCharStatusEl.textContent = '';
+      editCharModalBackdrop.classList.remove('hidden');
+      editCharModalBackdrop.setAttribute('aria-hidden', 'false');
+      editCharNameEl.focus();
+      await new Promise((resolve) => {
+        function cleanup() {
+          editCharModalBackdrop.classList.add('hidden');
+          editCharModalBackdrop.setAttribute('aria-hidden', 'true');
+          btnEditCharConfirm.onclick = null;
+          btnEditCharCancel.onclick = null;
+          resolve();
         }
-      }
-      await loadCharacters(user.id, selectedBookId);
+        btnEditCharCancel.onclick = cleanup;
+        btnEditCharConfirm.onclick = async function() {
+          const trimmedName = editCharNameEl.value.trim();
+          if (!trimmedName) { editCharStatusEl.textContent = 'Character name cannot be empty.'; return; }
+          editCharStatusEl.textContent = 'Saving...';
+          btnEditCharConfirm.disabled = true;
+          const mergedDescription = mergeCharacterDescription(
+            editCharRoleEl.value.trim(),
+            editCharDescriptionEl.value.trim(),
+            editCharRelationshipsEl.value.trim()
+          );
+          const { error } = await supabase
+            .from('characters')
+            .update({ name: trimmedName, description: mergedDescription, updated_at: new Date().toISOString() })
+            .eq('id', characterId)
+            .eq('user_id', user.id)
+            .eq('topic_id', selectedBookId);
+          if (error) {
+            const { error: fallbackError } = await supabase
+              .from('characters')
+              .update({ name: trimmedName, description: mergedDescription })
+              .eq('id', characterId)
+              .eq('user_id', user.id)
+              .eq('topic_id', selectedBookId);
+            if (fallbackError) {
+              editCharStatusEl.textContent = 'Error: ' + fallbackError.message;
+              btnEditCharConfirm.disabled = false;
+              return;
+            }
+          }
+          btnEditCharConfirm.disabled = false;
+          cleanup();
+          await loadCharacters(user.id, selectedBookId);
+        };
+      });
     }
 
     async function deleteCharacter(characterId) {
@@ -1287,33 +1452,85 @@
     function renderEntries(items) {
       if (!items.length) {
         entriesList.innerHTML = '<div class="item muted">No entries yet.</div>';
+        entriesPaginationEl.style.display = 'none';
         return;
       }
-      entriesList.innerHTML = items
+      const totalPages = Math.max(1, Math.ceil(items.length / ENTRIES_PAGE_SIZE));
+      entriesPage = Math.min(entriesPage, totalPages);
+      entriesPage = Math.max(entriesPage, 1);
+      const startIndex = (entriesPage - 1) * ENTRIES_PAGE_SIZE;
+      const pageItems = items.slice(startIndex, startIndex + ENTRIES_PAGE_SIZE);
+
+      entriesList.innerHTML = pageItems
         .map(e => `<div class="item"><div>${escapeHtml(e.text)}</div><div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-entry-action="edit" data-entry-id="${e.id}">Edit</button><button class="small-btn danger" data-entry-action="delete" data-entry-id="${e.id}">Delete</button></div><div class="muted" style="margin-top:6px;">${formatRecordTimestamp(e)}</div></div>`)
         .join('');
+
+      entriesPaginationEl.style.display = totalPages > 1 ? 'flex' : 'none';
+      btnEntriesPrev.disabled = entriesPage <= 1 || isBusy;
+      btnEntriesNext.disabled = entriesPage >= totalPages || isBusy;
+      entriesPageNumbersEl.innerHTML = Array.from({length: totalPages}, function(_, i) { var p = i + 1; var ac = p === entriesPage ? ' active' : ''; return '<button type="button" class="page-num' + ac + '" data-entries-page="' + p + '">' + p + '</button>'; }).join('');
     }
 
     function renderCharacters(items) {
       if (!items.length) {
+        selectedCharacterId = null;
+        characterSearchMetaEl.textContent = '';
         charactersList.innerHTML = '<div class="item muted">No characters yet.</div>';
         return;
       }
-      charactersList.innerHTML = items
+      const searchTerm = characterSearchEl.value.trim().toLowerCase();
+      const filteredItems = items.filter((c) => {
+        if (!searchTerm) return true;
+        const details = parseCharacterDescription(c.description || '');
+        const searchableText = `${c.name || ''} ${details.role || ''} ${details.description || ''} ${details.relationships || ''}`.toLowerCase();
+        return searchableText.includes(searchTerm);
+      });
+
+      characterSearchMetaEl.textContent = searchTerm
+        ? `Showing ${filteredItems.length} of ${items.length} characters.`
+        : `${items.length} character(s).`;
+
+      if (!filteredItems.length) {
+        selectedCharacterId = null;
+        charactersList.innerHTML = '<div class="item muted">No characters match your search.</div>';
+        return;
+      }
+
+      let selectedCharacter = filteredItems.find(c => String(c.id) === String(selectedCharacterId));
+      if (!selectedCharacter) selectedCharacter = filteredItems[0];
+      selectedCharacterId = String(selectedCharacter.id);
+
+      const selectedDetails = parseCharacterDescription(selectedCharacter.description || '');
+      const roleHtml = selectedDetails.role
+        ? `<div class="character-section"><div class="character-label">Role</div><div class="character-value">${escapeHtml(selectedDetails.role)}</div></div>`
+        : '';
+      const descriptionHtml = selectedDetails.description
+        ? `<div class="character-section"><div class="character-label">Description</div><div class="character-value">${escapeHtml(selectedDetails.description)}</div></div>`
+        : '';
+      const relationshipsHtml = selectedDetails.relationships
+        ? `<div class="character-section"><div class="character-label">Relationships</div><div class="character-value">${escapeHtml(selectedDetails.relationships)}</div></div>`
+        : '';
+
+      const nodesHtml = filteredItems
         .map(c => {
-          const details = parseCharacterDescription(c.description || '');
-          const roleHtml = details.role
-            ? `<div class="character-section"><div class="character-label">Role</div><div class="character-value">${escapeHtml(details.role)}</div></div>`
-            : '';
-          const descriptionHtml = details.description
-            ? `<div class="character-section"><div class="character-label">Description</div><div class="character-value">${escapeHtml(details.description)}</div></div>`
-            : '';
-          const relationshipsHtml = details.relationships
-            ? `<div class="character-section"><div class="character-label">Relationships</div><div class="character-value">${escapeHtml(details.relationships)}</div></div>`
-            : '';
-          return `<div class="character-card"><h3 class="character-name">${escapeHtml(c.name)}</h3>${roleHtml}${descriptionHtml}${relationshipsHtml}<div class="row" style="margin-top:10px;"><button class="small-btn ghost" data-character-action="edit" data-character-id="${c.id}">Edit</button><button class="small-btn danger" data-character-action="delete" data-character-id="${c.id}">Delete</button></div><div class="character-time">${formatRecordTimestamp(c)}</div></div>`;
+          const isActive = String(c.id) === String(selectedCharacterId);
+          const activeClass = isActive ? ' active' : '';
+          return `<button type="button" class="character-node${activeClass}" data-character-node-id="${c.id}" title="${escapeHtml(c.name || '')}">${escapeHtml(c.name || 'Unnamed')}</button>`;
         })
         .join('');
+
+      charactersList.innerHTML = `<div class="character-node-map">${nodesHtml}</div>
+        <div class="character-card">
+          <h3 class="character-name">${escapeHtml(selectedCharacter.name || 'Unnamed')}</h3>
+          ${roleHtml}
+          ${descriptionHtml}
+          ${relationshipsHtml}
+          <div class="row" style="margin-top:10px;">
+            <button class="small-btn ghost" data-character-action="edit" data-character-id="${selectedCharacter.id}">Edit</button>
+            <button class="small-btn danger" data-character-action="delete" data-character-id="${selectedCharacter.id}">Delete</button>
+          </div>
+          <div class="character-time">${formatRecordTimestamp(selectedCharacter)}</div>
+        </div>`;
     }
 
     function renderBookImages(items) {
@@ -1334,7 +1551,10 @@
 
     function renderEmptyLists() {
       topicsList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      entriesPage = 1;
       entriesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
+      entriesPaginationEl.style.display = 'none';
+      resetCharacterViewState();
       charactersList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
       if (bookImagesList) {
         bookImagesList.innerHTML = '<div class="item muted">Not signed in or no data.</div>';
@@ -1431,13 +1651,34 @@
       if (action === 'edit') await editEntry(entryId);
       if (action === 'delete') await deleteEntry(entryId);
     });
+    btnEntriesPrev.addEventListener('click', () => {
+      if (entriesPage <= 1) return;
+      entriesPage -= 1;
+      renderEntries(loadedEntries);
+    });
+    btnEntriesNext.addEventListener('click', () => {
+      const totalPages = Math.max(1, Math.ceil(loadedEntries.length / ENTRIES_PAGE_SIZE));
+      if (entriesPage >= totalPages) return;
+      entriesPage += 1;
+      renderEntries(loadedEntries);
+    });
+    entriesPageNumbersEl.addEventListener('click', function(event) { var b = event.target.closest('[data-entries-page]'); if (!b) return; var p = parseInt(b.getAttribute('data-entries-page'), 10); if (!p || p === entriesPage) return; entriesPage = p; renderEntries(loadedEntries); });
     charactersList.addEventListener('click', async (event) => {
+      const nodeBtn = event.target.closest('[data-character-node-id]');
+      if (nodeBtn) {
+        selectedCharacterId = nodeBtn.getAttribute('data-character-node-id');
+        renderCharacters(loadedCharacters);
+        return;
+      }
       const btn = event.target.closest('[data-character-action]');
       if (!btn) return;
       const action = btn.getAttribute('data-character-action');
       const characterId = btn.getAttribute('data-character-id');
       if (action === 'edit') await editCharacter(characterId);
       if (action === 'delete') await deleteCharacter(characterId);
+    });
+    characterSearchEl.addEventListener('input', () => {
+      renderCharacters(loadedCharacters);
     });
     btnSignupConfirm.addEventListener('click', signUp);
     btnSignupCancel.addEventListener('click', closeSignupModal);
@@ -1465,8 +1706,10 @@
       if (event.target === signupModalBackdrop) closeSignupModal();
     });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !signupModalBackdrop.classList.contains('hidden')) {
-        closeSignupModal();
+      if (event.key === 'Escape') {
+        if (!signupModalBackdrop.classList.contains('hidden')) closeSignupModal();
+        if (!editEntryModalBackdrop.classList.contains('hidden')) btnEditEntryCancel.click();
+        if (!editCharModalBackdrop.classList.contains('hidden')) btnEditCharCancel.click();
       }
     });
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bookmarkt-v1';
+const CACHE_NAME = 'bookmarkt-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -25,8 +25,12 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API calls, cache-first for static assets
+// Fetch strategy:
+// - network-first for Supabase API calls
+// - network-first for document navigations (so new app versions appear quickly)
+// - cache-first fallback for other static assets
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
   // Always go network-first for Supabase API calls
@@ -42,7 +46,31 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static app shell
+  const isNavigation = event.request.mode === 'navigate'
+    || (event.request.headers.get('accept') || '').includes('text/html');
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const cloned = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cachedPage = await caches.match(event.request);
+          if (cachedPage) return cachedPage;
+          const cachedRoot = await caches.match('/index.html');
+          if (cachedRoot) return cachedRoot;
+          return Response.error();
+        })
+    );
+    return;
+  }
+
+  // Cache-first for static assets
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
