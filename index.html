@@ -228,6 +228,43 @@
         <div id="topicsList" class="list"></div>
       </section>
 
+      <section id="aiAssistantSection" class="content-section section-ai">
+        <h2 class="small">AI Assistant</h2>
+        <div class="small" id="aiForBook"><strong>AI for book:</strong> None</div>
+        <div class="subtle-note">Run one full AI update to generate and save summary, characters, and setting images together.</div>
+        <label>Update mode
+          <select id="aiUpdateMode">
+            <option value="manual">Manual update</option>
+            <option value="ai">Full AI update</option>
+          </select>
+        </label>
+        <label>AI Book Title
+          <input id="aiBookTitle" type="text" placeholder="Book title" />
+        </label>
+        <label>AI Author
+          <input id="aiAuthor" type="text" placeholder="Author name" />
+        </label>
+        <div id="aiControls" class="ai-controls hidden-by-mode">
+          <label>Progress Type
+            <select id="aiProgressType">
+              <option value="chapter">Chapter</option>
+              <option value="page">Page</option>
+            </select>
+          </label>
+          <label>Progress Value
+            <input id="aiProgressValue" type="number" min="1" step="1" placeholder="e.g., 12" />
+          </label>
+          <label>Optional Notes
+            <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
+          </label>
+          <div id="aiSpoilerBoundary" class="ai-mode-result">Spoiler-safe up to Chapter —</div>
+          <button id="btnGenerateAI" type="button">Generate Summary + Characters + Images</button>
+        </div>
+        <div id="aiStatus" class="muted"></div>
+        <div id="aiResultText" class="small" style="margin-top:8px;"></div>
+        <div id="aiGeneratedImages" class="ai-generated-grid"></div>
+      </section>
+
       <hr />
 
       <section id="entriesSection" class="content-section section-entries">
@@ -274,43 +311,6 @@
         </label>
         <div id="characterSearchMeta" class="character-meta"></div>
         <div id="charactersList" class="list"></div>
-      </section>
-
-      <section id="aiAssistantSection" class="content-section section-ai">
-        <h2 class="small">AI Assistant</h2>
-        <div class="small" id="aiForBook"><strong>AI for book:</strong> None</div>
-        <div class="subtle-note">You can switch between Manual and AI update anytime; all data saves here.</div>
-        <label>Update mode
-          <select id="aiUpdateMode">
-            <option value="manual">Manual update</option>
-            <option value="ai">AI update</option>
-          </select>
-        </label>
-        <label>AI Book Title
-          <input id="aiBookTitle" type="text" placeholder="Book title" />
-        </label>
-        <label>AI Author
-          <input id="aiAuthor" type="text" placeholder="Author name" />
-        </label>
-        <div id="aiControls" class="ai-controls hidden-by-mode">
-          <label>Progress Type
-            <select id="aiProgressType">
-              <option value="chapter">Chapter</option>
-              <option value="page">Page</option>
-            </select>
-          </label>
-          <label>Progress Value
-            <input id="aiProgressValue" type="number" min="1" step="1" placeholder="e.g., 12" />
-          </label>
-          <label>Optional Notes
-            <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
-          </label>
-          <div id="aiSpoilerBoundary" class="ai-mode-result">Spoiler-safe up to Chapter —</div>
-          <button id="btnGenerateAI" type="button">Run AI Update</button>
-        </div>
-        <div id="aiStatus" class="muted"></div>
-        <div id="aiResultText" class="small" style="margin-top:8px;"></div>
-        <div id="aiGeneratedImages" class="ai-generated-grid"></div>
       </section>
 
       <section id="imagesSection" class="content-section section-images">
@@ -1011,7 +1011,7 @@
         return;
       }
       if (aiUpdateModeEl.value !== 'ai') {
-        setAIStatus('Manual update mode is active. Switch to AI update to generate content.');
+        setAIStatus('Manual update mode is active. Switch to Full AI update to generate summary, characters, and images.');
         return;
       }
       const bookTitle = aiBookTitleEl.value.trim();
@@ -1034,8 +1034,8 @@
       persistAIFormValues();
       renderAIResultText('');
       renderAIGeneratedImages([]);
-      setAIStatus('Generating and saving AI update...');
-      setBusyState(true, 'Generating spoiler-safe AI updates...');
+      setAIStatus('Generating and saving full AI update...');
+      setBusyState(true, 'Generating spoiler-safe summary, characters, and images...');
       try {
         const requestBody = {
           bookTitle,
@@ -1044,10 +1044,8 @@
           progressValue: progressNumber,
           notes
         };
-        const summaryData = await invokeAIForMode('summary', requestBody);
-        const charactersData = await invokeAIForMode('characters', requestBody);
-        const locationsData = await invokeAIForMode('locations', requestBody);
-        const spoilerBoundary = summaryData.spoilerBoundary || charactersData.spoilerBoundary || locationsData.spoilerBoundary || '';
+        const fullUpdateData = await invokeAIForMode('full_update', requestBody);
+        const spoilerBoundary = fullUpdateData.spoilerBoundary || '';
 
         if (spoilerBoundary) {
           aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${spoilerBoundary}`;
@@ -1055,10 +1053,10 @@
           updateAISpoilerBoundaryLabel();
         }
 
-        const summaryText = String(summaryData.summaryText || summaryData.text || '').trim();
-        const normalizedCharacters = normalizeAICharacters(charactersData.characters);
-        const generatedImages = Array.isArray(locationsData.generatedImages) ? locationsData.generatedImages : [];
-        const locationsText = String(locationsData.locationsText || locationsData.text || '').trim();
+        const summaryText = String(fullUpdateData.summaryText || '').trim();
+        const normalizedCharacters = normalizeAICharacters(fullUpdateData.characters);
+        const generatedImages = Array.isArray(fullUpdateData.generatedImages) ? fullUpdateData.generatedImages : [];
+        const locationsText = String(fullUpdateData.locationsText || '').trim();
 
         if (summaryText) {
           const summaryEntryText = `[AI Summary${spoilerBoundary ? ` - ${spoilerBoundary}` : ''}]\n${summaryText}`;
@@ -1102,9 +1100,9 @@
         ]);
 
         if (imageResult.uploadErrors.length) {
-          setAIStatus(`AI update saved with partial image errors (${imageResult.uploadErrors.length}).`);
+          setAIStatus(`Full AI update saved with partial image errors (${imageResult.uploadErrors.length}).`);
         } else {
-          setAIStatus('AI update saved to Entries, Character Map, and Book Images.');
+          setAIStatus('Full AI update saved to Entries, Character Map, and Book Images.');
         }
       } catch (err) {
         const message = err && err.message ? err.message : String(err);

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-type Mode = "summary" | "characters" | "locations";
+type Mode = "summary" | "characters" | "locations" | "full_update";
 
 type RequestBody = {
   mode?: Mode;
@@ -202,7 +202,7 @@ serve(async (req) => {
       notes,
     } = body ?? {};
 
-    const validModes: Mode[] = ["summary", "characters", "locations"];
+    const validModes: Mode[] = ["summary", "characters", "locations", "full_update"];
     if (!mode || !validModes.includes(mode)) {
       return jsonResponse({ error: "Invalid mode", details: { mode, allowed: validModes } }, 400);
     }
@@ -241,20 +241,17 @@ STRICT SPOILER RULES:
 
 User notes: ${notes?.trim() || "(none)"}`;
 
-    if (mode === "summary") {
+    const generateSummary = async () => {
       const summaryInstruction = `${sharedPrompt}
 
 Mode: summary
 Return only spoiler-safe prose up to the boundary.
 Keep it concise and avoid guessing details beyond the boundary.`;
       const summaryText = await callGeminiText(geminiKey, summaryInstruction);
-      return jsonResponse(
-        { ok: true, mode, spoilerBoundary: spoilerBoundaryLabel, summaryText, text: summaryText },
-        200
-      );
-    }
+      return { summaryText };
+    };
 
-    if (mode === "characters") {
+    const generateCharacters = async () => {
       const characterInstruction = `${sharedPrompt}
 
 Mode: characters
@@ -278,19 +275,11 @@ Rules:
         responseMimeType: "application/json",
       });
       const characters = normalizeCharacterPayload(charactersRawText);
-      return jsonResponse(
-        {
-          ok: true,
-          mode,
-          spoilerBoundary: spoilerBoundaryLabel,
-          characters,
-          text: `Generated ${characters.length} character(s).`,
-        },
-        200
-      );
-    }
+      return { characters };
+    };
 
-    const locationPromptInstruction = `${sharedPrompt}
+    const generateLocations = async () => {
+      const locationPromptInstruction = `${sharedPrompt}
 
 Mode: locations
 Return ONLY strict JSON with this shape:
@@ -309,59 +298,113 @@ Rules:
 - imagePrompt must describe setting visuals only, no plot reveals beyond boundary.
 - Never include markdown fences.`;
 
-    const locationRawText = await callGeminiText(geminiKey, locationPromptInstruction, {
-      responseMimeType: "application/json",
-    });
+      const locationRawText = await callGeminiText(geminiKey, locationPromptInstruction, {
+        responseMimeType: "application/json",
+      });
 
-    const normalized = normalizeLocationPayload(locationRawText);
+      const normalized = normalizeLocationPayload(locationRawText);
+      const generatedImages: Array<{
+        title: string;
+        prompt: string;
+        mimeType: string;
+        base64Data: string;
+      }> = [];
+      const imageGenerationErrors: Array<{
+        title: string;
+        prompt: string;
+        error: string;
+        details?: unknown;
+        status?: number;
+      }> = [];
 
-    const generatedImages: Array<{
-      title: string;
-      prompt: string;
-      mimeType: string;
-      base64Data: string;
-    }> = [];
-    const imageGenerationErrors: Array<{
-      title: string;
-      prompt: string;
-      error: string;
-      details?: unknown;
-      status?: number;
-    }> = [];
-
-    for (const location of normalized.locationPrompts) {
-      try {
-        const imageResult = await generateImageFromPrompt(geminiKey, location.prompt);
-        generatedImages.push({
-          title: location.title,
-          prompt: location.prompt,
-          mimeType: imageResult.mimeType,
-          base64Data: imageResult.base64Data,
-        });
-      } catch (imageErr) {
-        imageGenerationErrors.push({
-          title: location.title,
-          prompt: location.prompt,
-          error: imageErr instanceof Error ? imageErr.message : String(imageErr),
-          details: (imageErr as any)?.details,
-          status: (imageErr as any)?.status,
-        });
+      for (const location of normalized.locationPrompts) {
+        try {
+          const imageResult = await generateImageFromPrompt(geminiKey, location.prompt);
+          generatedImages.push({
+            title: location.title,
+            prompt: location.prompt,
+            mimeType: imageResult.mimeType,
+            base64Data: imageResult.base64Data,
+          });
+        } catch (imageErr) {
+          imageGenerationErrors.push({
+            title: location.title,
+            prompt: location.prompt,
+            error: imageErr instanceof Error ? imageErr.message : String(imageErr),
+            details: (imageErr as any)?.details,
+            status: (imageErr as any)?.status,
+          });
+        }
       }
-    }
 
-    return jsonResponse(
-      {
-        ok: true,
-        mode,
-        spoilerBoundary: spoilerBoundaryLabel,
+      return {
         locationsText: normalized.locationsText,
-        text: normalized.locationsText,
         locationPrompts: normalized.locationPrompts,
         generatedImages,
         imageGenerationError: imageGenerationErrors.length
           ? "One or more image generations failed."
           : null,
         imageGenerationErrors,
+      };
+    };
+
+    if (mode === "summary") {
+      const summaryResult = await generateSummary();
+      return jsonResponse(
+        { ok: true, mode, spoilerBoundary: spoilerBoundaryLabel, summaryText: summaryResult.summaryText, text: summaryResult.summaryText },
+        200
+      );
+    }
+
+    if (mode === "characters") {
+      const characterResult = await generateCharacters();
+      return jsonResponse(
+        {
+          ok: true,
+          mode,
+          spoilerBoundary: spoilerBoundaryLabel,
+          characters: characterResult.characters,
+          text: `Generated ${characterResult.characters.length} character(s).`,
+        },
+        200
+      );
+    }
+
+    if (mode === "locations") {
+      const locationResult = await generateLocations();
+      return jsonResponse(
+        {
+          ok: true,
+          mode,
+          spoilerBoundary: spoilerBoundaryLabel,
+          locationsText: locationResult.locationsText,
+          text: locationResult.locationsText,
+          locationPrompts: locationResult.locationPrompts,
+          generatedImages: locationResult.generatedImages,
+          imageGenerationError: locationResult.imageGenerationError,
+          imageGenerationErrors: locationResult.imageGenerationErrors,
+        },
+        200
+      );
+    }
+
+    const summaryResult = await generateSummary();
+    const characterResult = await generateCharacters();
+    const locationResult = await generateLocations();
+
+    return jsonResponse(
+      {
+        ok: true,
+        mode,
+        spoilerBoundary: spoilerBoundaryLabel,
+        summaryText: summaryResult.summaryText,
+        text: summaryResult.summaryText,
+        characters: characterResult.characters,
+        locationsText: locationResult.locationsText,
+        locationPrompts: locationResult.locationPrompts,
+        generatedImages: locationResult.generatedImages,
+        imageGenerationError: locationResult.imageGenerationError,
+        imageGenerationErrors: locationResult.imageGenerationErrors,
       },
       200
     );
