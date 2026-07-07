@@ -17,6 +17,13 @@ type LocationPrompt = {
   description?: string;
 };
 
+type CharacterItem = {
+  name: string;
+  role: string;
+  description: string;
+  relationships: string;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -79,6 +86,24 @@ function normalizeLocationPayload(rawText: string): { locationsText: string; loc
     locationsText: locationsText || "No location summary returned.",
     locationPrompts,
   };
+}
+
+function normalizeCharacterPayload(rawText: string): CharacterItem[] {
+  const parsed = parseJsonText(rawText);
+  const charactersRaw = Array.isArray(parsed?.characters) ? parsed.characters : [];
+  return charactersRaw
+    .map((item: any) => {
+      const name = String(item?.name ?? "").trim();
+      if (!name) return null;
+      return {
+        name,
+        role: String(item?.role ?? "").trim(),
+        description: String(item?.description ?? "").trim(),
+        relationships: String(item?.relationships ?? "").trim(),
+      };
+    })
+    .filter((item: CharacterItem | null): item is CharacterItem => !!item)
+    .slice(0, 25);
 }
 
 async function callGeminiText(
@@ -216,14 +241,53 @@ STRICT SPOILER RULES:
 
 User notes: ${notes?.trim() || "(none)"}`;
 
-    if (mode === "summary" || mode === "characters") {
-      const modeInstruction =
-        mode === "summary"
-          ? "Return a spoiler-safe summary up to the boundary."
-          : "Return a spoiler-safe character overview including only characters introduced up to the boundary.";
+    if (mode === "summary") {
+      const summaryInstruction = `${sharedPrompt}
 
-      const text = await callGeminiText(geminiKey, `${sharedPrompt}\n\nMode: ${mode}\n${modeInstruction}`);
-      return jsonResponse({ ok: true, mode, text, spoilerBoundary: spoilerBoundaryLabel }, 200);
+Mode: summary
+Return only spoiler-safe prose up to the boundary.
+Keep it concise and avoid guessing details beyond the boundary.`;
+      const summaryText = await callGeminiText(geminiKey, summaryInstruction);
+      return jsonResponse(
+        { ok: true, mode, spoilerBoundary: spoilerBoundaryLabel, summaryText, text: summaryText },
+        200
+      );
+    }
+
+    if (mode === "characters") {
+      const characterInstruction = `${sharedPrompt}
+
+Mode: characters
+Return ONLY strict JSON with this shape:
+{
+  "characters": [
+    {
+      "name": "character name",
+      "role": "spoiler-safe role up to boundary",
+      "description": "spoiler-safe description up to boundary",
+      "relationships": "spoiler-safe relationship notes up to boundary"
+    }
+  ]
+}
+Rules:
+- Include 1 to 25 characters.
+- Never include markdown fences.
+- Never include spoilers beyond the boundary.`;
+
+      const charactersRawText = await callGeminiText(geminiKey, characterInstruction, {
+        responseMimeType: "application/json",
+      });
+      const characters = normalizeCharacterPayload(charactersRawText);
+      return jsonResponse(
+        {
+          ok: true,
+          mode,
+          spoilerBoundary: spoilerBoundaryLabel,
+          characters,
+          text: `Generated ${characters.length} character(s).`,
+        },
+        200
+      );
     }
 
     const locationPromptInstruction = `${sharedPrompt}
@@ -290,6 +354,7 @@ Rules:
         ok: true,
         mode,
         spoilerBoundary: spoilerBoundaryLabel,
+        locationsText: normalized.locationsText,
         text: normalized.locationsText,
         locationPrompts: normalized.locationPrompts,
         generatedImages,

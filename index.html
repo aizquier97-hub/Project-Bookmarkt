@@ -56,6 +56,9 @@
     .section-images { border-left-color:#ea580c; background:#fff7ed; }
     .section-ai { border-left-color:#16a34a; background:#f0fdf4; }
     .ai-mode-result { margin-top:8px; color:#14532d; font-size:13px; }
+    .subtle-note { margin-top:8px; color:#166534; font-size:12px; }
+    .ai-controls { margin-top:10px; border:1px solid #bbf7d0; border-radius:8px; padding:10px; background:#ffffff; }
+    .hidden-by-mode { display:none !important; }
     .ai-generated-grid { margin-top:10px; display:grid; grid-template-columns:1fr; gap:10px; }
     .ai-generated-card { border:1px solid #bbf7d0; border-radius:8px; padding:8px; background:#fff; }
     .ai-generated-card img { width:100%; height:auto; border-radius:6px; display:block; }
@@ -212,6 +215,15 @@
         <label>Add book
           <input id="newTopic" type="text" placeholder="e.g., Don Quixote" />
         </label>
+        <label>Creation mode
+          <select id="bookCreationMode">
+            <option value="manual">Manual</option>
+            <option value="ai">AI</option>
+          </select>
+        </label>
+        <label id="bookCreationAuthorWrap" class="hidden-by-mode">Author (required for AI book creation)
+          <input id="bookCreationAuthor" type="text" placeholder="Author name" />
+        </label>
         <button id="btnAddTopic" type="button">Add Book</button>
         <div id="topicsList" class="list"></div>
       </section>
@@ -267,33 +279,35 @@
       <section id="aiAssistantSection" class="content-section section-ai">
         <h2 class="small">AI Assistant</h2>
         <div class="small" id="aiForBook"><strong>AI for book:</strong> None</div>
+        <div class="subtle-note">You can switch between Manual and AI update anytime; all data saves here.</div>
+        <label>Update mode
+          <select id="aiUpdateMode">
+            <option value="manual">Manual update</option>
+            <option value="ai">AI update</option>
+          </select>
+        </label>
         <label>AI Book Title
           <input id="aiBookTitle" type="text" placeholder="Book title" />
         </label>
         <label>AI Author
           <input id="aiAuthor" type="text" placeholder="Author name" />
         </label>
-        <label>Progress Type
-          <select id="aiProgressType">
-            <option value="chapter">Chapter</option>
-            <option value="page">Page</option>
-          </select>
-        </label>
-        <label>Progress Value
-          <input id="aiProgressValue" type="number" min="1" step="1" placeholder="e.g., 12" />
-        </label>
-        <label>Mode
-          <select id="aiMode">
-            <option value="summary">Summary</option>
-            <option value="characters">Characters</option>
-            <option value="locations">Locations</option>
-          </select>
-        </label>
-        <label>Optional Notes
-          <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
-        </label>
-        <div id="aiSpoilerBoundary" class="ai-mode-result">Spoiler-safe up to Chapter —</div>
-        <button id="btnGenerateAI" type="button">Generate with AI</button>
+        <div id="aiControls" class="ai-controls hidden-by-mode">
+          <label>Progress Type
+            <select id="aiProgressType">
+              <option value="chapter">Chapter</option>
+              <option value="page">Page</option>
+            </select>
+          </label>
+          <label>Progress Value
+            <input id="aiProgressValue" type="number" min="1" step="1" placeholder="e.g., 12" />
+          </label>
+          <label>Optional Notes
+            <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
+          </label>
+          <div id="aiSpoilerBoundary" class="ai-mode-result">Spoiler-safe up to Chapter —</div>
+          <button id="btnGenerateAI" type="button">Run AI Update</button>
+        </div>
         <div id="aiStatus" class="muted"></div>
         <div id="aiResultText" class="small" style="margin-top:8px;"></div>
         <div id="aiGeneratedImages" class="ai-generated-grid"></div>
@@ -434,6 +448,9 @@
     const btnSignupCancel = document.getElementById('btnSignupCancel');
 
     const newTopicEl = document.getElementById('newTopic');
+    const bookCreationModeEl = document.getElementById('bookCreationMode');
+    const bookCreationAuthorWrapEl = document.getElementById('bookCreationAuthorWrap');
+    const bookCreationAuthorEl = document.getElementById('bookCreationAuthor');
     const btnAddTopic = document.getElementById('btnAddTopic');
     const topicsList = document.getElementById('topicsList');
     const entriesForBookEl = document.getElementById('entriesForBook');
@@ -460,11 +477,12 @@
     const charactersList = document.getElementById('charactersList');
     const imagesForBookEl = document.getElementById('imagesForBook');
     const aiForBookEl = document.getElementById('aiForBook');
+    const aiUpdateModeEl = document.getElementById('aiUpdateMode');
     const aiBookTitleEl = document.getElementById('aiBookTitle');
     const aiAuthorEl = document.getElementById('aiAuthor');
+    const aiControlsEl = document.getElementById('aiControls');
     const aiProgressTypeEl = document.getElementById('aiProgressType');
     const aiProgressValueEl = document.getElementById('aiProgressValue');
-    const aiModeEl = document.getElementById('aiMode');
     const aiNotesEl = document.getElementById('aiNotes');
     const btnGenerateAI = document.getElementById('btnGenerateAI');
     const aiSpoilerBoundaryEl = document.getElementById('aiSpoilerBoundary');
@@ -480,7 +498,7 @@
     const imageStatusEl = document.getElementById('imageStatus');
     const bookImagesList = document.getElementById('bookImagesList');
     const hasImageUI = !!(bookImageDropzone && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiProgressTypeEl && aiProgressValueEl && aiModeEl && aiNotesEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiGeneratedImagesEl);
+    const hasAIUI = !!(aiUpdateModeEl && aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -498,6 +516,7 @@
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
     const CACHE_KEY_PREFIX = 'bookmarkt-cache-';
     const AI_FORM_KEY_PREFIX = 'bookmarkt-ai-form-';
+    const BOOK_AUTHOR_MAP_KEY_PREFIX = 'bookmarkt-book-author-map-';
     const CACHE_TTL_MS = 5 * 60 * 1000;
     let aiGeneratedImagesCache = [];
 
@@ -605,7 +624,10 @@
       appUserStatus.textContent = isSignedIn ? `Signed in as ${user.email}` : '';
 
       newTopicEl.disabled = !isSignedIn || isBusy;
+      if (bookCreationModeEl) bookCreationModeEl.disabled = !isSignedIn || isBusy;
+      if (bookCreationAuthorEl) bookCreationAuthorEl.disabled = !isSignedIn || isBusy;
       btnAddTopic.disabled = !isSignedIn || isBusy;
+      syncBookCreationModeUI();
       syncBookScopedControlState();
     }
 
@@ -626,13 +648,14 @@
       characterSearchEl.disabled = disableBookScoped;
       imageCaptionEl.disabled = disableBookScoped;
       if (hasAIUI) {
+        const isAIUpdateMode = aiUpdateModeEl.value === 'ai';
+        aiUpdateModeEl.disabled = disableBookScoped;
         aiBookTitleEl.disabled = disableBookScoped;
         aiAuthorEl.disabled = disableBookScoped;
-        aiProgressTypeEl.disabled = disableBookScoped;
-        aiProgressValueEl.disabled = disableBookScoped;
-        aiModeEl.disabled = disableBookScoped;
-        aiNotesEl.disabled = disableBookScoped;
-        btnGenerateAI.disabled = disableBookScoped;
+        aiProgressTypeEl.disabled = disableBookScoped || !isAIUpdateMode;
+        aiProgressValueEl.disabled = disableBookScoped || !isAIUpdateMode;
+        aiNotesEl.disabled = disableBookScoped || !isAIUpdateMode;
+        btnGenerateAI.disabled = disableBookScoped || !isAIUpdateMode;
       }
       if (hasImageUI) {
         btnPickImages.disabled = disableBookScoped;
@@ -663,6 +686,39 @@
     function getAIFormStorageKey(userId, bookId) {
       if (!userId || !bookId) return null;
       return `${AI_FORM_KEY_PREFIX}${userId}-${bookId}`;
+    }
+    function getBookAuthorMapStorageKey(userId) {
+      if (!userId) return null;
+      return `${BOOK_AUTHOR_MAP_KEY_PREFIX}${userId}`;
+    }
+    function readBookAuthorMap(userId) {
+      const key = getBookAuthorMapStorageKey(userId);
+      if (!key) return {};
+      try {
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (_) {
+        return {};
+      }
+    }
+    function saveBookAuthorForTopic(userId, topicId, author) {
+      const key = getBookAuthorMapStorageKey(userId);
+      if (!key || !topicId) return;
+      try {
+        const map = readBookAuthorMap(userId);
+        if (!author) {
+          delete map[String(topicId)];
+        } else {
+          map[String(topicId)] = String(author);
+        }
+        localStorage.setItem(key, JSON.stringify(map));
+      } catch (_) {}
+    }
+    function getBookAuthorForSelectedTopic() {
+      if (!currentUser || !selectedBookId) return '';
+      const map = readBookAuthorMap(currentUser.id);
+      return map[String(selectedBookId)] || '';
     }
     function writeCache(kind, userId, data, bookId) {
       if (!userId) return;
@@ -721,6 +777,26 @@
       aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${progressType} ${progressValue}`;
     }
 
+    function syncBookCreationModeUI() {
+      if (!bookCreationModeEl || !bookCreationAuthorWrapEl) return;
+      const isAI = bookCreationModeEl.value === 'ai';
+      bookCreationAuthorWrapEl.classList.toggle('hidden-by-mode', !isAI);
+    }
+
+    function syncAIUpdateModeUI() {
+      if (!hasAIUI) return;
+      const isAI = aiUpdateModeEl.value === 'ai';
+      aiControlsEl.classList.toggle('hidden-by-mode', !isAI);
+      if (!isAI) {
+        setAIStatus('Manual update mode active. Use Entries, Character Map, and Book Images directly.');
+        renderAIGeneratedImages([]);
+      } else {
+        setAIStatus('');
+      }
+      updateAISpoilerBoundaryLabel();
+      syncBookScopedControlState();
+    }
+
     function renderAIResultText(text) {
       if (!hasAIUI) return;
       aiResultTextEl.textContent = text || '';
@@ -739,11 +815,11 @@
       const key = getAIFormStorageKey(currentUser.id, selectedBookId);
       if (!key) return;
       const payload = {
+        updateMode: aiUpdateModeEl.value === 'manual' ? 'manual' : 'ai',
         bookTitle: aiBookTitleEl.value.trim(),
         author: aiAuthorEl.value.trim(),
         progressType: aiProgressTypeEl.value === 'page' ? 'page' : 'chapter',
         progressValue: aiProgressValueEl.value.trim(),
-        mode: aiModeEl.value || 'summary',
         notes: aiNotesEl.value || ''
       };
       try {
@@ -759,43 +835,48 @@
       if (!currentUser || !selectedBookId) {
         aiBookTitleEl.value = '';
         aiAuthorEl.value = '';
+        aiUpdateModeEl.value = 'manual';
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
-        aiModeEl.value = 'summary';
         aiNotesEl.value = '';
+        syncAIUpdateModeUI();
         updateAISpoilerBoundaryLabel();
         return;
       }
       const selectedBookName = getSelectedBookName();
+      const defaultAuthor = getBookAuthorForSelectedTopic();
       const key = getAIFormStorageKey(currentUser.id, selectedBookId);
       if (!key) return;
       try {
         const raw = localStorage.getItem(key);
         if (!raw) {
+          aiUpdateModeEl.value = 'manual';
           aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
-          aiAuthorEl.value = '';
+          aiAuthorEl.value = defaultAuthor;
           aiProgressTypeEl.value = 'chapter';
           aiProgressValueEl.value = '';
-          aiModeEl.value = 'summary';
           aiNotesEl.value = '';
+          syncAIUpdateModeUI();
           updateAISpoilerBoundaryLabel();
           return;
         }
         const parsed = JSON.parse(raw);
+        aiUpdateModeEl.value = (parsed && parsed.updateMode === 'ai') ? 'ai' : 'manual';
         aiBookTitleEl.value = (parsed && parsed.bookTitle) ? String(parsed.bookTitle) : (selectedBookName === 'None' ? '' : selectedBookName);
-        aiAuthorEl.value = (parsed && parsed.author) ? String(parsed.author) : '';
+        aiAuthorEl.value = (parsed && parsed.author) ? String(parsed.author) : defaultAuthor;
         aiProgressTypeEl.value = (parsed && parsed.progressType === 'page') ? 'page' : 'chapter';
         aiProgressValueEl.value = (parsed && parsed.progressValue) ? String(parsed.progressValue) : '';
-        aiModeEl.value = (parsed && typeof parsed.mode === 'string') ? parsed.mode : 'summary';
         aiNotesEl.value = (parsed && parsed.notes) ? String(parsed.notes) : '';
+        syncAIUpdateModeUI();
       } catch (err) {
         setDevInfo('AI form load error: ' + (err && err.message ? err.message : String(err)), true);
+        aiUpdateModeEl.value = 'manual';
         aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
-        aiAuthorEl.value = '';
+        aiAuthorEl.value = defaultAuthor;
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
-        aiModeEl.value = 'summary';
         aiNotesEl.value = '';
+        syncAIUpdateModeUI();
       }
       updateAISpoilerBoundaryLabel();
     }
@@ -852,6 +933,75 @@
         .join('');
     }
 
+    function normalizeAICharacters(items) {
+      if (!Array.isArray(items)) return [];
+      return items
+        .map((item) => {
+          const name = item && item.name ? String(item.name).trim() : '';
+          if (!name) return null;
+          const role = item && item.role ? String(item.role).trim() : '';
+          const description = item && item.description ? String(item.description).trim() : '';
+          const relationships = item && item.relationships ? String(item.relationships).trim() : '';
+          return {
+            name,
+            description: mergeCharacterDescription(role, description, relationships)
+          };
+        })
+        .filter(Boolean);
+    }
+
+    async function saveAIImagesToBook(user, generatedImages, spoilerBoundary) {
+      const insertedImageIds = [];
+      const uploadErrors = [];
+      for (let i = 0; i < generatedImages.length; i += 1) {
+        const item = generatedImages[i] || {};
+        try {
+          const mimeType = item.mimeType || 'image/png';
+          const bytes = base64ToBytes(item.base64Data || '');
+          const extension = (mimeType.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '') || 'png';
+          const safeName = (item.title || `ai-location-${i + 1}`).toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 40) || `ai-location-${i + 1}`;
+          const filePath = `${user.id}/${selectedBookId}/${Date.now()}-${safeName}.${extension}`;
+          const blob = new Blob([bytes], { type: mimeType });
+          const uploadRes = await supabase.storage
+            .from(BOOK_IMAGES_BUCKET)
+            .upload(filePath, blob, { upsert: false, contentType: mimeType });
+          if (uploadRes.error) throw uploadRes.error;
+          const { data: publicUrlData } = supabase.storage.from(BOOK_IMAGES_BUCKET).getPublicUrl(filePath);
+          const imageUrl = publicUrlData && publicUrlData.publicUrl ? publicUrlData.publicUrl : null;
+          if (!imageUrl) throw new Error('Could not retrieve public URL for generated image.');
+          const captionParts = ['[AI Setting]'];
+          if (item.title) captionParts.push(String(item.title));
+          if (spoilerBoundary) captionParts.push(`(${spoilerBoundary})`);
+          const insertRes = await supabase
+            .from('book_images')
+            .insert([{
+              user_id: user.id,
+              topic_id: selectedBookId,
+              image_url: imageUrl,
+              caption: captionParts.join(' ')
+            }])
+            .select('id')
+            .single();
+          if (insertRes.error) throw insertRes.error;
+          insertedImageIds.push(insertRes.data.id);
+        } catch (imageErr) {
+          uploadErrors.push(imageErr && imageErr.message ? imageErr.message : String(imageErr));
+        }
+      }
+      return { insertedImageIds, uploadErrors };
+    }
+
+    async function invokeAIForMode(mode, payload) {
+      const invokeRes = await supabase.functions.invoke('ai-bookmate', { body: { mode, ...payload } });
+      const data = invokeRes && invokeRes.data ? invokeRes.data : null;
+      if (invokeRes.error) throw new Error(invokeRes.error.message || `AI ${mode} invoke error`);
+      if (!data || data.ok !== true) {
+        const detailMsg = data && data.error ? data.error : `AI ${mode} returned an invalid response.`;
+        throw new Error(detailMsg);
+      }
+      return data;
+    }
+
     async function generateWithAI() {
       if (!hasAIUI) return;
       const user = requireCurrentUser();
@@ -860,11 +1010,14 @@
         setAIStatus('AI error: Select a book first.');
         return;
       }
+      if (aiUpdateModeEl.value !== 'ai') {
+        setAIStatus('Manual update mode is active. Switch to AI update to generate content.');
+        return;
+      }
       const bookTitle = aiBookTitleEl.value.trim();
       const author = aiAuthorEl.value.trim();
       const progressType = aiProgressTypeEl.value === 'page' ? 'page' : 'chapter';
       const progressValue = aiProgressValueEl.value.trim();
-      const mode = aiModeEl.value;
       const notes = aiNotesEl.value.trim();
 
       if (!bookTitle || !author || !progressValue) {
@@ -877,61 +1030,82 @@
         return;
       }
 
+      saveBookAuthorForTopic(user.id, selectedBookId, author);
       persistAIFormValues();
       renderAIResultText('');
       renderAIGeneratedImages([]);
-      setAIStatus('Generating...');
-      setBusyState(true, 'Generating spoiler-safe AI response...');
+      setAIStatus('Generating and saving AI update...');
+      setBusyState(true, 'Generating spoiler-safe AI updates...');
       try {
-        const invokeRes = await supabase.functions.invoke('ai-bookmate', {
-          body: {
-            mode,
-            bookTitle,
-            author,
-            progressType,
-            progressValue: progressNumber,
-            notes
-          }
-        });
-        const data = invokeRes && invokeRes.data ? invokeRes.data : null;
-        if (invokeRes.error) {
-          throw new Error(invokeRes.error.message || 'Unknown invoke error');
-        }
-        if (!data || data.ok !== true) {
-          throw new Error((data && data.error) ? data.error : 'AI function returned an invalid response.');
-        }
+        const requestBody = {
+          bookTitle,
+          author,
+          progressType,
+          progressValue: progressNumber,
+          notes
+        };
+        const summaryData = await invokeAIForMode('summary', requestBody);
+        const charactersData = await invokeAIForMode('characters', requestBody);
+        const locationsData = await invokeAIForMode('locations', requestBody);
+        const spoilerBoundary = summaryData.spoilerBoundary || charactersData.spoilerBoundary || locationsData.spoilerBoundary || '';
 
-        if (data.spoilerBoundary) {
-          aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${data.spoilerBoundary}`;
+        if (spoilerBoundary) {
+          aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${spoilerBoundary}`;
         } else {
           updateAISpoilerBoundaryLabel();
         }
 
-        if (mode === 'locations') {
-          const locationPrompts = Array.isArray(data.locationPrompts) ? data.locationPrompts : [];
-          const promptLines = locationPrompts
-            .map((item, index) => {
-              const title = item && item.title ? String(item.title) : `Location ${index + 1}`;
-              const prompt = item && item.prompt ? String(item.prompt) : '';
-              return `${index + 1}. ${title}: ${prompt}`;
-            })
-            .filter(Boolean);
-          const textParts = [];
-          if (data.text) textParts.push(String(data.text));
-          if (promptLines.length) textParts.push(`Image prompts:\n${promptLines.join('\n')}`);
-          renderAIResultText(textParts.join('\n\n'));
-          const generatedImages = Array.isArray(data.generatedImages) ? data.generatedImages : [];
-          renderAIGeneratedImages(generatedImages);
-          if (data.imageGenerationError) {
-            setAIStatus(`Generated locations with partial image errors. ${generatedImages.length} image(s) ready.`);
-          } else {
-            setAIStatus(`Locations generated successfully. ${generatedImages.length} image(s) ready.`);
-          }
-          return;
+        const summaryText = String(summaryData.summaryText || summaryData.text || '').trim();
+        const normalizedCharacters = normalizeAICharacters(charactersData.characters);
+        const generatedImages = Array.isArray(locationsData.generatedImages) ? locationsData.generatedImages : [];
+        const locationsText = String(locationsData.locationsText || locationsData.text || '').trim();
+
+        if (summaryText) {
+          const summaryEntryText = `[AI Summary${spoilerBoundary ? ` - ${spoilerBoundary}` : ''}]\n${summaryText}`;
+          const entryInsertRes = await supabase.from('entries').insert([{
+            text: summaryEntryText,
+            user_id: user.id,
+            topic_id: selectedBookId
+          }]);
+          if (entryInsertRes.error) throw entryInsertRes.error;
         }
 
-        renderAIResultText(String(data.text || ''));
-        setAIStatus('AI content generated successfully.');
+        if (normalizedCharacters.length) {
+          const characterRows = normalizedCharacters.map((item) => ({
+            name: item.name,
+            description: item.description,
+            user_id: user.id,
+            topic_id: selectedBookId
+          }));
+          const charInsertRes = await supabase.from('characters').insert(characterRows);
+          if (charInsertRes.error) throw charInsertRes.error;
+        }
+
+        const imageResult = await saveAIImagesToBook(user, generatedImages, spoilerBoundary);
+
+        const aiTextParts = [];
+        if (summaryText) aiTextParts.push(`Summary saved to Entries.\n${summaryText}`);
+        if (locationsText) aiTextParts.push(`Locations:\n${locationsText}`);
+        aiTextParts.push(`Characters saved: ${normalizedCharacters.length}`);
+        aiTextParts.push(`Generated images saved: ${imageResult.insertedImageIds.length}`);
+        if (imageResult.uploadErrors.length) {
+          aiTextParts.push(`Image save errors: ${imageResult.uploadErrors.length}`);
+        }
+        renderAIResultText(aiTextParts.join('\n\n'));
+        renderAIGeneratedImages(generatedImages);
+
+        entriesPage = 1;
+        await Promise.allSettled([
+          loadEntries(user.id, selectedBookId),
+          loadCharacters(user.id, selectedBookId),
+          loadBookImages(user.id, selectedBookId)
+        ]);
+
+        if (imageResult.uploadErrors.length) {
+          setAIStatus(`AI update saved with partial image errors (${imageResult.uploadErrors.length}).`);
+        } else {
+          setAIStatus('AI update saved to Entries, Character Map, and Book Images.');
+        }
       } catch (err) {
         const message = err && err.message ? err.message : String(err);
         setAIStatus('AI error: ' + message);
@@ -1408,7 +1582,16 @@
       const user = requireCurrentUser();
       if (!user) return;
       const name = newTopicEl.value.trim();
-      if (!name) return alert('Enter a book name');
+      if (!name) {
+        setDevInfo('Add book error: Enter a book name.', true);
+        return;
+      }
+      const creationMode = bookCreationModeEl && bookCreationModeEl.value === 'ai' ? 'ai' : 'manual';
+      const creationAuthor = bookCreationAuthorEl ? bookCreationAuthorEl.value.trim() : '';
+      if (creationMode === 'ai' && !creationAuthor) {
+        setDevInfo('Add book error: Author is required for AI book creation mode.', true);
+        return;
+      }
       const payload = { name, user_id: user.id };
       setDevInfo('Adding book...');
       let insertResult;
@@ -1427,7 +1610,11 @@
         setDevInfo('Add book error: ' + error.message, true);
       } else {
         newTopicEl.value = '';
+        if (bookCreationAuthorEl) bookCreationAuthorEl.value = '';
         if (data && data.id) selectedBookId = String(data.id);
+        if (creationMode === 'ai' && data && data.id) {
+          saveBookAuthorForTopic(user.id, data.id, creationAuthor);
+        }
         persistSelectedBook();
         await loadTopics(user.id);
         await Promise.allSettled([
@@ -1891,17 +2078,26 @@
     btnSignup.addEventListener('click', openSignupModal);
     btnLogin.addEventListener('click', signIn);
     btnLogout.addEventListener('click', signOut);
+    if (bookCreationModeEl) {
+      bookCreationModeEl.addEventListener('change', syncBookCreationModeUI);
+    }
     btnAddTopic.addEventListener('click', addTopic);
     btnAddEntry.addEventListener('click', addEntry);
     btnClearEntries.addEventListener('click', clearEntries);
     btnAddCharacter.addEventListener('click', addCharacter);
     btnClearCharacterMap.addEventListener('click', clearCharacterMapForm);
     if (hasAIUI) {
-      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiModeEl, aiNotesEl];
+      const aiInputElements = [aiUpdateModeEl, aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl];
       aiInputElements.forEach((el) => {
         const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(eventName, () => {
+          if (el === aiUpdateModeEl) {
+            syncAIUpdateModeUI();
+          }
           updateAISpoilerBoundaryLabel();
+          if (el === aiAuthorEl && currentUser && selectedBookId) {
+            saveBookAuthorForTopic(currentUser.id, selectedBookId, aiAuthorEl.value.trim());
+          }
           persistAIFormValues();
         });
       });
@@ -2190,6 +2386,8 @@
         console.log('createClient type:', typeof window.supabase.createClient);
         // Attempt to fetch entries (will show errors in console if network/policies block)
         setSignedInState(null);
+        syncBookCreationModeUI();
+        if (hasAIUI) syncAIUpdateModeUI();
         updateBookScopedLabels();
         loadAIFormValuesForSelectedBook();
         setPendingImagesInfo('No image files selected.');
