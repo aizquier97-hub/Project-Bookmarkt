@@ -285,6 +285,45 @@
     </div>
   </div>
 
+  <!-- Edit Entry Modal -->
+  <div id="editEntryModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editEntryTitle">
+      <h2 id="editEntryTitle" style="font-size:18px; margin:0 0 12px 0; font-weight:700;">Edit Entry</h2>
+      <label>Entry text
+        <textarea id="editEntryText" rows="5" placeholder="Write your entry..."></textarea>
+      </label>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnEditEntryConfirm">Save changes</button>
+        <button id="btnEditEntryCancel" class="secondary">Cancel</button>
+      </div>
+      <div id="editEntryStatus" class="muted"></div>
+    </div>
+  </div>
+
+  <!-- Edit Character Modal -->
+  <div id="editCharacterModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editCharTitle">
+      <h2 id="editCharTitle" style="font-size:18px; margin:0 0 12px 0; font-weight:700;">Edit Character</h2>
+      <label>Character name
+        <input id="editCharName" type="text" placeholder="e.g., Frodo Baggins" />
+      </label>
+      <label>Role in story
+        <input id="editCharRole" type="text" placeholder="e.g., Main protagonist" />
+      </label>
+      <label>Description
+        <textarea id="editCharDescription" rows="3" placeholder="Role, traits..."></textarea>
+      </label>
+      <label>Relationships
+        <textarea id="editCharRelationships" rows="2" placeholder="e.g., Sam (best friend)"></textarea>
+      </label>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnEditCharConfirm">Save changes</button>
+        <button id="btnEditCharCancel" class="secondary">Cancel</button>
+      </div>
+      <div id="editCharStatus" class="muted"></div>
+    </div>
+  </div>
+
   <div id="signupModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
       <h2 id="signupTitle" class="small" style="font-size:18px; margin:0 0 10px 0;">Create account</h2>
@@ -332,6 +371,19 @@
     const appUserStatus = document.getElementById('appUserStatus');
     const authScreen = document.getElementById('authScreen');
     const appShell = document.getElementById('appShell');
+    const editEntryModalBackdrop = document.getElementById('editEntryModalBackdrop');
+    const editEntryTextEl = document.getElementById('editEntryText');
+    const btnEditEntryConfirm = document.getElementById('btnEditEntryConfirm');
+    const btnEditEntryCancel = document.getElementById('btnEditEntryCancel');
+    const editEntryStatusEl = document.getElementById('editEntryStatus');
+    const editCharModalBackdrop = document.getElementById('editCharacterModalBackdrop');
+    const editCharNameEl = document.getElementById('editCharName');
+    const editCharRoleEl = document.getElementById('editCharRole');
+    const editCharDescriptionEl = document.getElementById('editCharDescription');
+    const editCharRelationshipsEl = document.getElementById('editCharRelationships');
+    const btnEditCharConfirm = document.getElementById('btnEditCharConfirm');
+    const btnEditCharCancel = document.getElementById('btnEditCharCancel');
+    const editCharStatusEl = document.getElementById('editCharStatus');
     const signupModalBackdrop = document.getElementById('signupModalBackdrop');
     const signupEmailEl = document.getElementById('signupEmail');
     const signupPasswordEl = document.getElementById('signupPassword');
@@ -1193,29 +1245,49 @@
       if (!user) return;
       const existing = loadedEntries.find(e => String(e.id) === String(entryId));
       if (!existing) return;
-      const nextText = prompt('Edit entry:', existing.text || '');
-      if (nextText === null) return;
-      const trimmed = nextText.trim();
-      if (!trimmed) return alert('Entry text cannot be empty.');
-      const { error } = await supabase
-        .from('entries')
-        .update({ text: trimmed, updated_at: new Date().toISOString() })
-        .eq('id', entryId)
-        .eq('user_id', user.id)
-        .eq('topic_id', selectedBookId);
-      if (error) {
-        const { error: fallbackError } = await supabase
-          .from('entries')
-          .update({ text: trimmed })
-          .eq('id', entryId)
-          .eq('user_id', user.id)
-          .eq('topic_id', selectedBookId);
-        if (fallbackError) {
-          setDevInfo('Edit entry error: ' + fallbackError.message, true);
-          return;
+      editEntryTextEl.value = existing.text || '';
+      editEntryStatusEl.textContent = '';
+      editEntryModalBackdrop.classList.remove('hidden');
+      editEntryModalBackdrop.setAttribute('aria-hidden', 'false');
+      editEntryTextEl.focus();
+      await new Promise((resolve) => {
+        function cleanup() {
+          editEntryModalBackdrop.classList.add('hidden');
+          editEntryModalBackdrop.setAttribute('aria-hidden', 'true');
+          btnEditEntryConfirm.onclick = null;
+          btnEditEntryCancel.onclick = null;
+          resolve();
         }
-      }
-      await loadEntries(user.id, selectedBookId);
+        btnEditEntryCancel.onclick = cleanup;
+        btnEditEntryConfirm.onclick = async function() {
+          const trimmed = editEntryTextEl.value.trim();
+          if (!trimmed) { editEntryStatusEl.textContent = 'Entry text cannot be empty.'; return; }
+          editEntryStatusEl.textContent = 'Saving...';
+          btnEditEntryConfirm.disabled = true;
+          const { error } = await supabase
+            .from('entries')
+            .update({ text: trimmed, updated_at: new Date().toISOString() })
+            .eq('id', entryId)
+            .eq('user_id', user.id)
+            .eq('topic_id', selectedBookId);
+          if (error) {
+            const { error: fallbackError } = await supabase
+              .from('entries')
+              .update({ text: trimmed })
+              .eq('id', entryId)
+              .eq('user_id', user.id)
+              .eq('topic_id', selectedBookId);
+            if (fallbackError) {
+              editEntryStatusEl.textContent = 'Error: ' + fallbackError.message;
+              btnEditEntryConfirm.disabled = false;
+              return;
+            }
+          }
+          btnEditEntryConfirm.disabled = false;
+          cleanup();
+          await loadEntries(user.id, selectedBookId);
+        };
+      });
     }
 
     async function deleteEntry(entryId) {
@@ -1249,42 +1321,57 @@
       const existing = loadedCharacters.find(c => String(c.id) === String(characterId));
       if (!existing) return;
       const details = parseCharacterDescription(existing.description || '');
-      const nextName = prompt('Edit character name:', existing.name || '');
-      if (nextName === null) return;
-      const trimmedName = nextName.trim();
-      if (!trimmedName) return alert('Character name cannot be empty.');
-      const nextRole = prompt('Edit role:', details.role || '');
-      if (nextRole === null) return;
-      const nextDescription = prompt('Edit description:', details.description || '');
-      if (nextDescription === null) return;
-      const nextRelationships = prompt('Edit relationships:', details.relationships || '');
-      if (nextRelationships === null) return;
-
-      const mergedDescription = mergeCharacterDescription(
-        nextRole.trim(),
-        nextDescription.trim(),
-        nextRelationships.trim()
-      );
-
-      const { error } = await supabase
-        .from('characters')
-        .update({ name: trimmedName, description: mergedDescription, updated_at: new Date().toISOString() })
-        .eq('id', characterId)
-        .eq('user_id', user.id)
-        .eq('topic_id', selectedBookId);
-      if (error) {
-        const { error: fallbackError } = await supabase
-          .from('characters')
-          .update({ name: trimmedName, description: mergedDescription })
-          .eq('id', characterId)
-          .eq('user_id', user.id)
-          .eq('topic_id', selectedBookId);
-        if (fallbackError) {
-          setDevInfo('Edit character error: ' + fallbackError.message, true);
-          return;
+      editCharNameEl.value = existing.name || '';
+      editCharRoleEl.value = details.role || '';
+      editCharDescriptionEl.value = details.description || '';
+      editCharRelationshipsEl.value = details.relationships || '';
+      editCharStatusEl.textContent = '';
+      editCharModalBackdrop.classList.remove('hidden');
+      editCharModalBackdrop.setAttribute('aria-hidden', 'false');
+      editCharNameEl.focus();
+      await new Promise((resolve) => {
+        function cleanup() {
+          editCharModalBackdrop.classList.add('hidden');
+          editCharModalBackdrop.setAttribute('aria-hidden', 'true');
+          btnEditCharConfirm.onclick = null;
+          btnEditCharCancel.onclick = null;
+          resolve();
         }
-      }
-      await loadCharacters(user.id, selectedBookId);
+        btnEditCharCancel.onclick = cleanup;
+        btnEditCharConfirm.onclick = async function() {
+          const trimmedName = editCharNameEl.value.trim();
+          if (!trimmedName) { editCharStatusEl.textContent = 'Character name cannot be empty.'; return; }
+          editCharStatusEl.textContent = 'Saving...';
+          btnEditCharConfirm.disabled = true;
+          const mergedDescription = mergeCharacterDescription(
+            editCharRoleEl.value.trim(),
+            editCharDescriptionEl.value.trim(),
+            editCharRelationshipsEl.value.trim()
+          );
+          const { error } = await supabase
+            .from('characters')
+            .update({ name: trimmedName, description: mergedDescription, updated_at: new Date().toISOString() })
+            .eq('id', characterId)
+            .eq('user_id', user.id)
+            .eq('topic_id', selectedBookId);
+          if (error) {
+            const { error: fallbackError } = await supabase
+              .from('characters')
+              .update({ name: trimmedName, description: mergedDescription })
+              .eq('id', characterId)
+              .eq('user_id', user.id)
+              .eq('topic_id', selectedBookId);
+            if (fallbackError) {
+              editCharStatusEl.textContent = 'Error: ' + fallbackError.message;
+              btnEditCharConfirm.disabled = false;
+              return;
+            }
+          }
+          btnEditCharConfirm.disabled = false;
+          cleanup();
+          await loadCharacters(user.id, selectedBookId);
+        };
+      });
     }
 
     async function deleteCharacter(characterId) {
@@ -1619,8 +1706,10 @@
       if (event.target === signupModalBackdrop) closeSignupModal();
     });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !signupModalBackdrop.classList.contains('hidden')) {
-        closeSignupModal();
+      if (event.key === 'Escape') {
+        if (!signupModalBackdrop.classList.contains('hidden')) closeSignupModal();
+        if (!editEntryModalBackdrop.classList.contains('hidden')) btnEditEntryCancel.click();
+        if (!editCharModalBackdrop.classList.contains('hidden')) btnEditCharCancel.click();
       }
     });
 
