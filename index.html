@@ -231,11 +231,11 @@
       <section id="aiAssistantSection" class="content-section section-ai">
         <h2 class="small">AI Assistant</h2>
         <div class="small" id="aiForBook"><strong>AI for book:</strong> None</div>
-        <div class="subtle-note">Run one full AI update to generate and save summary, characters, and setting images together.</div>
+        <div class="subtle-note">Run one full AI update to generate and save summary notes and characters for the new boundary window.</div>
         <label>Update mode
           <select id="aiUpdateMode">
             <option value="manual">Manual update</option>
-            <option value="ai">Full AI update</option>
+            <option value="ai">Full AI update (notes + characters)</option>
           </select>
         </label>
         <label>AI Book Title
@@ -258,7 +258,7 @@
             <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
           </label>
           <div id="aiSpoilerBoundary" class="ai-mode-result">Spoiler-safe up to Chapter —</div>
-          <button id="btnGenerateAI" type="button">Generate Summary + Characters + Images</button>
+          <button id="btnGenerateAI" type="button">Generate Summary + Characters</button>
         </div>
         <div id="aiStatus" class="muted"></div>
         <div id="aiResultText" class="small" style="margin-top:8px;"></div>
@@ -273,6 +273,10 @@
         <label>Write your entry...
           <textarea id="entryText" rows="4" placeholder="Write your entry..."></textarea>
         </label>
+        <label>Current page
+          <input id="entryProgressValue" type="number" min="1" step="1" placeholder="e.g., 100" />
+        </label>
+        <div id="entryProgressHint" class="muted">Set the current page to track your reading boundary.</div>
         <div class="row">
           <button id="btnAddEntry">Add Entry</button>
           <button id="btnClearEntries" class="danger">Clear Entries</button>
@@ -456,6 +460,8 @@
     const entriesForBookEl = document.getElementById('entriesForBook');
 
     const entryTextEl = document.getElementById('entryText');
+    const entryProgressValueEl = document.getElementById('entryProgressValue');
+    const entryProgressHintEl = document.getElementById('entryProgressHint');
     const btnAddEntry = document.getElementById('btnAddEntry');
     const btnClearEntries = document.getElementById('btnClearEntries');
     const entriesList = document.getElementById('entriesList');
@@ -635,6 +641,7 @@
       const hasSelectedBook = !!currentUser && !!selectedBookId;
       const disableBookScoped = !hasSelectedBook || isBusy;
       entryTextEl.disabled = disableBookScoped;
+      if (entryProgressValueEl) entryProgressValueEl.disabled = disableBookScoped;
       btnAddEntry.disabled = disableBookScoped;
       btnClearEntries.disabled = disableBookScoped;
       btnEntriesPrev.disabled = disableBookScoped || entriesPage <= 1;
@@ -793,14 +800,132 @@
       if (aiForBookEl) {
         aiForBookEl.innerHTML = `<strong>AI for book:</strong> ${escapeHtml(bookName)}`;
       }
+      updateEntryProgressHint();
+      updateAISpoilerBoundaryLabel();
+    }
+
+    function normalizeTextKey(value) {
+      return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function normalizeProgressType(value) {
+      return value === 'chapter' ? 'chapter' : 'page';
+    }
+
+    function normalizeProgressNumber(value) {
+      const parsed = Number(String(value || '').trim());
+      if (!Number.isFinite(parsed) || parsed <= 0) return null;
+      return Math.floor(parsed);
+    }
+
+    function buildProgressRangeLabel(progressType, lowerValue, upperValue) {
+      const type = normalizeProgressType(progressType);
+      if (Number.isFinite(lowerValue) && lowerValue > 0) {
+        return `${type} ${lowerValue}-${upperValue}`;
+      }
+      return `${type} ${upperValue}`;
+    }
+
+    function parseProgressBoundaryFromEntryText(text) {
+      const firstLine = String(text || '').split('\n')[0] || '';
+      const match = firstLine.match(/\b(page|chapter)\s+(\d+)(?:\s*-\s*(\d+))?\b/i);
+      if (!match) return null;
+      const progressType = normalizeProgressType(String(match[1]).toLowerCase());
+      const firstValue = Number(match[2]);
+      const secondValue = match[3] ? Number(match[3]) : null;
+      if (!Number.isFinite(firstValue) || firstValue <= 0) return null;
+      if (secondValue !== null) {
+        if (!Number.isFinite(secondValue) || secondValue <= 0) return null;
+        return { progressType, lower: Math.min(firstValue, secondValue), upper: Math.max(firstValue, secondValue) };
+      }
+      return { progressType, lower: null, upper: firstValue };
+    }
+
+    function getLatestProgressBoundary(progressType) {
+      const wantedType = normalizeProgressType(progressType);
+      for (let i = 0; i < loadedEntries.length; i += 1) {
+        const parsed = parseProgressBoundaryFromEntryText(loadedEntries[i] && loadedEntries[i].text);
+        if (!parsed) continue;
+        if (parsed.progressType !== wantedType) continue;
+        return parsed;
+      }
+      return null;
+    }
+
+    function updateEntryProgressHint() {
+      if (!entryProgressHintEl) return;
+      const latestPageBoundary = getLatestProgressBoundary('page');
+      const currentPageValue = normalizeProgressNumber(entryProgressValueEl && entryProgressValueEl.value);
+      if (!latestPageBoundary) {
+        if (currentPageValue) {
+          entryProgressHintEl.textContent = `This will save your first tracked boundary at page ${currentPageValue}.`;
+        } else {
+          entryProgressHintEl.textContent = 'Set the current page to track your reading boundary.';
+        }
+        return;
+      }
+      if (!currentPageValue) {
+        entryProgressHintEl.textContent = `Last saved boundary: page ${latestPageBoundary.upper}. Enter a page above this value.`;
+        return;
+      }
+      if (currentPageValue <= latestPageBoundary.upper) {
+        entryProgressHintEl.textContent = `Current page must be greater than ${latestPageBoundary.upper}.`;
+        return;
+      }
+      entryProgressHintEl.textContent = `Next boundary range: page ${latestPageBoundary.upper}-${currentPageValue}.`;
+    }
+
+    function getExistingCharacterNameSet() {
+      const names = new Set();
+      for (let i = 0; i < loadedCharacters.length; i += 1) {
+        const key = normalizeTextKey(loadedCharacters[i] && loadedCharacters[i].name);
+        if (key) names.add(key);
+      }
+      return names;
+    }
+
+    function extractAISettingTitleFromCaption(caption) {
+      const text = String(caption || '').trim();
+      if (!text) return '';
+      const match = text.match(/^\[AI Setting\]\s*(.+)$/i);
+      if (!match) return '';
+      const withoutBoundary = match[1].replace(/\s+\((?:page|chapter)\s+\d+(?:-\d+)?\)\s*$/i, '').trim();
+      return withoutBoundary;
+    }
+
+    function getExistingAISettingTitleSet() {
+      const titles = new Set();
+      for (let i = 0; i < loadedBookImages.length; i += 1) {
+        const title = extractAISettingTitleFromCaption(loadedBookImages[i] && loadedBookImages[i].caption);
+        const key = normalizeTextKey(title);
+        if (key) titles.add(key);
+      }
+      return titles;
     }
 
     function updateAISpoilerBoundaryLabel() {
       if (!hasAIUI) return;
-      const progressType = aiProgressTypeEl.value === 'page' ? 'Page' : 'Chapter';
-      const rawValue = (aiProgressValueEl.value || '').trim();
-      const progressValue = rawValue || '—';
-      aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${progressType} ${progressValue}`;
+      const progressType = normalizeProgressType(aiProgressTypeEl.value);
+      const nextValue = normalizeProgressNumber(aiProgressValueEl.value);
+      const latestBoundary = getLatestProgressBoundary(progressType);
+      const labelPrefix = progressType === 'page' ? 'Page' : 'Chapter';
+      if (!nextValue) {
+        if (latestBoundary) {
+          aiSpoilerBoundaryEl.textContent = `Last saved ${labelPrefix.toLowerCase()}: ${latestBoundary.upper}. Enter a higher ${labelPrefix.toLowerCase()} value.`;
+        } else {
+          aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${labelPrefix} —`;
+        }
+        return;
+      }
+      if (latestBoundary && nextValue <= latestBoundary.upper) {
+        aiSpoilerBoundaryEl.textContent = `${labelPrefix} must be greater than ${latestBoundary.upper} to create a new boundary window.`;
+        return;
+      }
+      if (latestBoundary) {
+        aiSpoilerBoundaryEl.textContent = `Spoiler-safe window: ${labelPrefix} ${latestBoundary.upper}-${nextValue}`;
+      } else {
+        aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${labelPrefix} ${nextValue}`;
+      }
     }
 
     function syncBookCreationModeUI() {
@@ -976,12 +1101,19 @@
         .filter(Boolean);
     }
 
-    async function saveAIImagesToBook(user, generatedImages, spoilerBoundary) {
+    async function saveAIImagesToBook(user, generatedImages, spoilerBoundary, existingTitleSet) {
       const insertedImageIds = [];
       const uploadErrors = [];
+      let skippedExisting = 0;
+      const seenTitles = new Set(existingTitleSet || []);
       for (let i = 0; i < generatedImages.length; i += 1) {
         const item = generatedImages[i] || {};
         try {
+          const titleKey = normalizeTextKey(item.title || '');
+          if (titleKey && seenTitles.has(titleKey)) {
+            skippedExisting += 1;
+            continue;
+          }
           const mimeType = item.mimeType || 'image/png';
           const bytes = base64ToBytes(item.base64Data || '');
           const extension = (mimeType.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '') || 'png';
@@ -1010,11 +1142,12 @@
             .single();
           if (insertRes.error) throw insertRes.error;
           insertedImageIds.push(insertRes.data.id);
+          if (titleKey) seenTitles.add(titleKey);
         } catch (imageErr) {
           uploadErrors.push(imageErr && imageErr.message ? imageErr.message : String(imageErr));
         }
       }
-      return { insertedImageIds, uploadErrors };
+      return { insertedImageIds, uploadErrors, skippedExisting };
     }
 
     async function invokeAIForMode(mode, payload) {
@@ -1090,7 +1223,7 @@
         return;
       }
       if (aiUpdateModeEl.value !== 'ai') {
-        setAIStatus('Manual update mode is active. Switch to Full AI update to generate summary, characters, and images.');
+        setAIStatus('Manual update mode is active. Switch to Full AI update to generate summary notes and characters.');
         return;
       }
       const bookTitle = aiBookTitleEl.value.trim();
@@ -1108,19 +1241,31 @@
         setAIStatus('AI error: Progress value must be a positive number.');
         return;
       }
+      const latestBoundary = getLatestProgressBoundary(progressType);
+      const lowerBoundary = latestBoundary ? latestBoundary.upper : null;
+      if (Number.isFinite(lowerBoundary) && progressNumber <= lowerBoundary) {
+        setAIStatus(`AI error: ${progressType} value must be greater than the last saved ${progressType} (${lowerBoundary}).`);
+        return;
+      }
+      const existingCharacterNames = Array.from(getExistingCharacterNameSet());
+      const existingLocationTitles = Array.from(getExistingAISettingTitleSet());
+      const rangeLabel = buildProgressRangeLabel(progressType, lowerBoundary, progressNumber);
 
       saveBookAuthorForTopic(user.id, selectedBookId, author);
       persistAIFormValues();
       renderAIResultText('');
       renderAIGeneratedImages([]);
       setAIStatus('Generating and saving full AI update...');
-      setBusyState(true, 'Generating spoiler-safe summary, characters, and images...');
+      setBusyState(true, 'Generating spoiler-safe summary notes and characters...');
       try {
         const requestBody = {
           bookTitle,
           author,
           progressType,
           progressValue: progressNumber,
+          lowerBoundary,
+          existingCharacters: existingCharacterNames,
+          existingLocations: existingLocationTitles,
           notes
         };
         const fullUpdateData = await invokeAIForMode('full_update', requestBody);
@@ -1134,11 +1279,18 @@
 
         const summaryText = String(fullUpdateData.summaryText || '').trim();
         const normalizedCharacters = normalizeAICharacters(fullUpdateData.characters);
-        const generatedImages = Array.isArray(fullUpdateData.generatedImages) ? fullUpdateData.generatedImages : [];
-        const locationsText = String(fullUpdateData.locationsText || '').trim();
+        const knownCharacterNames = getExistingCharacterNameSet();
+        const uniqueCharacters = [];
+        for (let i = 0; i < normalizedCharacters.length; i += 1) {
+          const item = normalizedCharacters[i];
+          const key = normalizeTextKey(item && item.name);
+          if (!key || knownCharacterNames.has(key)) continue;
+          knownCharacterNames.add(key);
+          uniqueCharacters.push(item);
+        }
 
         if (summaryText) {
-          const summaryEntryText = `[AI Summary${spoilerBoundary ? ` - ${spoilerBoundary}` : ''}]\n${summaryText}`;
+          const summaryEntryText = `[AI Summary - ${rangeLabel}]\n${summaryText}`;
           const entryInsertRes = await supabase.from('entries').insert([{
             text: summaryEntryText,
             user_id: user.id,
@@ -1147,8 +1299,8 @@
           if (entryInsertRes.error) throw entryInsertRes.error;
         }
 
-        if (normalizedCharacters.length) {
-          const characterRows = normalizedCharacters.map((item) => ({
+        if (uniqueCharacters.length) {
+          const characterRows = uniqueCharacters.map((item) => ({
             name: item.name,
             description: item.description,
             user_id: user.id,
@@ -1158,18 +1310,15 @@
           if (charInsertRes.error) throw charInsertRes.error;
         }
 
-        const imageResult = await saveAIImagesToBook(user, generatedImages, spoilerBoundary);
+        if (entryProgressValueEl) {
+          entryProgressValueEl.value = String(progressNumber);
+        }
 
         const aiTextParts = [];
         if (summaryText) aiTextParts.push(`Summary saved to Entries.\n${summaryText}`);
-        if (locationsText) aiTextParts.push(`Locations:\n${locationsText}`);
-        aiTextParts.push(`Characters saved: ${normalizedCharacters.length}`);
-        aiTextParts.push(`Generated images saved: ${imageResult.insertedImageIds.length}`);
-        if (imageResult.uploadErrors.length) {
-          aiTextParts.push(`Image save errors: ${imageResult.uploadErrors.length}`);
-        }
+        aiTextParts.push(`Characters saved: ${uniqueCharacters.length}`);
         renderAIResultText(aiTextParts.join('\n\n'));
-        renderAIGeneratedImages(generatedImages);
+        renderAIGeneratedImages([]);
 
         entriesPage = 1;
         await Promise.allSettled([
@@ -1178,11 +1327,8 @@
           loadBookImages(user.id, selectedBookId)
         ]);
 
-        if (imageResult.uploadErrors.length) {
-          setAIStatus(`Full AI update saved with partial image errors (${imageResult.uploadErrors.length}).`);
-        } else {
-          setAIStatus('Full AI update saved to Entries, Character Map, and Book Images.');
-        }
+        setAIStatus('Full AI update saved to Entries and Character Map.');
+        updateEntryProgressHint();
       } catch (err) {
         const message = err && err.message ? err.message : String(err);
         setAIStatus('AI error: ' + message);
@@ -1454,6 +1600,9 @@
         entriesList.innerHTML = '<div class="item muted">Select a book to view entries.</div>';
         entriesPaginationEl.style.display = 'none';
         loadedEntries = [];
+        if (entryProgressValueEl) entryProgressValueEl.value = '';
+        updateEntryProgressHint();
+        updateAISpoilerBoundaryLabel();
         return;
       }
       try {
@@ -1466,7 +1615,13 @@
         if (res.error) throw res.error;
         loadedEntries = res.data || [];
         writeCache('entries', userId, loadedEntries, bookId);
+        const latestPageBoundary = getLatestProgressBoundary('page');
+        if (entryProgressValueEl) {
+          entryProgressValueEl.value = latestPageBoundary ? String(latestPageBoundary.upper) : '';
+        }
         renderEntries(loadedEntries);
+        updateEntryProgressHint();
+        updateAISpoilerBoundaryLabel();
       } catch (err) {
         console.error('loadEntries error', err);
         entriesList.innerHTML = renderListError(`Error loading entries: ${err.message || 'Unknown error'}`);
@@ -1776,12 +1931,37 @@
       if (!selectedBookId) return alert('Add and select a book first.');
       const text = entryTextEl.value.trim();
       if (!text) return alert('Write something first');
-      const payload = { text, user_id: user.id, topic_id: selectedBookId };
+      const pageValue = normalizeProgressNumber(entryProgressValueEl && entryProgressValueEl.value);
+      if (!pageValue) {
+        setDevInfo('Add entry error: Current page is required and must be a positive number.', true);
+        return;
+      }
+      const latestPageBoundary = getLatestProgressBoundary('page');
+      const lowerBoundary = latestPageBoundary ? latestPageBoundary.upper : null;
+      if (Number.isFinite(lowerBoundary) && pageValue <= lowerBoundary) {
+        setDevInfo(`Add entry error: Current page must be greater than the last saved page (${lowerBoundary}).`, true);
+        updateEntryProgressHint();
+        return;
+      }
+      const rangeLabel = buildProgressRangeLabel('page', lowerBoundary, pageValue);
+      const payload = {
+        text: `[Manual Entry - ${rangeLabel}]\n${text}`,
+        user_id: user.id,
+        topic_id: selectedBookId
+      };
       const { error } = await supabase.from('entries').insert([payload]);
       if (error) {
         setDevInfo('Add entry error: ' + error.message, true);
       } else {
         entryTextEl.value = '';
+        if (entryProgressValueEl) entryProgressValueEl.value = String(pageValue);
+        if (hasAIUI) {
+          aiProgressTypeEl.value = 'page';
+          aiProgressValueEl.value = String(pageValue);
+          persistAIFormValues();
+          updateAISpoilerBoundaryLabel();
+        }
+        updateEntryProgressHint();
         entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
       }
@@ -1802,6 +1982,8 @@
       } else {
         entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
+        updateEntryProgressHint();
+        updateAISpoilerBoundaryLabel();
       }
     }
 
@@ -1814,6 +1996,11 @@
       const description = characterDescriptionEl.value.trim();
       const relationships = characterRelationshipsEl.value.trim();
       if (!name) return alert('Enter a character name');
+      const duplicateCharacter = loadedCharacters.find((item) => normalizeTextKey(item && item.name) === normalizeTextKey(name));
+      if (duplicateCharacter) {
+        setDevInfo(`Add character error: "${name}" already exists for this book. Edit the existing entry instead.`, true);
+        return;
+      }
 
       // Store extended map fields in the existing "description" column to keep schema compatibility.
       const descriptionParts = [];
@@ -2165,6 +2352,8 @@
       pendingImageFiles = [];
       persistSelectedBook();
       setPendingImagesInfo('No image files selected.');
+      if (entryProgressValueEl) entryProgressValueEl.value = '';
+      updateEntryProgressHint();
       updateBookScopedLabels();
       loadAIFormValuesForSelectedBook();
       syncBookScopedControlState();
@@ -2337,6 +2526,11 @@
         await addEntry();
       }
     });
+    if (entryProgressValueEl) {
+      entryProgressValueEl.addEventListener('input', () => {
+        updateEntryProgressHint();
+      });
+    }
     signupModalBackdrop.addEventListener('click', (event) => {
       if (event.target === signupModalBackdrop) closeSignupModal();
     });
@@ -2502,6 +2696,7 @@
         updateBookScopedLabels();
         loadAIFormValuesForSelectedBook();
         setPendingImagesInfo('No image files selected.');
+        updateEntryProgressHint();
         setDevInfo('Waiting for session state...');
       } catch (err) {
         console.error('init error', err);
