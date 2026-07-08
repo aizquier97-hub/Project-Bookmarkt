@@ -528,7 +528,6 @@
     const SELECTED_BOOK_KEY_PREFIX = 'bookmarkt-selected-book-';
     const CACHE_KEY_PREFIX = 'bookmarkt-cache-';
     const AI_FORM_KEY_PREFIX = 'bookmarkt-ai-form-';
-    const BOOK_AUTHOR_MAP_KEY_PREFIX = 'bookmarkt-book-author-map-';
     const CACHE_TTL_MS = 5 * 60 * 1000;
     let aiGeneratedImagesCache = [];
 
@@ -560,6 +559,10 @@
       setStatus(aiStatusEl, text);
     }
     function renderListError(message) { return `<div class="item status-error">${escapeHtml(message)}</div>`; }
+    function isMissingTopicsAuthorColumnError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      return message.includes('topics') && message.includes('author') && (message.includes('column') || message.includes('schema cache'));
+    }
     function setPendingImagesInfo(text) {
       if (!pendingImagesInfoEl) return;
       pendingImagesInfoEl.textContent = text;
@@ -696,50 +699,32 @@
       if (!userId || !bookId) return null;
       return `${AI_FORM_KEY_PREFIX}${userId}-${bookId}`;
     }
-    function getBookAuthorMapStorageKey(userId) {
-      if (!userId) return null;
-      return `${BOOK_AUTHOR_MAP_KEY_PREFIX}${userId}`;
-    }
-    function readBookAuthorMap(userId) {
-      const key = getBookAuthorMapStorageKey(userId);
-      if (!key) return {};
-      try {
-        const raw = localStorage.getItem(key);
-        const parsed = raw ? JSON.parse(raw) : {};
-        return parsed && typeof parsed === 'object' ? parsed : {};
-      } catch (_) {
-        return {};
-      }
-    }
-    function saveBookAuthorForTopic(userId, topicId, author) {
-      const key = getBookAuthorMapStorageKey(userId);
-      if (!key || !topicId) return;
-      try {
-        const map = readBookAuthorMap(userId);
-        if (!author) {
-          delete map[String(topicId)];
-        } else {
-          map[String(topicId)] = String(author);
-        }
-        localStorage.setItem(key, JSON.stringify(map));
-      } catch (_) {}
-    }
     function getBookAuthorForTopic(userId, topicId) {
       if (!userId || !topicId) return '';
-      const map = readBookAuthorMap(userId);
-      return map[String(topicId)] || '';
+      const matchedBook = loadedBooks.find((book) => String(book && book.id) === String(topicId));
+      return matchedBook && matchedBook.author ? String(matchedBook.author).trim() : '';
+    }
+    function setLoadedBookAuthor(topicId, author) {
+      if (!topicId) return;
+      const normalizedAuthor = String(author || '').trim();
+      loadedBooks = loadedBooks.map((book) => {
+        if (String(book && book.id) !== String(topicId)) return book;
+        return { ...book, author: normalizedAuthor || null };
+      });
+      if (currentUser) {
+        writeCache('topics', currentUser.id, loadedBooks);
+      }
     }
     function findSavedAuthorForBookName(userId, bookName) {
       if (!userId || !bookName) return '';
       const normalizedTarget = String(bookName).trim().toLowerCase();
       if (!normalizedTarget) return '';
-      const map = readBookAuthorMap(userId);
       const matchedBook = loadedBooks.find((book) => {
         const normalizedName = book && book.name ? String(book.name).trim().toLowerCase() : '';
         return normalizedName === normalizedTarget;
       });
       if (!matchedBook) return '';
-      return map[String(matchedBook.id)] || '';
+      return matchedBook.author ? String(matchedBook.author).trim() : '';
     }
     function getBookAuthorForSelectedTopic() {
       if (!currentUser || !selectedBookId) return '';
@@ -754,6 +739,26 @@
       if (!bookCreationAuthorEl.value.trim()) {
         bookCreationAuthorEl.value = knownAuthor;
       }
+    }
+    async function persistBookAuthor(userId, topicId, author) {
+      if (!userId || !topicId) throw new Error('Missing book author identifiers.');
+      const authorValue = String(author || '').trim();
+      if (!authorValue) throw new Error('Author name is required.');
+      const updateRes = await supabase
+        .from('topics')
+        .update({ author: authorValue })
+        .eq('id', topicId)
+        .eq('user_id', userId)
+        .select('id,author')
+        .single();
+      if (updateRes.error) {
+        if (isMissingTopicsAuthorColumnError(updateRes.error)) {
+          throw new Error('Shared author sync is not enabled in Supabase yet. Run the topics author migration, then try again.');
+        }
+        throw updateRes.error;
+      }
+      setLoadedBookAuthor(topicId, authorValue);
+      return updateRes.data;
     }
     function writeCache(kind, userId, data, bookId) {
       if (!userId) return;
@@ -1232,13 +1237,15 @@
       const existingLocationTitles = Array.from(getExistingAISettingTitleSet());
       const rangeLabel = buildProgressRangeLabel(progressType, lowerBoundary, progressNumber);
 
-      saveBookAuthorForTopic(user.id, selectedBookId, author);
       persistAIFormValues();
       renderAIResultText('');
       renderAIGeneratedImages([]);
       setAIStatus('Generating and saving full AI update...');
       setBusyState(true, 'Generating spoiler-safe summary notes and characters...');
       try {
+        if (author !== getBookAuthorForTopic(user.id, selectedBookId)) {
+          await persistBookAuthor(user.id, selectedBookId, author);
+        }
         const requestBody = {
           bookTitle,
           author,
@@ -1290,7 +1297,6 @@
           const charInsertRes = await supabase.from('characters').insert(characterRows);
           if (charInsertRes.error) throw charInsertRes.error;
         }
-
         if (entryProgressValueEl) {
           entryProgressValueEl.value = String(progressNumber);
         }
@@ -1548,11 +1554,26 @@
     // ======= Data operations =======
     async function loadTopics(userId) {
       try {
-        const res = await supabase
+        let res = await supabase
           .from('topics')
-          .select('id,name,created_at')
+          .select('id,name,author,created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
+        let authorMigrationMissing = false;
+        if (res.error && isMissingTopicsAuthorColumnError(res.error)) {
+          authorMigrationMissing = true;
+          res = await supabase
+            .from('topics')
+            .select('id,name,created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+          if (!res.error) {
+            res = {
+              ...res,
+              data: (res.data || []).map((book) => ({ ...book, author: null })),
+            };
+          }
+        }
         if (res.error) throw res.error;
         loadedBooks = res.data || [];
         writeCache('topics', userId, loadedBooks);
@@ -1569,6 +1590,9 @@
         updateBookScopedLabels();
         loadAIFormValuesForSelectedBook();
         syncBookScopedControlState();
+        if (authorMigrationMissing) {
+          setDevInfo('Books loaded. Run the topics author migration to sync edited authors across devices.', true);
+        }
       } catch (err) {
         console.error('loadTopics error', err);
         topicsList.innerHTML = renderListError(`Error loading books: ${err.message || 'Unknown error'}`);
@@ -1804,7 +1828,7 @@
         setDevInfo('Add book error: Author is required.', true);
         return;
       }
-      const payload = { name, user_id: user.id };
+      const payload = { name, author: creationAuthor, user_id: user.id };
       setDevInfo('Adding book...');
       let insertResult;
       try {
@@ -1819,14 +1843,15 @@
       }
       const { data, error } = insertResult;
       if (error) {
+        if (isMissingTopicsAuthorColumnError(error)) {
+          setDevInfo('Add book error: Shared author sync is not enabled in Supabase yet. Run the topics author migration, then try again.', true);
+          return;
+        }
         setDevInfo('Add book error: ' + error.message, true);
       } else {
         newTopicEl.value = '';
         if (bookCreationAuthorEl) bookCreationAuthorEl.value = '';
         if (data && data.id) selectedBookId = String(data.id);
-        if (data && data.id) {
-          saveBookAuthorForTopic(user.id, data.id, creationAuthor);
-        }
         persistSelectedBook();
         await loadTopics(user.id);
         await Promise.allSettled([
@@ -1878,7 +1903,13 @@
           }
           editBookAuthorStatusEl.textContent = 'Saving...';
           btnEditBookAuthorConfirm.disabled = true;
-          saveBookAuthorForTopic(user.id, bookId, authorValue);
+          try {
+            await persistBookAuthor(user.id, bookId, authorValue);
+          } catch (saveErr) {
+            editBookAuthorStatusEl.textContent = 'Error: ' + (saveErr && saveErr.message ? saveErr.message : String(saveErr));
+            btnEditBookAuthorConfirm.disabled = false;
+            return;
+          }
           if (String(selectedBookId) === String(bookId) && hasAIUI) {
             aiAuthorEl.value = authorValue;
             persistAIFormValues();
@@ -1920,7 +1951,6 @@
           .eq('id', bookId)
           .eq('user_id', user.id);
         if (deleteRes.error) throw deleteRes.error;
-        saveBookAuthorForTopic(user.id, bookId, '');
 
         if (String(selectedBookId) === String(bookId)) {
           selectedBookId = null;
@@ -2223,12 +2253,11 @@
         topicsList.innerHTML = '<div class="item muted">No books yet.</div>';
         return;
       }
-      const authorMap = currentUser ? readBookAuthorMap(currentUser.id) : {};
       topicsList.innerHTML = items
         .map(t => {
           const isSelected = String(t.id) === String(selectedBookId);
           const selectedClass = isSelected ? ' selected' : '';
-          const author = authorMap[String(t.id)] || '';
+          const author = t && t.author ? String(t.author).trim() : '';
           const authorLine = author ? `<div class="muted">Author: ${escapeHtml(author)}</div>` : '';
           return `<div class="item selectable${selectedClass}" data-book-id="${t.id}">
             <div class="book-row">
@@ -2395,9 +2424,6 @@
         const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(eventName, () => {
           updateAISpoilerBoundaryLabel();
-          if (el === aiAuthorEl && currentUser && selectedBookId) {
-            saveBookAuthorForTopic(currentUser.id, selectedBookId, aiAuthorEl.value.trim());
-          }
           persistAIFormValues();
         });
       });
