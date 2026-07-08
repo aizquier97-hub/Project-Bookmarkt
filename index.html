@@ -212,16 +212,10 @@
 
       <section id="topicsSection">
         <h2 class="small">Books</h2>
-        <label>Add book
+        <label>Book title
           <input id="newTopic" type="text" placeholder="e.g., Don Quixote" />
         </label>
-        <label>Creation mode
-          <select id="bookCreationMode">
-            <option value="manual">Manual</option>
-            <option value="ai">AI</option>
-          </select>
-        </label>
-        <label id="bookCreationAuthorWrap" class="hidden-by-mode">Author (required for AI book creation)
+        <label>Author
           <input id="bookCreationAuthor" type="text" placeholder="Author name" />
         </label>
         <button id="btnAddTopic" type="button">Add Book</button>
@@ -232,19 +226,13 @@
         <h2 class="small">AI Assistant</h2>
         <div class="small" id="aiForBook"><strong>AI for book:</strong> None</div>
         <div class="subtle-note">Run one full AI update to generate and save summary notes and characters for the new boundary window.</div>
-        <label>Update mode
-          <select id="aiUpdateMode">
-            <option value="manual">Manual update</option>
-            <option value="ai">Full AI update (notes + characters)</option>
-          </select>
-        </label>
         <label>AI Book Title
           <input id="aiBookTitle" type="text" placeholder="Book title" />
         </label>
         <label>AI Author
           <input id="aiAuthor" type="text" placeholder="Author name" />
         </label>
-        <div id="aiControls" class="ai-controls hidden-by-mode">
+        <div id="aiControls" class="ai-controls">
           <label>Progress Type
             <select id="aiProgressType">
               <option value="chapter">Chapter</option>
@@ -383,6 +371,21 @@
     </div>
   </div>
 
+  <!-- Edit Book Author Modal -->
+  <div id="editBookAuthorModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editBookAuthorTitle">
+      <h2 id="editBookAuthorTitle" style="font-size:18px; margin:0 0 12px 0; font-weight:700;">Edit Author</h2>
+      <label>Author name
+        <input id="editBookAuthorInput" type="text" placeholder="Author name" />
+      </label>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnEditBookAuthorConfirm">Save changes</button>
+        <button id="btnEditBookAuthorCancel" class="secondary">Cancel</button>
+      </div>
+      <div id="editBookAuthorStatus" class="muted"></div>
+    </div>
+  </div>
+
   <div id="signupModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
       <h2 id="signupTitle" class="small" style="font-size:18px; margin:0 0 10px 0;">Create account</h2>
@@ -443,6 +446,11 @@
     const btnEditCharConfirm = document.getElementById('btnEditCharConfirm');
     const btnEditCharCancel = document.getElementById('btnEditCharCancel');
     const editCharStatusEl = document.getElementById('editCharStatus');
+    const editBookAuthorModalBackdrop = document.getElementById('editBookAuthorModalBackdrop');
+    const editBookAuthorInputEl = document.getElementById('editBookAuthorInput');
+    const btnEditBookAuthorConfirm = document.getElementById('btnEditBookAuthorConfirm');
+    const btnEditBookAuthorCancel = document.getElementById('btnEditBookAuthorCancel');
+    const editBookAuthorStatusEl = document.getElementById('editBookAuthorStatus');
     const signupModalBackdrop = document.getElementById('signupModalBackdrop');
     const signupEmailEl = document.getElementById('signupEmail');
     const signupPasswordEl = document.getElementById('signupPassword');
@@ -452,8 +460,6 @@
     const btnSignupCancel = document.getElementById('btnSignupCancel');
 
     const newTopicEl = document.getElementById('newTopic');
-    const bookCreationModeEl = document.getElementById('bookCreationMode');
-    const bookCreationAuthorWrapEl = document.getElementById('bookCreationAuthorWrap');
     const bookCreationAuthorEl = document.getElementById('bookCreationAuthor');
     const btnAddTopic = document.getElementById('btnAddTopic');
     const topicsList = document.getElementById('topicsList');
@@ -483,7 +489,6 @@
     const charactersList = document.getElementById('charactersList');
     const imagesForBookEl = document.getElementById('imagesForBook');
     const aiForBookEl = document.getElementById('aiForBook');
-    const aiUpdateModeEl = document.getElementById('aiUpdateMode');
     const aiBookTitleEl = document.getElementById('aiBookTitle');
     const aiAuthorEl = document.getElementById('aiAuthor');
     const aiControlsEl = document.getElementById('aiControls');
@@ -504,7 +509,7 @@
     const imageStatusEl = document.getElementById('imageStatus');
     const bookImagesList = document.getElementById('bookImagesList');
     const hasImageUI = !!(bookImageDropzone && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiUpdateModeEl && aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiGeneratedImagesEl);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -515,6 +520,7 @@
     let loadedBookImages = [];
     let pendingImageFiles = [];
     let selectedCharacterId = null;
+    let editingBookAuthorId = null;
     let entriesPage = 1;
     let isBusy = false;
     let refreshAllPromise = null;
@@ -630,10 +636,8 @@
       appUserStatus.textContent = isSignedIn ? `Signed in as ${user.email}` : '';
 
       newTopicEl.disabled = !isSignedIn || isBusy;
-      if (bookCreationModeEl) bookCreationModeEl.disabled = !isSignedIn || isBusy;
       if (bookCreationAuthorEl) bookCreationAuthorEl.disabled = !isSignedIn || isBusy;
       btnAddTopic.disabled = !isSignedIn || isBusy;
-      syncBookCreationModeUI();
       syncBookScopedControlState();
     }
 
@@ -655,14 +659,12 @@
       characterSearchEl.disabled = disableBookScoped;
       imageCaptionEl.disabled = disableBookScoped;
       if (hasAIUI) {
-        const isAIUpdateMode = aiUpdateModeEl.value === 'ai';
-        aiUpdateModeEl.disabled = disableBookScoped;
         aiBookTitleEl.disabled = disableBookScoped;
         aiAuthorEl.disabled = disableBookScoped;
-        aiProgressTypeEl.disabled = disableBookScoped || !isAIUpdateMode;
-        aiProgressValueEl.disabled = disableBookScoped || !isAIUpdateMode;
-        aiNotesEl.disabled = disableBookScoped || !isAIUpdateMode;
-        btnGenerateAI.disabled = disableBookScoped || !isAIUpdateMode;
+        aiProgressTypeEl.disabled = disableBookScoped;
+        aiProgressValueEl.disabled = disableBookScoped;
+        aiNotesEl.disabled = disableBookScoped;
+        btnGenerateAI.disabled = disableBookScoped;
       }
       if (hasImageUI) {
         btnPickImages.disabled = disableBookScoped;
@@ -928,22 +930,10 @@
       }
     }
 
-    function syncBookCreationModeUI() {
-      if (!bookCreationModeEl || !bookCreationAuthorWrapEl) return;
-      const isAI = bookCreationModeEl.value === 'ai';
-      bookCreationAuthorWrapEl.classList.toggle('hidden-by-mode', !isAI);
-    }
-
     function syncAIUpdateModeUI() {
       if (!hasAIUI) return;
-      const isAI = aiUpdateModeEl.value === 'ai';
-      aiControlsEl.classList.toggle('hidden-by-mode', !isAI);
-      if (!isAI) {
-        setAIStatus('Manual update mode active. Use Entries, Character Map, and Book Images directly.');
-        renderAIGeneratedImages([]);
-      } else {
-        setAIStatus('');
-      }
+      aiControlsEl.classList.remove('hidden-by-mode');
+      setAIStatus('');
       updateAISpoilerBoundaryLabel();
       syncBookScopedControlState();
     }
@@ -966,7 +956,6 @@
       const key = getAIFormStorageKey(currentUser.id, selectedBookId);
       if (!key) return;
       const payload = {
-        updateMode: aiUpdateModeEl.value === 'manual' ? 'manual' : 'ai',
         bookTitle: aiBookTitleEl.value.trim(),
         author: aiAuthorEl.value.trim(),
         progressType: aiProgressTypeEl.value === 'page' ? 'page' : 'chapter',
@@ -986,7 +975,6 @@
       if (!currentUser || !selectedBookId) {
         aiBookTitleEl.value = '';
         aiAuthorEl.value = '';
-        aiUpdateModeEl.value = 'manual';
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
         aiNotesEl.value = '';
@@ -1001,7 +989,6 @@
       try {
         const raw = localStorage.getItem(key);
         if (!raw) {
-          aiUpdateModeEl.value = 'manual';
           aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
           aiAuthorEl.value = defaultAuthor;
           aiProgressTypeEl.value = 'chapter';
@@ -1012,7 +999,6 @@
           return;
         }
         const parsed = JSON.parse(raw);
-        aiUpdateModeEl.value = (parsed && parsed.updateMode === 'ai') ? 'ai' : 'manual';
         aiBookTitleEl.value = (parsed && parsed.bookTitle) ? String(parsed.bookTitle) : (selectedBookName === 'None' ? '' : selectedBookName);
         aiAuthorEl.value = (parsed && parsed.author) ? String(parsed.author) : defaultAuthor;
         aiProgressTypeEl.value = (parsed && parsed.progressType === 'page') ? 'page' : 'chapter';
@@ -1021,7 +1007,6 @@
         syncAIUpdateModeUI();
       } catch (err) {
         setDevInfo('AI form load error: ' + (err && err.message ? err.message : String(err)), true);
-        aiUpdateModeEl.value = 'manual';
         aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
         aiAuthorEl.value = defaultAuthor;
         aiProgressTypeEl.value = 'chapter';
@@ -1220,10 +1205,6 @@
       if (!user) return;
       if (!selectedBookId) {
         setAIStatus('AI error: Select a book first.');
-        return;
-      }
-      if (aiUpdateModeEl.value !== 'ai') {
-        setAIStatus('Manual update mode is active. Switch to Full AI update to generate summary notes and characters.');
         return;
       }
       const bookTitle = aiBookTitleEl.value.trim();
@@ -1818,12 +1799,9 @@
         setDevInfo('Add book error: Enter a book name.', true);
         return;
       }
-      const creationMode = bookCreationModeEl && bookCreationModeEl.value === 'ai' ? 'ai' : 'manual';
       const creationAuthor = bookCreationAuthorEl ? bookCreationAuthorEl.value.trim() : '';
-      const knownAuthor = findSavedAuthorForBookName(user.id, name);
-      const effectiveAuthor = creationAuthor || knownAuthor;
-      if (creationMode === 'ai' && !effectiveAuthor) {
-        setDevInfo('Add book error: Author is required for AI book creation mode.', true);
+      if (!creationAuthor) {
+        setDevInfo('Add book error: Author is required.', true);
         return;
       }
       const payload = { name, user_id: user.id };
@@ -1846,8 +1824,8 @@
         newTopicEl.value = '';
         if (bookCreationAuthorEl) bookCreationAuthorEl.value = '';
         if (data && data.id) selectedBookId = String(data.id);
-        if (creationMode === 'ai' && data && data.id) {
-          saveBookAuthorForTopic(user.id, data.id, effectiveAuthor);
+        if (data && data.id) {
+          saveBookAuthorForTopic(user.id, data.id, creationAuthor);
         }
         persistSelectedBook();
         await loadTopics(user.id);
@@ -1866,17 +1844,51 @@
       if (!bookId) return;
       const selectedBook = loadedBooks.find(b => String(b.id) === String(bookId));
       if (!selectedBook) return;
-      const currentAuthor = getBookAuthorForTopic(user.id, bookId);
-      const nextAuthor = prompt(`Edit author for "${selectedBook.name}":`, currentAuthor || '');
-      if (nextAuthor === null) return;
-      const authorValue = nextAuthor.trim();
-      saveBookAuthorForTopic(user.id, bookId, authorValue);
-      if (String(selectedBookId) === String(bookId) && hasAIUI) {
-        aiAuthorEl.value = authorValue;
-        persistAIFormValues();
+      const currentAuthor = getBookAuthorForTopic(user.id, bookId) || '';
+      if (!editBookAuthorModalBackdrop || !editBookAuthorInputEl || !btnEditBookAuthorConfirm || !btnEditBookAuthorCancel || !editBookAuthorStatusEl) {
+        setDevInfo('Edit author error: Edit modal is unavailable.', true);
+        return;
       }
-      renderTopics(loadedBooks);
-      setDevInfo(authorValue ? 'Book author saved.' : 'Book author removed.');
+
+      editingBookAuthorId = String(bookId);
+      editBookAuthorInputEl.value = currentAuthor;
+      editBookAuthorStatusEl.textContent = '';
+      btnEditBookAuthorConfirm.disabled = false;
+      editBookAuthorModalBackdrop.classList.remove('hidden');
+      editBookAuthorModalBackdrop.setAttribute('aria-hidden', 'false');
+      editBookAuthorInputEl.focus();
+
+      await new Promise((resolve) => {
+        function cleanup() {
+          editBookAuthorModalBackdrop.classList.add('hidden');
+          editBookAuthorModalBackdrop.setAttribute('aria-hidden', 'true');
+          btnEditBookAuthorConfirm.onclick = null;
+          btnEditBookAuthorCancel.onclick = null;
+          btnEditBookAuthorConfirm.disabled = false;
+          editingBookAuthorId = null;
+          resolve();
+        }
+
+        btnEditBookAuthorCancel.onclick = cleanup;
+        btnEditBookAuthorConfirm.onclick = async function() {
+          const authorValue = editBookAuthorInputEl.value.trim();
+          if (!authorValue) {
+            editBookAuthorStatusEl.textContent = 'Author name is required.';
+            return;
+          }
+          editBookAuthorStatusEl.textContent = 'Saving...';
+          btnEditBookAuthorConfirm.disabled = true;
+          saveBookAuthorForTopic(user.id, bookId, authorValue);
+          if (String(selectedBookId) === String(bookId) && hasAIUI) {
+            aiAuthorEl.value = authorValue;
+            persistAIFormValues();
+          }
+          renderTopics(loadedBooks);
+          btnEditBookAuthorConfirm.disabled = false;
+          setDevInfo('Book author saved.');
+          cleanup();
+        };
+      });
     }
 
     async function deleteBook(bookId) {
@@ -2371,12 +2383,6 @@
     btnSignup.addEventListener('click', openSignupModal);
     btnLogin.addEventListener('click', signIn);
     btnLogout.addEventListener('click', signOut);
-    if (bookCreationModeEl) {
-      bookCreationModeEl.addEventListener('change', () => {
-        syncBookCreationModeUI();
-        syncDraftBookAuthorFromKnownBooks();
-      });
-    }
     newTopicEl.addEventListener('input', syncDraftBookAuthorFromKnownBooks);
     btnAddTopic.addEventListener('click', addTopic);
     btnAddEntry.addEventListener('click', addEntry);
@@ -2384,13 +2390,10 @@
     btnAddCharacter.addEventListener('click', addCharacter);
     btnClearCharacterMap.addEventListener('click', clearCharacterMapForm);
     if (hasAIUI) {
-      const aiInputElements = [aiUpdateModeEl, aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl];
+      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl];
       aiInputElements.forEach((el) => {
         const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(eventName, () => {
-          if (el === aiUpdateModeEl) {
-            syncAIUpdateModeUI();
-          }
           updateAISpoilerBoundaryLabel();
           if (el === aiAuthorEl && currentUser && selectedBookId) {
             saveBookAuthorForTopic(currentUser.id, selectedBookId, aiAuthorEl.value.trim());
@@ -2531,6 +2534,13 @@
         updateEntryProgressHint();
       });
     }
+    if (editBookAuthorModalBackdrop) {
+      editBookAuthorModalBackdrop.addEventListener('click', (event) => {
+        if (event.target === editBookAuthorModalBackdrop && btnEditBookAuthorCancel) {
+          btnEditBookAuthorCancel.click();
+        }
+      });
+    }
     signupModalBackdrop.addEventListener('click', (event) => {
       if (event.target === signupModalBackdrop) closeSignupModal();
     });
@@ -2539,6 +2549,9 @@
         if (!signupModalBackdrop.classList.contains('hidden')) closeSignupModal();
         if (!editEntryModalBackdrop.classList.contains('hidden')) btnEditEntryCancel.click();
         if (!editCharModalBackdrop.classList.contains('hidden')) btnEditCharCancel.click();
+        if (editBookAuthorModalBackdrop && !editBookAuthorModalBackdrop.classList.contains('hidden') && btnEditBookAuthorCancel) {
+          btnEditBookAuthorCancel.click();
+        }
       }
     });
 
@@ -2691,7 +2704,6 @@
         console.log('createClient type:', typeof window.supabase.createClient);
         // Attempt to fetch entries (will show errors in console if network/policies block)
         setSignedInState(null);
-        syncBookCreationModeUI();
         if (hasAIUI) syncAIUpdateModeUI();
         updateBookScopedLabels();
         loadAIFormValuesForSelectedBook();
