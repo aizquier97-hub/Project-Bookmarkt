@@ -453,18 +453,25 @@ Rules:
       };
     };
 
-    const generateCharacters = async () => {
+    const generateCharacters = async (summaryGroundingText?: string) => {
       const notesForGrounding = String(notes ?? "").trim();
-      if (notesForGrounding.length < 20) {
+      const summaryForGrounding = String(summaryGroundingText ?? "").trim();
+      const combinedGroundingText = [notesForGrounding, summaryForGrounding]
+        .filter((value) => !!value)
+        .join("\n\n")
+        .trim();
+      if (combinedGroundingText.length < 20 && !safePageImage) {
         return {
           characters: [],
-          characterGuardReason: "Characters were not generated because grounded notes were too short. Add manual notes or upload/capture a page image first.",
+          characterGuardReason: "Characters were not generated because grounded context was too short. Add manual notes, upload/capture a page image, or retry after generating a stronger summary.",
           rawText: "",
           droppedNames: [],
         };
       }
 
       const characterInstruction = `${sharedPrompt}
+
+Grounded summary context: ${summaryForGrounding || "(none)"}
 
 Mode: characters
 Return ONLY strict JSON with this shape:
@@ -482,8 +489,8 @@ Rules:
 - Include 1 to 25 characters.
 - Include only characters newly introduced in the boundary window.
 - Exclude any names listed in "Existing character names".
-- Use ONLY names explicitly present in User notes.
-- If notes are ambiguous or insufficient, return {"characters":[]}.
+- Use ONLY names explicitly present in User notes, Grounded summary context, or attached page evidence.
+- If the grounded context is ambiguous or insufficient, return {"characters":[]}.
 - Never include markdown fences.
 - Never include spoilers beyond the boundary.`;
 
@@ -506,7 +513,7 @@ Rules:
             droppedNames.push(item.name);
             return false;
           }
-          if (!isCharacterNameGroundedInNotes(item.name, notesForGrounding)) {
+          if (!isCharacterNameGroundedInNotes(item.name, combinedGroundingText)) {
             droppedNames.push(item.name);
             return false;
           }
@@ -515,7 +522,7 @@ Rules:
         });
       const characterGuardReason = characters.length
         ? null
-        : "No grounded character names were found in your notes for this boundary.";
+        : "No grounded character names were found in the available notes, summary context, or page evidence.";
       return { characters, characterGuardReason, rawText: charactersRawText, droppedNames };
     };
 
@@ -659,7 +666,7 @@ Rules:
     }
 
     const summaryResult = await generateSummary();
-    const characterResult = await generateCharacters();
+    const characterResult = await generateCharacters(summaryResult.summaryText);
     const audit = {
       id: safeAuditId,
       createdAt: new Date().toISOString(),
