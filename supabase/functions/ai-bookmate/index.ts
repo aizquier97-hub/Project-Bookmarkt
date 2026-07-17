@@ -38,8 +38,10 @@ type SpoilerSafety = {
   isSpoilerSafe: boolean;
   riskLevel: "low" | "medium" | "high";
   confidence: number;
+  modelConfidence?: number;
   reason: string;
   recommendedAction: string;
+  evaluationReasons?: string[];
 };
 
 const corsHeaders = {
@@ -124,28 +126,107 @@ function normalizeCharacterPayload(rawText: string): CharacterItem[] {
     .slice(0, 25);
 }
 
-function normalizeSummaryPayload(rawText: string): { summaryText: string; spoilerSafety: SpoilerSafety } {
+function clampConfidence(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function normalizeSummaryPayload(
+  rawText: string,
+  context: {
+    hasPageImage: boolean;
+    notesLength: number;
+    hasLowerBoundary: boolean;
+    boundarySpan: number | null;
+  }
+): { summaryText: string; spoilerSafety: SpoilerSafety } {
   const parsed = parseJsonText(rawText);
   const summaryText = String(parsed?.summaryText ?? "").trim();
   const riskRaw = String(parsed?.spoilerSafety?.riskLevel ?? "").trim().toLowerCase();
-  const riskLevel = (riskRaw === "low" || riskRaw === "medium" || riskRaw === "high")
+  const modelRiskLevel = (riskRaw === "low" || riskRaw === "medium" || riskRaw === "high")
     ? riskRaw
     : "high";
   const confidenceRaw = Number(parsed?.spoilerSafety?.confidence);
-  const confidence = Number.isFinite(confidenceRaw)
+  const modelConfidence = Number.isFinite(confidenceRaw)
     ? Math.max(0, Math.min(100, Math.round(confidenceRaw)))
     : 0;
-  const reason = String(parsed?.spoilerSafety?.reason ?? "").trim();
-  const recommendedAction = String(parsed?.spoilerSafety?.recommendedAction ?? "").trim();
-  const isSpoilerSafe = parsed?.spoilerSafety?.isSpoilerSafe === true && riskLevel !== "high";
+  const modelReason = String(parsed?.spoilerSafety?.reason ?? "").trim();
+  const modelRecommendedAction = String(parsed?.spoilerSafety?.recommendedAction ?? "").trim();
+  const modelReportedSafe = parsed?.spoilerSafety?.isSpoilerSafe === true && modelRiskLevel !== "high";
+  const evaluationReasons: string[] = [];
+  let evaluatedConfidence = 85;
+
+  if (modelRiskLevel === "medium") {
+    evaluatedConfidence -= 20;
+    evaluationReasons.push("Model flagged the summary as medium risk.");
+  } else if (modelRiskLevel === "high") {
+    evaluatedConfidence -= 45;
+    evaluationReasons.push("Model flagged the summary as high risk.");
+  }
+
+  if (!modelReportedSafe) {
+    evaluatedConfidence -= 20;
+    evaluationReasons.push("Model did not affirm spoiler safety.");
+  }
+
+  if (modelConfidence < 35) {
+    evaluatedConfidence -= 30;
+    evaluationReasons.push(`Model self-confidence was only ${modelConfidence}%.`);
+  } else if (modelConfidence < 60) {
+    evaluatedConfidence -= 15;
+    evaluationReasons.push(`Model self-confidence was moderate at ${modelConfidence}%.`);
+  }
+
+  if (!context.hasPageImage) {
+    evaluatedConfidence -= 10;
+    evaluationReasons.push("No page image evidence was provided.");
+  }
+
+  if (context.notesLength < 20) {
+    evaluatedConfidence -= 20;
+    evaluationReasons.push("Grounding notes were very short.");
+  } else if (context.notesLength < 80) {
+    evaluatedConfidence -= 10;
+    evaluationReasons.push("Grounding notes were limited.");
+  }
+
+  if (!context.hasLowerBoundary) {
+    evaluatedConfidence -= 8;
+    evaluationReasons.push("No prior boundary existed, so the starting point was broad.");
+  }
+
+  if (context.boundarySpan !== null && context.boundarySpan > 40) {
+    evaluatedConfidence -= 15;
+    evaluationReasons.push("The boundary window spans more than 40 pages.");
+  } else if (context.boundarySpan !== null && context.boundarySpan > 20) {
+    evaluatedConfidence -= 8;
+    evaluationReasons.push("The boundary window spans more than 20 pages.");
+  }
+
+  evaluatedConfidence = clampConfidence(evaluatedConfidence);
+  const failedRules =
+    modelRiskLevel === "high" ||
+    !modelReportedSafe ||
+    modelConfidence < 35 ||
+    evaluatedConfidence < 60;
+  const riskLevel: "low" | "medium" | "high" = failedRules
+    ? (evaluatedConfidence < 40 || modelRiskLevel === "high" ? "high" : "medium")
+    : "low";
+  const isSpoilerSafe = !failedRules;
+  const reason = [modelReason, ...evaluationReasons].filter(Boolean).join(" ");
+  const recommendedAction = modelRecommendedAction
+    || (context.hasPageImage
+      ? "Tighten the boundary window or add more specific notes before saving."
+      : "Add manual notes or page-specific image evidence before saving.");
   return {
     summaryText: summaryText || "No summary generated.",
     spoilerSafety: {
       isSpoilerSafe,
       riskLevel,
-      confidence,
-      reason: reason || "Model could not confidently guarantee spoiler safety.",
-      recommendedAction: recommendedAction || "Use manual notes or provide grounded page context before saving.",
+      confidence: evaluatedConfidence,
+      modelConfidence,
+      reason: reason || "Rule-based spoiler evaluation could not establish safe grounding.",
+      recommendedAction,
+      evaluationReasons,
     },
   };
 }
@@ -446,7 +527,12 @@ Rules:
         responseMimeType: "application/json",
         pageImage: safePageImage,
       });
-      const normalized = normalizeSummaryPayload(summaryRawText);
+      const normalized = normalizeSummaryPayload(summaryRawText, {
+        hasPageImage: !!safePageImage,
+        notesLength: String(notes ?? "").trim().length,
+        hasLowerBoundary: lowerBoundaryNumber !== null,
+        boundarySpan: lowerBoundaryNumber !== null ? Math.max(0, upperBoundaryNumber - lowerBoundaryNumber) : null,
+      });
       return {
         ...normalized,
         rawText: summaryRawText,
