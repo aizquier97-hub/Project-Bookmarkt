@@ -133,6 +133,14 @@
       box-shadow: 0 20px 40px rgba(0,0,0,0.2);
       padding: 16px;
     }
+    .camera-video {
+      width: 100%;
+      background: #0f172a;
+      border-radius: 8px;
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+      margin-top: 6px;
+    }
     .hidden { display: none !important; }
 
     @media (max-width: 900px) {
@@ -245,8 +253,14 @@
           <label>Optional Notes
             <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
           </label>
+          <label class="row" style="align-items:center; gap:8px;">
+            <input id="aiStrictSpoilerGuard" type="checkbox" checked />
+            <span>Strict spoiler guard (recommended)</span>
+          </label>
           <div id="aiSpoilerBoundary" class="ai-mode-result">Spoiler-safe up to Chapter —</div>
           <button id="btnGenerateAI" type="button">Generate Summary + Characters</button>
+          <div id="aiSafetyNotice" class="small muted" style="margin-top:8px;"></div>
+          <button id="btnReportSpoiler" type="button" class="small-btn ghost" style="display:none; margin-top:8px;">Report Spoiler Issue</button>
         </div>
         <div id="aiStatus" class="muted"></div>
         <div id="aiResultText" class="small" style="margin-top:8px;"></div>
@@ -313,7 +327,8 @@
         </label>
         <div id="bookImageDropzone" class="image-dropzone">
           <div><strong>Drag and drop images here</strong></div>
-          <div class="muted" style="margin-top:4px;">or choose files manually</div>
+          <div class="muted" style="margin-top:4px;">or capture directly from your camera</div>
+          <button id="btnTakePhoto" class="ghost" type="button">Take Photo</button>
           <button id="btnPickImages" class="ghost" type="button">Choose Images</button>
           <button id="btnUploadImages" type="button">Upload/Save Images</button>
           <input id="bookImageInput" type="file" accept="image/*" multiple class="hidden" />
@@ -406,6 +421,33 @@
     </div>
   </div>
 
+  <div id="cameraCaptureModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cameraCaptureTitle">
+      <h2 id="cameraCaptureTitle" style="font-size:18px; margin:0 0 10px 0; font-weight:700;">Take Photo</h2>
+      <video id="cameraPreview" class="camera-video" autoplay playsinline muted></video>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnCapturePhoto" type="button">Capture</button>
+        <button id="btnCloseCamera" type="button" class="secondary">Cancel</button>
+      </div>
+      <div id="cameraStatus" class="muted"></div>
+    </div>
+  </div>
+
+  <div id="feedbackModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+      <h2 id="feedbackTitle" style="font-size:18px; margin:0 0 10px 0; font-weight:700;">Report AI Issue</h2>
+      <div id="feedbackTarget" class="small muted"></div>
+      <label>What was wrong?
+        <textarea id="feedbackText" rows="4" placeholder="Example: Character name is incorrect, summary includes wrong event, missing context..."></textarea>
+      </label>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnFeedbackSubmit" type="button">Submit feedback</button>
+        <button id="btnFeedbackCancel" type="button" class="secondary">Cancel</button>
+      </div>
+      <div id="feedbackStatus" class="muted"></div>
+    </div>
+  </div>
+
   <!-- IMPORTANT: ensure this file points to your local UMD bundle -->
   <script src="./supabase.js"></script>
 
@@ -495,21 +537,36 @@
     const aiProgressTypeEl = document.getElementById('aiProgressType');
     const aiProgressValueEl = document.getElementById('aiProgressValue');
     const aiNotesEl = document.getElementById('aiNotes');
+    const aiStrictSpoilerGuardEl = document.getElementById('aiStrictSpoilerGuard');
     const btnGenerateAI = document.getElementById('btnGenerateAI');
     const aiSpoilerBoundaryEl = document.getElementById('aiSpoilerBoundary');
     const aiStatusEl = document.getElementById('aiStatus');
     const aiResultTextEl = document.getElementById('aiResultText');
+    const aiSafetyNoticeEl = document.getElementById('aiSafetyNotice');
+    const btnReportSpoilerEl = document.getElementById('btnReportSpoiler');
     const aiGeneratedImagesEl = document.getElementById('aiGeneratedImages');
     const imageCaptionEl = document.getElementById('imageCaption');
     const bookImageDropzone = document.getElementById('bookImageDropzone');
+    const btnTakePhoto = document.getElementById('btnTakePhoto');
     const btnPickImages = document.getElementById('btnPickImages');
     const btnUploadImages = document.getElementById('btnUploadImages');
     const bookImageInput = document.getElementById('bookImageInput');
     const pendingImagesInfoEl = document.getElementById('pendingImagesInfo');
     const imageStatusEl = document.getElementById('imageStatus');
     const bookImagesList = document.getElementById('bookImagesList');
-    const hasImageUI = !!(bookImageDropzone && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiGeneratedImagesEl);
+    const cameraCaptureModalBackdrop = document.getElementById('cameraCaptureModalBackdrop');
+    const cameraPreviewEl = document.getElementById('cameraPreview');
+    const btnCapturePhoto = document.getElementById('btnCapturePhoto');
+    const btnCloseCamera = document.getElementById('btnCloseCamera');
+    const cameraStatusEl = document.getElementById('cameraStatus');
+    const feedbackModalBackdrop = document.getElementById('feedbackModalBackdrop');
+    const feedbackTargetEl = document.getElementById('feedbackTarget');
+    const feedbackTextEl = document.getElementById('feedbackText');
+    const btnFeedbackSubmit = document.getElementById('btnFeedbackSubmit');
+    const btnFeedbackCancel = document.getElementById('btnFeedbackCancel');
+    const feedbackStatusEl = document.getElementById('feedbackStatus');
+    const hasImageUI = !!(bookImageDropzone && btnTakePhoto && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && btnReportSpoilerEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -521,6 +578,13 @@
     let pendingImageFiles = [];
     let selectedCharacterId = null;
     let editingBookAuthorId = null;
+    let latestAISummaryContext = null;
+    let analyticsEventsAvailable = true;
+    let spoilerReportsAvailable = true;
+    let hasShownAnalyticsTableWarning = false;
+    let aiFeedbackAvailable = true;
+    let hasShownFeedbackTableWarning = false;
+    let cameraStream = null;
     let entriesPage = 1;
     let isBusy = false;
     let refreshAllPromise = null;
@@ -563,9 +627,299 @@
       const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
       return message.includes('topics') && message.includes('author') && (message.includes('column') || message.includes('schema cache'));
     }
+    function isMissingAnalyticsTableError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      return (
+        (message.includes('analytics_events') || message.includes('spoiler_reports')) &&
+        (message.includes('does not exist') || message.includes('schema cache') || message.includes('relation'))
+      );
+    }
+    function isMissingAIFeedbackTableError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      return (
+        message.includes('ai_feedback_reports') &&
+        (message.includes('does not exist') || message.includes('schema cache') || message.includes('relation'))
+      );
+    }
+    function normalizeSpoilerSafety(rawSafety) {
+      const safe = rawSafety && typeof rawSafety === 'object' ? rawSafety : {};
+      const riskLevelRaw = String(safe.riskLevel || '').trim().toLowerCase();
+      const riskLevel = ['low', 'medium', 'high'].includes(riskLevelRaw) ? riskLevelRaw : 'high';
+      const parsedConfidence = Number(safe.confidence);
+      const confidence = Number.isFinite(parsedConfidence)
+        ? Math.max(0, Math.min(100, Math.round(parsedConfidence)))
+        : null;
+      const reason = String(safe.reason || '').trim();
+      const recommendedAction = String(safe.recommendedAction || '').trim();
+      const isSpoilerSafe = safe.isSpoilerSafe === true && riskLevel !== 'high';
+      return {
+        isSpoilerSafe,
+        riskLevel,
+        confidence,
+        reason: reason || 'Model could not confidently guarantee spoiler safety for this boundary window.',
+        recommendedAction: recommendedAction || 'Add manual notes or page-specific context before saving.',
+      };
+    }
+    function renderAISafetyNotice(safety, strictModeEnabled) {
+      if (!hasAIUI) return;
+      if (!safety) {
+        aiSafetyNoticeEl.textContent = '';
+        aiSafetyNoticeEl.className = 'small muted';
+        btnReportSpoilerEl.style.display = 'none';
+        return;
+      }
+      const confidenceText = Number.isFinite(safety.confidence) ? `${safety.confidence}%` : 'unknown';
+      if (safety.isSpoilerSafe) {
+        aiSafetyNoticeEl.textContent = `Spoiler safety check: PASS (${confidenceText} confidence).`;
+        aiSafetyNoticeEl.className = 'small status-success';
+        btnReportSpoilerEl.style.display = 'none';
+      } else {
+        const modeText = strictModeEnabled ? 'Strict guard blocked auto-save.' : 'Strict guard is OFF.';
+        aiSafetyNoticeEl.textContent = `Spoiler safety check: WARNING (${confidenceText} confidence, ${safety.riskLevel} risk). ${modeText} ${safety.recommendedAction}`;
+        aiSafetyNoticeEl.className = 'small status-error';
+        btnReportSpoilerEl.style.display = 'inline-flex';
+      }
+    }
+    async function trackAnalyticsEvent(eventName, eventProperties) {
+      if (!analyticsEventsAvailable || !currentUser || !eventName) return;
+      const payload = {
+        user_id: currentUser.id,
+        topic_id: selectedBookId || null,
+        event_name: eventName,
+        event_properties: eventProperties && typeof eventProperties === 'object' ? eventProperties : {},
+      };
+      const insertRes = await supabase.from('analytics_events').insert([payload]);
+      if (!insertRes.error) return;
+      if (isMissingAnalyticsTableError(insertRes.error)) {
+        analyticsEventsAvailable = false;
+        if (!hasShownAnalyticsTableWarning) {
+          hasShownAnalyticsTableWarning = true;
+          setDevInfo('Analytics tracking table is missing. Apply Supabase beta analytics migration to enable event tracking.', true);
+        }
+        return;
+      }
+      console.warn('Analytics insert error:', insertRes.error);
+    }
+    async function submitSpoilerReport() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!latestAISummaryContext || !latestAISummaryContext.summaryText) {
+        setAIStatus('No AI summary is available to report yet.');
+        return;
+      }
+      const reportReason = latestAISummaryContext.safety && latestAISummaryContext.safety.reason
+        ? latestAISummaryContext.safety.reason
+        : 'User reported potential spoiler content.';
+      if (spoilerReportsAvailable) {
+        const insertRes = await supabase.from('spoiler_reports').insert([{
+          user_id: user.id,
+          topic_id: selectedBookId || null,
+          boundary_label: latestAISummaryContext.rangeLabel || null,
+          summary_excerpt: String(latestAISummaryContext.summaryText || '').slice(0, 1500),
+          reason: reportReason,
+        }]);
+        if (insertRes.error) {
+          if (isMissingAnalyticsTableError(insertRes.error)) {
+            spoilerReportsAvailable = false;
+            if (!hasShownAnalyticsTableWarning) {
+              hasShownAnalyticsTableWarning = true;
+              setDevInfo('Spoiler report table is missing. Apply Supabase beta analytics migration to enable reporting.', true);
+            }
+          } else {
+            setAIStatus('Could not submit spoiler report.');
+            console.warn('Spoiler report insert error:', insertRes.error);
+            return;
+          }
+        }
+      }
+      await trackAnalyticsEvent('spoiler_report_submitted', {
+        boundary: latestAISummaryContext.rangeLabel || null,
+        riskLevel: latestAISummaryContext.safety ? latestAISummaryContext.safety.riskLevel : null,
+        confidence: latestAISummaryContext.safety ? latestAISummaryContext.safety.confidence : null,
+      });
+      btnReportSpoilerEl.style.display = 'none';
+      setAIStatus('Spoiler report submitted. Thank you.');
+    }
+    async function openAIFeedbackModal(payload) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!feedbackModalBackdrop || !feedbackTargetEl || !feedbackTextEl || !btnFeedbackSubmit || !btnFeedbackCancel || !feedbackStatusEl) {
+        setDevInfo('Feedback modal is not available in this build.', true);
+        return;
+      }
+      const sourceType = String(payload && payload.sourceType ? payload.sourceType : '').trim();
+      const sourceId = payload && payload.sourceId ? String(payload.sourceId) : null;
+      const sourceBoundary = payload && payload.sourceBoundary ? String(payload.sourceBoundary).trim() : null;
+      const sourceTextExcerpt = payload && payload.sourceTextExcerpt ? String(payload.sourceTextExcerpt).trim() : '';
+      const targetLabel = payload && payload.targetLabel ? String(payload.targetLabel).trim() : 'AI output';
+      if (!sourceType || !sourceId) {
+        setDevInfo('Feedback error: Missing source context.', true);
+        return;
+      }
+
+      feedbackTargetEl.textContent = `Reporting: ${targetLabel}`;
+      feedbackTextEl.value = '';
+      feedbackStatusEl.textContent = '';
+      feedbackStatusEl.className = 'muted';
+      feedbackModalBackdrop.classList.remove('hidden');
+      feedbackModalBackdrop.setAttribute('aria-hidden', 'false');
+      feedbackTextEl.focus();
+
+      await new Promise((resolve) => {
+        const cleanup = () => {
+          feedbackModalBackdrop.classList.add('hidden');
+          feedbackModalBackdrop.setAttribute('aria-hidden', 'true');
+          btnFeedbackSubmit.onclick = null;
+          btnFeedbackCancel.onclick = null;
+          resolve();
+        };
+        btnFeedbackCancel.onclick = cleanup;
+        btnFeedbackSubmit.onclick = async () => {
+          const feedbackText = feedbackTextEl.value.trim();
+          if (feedbackText.length < 8) {
+            feedbackStatusEl.textContent = 'Please add a bit more detail so we can diagnose the issue.';
+            feedbackStatusEl.className = 'status-error';
+            return;
+          }
+          feedbackStatusEl.textContent = 'Submitting feedback...';
+          feedbackStatusEl.className = 'muted';
+          btnFeedbackSubmit.disabled = true;
+
+          if (!aiFeedbackAvailable) {
+            btnFeedbackSubmit.disabled = false;
+            feedbackStatusEl.textContent = 'Feedback table is not enabled yet. Apply the feedback migration first.';
+            feedbackStatusEl.className = 'status-error';
+            return;
+          }
+
+          const insertRes = await supabase.from('ai_feedback_reports').insert([{
+            user_id: user.id,
+            topic_id: selectedBookId || null,
+            source_type: sourceType,
+            source_id: sourceId,
+            source_boundary: sourceBoundary || null,
+            source_text_excerpt: sourceTextExcerpt ? sourceTextExcerpt.slice(0, 2000) : null,
+            feedback_text: feedbackText,
+          }]);
+          if (insertRes.error) {
+            if (isMissingAIFeedbackTableError(insertRes.error)) {
+              aiFeedbackAvailable = false;
+              if (!hasShownFeedbackTableWarning) {
+                hasShownFeedbackTableWarning = true;
+                setDevInfo('AI feedback table is missing. Apply Supabase feedback migration to enable this tool.', true);
+              }
+            }
+            btnFeedbackSubmit.disabled = false;
+            feedbackStatusEl.textContent = `Could not submit feedback: ${insertRes.error.message}`;
+            feedbackStatusEl.className = 'status-error';
+            return;
+          }
+
+          await trackAnalyticsEvent('ai_feedback_submitted', {
+            sourceType,
+            hasBoundary: !!sourceBoundary,
+          });
+          btnFeedbackSubmit.disabled = false;
+          cleanup();
+          setAIStatus('Feedback submitted. Thank you.');
+        };
+      });
+    }
     function setPendingImagesInfo(text) {
       if (!pendingImagesInfoEl) return;
       pendingImagesInfoEl.textContent = text;
+    }
+    function setCameraStatus(text, isError) {
+      if (!cameraStatusEl) return;
+      cameraStatusEl.textContent = text || '';
+      cameraStatusEl.className = isError ? 'status-error' : 'muted';
+    }
+    function isCameraCaptureSupported() {
+      return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    }
+    function stopCameraStream() {
+      if (cameraStream && typeof cameraStream.getTracks === 'function') {
+        cameraStream.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch (_) {
+            // Ignore shutdown errors from already-ended tracks.
+          }
+        });
+      }
+      cameraStream = null;
+      if (cameraPreviewEl) cameraPreviewEl.srcObject = null;
+    }
+    function closeCameraCaptureModal() {
+      if (!cameraCaptureModalBackdrop) return;
+      cameraCaptureModalBackdrop.classList.add('hidden');
+      cameraCaptureModalBackdrop.setAttribute('aria-hidden', 'true');
+      stopCameraStream();
+      setCameraStatus('');
+    }
+    async function openCameraCaptureModal() {
+      if (!hasImageUI) return;
+      if (!selectedBookId) {
+        setImageStatus('Images error: Add and select a book first.');
+        return;
+      }
+      if (!isCameraCaptureSupported()) {
+        setImageStatus('Camera capture is not supported on this device/browser. Use Choose Images instead.');
+        return;
+      }
+      if (!window.isSecureContext) {
+        setImageStatus('Camera capture requires HTTPS or localhost.');
+        return;
+      }
+      stopCameraStream();
+      setCameraStatus('Requesting camera access...');
+      cameraCaptureModalBackdrop.classList.remove('hidden');
+      cameraCaptureModalBackdrop.setAttribute('aria-hidden', 'false');
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        });
+        cameraPreviewEl.srcObject = cameraStream;
+        setCameraStatus('Camera ready. Frame the page, then tap Capture.');
+      } catch (error) {
+        closeCameraCaptureModal();
+        const message = error && error.message ? error.message : 'Could not access camera.';
+        setImageStatus(`Camera error: ${message}`);
+      }
+    }
+    async function capturePhotoFromCamera() {
+      if (!cameraPreviewEl || !cameraStream) {
+        setCameraStatus('Camera is not ready yet.', true);
+        return;
+      }
+      const width = cameraPreviewEl.videoWidth;
+      const height = cameraPreviewEl.videoHeight;
+      if (!width || !height) {
+        setCameraStatus('Camera frame not ready. Try again in a moment.', true);
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        setCameraStatus('Camera error: Could not prepare captured image.', true);
+        return;
+      }
+      ctx.drawImage(cameraPreviewEl, 0, 0, width, height);
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.92);
+      });
+      if (!blob) {
+        setCameraStatus('Camera error: Could not capture photo.', true);
+        return;
+      }
+      const fileName = `camera-${Date.now()}.jpg`;
+      const capturedFile = new File([blob], fileName, { type: 'image/jpeg', lastModified: Date.now() });
+      queueImageFiles([capturedFile]);
+      closeCameraCaptureModal();
+      setImageStatus('Photo captured. Click Upload/Save Images to store it.');
     }
     function setBusyState(busy, message) {
       isBusy = busy;
@@ -632,6 +986,7 @@
       authScreen.style.display = isSignedIn ? 'none' : 'flex';
       appShell.style.display = isSignedIn ? 'flex' : 'none';
       if (isSignedIn) closeSignupModal();
+      if (!isSignedIn) closeCameraCaptureModal();
 
       btnLogin.disabled = isSignedIn || isBusy;
       btnSignup.disabled = isSignedIn || isBusy;
@@ -667,9 +1022,12 @@
         aiProgressTypeEl.disabled = disableBookScoped;
         aiProgressValueEl.disabled = disableBookScoped;
         aiNotesEl.disabled = disableBookScoped;
+        aiStrictSpoilerGuardEl.disabled = disableBookScoped;
         btnGenerateAI.disabled = disableBookScoped;
+        btnReportSpoilerEl.disabled = disableBookScoped;
       }
       if (hasImageUI) {
+        btnTakePhoto.disabled = disableBookScoped;
         btnPickImages.disabled = disableBookScoped;
         btnUploadImages.disabled = disableBookScoped || pendingImageFiles.length === 0;
         bookImageInput.disabled = disableBookScoped;
@@ -859,6 +1217,26 @@
       return null;
     }
 
+    function collectManualGroundingNotes(progressType, lowerBoundary, upperBoundary) {
+      const wantedType = normalizeProgressType(progressType);
+      const safeUpper = normalizeProgressNumber(upperBoundary);
+      if (!safeUpper) return '';
+      const chunks = [];
+      for (let i = 0; i < loadedEntries.length; i += 1) {
+        const rawText = String((loadedEntries[i] && loadedEntries[i].text) || '');
+        if (!rawText.startsWith('[Manual Entry -')) continue;
+        const parsed = parseProgressBoundaryFromEntryText(rawText);
+        if (!parsed || parsed.progressType !== wantedType) continue;
+        if (parsed.upper > safeUpper) continue;
+        if (Number.isFinite(lowerBoundary) && parsed.upper <= lowerBoundary) continue;
+        const bodyText = rawText.split('\n').slice(1).join('\n').trim();
+        if (!bodyText) continue;
+        chunks.push(bodyText);
+        if (chunks.length >= 4) break;
+      }
+      return chunks.join('\n\n').trim();
+    }
+
     function updateEntryProgressHint() {
       if (!entryProgressHintEl) return;
       const latestPageBoundary = getLatestProgressBoundary('page');
@@ -951,7 +1329,11 @@
     function resetAIResults() {
       if (!hasAIUI) return;
       aiGeneratedImagesCache = [];
+      latestAISummaryContext = null;
       renderAIResultText('');
+      aiSafetyNoticeEl.textContent = '';
+      aiSafetyNoticeEl.className = 'small muted';
+      btnReportSpoilerEl.style.display = 'none';
       aiGeneratedImagesEl.innerHTML = '';
       setAIStatus('');
     }
@@ -965,6 +1347,7 @@
         author: aiAuthorEl.value.trim(),
         progressType: aiProgressTypeEl.value === 'page' ? 'page' : 'chapter',
         progressValue: aiProgressValueEl.value.trim(),
+        strictSpoilerGuard: aiStrictSpoilerGuardEl.checked !== false,
         notes: aiNotesEl.value || ''
       };
       try {
@@ -982,6 +1365,7 @@
         aiAuthorEl.value = '';
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
+        aiStrictSpoilerGuardEl.checked = true;
         aiNotesEl.value = '';
         syncAIUpdateModeUI();
         updateAISpoilerBoundaryLabel();
@@ -998,6 +1382,7 @@
           aiAuthorEl.value = defaultAuthor;
           aiProgressTypeEl.value = 'chapter';
           aiProgressValueEl.value = '';
+          aiStrictSpoilerGuardEl.checked = true;
           aiNotesEl.value = '';
           syncAIUpdateModeUI();
           updateAISpoilerBoundaryLabel();
@@ -1008,6 +1393,7 @@
         aiAuthorEl.value = (parsed && parsed.author) ? String(parsed.author) : defaultAuthor;
         aiProgressTypeEl.value = (parsed && parsed.progressType === 'page') ? 'page' : 'chapter';
         aiProgressValueEl.value = (parsed && parsed.progressValue) ? String(parsed.progressValue) : '';
+        aiStrictSpoilerGuardEl.checked = !(parsed && parsed.strictSpoilerGuard === false);
         aiNotesEl.value = (parsed && parsed.notes) ? String(parsed.notes) : '';
         syncAIUpdateModeUI();
       } catch (err) {
@@ -1016,6 +1402,7 @@
         aiAuthorEl.value = defaultAuthor;
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
+        aiStrictSpoilerGuardEl.checked = true;
         aiNotesEl.value = '';
         syncAIUpdateModeUI();
       }
@@ -1236,6 +1623,12 @@
       const existingCharacterNames = Array.from(getExistingCharacterNameSet());
       const existingLocationTitles = Array.from(getExistingAISettingTitleSet());
       const rangeLabel = buildProgressRangeLabel(progressType, lowerBoundary, progressNumber);
+      const strictSpoilerGuardEnabled = aiStrictSpoilerGuardEl.checked !== false;
+      const manualGroundingNotes = collectManualGroundingNotes(progressType, lowerBoundary, progressNumber);
+      const combinedGroundingNotes = [notes, manualGroundingNotes]
+        .filter((value) => !!String(value || '').trim())
+        .join('\n\n')
+        .slice(0, 5000);
 
       persistAIFormValues();
       renderAIResultText('');
@@ -1243,6 +1636,13 @@
       setAIStatus('Generating and saving full AI update...');
       setBusyState(true, 'Generating spoiler-safe summary notes and characters...');
       try {
+        await trackAnalyticsEvent('ai_update_requested', {
+          progressType,
+          progressValue: progressNumber,
+          lowerBoundary,
+          strictSpoilerGuard: strictSpoilerGuardEnabled,
+          hasGroundingNotes: !!combinedGroundingNotes,
+        });
         if (author !== getBookAuthorForTopic(user.id, selectedBookId)) {
           await persistBookAuthor(user.id, selectedBookId, author);
         }
@@ -1254,10 +1654,11 @@
           lowerBoundary,
           existingCharacters: existingCharacterNames,
           existingLocations: existingLocationTitles,
-          notes
+          notes: combinedGroundingNotes
         };
         const fullUpdateData = await invokeAIForMode('full_update', requestBody);
         const spoilerBoundary = fullUpdateData.spoilerBoundary || '';
+        const characterGuardReason = String(fullUpdateData.characterGuardReason || '').trim();
 
         if (spoilerBoundary) {
           aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${spoilerBoundary}`;
@@ -1266,6 +1667,24 @@
         }
 
         const summaryText = String(fullUpdateData.summaryText || '').trim();
+        const spoilerSafety = normalizeSpoilerSafety(fullUpdateData.spoilerSafety);
+        latestAISummaryContext = {
+          summaryText,
+          rangeLabel,
+          safety: spoilerSafety,
+        };
+        renderAISafetyNotice(spoilerSafety, strictSpoilerGuardEnabled);
+        if (!spoilerSafety.isSpoilerSafe && strictSpoilerGuardEnabled) {
+          renderAIResultText(`Summary not auto-saved due to spoiler risk.\n\nReason: ${spoilerSafety.reason}\n\nRecommendation: ${spoilerSafety.recommendedAction}`);
+          setAIStatus('AI blocked auto-save to protect against spoilers. Add manual notes or disable strict spoiler guard.');
+          await trackAnalyticsEvent('ai_update_blocked_spoiler_risk', {
+            boundary: rangeLabel,
+            riskLevel: spoilerSafety.riskLevel,
+            confidence: spoilerSafety.confidence,
+            strictSpoilerGuard: strictSpoilerGuardEnabled,
+          });
+          return;
+        }
         const normalizedCharacters = normalizeAICharacters(fullUpdateData.characters);
         const knownCharacterNames = getExistingCharacterNameSet();
         const uniqueCharacters = [];
@@ -1304,6 +1723,12 @@
         const aiTextParts = [];
         if (summaryText) aiTextParts.push(`Summary saved to Entries.\n${summaryText}`);
         aiTextParts.push(`Characters saved: ${uniqueCharacters.length}`);
+        if (characterGuardReason) {
+          aiTextParts.push(`Character guard: ${characterGuardReason}`);
+        }
+        if (!spoilerSafety.isSpoilerSafe && !strictSpoilerGuardEnabled) {
+          aiTextParts.push(`Warning: Summary may contain spoilers (${spoilerSafety.riskLevel} risk). ${spoilerSafety.recommendedAction}`);
+        }
         renderAIResultText(aiTextParts.join('\n\n'));
         renderAIGeneratedImages([]);
 
@@ -1315,11 +1740,25 @@
         ]);
 
         setAIStatus('Full AI update saved to Entries and Character Map.');
+        await trackAnalyticsEvent('ai_update_saved', {
+          boundary: rangeLabel,
+          savedSummary: !!summaryText,
+          savedCharacters: uniqueCharacters.length,
+          riskLevel: spoilerSafety.riskLevel,
+          confidence: spoilerSafety.confidence,
+          strictSpoilerGuard: strictSpoilerGuardEnabled,
+          characterGuardApplied: !!characterGuardReason,
+        });
         updateEntryProgressHint();
       } catch (err) {
         const message = err && err.message ? err.message : String(err);
         setAIStatus('AI error: ' + message);
         setDevInfo('AI generation error: ' + message, true);
+        await trackAnalyticsEvent('ai_update_error', {
+          boundary: rangeLabel,
+          message,
+          strictSpoilerGuard: strictSpoilerGuardEnabled,
+        });
       } finally {
         setBusyState(false);
       }
@@ -1859,6 +2298,10 @@
           loadCharacters(user.id, selectedBookId),
           loadBookImages(user.id, selectedBookId)
         ]);
+        await trackAnalyticsEvent('book_added', {
+          topicId: data && data.id ? String(data.id) : null,
+          hasAuthor: true,
+        });
         setDevInfo('Book added and data loaded.');
       }
     }
@@ -2006,6 +2449,10 @@
         updateEntryProgressHint();
         entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
+        await trackAnalyticsEvent('manual_entry_added', {
+          boundary: rangeLabel,
+          progressValue: pageValue,
+        });
       }
     }
 
@@ -2287,7 +2734,14 @@
       const pageItems = items.slice(startIndex, startIndex + ENTRIES_PAGE_SIZE);
 
       entriesList.innerHTML = pageItems
-        .map(e => `<div class="item"><div>${escapeHtml(e.text)}</div><div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-entry-action="edit" data-entry-id="${e.id}">Edit</button><button class="small-btn danger" data-entry-action="delete" data-entry-id="${e.id}">Delete</button></div><div class="muted" style="margin-top:6px;">${formatRecordTimestamp(e)}</div></div>`)
+        .map((e) => {
+          const text = String(e && e.text ? e.text : '');
+          const isAISummary = /^\[AI Summary\s*-\s*/i.test(text);
+          const feedbackBtn = isAISummary
+            ? `<button class="small-btn ghost" data-entry-action="feedback" data-entry-id="${e.id}">Report AI issue</button>`
+            : '';
+          return `<div class="item"><div>${escapeHtml(text)}</div><div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-entry-action="edit" data-entry-id="${e.id}">Edit</button><button class="small-btn danger" data-entry-action="delete" data-entry-id="${e.id}">Delete</button>${feedbackBtn}</div><div class="muted" style="margin-top:6px;">${formatRecordTimestamp(e)}</div></div>`;
+        })
         .join('');
 
       entriesPaginationEl.style.display = totalPages > 1 ? 'flex' : 'none';
@@ -2353,6 +2807,7 @@
           <div class="row" style="margin-top:10px;">
             <button class="small-btn ghost" data-character-action="edit" data-character-id="${selectedCharacter.id}">Edit</button>
             <button class="small-btn danger" data-character-action="delete" data-character-id="${selectedCharacter.id}">Delete</button>
+            <button class="small-btn ghost" data-character-action="feedback" data-character-id="${selectedCharacter.id}">Report AI issue</button>
           </div>
           <div class="character-time">${formatRecordTimestamp(selectedCharacter)}</div>
         </div>`;
@@ -2419,9 +2874,9 @@
     btnAddCharacter.addEventListener('click', addCharacter);
     btnClearCharacterMap.addEventListener('click', clearCharacterMapForm);
     if (hasAIUI) {
-      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl];
+      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl, aiStrictSpoilerGuardEl];
       aiInputElements.forEach((el) => {
-        const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
+        const eventName = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(eventName, () => {
           updateAISpoilerBoundaryLabel();
           persistAIFormValues();
@@ -2438,8 +2893,16 @@
         if (!Number.isFinite(index) || index < 0) return;
         queueGeneratedImageAtIndex(index);
       });
+      btnReportSpoilerEl.addEventListener('click', async () => {
+        if (btnReportSpoilerEl.disabled) return;
+        await submitSpoilerReport();
+      });
     }
     if (hasImageUI) {
+      btnTakePhoto.addEventListener('click', async () => {
+        if (btnTakePhoto.disabled) return;
+        await openCameraCaptureModal();
+      });
       btnPickImages.addEventListener('click', () => {
         if (btnPickImages.disabled) return;
         bookImageInput.click();
@@ -2478,6 +2941,16 @@
         if (action === 'edit') await editBookImage(imageId);
         if (action === 'delete') await deleteBookImage(imageId);
       });
+      btnCloseCamera.addEventListener('click', () => {
+        closeCameraCaptureModal();
+      });
+      btnCapturePhoto.addEventListener('click', async () => {
+        if (btnCapturePhoto.disabled) return;
+        await capturePhotoFromCamera();
+      });
+      cameraCaptureModalBackdrop.addEventListener('click', (event) => {
+        if (event.target === cameraCaptureModalBackdrop) closeCameraCaptureModal();
+      });
     }
     topicsList.addEventListener('click', async (event) => {
       const actionBtn = event.target.closest('[data-book-action]');
@@ -2503,6 +2976,19 @@
       const entryId = btn.getAttribute('data-entry-id');
       if (action === 'edit') await editEntry(entryId);
       if (action === 'delete') await deleteEntry(entryId);
+      if (action === 'feedback') {
+        const entry = loadedEntries.find((item) => String(item && item.id) === String(entryId));
+        if (!entry) return;
+        const firstLine = String(entry.text || '').split('\n')[0] || '';
+        const boundaryMatch = firstLine.match(/^\[AI Summary\s*-\s*(.+)\]$/i);
+        await openAIFeedbackModal({
+          sourceType: 'summary_entry',
+          sourceId: entry.id,
+          sourceBoundary: boundaryMatch ? boundaryMatch[1] : null,
+          sourceTextExcerpt: String(entry.text || ''),
+          targetLabel: `Summary entry${boundaryMatch ? ` (${boundaryMatch[1]})` : ''}`,
+        });
+      }
     });
     btnEntriesPrev.addEventListener('click', () => {
       if (entriesPage <= 1) return;
@@ -2529,6 +3015,17 @@
       const characterId = btn.getAttribute('data-character-id');
       if (action === 'edit') await editCharacter(characterId);
       if (action === 'delete') await deleteCharacter(characterId);
+      if (action === 'feedback') {
+        const character = loadedCharacters.find((item) => String(item && item.id) === String(characterId));
+        if (!character) return;
+        await openAIFeedbackModal({
+          sourceType: 'character',
+          sourceId: character.id,
+          sourceBoundary: null,
+          sourceTextExcerpt: `${character.name || ''}\n${character.description || ''}`.trim(),
+          targetLabel: `Character: ${character.name || 'Unnamed'}`,
+        });
+      }
     });
     characterSearchEl.addEventListener('input', () => {
       renderCharacters(loadedCharacters);
@@ -2570,6 +3067,13 @@
     signupModalBackdrop.addEventListener('click', (event) => {
       if (event.target === signupModalBackdrop) closeSignupModal();
     });
+    if (feedbackModalBackdrop) {
+      feedbackModalBackdrop.addEventListener('click', (event) => {
+        if (event.target === feedbackModalBackdrop && btnFeedbackCancel) {
+          btnFeedbackCancel.click();
+        }
+      });
+    }
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         if (!signupModalBackdrop.classList.contains('hidden')) closeSignupModal();
@@ -2577,6 +3081,9 @@
         if (!editCharModalBackdrop.classList.contains('hidden')) btnEditCharCancel.click();
         if (editBookAuthorModalBackdrop && !editBookAuthorModalBackdrop.classList.contains('hidden') && btnEditBookAuthorCancel) {
           btnEditBookAuthorCancel.click();
+        }
+        if (feedbackModalBackdrop && !feedbackModalBackdrop.classList.contains('hidden') && btnFeedbackCancel) {
+          btnFeedbackCancel.click();
         }
       }
     });
@@ -2588,6 +3095,10 @@
       setSignedInState(currentUser);
       if (event === 'SIGNED_IN' && currentUser) {
         setAuthStatus('Logged in as ' + currentUser.email);
+        await trackAnalyticsEvent('user_signed_in', {
+          sourceEvent: event,
+          isNewSessionUser: !!(currentUserId && currentUserId !== previousUserId),
+        });
         // Avoid expensive full reloads when the same signed-in user is re-emitted on tab/window activity.
         if (currentUserId && currentUserId !== previousUserId) {
           await refreshAll(currentUser);

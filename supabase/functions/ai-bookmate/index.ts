@@ -27,6 +27,14 @@ type CharacterItem = {
   relationships: string;
 };
 
+type SpoilerSafety = {
+  isSpoilerSafe: boolean;
+  riskLevel: "low" | "medium" | "high";
+  confidence: number;
+  reason: string;
+  recommendedAction: string;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -109,8 +117,51 @@ function normalizeCharacterPayload(rawText: string): CharacterItem[] {
     .slice(0, 25);
 }
 
+function normalizeSummaryPayload(rawText: string): { summaryText: string; spoilerSafety: SpoilerSafety } {
+  const parsed = parseJsonText(rawText);
+  const summaryText = String(parsed?.summaryText ?? "").trim();
+  const riskRaw = String(parsed?.spoilerSafety?.riskLevel ?? "").trim().toLowerCase();
+  const riskLevel = (riskRaw === "low" || riskRaw === "medium" || riskRaw === "high")
+    ? riskRaw
+    : "high";
+  const confidenceRaw = Number(parsed?.spoilerSafety?.confidence);
+  const confidence = Number.isFinite(confidenceRaw)
+    ? Math.max(0, Math.min(100, Math.round(confidenceRaw)))
+    : 0;
+  const reason = String(parsed?.spoilerSafety?.reason ?? "").trim();
+  const recommendedAction = String(parsed?.spoilerSafety?.recommendedAction ?? "").trim();
+  const isSpoilerSafe = parsed?.spoilerSafety?.isSpoilerSafe === true && riskLevel !== "high";
+  return {
+    summaryText: summaryText || "No summary generated.",
+    spoilerSafety: {
+      isSpoilerSafe,
+      riskLevel,
+      confidence,
+      reason: reason || "Model could not confidently guarantee spoiler safety.",
+      recommendedAction: recommendedAction || "Use manual notes or provide grounded page context before saving.",
+    },
+  };
+}
+
 function normalizeKey(value: string) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isCharacterNameGroundedInNotes(name: string, notesText: string) {
+  const normalizedName = normalizeKey(name);
+  if (!normalizedName) return false;
+  const notes = String(notesText || "").toLowerCase();
+  if (!notes) return false;
+  if (notes.includes(normalizedName)) return true;
+  const nameParts = normalizedName.split(" ").filter((part) => part.length >= 5);
+  if (nameParts.length !== 1) return false;
+  const singleName = nameParts[0];
+  const exactWordPattern = new RegExp(`\\b${escapeRegExp(singleName)}\\b`, "i");
+  return exactWordPattern.test(notes);
 }
 
 function sanitizeStringArray(items: unknown): string[] {
@@ -327,14 +378,38 @@ User notes: ${notes?.trim() || "(none)"}`;
       const summaryInstruction = `${sharedPrompt}
 
 Mode: summary
-Return only spoiler-safe prose for the boundary window.
-Do not restate plot points that happened before the lower boundary when a lower boundary is provided.
-Keep it concise and avoid guessing details beyond the boundary.`;
-      const summaryText = await callGeminiText(geminiKey, summaryInstruction);
-      return { summaryText };
+Return ONLY strict JSON with this shape:
+{
+  "summaryText": "spoiler-aware summary prose",
+  "spoilerSafety": {
+    "isSpoilerSafe": true,
+    "riskLevel": "low|medium|high",
+    "confidence": 0,
+    "reason": "why this is safe/unsafe",
+    "recommendedAction": "what user should do next if confidence is low"
+  }
+}
+Rules:
+- Summary must describe only the boundary window.
+- Do not restate plot points from before the lower boundary when a lower boundary is provided.
+- If uncertain, set isSpoilerSafe=false, riskLevel=high, and explain why.
+- Never include markdown fences.`;
+
+      const summaryRawText = await callGeminiText(geminiKey, summaryInstruction, {
+        responseMimeType: "application/json",
+      });
+      return normalizeSummaryPayload(summaryRawText);
     };
 
     const generateCharacters = async () => {
+      const notesForGrounding = String(notes ?? "").trim();
+      if (notesForGrounding.length < 20) {
+        return {
+          characters: [],
+          characterGuardReason: "Characters were not generated because grounded notes were too short. Add manual notes or upload/capture a page image first.",
+        };
+      }
+
       const characterInstruction = `${sharedPrompt}
 
 Mode: characters
@@ -353,6 +428,8 @@ Rules:
 - Include 1 to 25 characters.
 - Include only characters newly introduced in the boundary window.
 - Exclude any names listed in "Existing character names".
+- Use ONLY names explicitly present in User notes.
+- If notes are ambiguous or insufficient, return {"characters":[]}.
 - Never include markdown fences.
 - Never include spoilers beyond the boundary.`;
 
@@ -366,10 +443,14 @@ Rules:
           const key = normalizeKey(item.name);
           if (!key) return false;
           if (existingCharacterKeys.has(key) || seenCharacterKeys.has(key)) return false;
+          if (!isCharacterNameGroundedInNotes(item.name, notesForGrounding)) return false;
           seenCharacterKeys.add(key);
           return true;
         });
-      return { characters };
+      const characterGuardReason = characters.length
+        ? null
+        : "No grounded character names were found in your notes for this boundary.";
+      return { characters, characterGuardReason };
     };
 
     const generateLocations = async () => {
@@ -467,6 +548,7 @@ Rules:
           lowerBoundary: lowerBoundaryNumber,
           upperBoundary: upperBoundaryNumber,
           summaryText: summaryResult.summaryText,
+          spoilerSafety: summaryResult.spoilerSafety,
           text: summaryResult.summaryText,
         },
         200
@@ -483,6 +565,7 @@ Rules:
           lowerBoundary: lowerBoundaryNumber,
           upperBoundary: upperBoundaryNumber,
           characters: characterResult.characters,
+          characterGuardReason: characterResult.characterGuardReason,
           text: `Generated ${characterResult.characters.length} character(s).`,
         },
         200
@@ -520,8 +603,10 @@ Rules:
         lowerBoundary: lowerBoundaryNumber,
         upperBoundary: upperBoundaryNumber,
         summaryText: summaryResult.summaryText,
+        spoilerSafety: summaryResult.spoilerSafety,
         text: summaryResult.summaryText,
         characters: characterResult.characters,
+        characterGuardReason: characterResult.characterGuardReason,
         locationsText: "",
         locationPrompts: [],
         generatedImages: [],
