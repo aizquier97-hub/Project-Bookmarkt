@@ -1881,6 +1881,10 @@
         };
         renderAISafetyNotice(spoilerSafety, strictSpoilerGuardEnabled);
         if (!spoilerSafety.isSpoilerSafe && strictSpoilerGuardEnabled) {
+          const persistedAuditId = await saveAIGenerationAudit(user, auditPayload);
+          if (persistedAuditId) {
+            latestAISummaryContext.auditId = persistedAuditId;
+          }
           latestAISummaryContext.blockedBySpoiler = true;
           renderAIResultText(`Summary not auto-saved due to spoiler risk.\n\nReason: ${spoilerSafety.reason}\n\nRecommendation: ${spoilerSafety.recommendedAction}`);
           setAIStatus('AI blocked auto-save to protect against spoilers. Add manual notes, take/upload a page image, or disable strict spoiler guard.');
