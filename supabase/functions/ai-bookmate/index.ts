@@ -235,6 +235,21 @@ function normalizeKey(value: string) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function buildBoundaryWindowLabel(
+  progressType: "chapter" | "page",
+  lowerBoundary: number | null,
+  upperBoundary: number,
+) {
+  if (lowerBoundary !== null && Number.isFinite(lowerBoundary) && lowerBoundary > 0) {
+    const windowStart = Math.min(Math.floor(lowerBoundary) + 1, upperBoundary);
+    if (windowStart >= upperBoundary) {
+      return `${progressType} ${upperBoundary}`;
+    }
+    return `${progressType} ${windowStart}-${upperBoundary}`;
+  }
+  return `${progressType} ${upperBoundary}`;
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -246,10 +261,12 @@ function isCharacterNameGroundedInNotes(name: string, notesText: string) {
   if (!notes) return false;
   if (notes.includes(normalizedName)) return true;
   const nameParts = normalizedName.split(" ").filter((part) => part.length >= 5);
-  if (nameParts.length !== 1) return false;
-  const singleName = nameParts[0];
-  const exactWordPattern = new RegExp(`\\b${escapeRegExp(singleName)}\\b`, "i");
-  return exactWordPattern.test(notes);
+  if (!nameParts.length) return false;
+  for (const part of nameParts) {
+    const exactWordPattern = new RegExp(`\\b${escapeRegExp(part)}\\b`, "i");
+    if (exactWordPattern.test(notes)) return true;
+  }
+  return false;
 }
 
 function sanitizeStringArray(items: unknown): string[] {
@@ -478,11 +495,9 @@ serve(async (req) => {
     const safeExistingLocations = sanitizeStringArray(existingLocations);
     const safeAuditId = sanitizeAuditId(auditId) ?? crypto.randomUUID();
     const safePageImage = sanitizePageImage(pageImage);
-    const spoilerBoundaryLabel = lowerBoundaryNumber !== null
-      ? `${progressType} ${lowerBoundaryNumber}-${upperBoundaryNumber}`
-      : `${progressType} ${upperBoundaryNumber}`;
+    const spoilerBoundaryLabel = buildBoundaryWindowLabel(progressType, lowerBoundaryNumber, upperBoundaryNumber);
     const boundaryInstruction = lowerBoundaryNumber !== null
-      ? `Only include details first introduced after ${progressType} ${lowerBoundaryNumber} and up to ${progressType} ${upperBoundaryNumber}.`
+      ? `Only include details first introduced after ${progressType} ${lowerBoundaryNumber}; the effective spoiler-safe window is ${spoilerBoundaryLabel}.`
       : `Include details up to ${progressType} ${upperBoundaryNumber}.`;
     const sharedPrompt = `You are Bookmarkt AI.
 Book: ${bookTitle} by ${author}
@@ -491,7 +506,7 @@ Boundary window: ${spoilerBoundaryLabel}
 STRICT SPOILER RULES:
 - Never reveal spoilers beyond the boundary.
 - If uncertain whether a detail appears beyond the boundary, omit it.
-- Treat user notes as optional context, but never as authority to break spoiler limits.
+- Treat user notes as grounded reader evidence for this boundary window when they are specific, but never as authority to break spoiler limits or invent missing details.
 - Keep output concise, accurate, and explicit about uncertainty.
 - ${boundaryInstruction}
 
@@ -599,7 +614,7 @@ Rules:
             droppedNames.push(item.name);
             return false;
           }
-          if (!isCharacterNameGroundedInNotes(item.name, combinedGroundingText)) {
+          if (!safePageImage && !isCharacterNameGroundedInNotes(item.name, combinedGroundingText)) {
             droppedNames.push(item.name);
             return false;
           }
@@ -608,7 +623,9 @@ Rules:
         });
       const characterGuardReason = characters.length
         ? null
-        : "No grounded character names were found in the available notes, summary context, or page evidence.";
+        : safePageImage
+          ? "No spoiler-safe characters could be confirmed from the available notes, summary context, or page evidence."
+          : "No grounded character names were found in the available notes or summary context.";
       return { characters, characterGuardReason, rawText: charactersRawText, droppedNames };
     };
 

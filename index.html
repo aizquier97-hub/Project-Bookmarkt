@@ -1374,7 +1374,11 @@
     function buildProgressRangeLabel(progressType, lowerValue, upperValue) {
       const type = normalizeProgressType(progressType);
       if (Number.isFinite(lowerValue) && lowerValue > 0) {
-        return `${type} ${lowerValue}-${upperValue}`;
+        const windowStart = Math.min(Math.floor(lowerValue) + 1, upperValue);
+        if (windowStart >= upperValue) {
+          return `${type} ${upperValue}`;
+        }
+        return `${type} ${windowStart}-${upperValue}`;
       }
       return `${type} ${upperValue}`;
     }
@@ -1416,7 +1420,11 @@
         const parsed = parseProgressBoundaryFromEntryText(rawText);
         if (!parsed || parsed.progressType !== wantedType) continue;
         if (parsed.upper > safeUpper) continue;
-        if (Number.isFinite(lowerBoundary) && parsed.upper <= lowerBoundary) continue;
+        if (Number.isFinite(lowerBoundary)) {
+          const isSameBoundaryNote = parsed.upper === lowerBoundary && !Number.isFinite(parsed.lower);
+          if (parsed.upper < lowerBoundary) continue;
+          if (parsed.upper === lowerBoundary && !isSameBoundaryNote) continue;
+        }
         const bodyText = rawText.split('\n').slice(1).join('\n').trim();
         if (!bodyText) continue;
         chunks.push(bodyText);
@@ -1438,14 +1446,18 @@
         return;
       }
       if (!currentPageValue) {
-        entryProgressHintEl.textContent = `Last saved boundary: page ${latestPageBoundary.upper}. Enter a page above this value.`;
+        entryProgressHintEl.textContent = `Last saved boundary: page ${latestPageBoundary.upper}. Use the same page for another note, or a higher page for a new boundary.`;
         return;
       }
-      if (currentPageValue <= latestPageBoundary.upper) {
-        entryProgressHintEl.textContent = `Current page must be greater than ${latestPageBoundary.upper}.`;
+      if (currentPageValue < latestPageBoundary.upper) {
+        entryProgressHintEl.textContent = `Current page must be ${latestPageBoundary.upper} or higher.`;
         return;
       }
-      entryProgressHintEl.textContent = `Next boundary range: page ${latestPageBoundary.upper}-${currentPageValue}.`;
+      if (currentPageValue === latestPageBoundary.upper) {
+        entryProgressHintEl.textContent = `This will save another note at page ${latestPageBoundary.upper}.`;
+        return;
+      }
+      entryProgressHintEl.textContent = `Next boundary range: ${buildProgressRangeLabel('page', latestPageBoundary.upper, currentPageValue)}.`;
     }
 
     function getExistingCharacterNameSet() {
@@ -1495,7 +1507,7 @@
         return;
       }
       if (latestBoundary) {
-        aiSpoilerBoundaryEl.textContent = `Spoiler-safe window: ${labelPrefix} ${latestBoundary.upper}-${nextValue}`;
+        aiSpoilerBoundaryEl.textContent = `Spoiler-safe window: ${buildProgressRangeLabel(progressType, latestBoundary.upper, nextValue)}`;
       } else {
         aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${labelPrefix} ${nextValue}`;
       }
@@ -2674,12 +2686,14 @@
       }
       const latestPageBoundary = getLatestProgressBoundary('page');
       const lowerBoundary = latestPageBoundary ? latestPageBoundary.upper : null;
-      if (Number.isFinite(lowerBoundary) && pageValue <= lowerBoundary) {
-        setDevInfo(`Add entry error: Current page must be greater than the last saved page (${lowerBoundary}).`, true);
+      if (Number.isFinite(lowerBoundary) && pageValue < lowerBoundary) {
+        setDevInfo(`Add entry error: Current page must be ${lowerBoundary} or greater.`, true);
         updateEntryProgressHint();
         return;
       }
-      const rangeLabel = buildProgressRangeLabel('page', lowerBoundary, pageValue);
+      const rangeLabel = Number.isFinite(lowerBoundary) && pageValue === lowerBoundary
+        ? `page ${pageValue}`
+        : buildProgressRangeLabel('page', lowerBoundary, pageValue);
       const payload = {
         text: `[Manual Entry - ${rangeLabel}]\n${text}`,
         user_id: user.id,
@@ -2700,6 +2714,7 @@
         updateEntryProgressHint();
         entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
+        setDevInfo(`Entry added at ${rangeLabel}.`);
         await trackAnalyticsEvent('manual_entry_added', {
           boundary: rangeLabel,
           progressValue: pageValue,
