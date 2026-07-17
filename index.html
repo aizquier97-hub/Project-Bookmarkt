@@ -584,6 +584,8 @@
     let hasShownAnalyticsTableWarning = false;
     let aiFeedbackAvailable = true;
     let hasShownFeedbackTableWarning = false;
+    let aiAuditAvailable = true;
+    let hasShownAuditTableWarning = false;
     let cameraStream = null;
     let entriesPage = 1;
     let isBusy = false;
@@ -640,6 +642,19 @@
         message.includes('ai_feedback_reports') &&
         (message.includes('does not exist') || message.includes('schema cache') || message.includes('relation'))
       );
+    }
+    function isMissingAIAuditTableError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      return (
+        (message.includes('ai_generation_audit') || message.includes('ai_generated_artifacts')) &&
+        (message.includes('does not exist') || message.includes('schema cache') || message.includes('relation'))
+      );
+    }
+    function generateAuditId() {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+      }
+      return `audit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     }
     function normalizeSpoilerSafety(rawSafety) {
       const safe = rawSafety && typeof rawSafety === 'object' ? rawSafety : {};
@@ -751,6 +766,7 @@
       const sourceId = payload && payload.sourceId ? String(payload.sourceId) : null;
       const sourceBoundary = payload && payload.sourceBoundary ? String(payload.sourceBoundary).trim() : null;
       const sourceTextExcerpt = payload && payload.sourceTextExcerpt ? String(payload.sourceTextExcerpt).trim() : '';
+      const auditId = payload && payload.auditId ? String(payload.auditId).trim() : null;
       const targetLabel = payload && payload.targetLabel ? String(payload.targetLabel).trim() : 'AI output';
       if (!sourceType || !sourceId) {
         setDevInfo('Feedback error: Missing source context.', true);
@@ -797,6 +813,7 @@
             topic_id: selectedBookId || null,
             source_type: sourceType,
             source_id: sourceId,
+            audit_id: auditId || null,
             source_boundary: sourceBoundary || null,
             source_text_excerpt: sourceTextExcerpt ? sourceTextExcerpt.slice(0, 2000) : null,
             feedback_text: feedbackText,
@@ -818,12 +835,109 @@
           await trackAnalyticsEvent('ai_feedback_submitted', {
             sourceType,
             hasBoundary: !!sourceBoundary,
+            hasAuditId: !!auditId,
           });
           btnFeedbackSubmit.disabled = false;
           cleanup();
           setAIStatus('Feedback submitted. Thank you.');
         };
       });
+    }
+    async function getAuditIdForSource(user, sourceType, sourceId) {
+      if (!user || !sourceType || !sourceId || !aiAuditAvailable) return null;
+      const selectRes = await supabase
+        .from('ai_generated_artifacts')
+        .select('audit_id')
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId)
+        .eq('source_type', sourceType)
+        .eq('source_id', String(sourceId))
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (selectRes.error) {
+        if (isMissingAIAuditTableError(selectRes.error)) {
+          aiAuditAvailable = false;
+          if (!hasShownAuditTableWarning) {
+            hasShownAuditTableWarning = true;
+            setDevInfo('AI audit tables are missing. Apply Supabase audit migration to enable root-cause diagnostics.', true);
+          }
+          return null;
+        }
+        console.warn('AI audit lookup error:', selectRes.error);
+        return null;
+      }
+      const first = selectRes.data && selectRes.data[0] ? selectRes.data[0] : null;
+      return first && first.audit_id ? String(first.audit_id) : null;
+    }
+    async function saveAIGenerationAudit(user, auditPayload) {
+      if (!user || !auditPayload || !aiAuditAvailable) return null;
+      const auditId = String(auditPayload.id || '').trim();
+      if (!auditId) return null;
+      const insertRes = await supabase.from('ai_generation_audit').insert([{
+        id: auditId,
+        user_id: user.id,
+        topic_id: selectedBookId || null,
+        source_mode: 'full_update',
+        progress_type: auditPayload && auditPayload.request ? auditPayload.request.progressType || null : null,
+        lower_boundary: auditPayload && auditPayload.request ? auditPayload.request.lowerBoundary || null : null,
+        upper_boundary: auditPayload && auditPayload.request ? auditPayload.request.upperBoundary || null : null,
+        spoiler_boundary: auditPayload && auditPayload.request ? auditPayload.request.spoilerBoundary || null : null,
+        request_payload: auditPayload && auditPayload.request ? auditPayload.request : {},
+        summary_debug: auditPayload && auditPayload.summary ? auditPayload.summary : {},
+        characters_debug: auditPayload && auditPayload.characters ? auditPayload.characters : {},
+      }]);
+      if (insertRes.error) {
+        if (isMissingAIAuditTableError(insertRes.error)) {
+          aiAuditAvailable = false;
+          if (!hasShownAuditTableWarning) {
+            hasShownAuditTableWarning = true;
+            setDevInfo('AI audit tables are missing. Apply Supabase audit migration to enable root-cause diagnostics.', true);
+          }
+          return null;
+        }
+        console.warn('AI audit insert error:', insertRes.error);
+        return null;
+      }
+      return auditId;
+    }
+    async function saveAIGeneratedArtifacts(user, auditId, summaryEntryId, characterIds) {
+      if (!user || !auditId || !aiAuditAvailable) return;
+      const rows = [];
+      if (summaryEntryId) {
+        rows.push({
+          audit_id: auditId,
+          user_id: user.id,
+          topic_id: selectedBookId || null,
+          source_type: 'summary_entry',
+          source_id: String(summaryEntryId),
+        });
+      }
+      if (Array.isArray(characterIds)) {
+        for (let i = 0; i < characterIds.length; i += 1) {
+          const charId = characterIds[i];
+          if (!charId) continue;
+          rows.push({
+            audit_id: auditId,
+            user_id: user.id,
+            topic_id: selectedBookId || null,
+            source_type: 'character',
+            source_id: String(charId),
+          });
+        }
+      }
+      if (!rows.length) return;
+      const insertRes = await supabase.from('ai_generated_artifacts').insert(rows);
+      if (insertRes.error) {
+        if (isMissingAIAuditTableError(insertRes.error)) {
+          aiAuditAvailable = false;
+          if (!hasShownAuditTableWarning) {
+            hasShownAuditTableWarning = true;
+            setDevInfo('AI audit tables are missing. Apply Supabase audit migration to enable root-cause diagnostics.', true);
+          }
+          return;
+        }
+        console.warn('AI artifact insert error:', insertRes.error);
+      }
     }
     function setPendingImagesInfo(text) {
       if (!pendingImagesInfoEl) return;
@@ -1629,6 +1743,7 @@
         .filter((value) => !!String(value || '').trim())
         .join('\n\n')
         .slice(0, 5000);
+      const generationAuditId = generateAuditId();
 
       persistAIFormValues();
       renderAIResultText('');
@@ -1654,11 +1769,13 @@
           lowerBoundary,
           existingCharacters: existingCharacterNames,
           existingLocations: existingLocationTitles,
-          notes: combinedGroundingNotes
+          notes: combinedGroundingNotes,
+          auditId: generationAuditId
         };
         const fullUpdateData = await invokeAIForMode('full_update', requestBody);
         const spoilerBoundary = fullUpdateData.spoilerBoundary || '';
         const characterGuardReason = String(fullUpdateData.characterGuardReason || '').trim();
+        const auditPayload = fullUpdateData && fullUpdateData.audit ? fullUpdateData.audit : null;
 
         if (spoilerBoundary) {
           aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${spoilerBoundary}`;
@@ -1688,6 +1805,8 @@
         const normalizedCharacters = normalizeAICharacters(fullUpdateData.characters);
         const knownCharacterNames = getExistingCharacterNameSet();
         const uniqueCharacters = [];
+        let summaryEntryId = null;
+        const insertedCharacterIds = [];
         for (let i = 0; i < normalizedCharacters.length; i += 1) {
           const item = normalizedCharacters[i];
           const key = normalizeTextKey(item && item.name);
@@ -1702,8 +1821,9 @@
             text: summaryEntryText,
             user_id: user.id,
             topic_id: selectedBookId
-          }]);
+          }]).select('id').single();
           if (entryInsertRes.error) throw entryInsertRes.error;
+          summaryEntryId = entryInsertRes.data && entryInsertRes.data.id ? entryInsertRes.data.id : null;
         }
 
         if (uniqueCharacters.length) {
@@ -1713,9 +1833,16 @@
             user_id: user.id,
             topic_id: selectedBookId
           }));
-          const charInsertRes = await supabase.from('characters').insert(characterRows);
+          const charInsertRes = await supabase.from('characters').insert(characterRows).select('id');
           if (charInsertRes.error) throw charInsertRes.error;
+          const insertedRows = Array.isArray(charInsertRes.data) ? charInsertRes.data : [];
+          for (let i = 0; i < insertedRows.length; i += 1) {
+            const rowId = insertedRows[i] && insertedRows[i].id ? insertedRows[i].id : null;
+            if (rowId !== null && rowId !== undefined) insertedCharacterIds.push(rowId);
+          }
         }
+        const persistedAuditId = await saveAIGenerationAudit(user, auditPayload);
+        await saveAIGeneratedArtifacts(user, persistedAuditId, summaryEntryId, insertedCharacterIds);
         if (entryProgressValueEl) {
           entryProgressValueEl.value = String(progressNumber);
         }
@@ -2977,13 +3104,17 @@
       if (action === 'edit') await editEntry(entryId);
       if (action === 'delete') await deleteEntry(entryId);
       if (action === 'feedback') {
+        const user = requireCurrentUser();
+        if (!user) return;
         const entry = loadedEntries.find((item) => String(item && item.id) === String(entryId));
         if (!entry) return;
         const firstLine = String(entry.text || '').split('\n')[0] || '';
         const boundaryMatch = firstLine.match(/^\[AI Summary\s*-\s*(.+)\]$/i);
+        const auditId = await getAuditIdForSource(user, 'summary_entry', entry.id);
         await openAIFeedbackModal({
           sourceType: 'summary_entry',
           sourceId: entry.id,
+          auditId,
           sourceBoundary: boundaryMatch ? boundaryMatch[1] : null,
           sourceTextExcerpt: String(entry.text || ''),
           targetLabel: `Summary entry${boundaryMatch ? ` (${boundaryMatch[1]})` : ''}`,
@@ -3016,11 +3147,15 @@
       if (action === 'edit') await editCharacter(characterId);
       if (action === 'delete') await deleteCharacter(characterId);
       if (action === 'feedback') {
+        const user = requireCurrentUser();
+        if (!user) return;
         const character = loadedCharacters.find((item) => String(item && item.id) === String(characterId));
         if (!character) return;
+        const auditId = await getAuditIdForSource(user, 'character', character.id);
         await openAIFeedbackModal({
           sourceType: 'character',
           sourceId: character.id,
+          auditId,
           sourceBoundary: null,
           sourceTextExcerpt: `${character.name || ''}\n${character.description || ''}`.trim(),
           targetLabel: `Character: ${character.name || 'Unnamed'}`,

@@ -12,6 +12,7 @@ type RequestBody = {
   existingCharacters?: string[];
   existingLocations?: string[];
   notes?: string;
+  auditId?: string;
 };
 
 type LocationPrompt = {
@@ -176,6 +177,13 @@ function sanitizeStringArray(items: unknown): string[] {
     seen.add(key);
     out.push(raw);
   }
+
+  function sanitizeAuditId(value: unknown) {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const safe = raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
+    return safe || null;
+  }
   return out;
 }
 
@@ -299,6 +307,7 @@ serve(async (req) => {
       existingCharacters,
       existingLocations,
       notes,
+      auditId,
     } = body ?? {};
 
     const validModes: Mode[] = ["summary", "characters", "locations", "full_update"];
@@ -352,6 +361,7 @@ serve(async (req) => {
 
     const safeExistingCharacters = sanitizeStringArray(existingCharacters);
     const safeExistingLocations = sanitizeStringArray(existingLocations);
+    const safeAuditId = sanitizeAuditId(auditId) ?? crypto.randomUUID();
     const spoilerBoundaryLabel = lowerBoundaryNumber !== null
       ? `${progressType} ${lowerBoundaryNumber}-${upperBoundaryNumber}`
       : `${progressType} ${upperBoundaryNumber}`;
@@ -398,7 +408,11 @@ Rules:
       const summaryRawText = await callGeminiText(geminiKey, summaryInstruction, {
         responseMimeType: "application/json",
       });
-      return normalizeSummaryPayload(summaryRawText);
+      const normalized = normalizeSummaryPayload(summaryRawText);
+      return {
+        ...normalized,
+        rawText: summaryRawText,
+      };
     };
 
     const generateCharacters = async () => {
@@ -407,6 +421,8 @@ Rules:
         return {
           characters: [],
           characterGuardReason: "Characters were not generated because grounded notes were too short. Add manual notes or upload/capture a page image first.",
+          rawText: "",
+          droppedNames: [],
         };
       }
 
@@ -436,21 +452,32 @@ Rules:
       const charactersRawText = await callGeminiText(geminiKey, characterInstruction, {
         responseMimeType: "application/json",
       });
+      const parsedCharacters = normalizeCharacterPayload(charactersRawText);
       const existingCharacterKeys = new Set(safeExistingCharacters.map((item) => normalizeKey(item)));
       const seenCharacterKeys = new Set<string>();
-      const characters = normalizeCharacterPayload(charactersRawText)
+      const droppedNames: string[] = [];
+      const characters = parsedCharacters
         .filter((item) => {
           const key = normalizeKey(item.name);
-          if (!key) return false;
-          if (existingCharacterKeys.has(key) || seenCharacterKeys.has(key)) return false;
-          if (!isCharacterNameGroundedInNotes(item.name, notesForGrounding)) return false;
+          if (!key) {
+            droppedNames.push(item.name);
+            return false;
+          }
+          if (existingCharacterKeys.has(key) || seenCharacterKeys.has(key)) {
+            droppedNames.push(item.name);
+            return false;
+          }
+          if (!isCharacterNameGroundedInNotes(item.name, notesForGrounding)) {
+            droppedNames.push(item.name);
+            return false;
+          }
           seenCharacterKeys.add(key);
           return true;
         });
       const characterGuardReason = characters.length
         ? null
         : "No grounded character names were found in your notes for this boundary.";
-      return { characters, characterGuardReason };
+      return { characters, characterGuardReason, rawText: charactersRawText, droppedNames };
     };
 
     const generateLocations = async () => {
@@ -594,6 +621,34 @@ Rules:
 
     const summaryResult = await generateSummary();
     const characterResult = await generateCharacters();
+    const audit = {
+      id: safeAuditId,
+      createdAt: new Date().toISOString(),
+      model: "gemini-2.5-flash",
+      request: {
+        mode,
+        bookTitle,
+        author,
+        progressType,
+        lowerBoundary: lowerBoundaryNumber,
+        upperBoundary: upperBoundaryNumber,
+        spoilerBoundary: spoilerBoundaryLabel,
+        existingCharacters: safeExistingCharacters,
+        existingLocations: safeExistingLocations,
+        notes: String(notes ?? "").trim(),
+      },
+      summary: {
+        rawText: summaryResult.rawText,
+        summaryText: summaryResult.summaryText,
+        spoilerSafety: summaryResult.spoilerSafety,
+      },
+      characters: {
+        rawText: characterResult.rawText,
+        kept: characterResult.characters,
+        droppedNames: characterResult.droppedNames,
+        guardReason: characterResult.characterGuardReason,
+      },
+    };
 
     return jsonResponse(
       {
@@ -607,6 +662,7 @@ Rules:
         text: summaryResult.summaryText,
         characters: characterResult.characters,
         characterGuardReason: characterResult.characterGuardReason,
+        audit,
         locationsText: "",
         locationPrompts: [],
         generatedImages: [],
