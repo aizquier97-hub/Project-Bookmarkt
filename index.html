@@ -1995,6 +1995,31 @@
       updateBookScopedLabels();
     }
 
+    async function clearCharacterMap() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!selectedBookId) return alert('Select a book first.');
+      if (!loadedCharacters.length) {
+        clearCharacterMapForm();
+        setDevInfo('Character map is already empty.');
+        return;
+      }
+      if (!confirm('Clear all saved character map entries for this book?')) return;
+      const { error } = await supabase
+        .from('characters')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId);
+      if (error) {
+        setDevInfo('Clear character map error: ' + error.message, true);
+        return;
+      }
+      clearCharacterMapForm();
+      selectedCharacterId = null;
+      await loadCharacters(user.id, selectedBookId);
+      setDevInfo('Character map cleared.');
+    }
+
     function resetCharacterViewState() {
       selectedCharacterId = null;
       characterSearchEl.value = '';
@@ -3098,7 +3123,7 @@
     btnAddEntry.addEventListener('click', addEntry);
     btnClearEntries.addEventListener('click', clearEntries);
     btnAddCharacter.addEventListener('click', addCharacter);
-    btnClearCharacterMap.addEventListener('click', clearCharacterMapForm);
+    btnClearCharacterMap.addEventListener('click', clearCharacterMap);
     if (hasAIUI) {
       const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl, aiStrictSpoilerGuardEl];
       aiInputElements.forEach((el) => {
