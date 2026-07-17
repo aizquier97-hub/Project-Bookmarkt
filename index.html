@@ -779,6 +779,7 @@
         const insertRes = await supabase.from('spoiler_reports').insert([{
           user_id: user.id,
           topic_id: selectedBookId || null,
+          audit_id: latestAISummaryContext.auditId || null,
           boundary_label: latestAISummaryContext.rangeLabel || null,
           summary_excerpt: String(latestAISummaryContext.summaryText || '').slice(0, 1500),
           reason: reportReason,
@@ -1874,6 +1875,7 @@
           summaryText,
           rangeLabel,
           safety: spoilerSafety,
+          auditId: auditPayload && auditPayload.id ? String(auditPayload.id) : null,
           blockedBySpoiler: false,
           hasPageEvidence: !!pageEvidence,
         };
