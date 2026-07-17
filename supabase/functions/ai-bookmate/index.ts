@@ -13,6 +13,12 @@ type RequestBody = {
   existingLocations?: string[];
   notes?: string;
   auditId?: string;
+  pageImage?: {
+    mimeType?: string;
+    base64Data?: string;
+    fileName?: string;
+    fileSize?: number | string | null;
+  };
 };
 
 type LocationPrompt = {
@@ -177,23 +183,50 @@ function sanitizeStringArray(items: unknown): string[] {
     seen.add(key);
     out.push(raw);
   }
-
-  function sanitizeAuditId(value: unknown) {
-    const raw = String(value ?? "").trim();
-    if (!raw) return null;
-    const safe = raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
-    return safe || null;
-  }
   return out;
+}
+
+function sanitizeAuditId(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const safe = raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
+  return safe || null;
+}
+
+function sanitizePageImage(pageImage: RequestBody["pageImage"]) {
+  if (!pageImage || typeof pageImage !== "object") return null;
+  const mimeType = String(pageImage.mimeType ?? "").trim().toLowerCase();
+  const base64Data = String(pageImage.base64Data ?? "").trim();
+  if (!mimeType.startsWith("image/") || !base64Data) return null;
+  const fileName = String(pageImage.fileName ?? "").trim().slice(0, 120);
+  const fileSizeRaw = Number(pageImage.fileSize);
+  return {
+    mimeType,
+    base64Data,
+    fileName: fileName || null,
+    fileSize: Number.isFinite(fileSizeRaw) && fileSizeRaw > 0 ? Math.round(fileSizeRaw) : null,
+  };
 }
 
 async function callGeminiText(
   geminiKey: string,
   promptText: string,
-  options?: { responseMimeType?: string }
+  options?: {
+    responseMimeType?: string;
+    pageImage?: { mimeType: string; base64Data: string } | null;
+  }
 ) {
+  const parts: Array<Record<string, unknown>> = [{ text: promptText }];
+  if (options?.pageImage?.mimeType && options?.pageImage?.base64Data) {
+    parts.push({
+      inlineData: {
+        mimeType: options.pageImage.mimeType,
+        data: options.pageImage.base64Data,
+      },
+    });
+  }
   const payload: Record<string, unknown> = {
-    contents: [{ role: "user", parts: [{ text: promptText }] }],
+    contents: [{ role: "user", parts }],
   };
   if (options?.responseMimeType) {
     payload.generationConfig = { responseMimeType: options.responseMimeType };
@@ -308,6 +341,7 @@ serve(async (req) => {
       existingLocations,
       notes,
       auditId,
+      pageImage,
     } = body ?? {};
 
     const validModes: Mode[] = ["summary", "characters", "locations", "full_update"];
@@ -362,6 +396,7 @@ serve(async (req) => {
     const safeExistingCharacters = sanitizeStringArray(existingCharacters);
     const safeExistingLocations = sanitizeStringArray(existingLocations);
     const safeAuditId = sanitizeAuditId(auditId) ?? crypto.randomUUID();
+    const safePageImage = sanitizePageImage(pageImage);
     const spoilerBoundaryLabel = lowerBoundaryNumber !== null
       ? `${progressType} ${lowerBoundaryNumber}-${upperBoundaryNumber}`
       : `${progressType} ${upperBoundaryNumber}`;
@@ -382,7 +417,9 @@ STRICT SPOILER RULES:
 Existing character names (must not be repeated): ${safeExistingCharacters.length ? safeExistingCharacters.join(", ") : "(none)"}
 Existing location titles (must not be repeated): ${safeExistingLocations.length ? safeExistingLocations.join(", ") : "(none)"}
 
-User notes: ${notes?.trim() || "(none)"}`;
+User notes: ${notes?.trim() || "(none)"}
+
+Attached page evidence: ${safePageImage ? "Present. Prefer concrete details visible in the page image over broad memory." : "None"}`;
 
     const generateSummary = async () => {
       const summaryInstruction = `${sharedPrompt}
@@ -407,6 +444,7 @@ Rules:
 
       const summaryRawText = await callGeminiText(geminiKey, summaryInstruction, {
         responseMimeType: "application/json",
+        pageImage: safePageImage,
       });
       const normalized = normalizeSummaryPayload(summaryRawText);
       return {
@@ -451,6 +489,7 @@ Rules:
 
       const charactersRawText = await callGeminiText(geminiKey, characterInstruction, {
         responseMimeType: "application/json",
+        pageImage: safePageImage,
       });
       const parsedCharacters = normalizeCharacterPayload(charactersRawText);
       const existingCharacterKeys = new Set(safeExistingCharacters.map((item) => normalizeKey(item)));
@@ -636,6 +675,10 @@ Rules:
         existingCharacters: safeExistingCharacters,
         existingLocations: safeExistingLocations,
         notes: String(notes ?? "").trim(),
+        pageImageIncluded: !!safePageImage,
+        pageImageMimeType: safePageImage?.mimeType ?? null,
+        pageImageFileName: safePageImage?.fileName ?? null,
+        pageImageFileSize: safePageImage?.fileSize ?? null,
       },
       summary: {
         rawText: summaryResult.rawText,

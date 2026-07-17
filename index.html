@@ -58,6 +58,8 @@
     .ai-mode-result { margin-top:8px; color:#14532d; font-size:13px; }
     .subtle-note { margin-top:8px; color:#166534; font-size:12px; }
     .ai-controls { margin-top:10px; border:1px solid #bbf7d0; border-radius:8px; padding:10px; background:#ffffff; }
+    .ai-spoiler-actions { margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; }
+    .ai-blocked-preview { margin-top:10px; padding:10px; border:1px solid #fbbf24; border-radius:8px; background:#fffbeb; color:#78350f; white-space:pre-wrap; }
     .hidden-by-mode { display:none !important; }
     .ai-generated-grid { margin-top:10px; display:grid; grid-template-columns:1fr; gap:10px; }
     .ai-generated-card { border:1px solid #bbf7d0; border-radius:8px; padding:8px; background:#fff; }
@@ -260,6 +262,13 @@
           <div id="aiSpoilerBoundary" class="ai-mode-result">Spoiler-safe up to Chapter —</div>
           <button id="btnGenerateAI" type="button">Generate Summary + Characters</button>
           <div id="aiSafetyNotice" class="small muted" style="margin-top:8px;"></div>
+          <div id="aiSpoilerActions" class="ai-spoiler-actions hidden">
+            <button id="btnReviewBlockedSummary" type="button" class="small-btn ghost">Review blocked summary</button>
+            <button id="btnTakePagePhoto" type="button" class="small-btn ghost">Take page photo</button>
+            <button id="btnUploadPageImage" type="button" class="small-btn ghost">Upload page image</button>
+            <button id="btnRetryWithPageEvidence" type="button" class="small-btn ghost">Retry with page evidence</button>
+          </div>
+          <div id="aiBlockedSummaryPreview" class="ai-blocked-preview hidden"></div>
           <button id="btnReportSpoiler" type="button" class="small-btn ghost" style="display:none; margin-top:8px;">Report Spoiler Issue</button>
         </div>
         <div id="aiStatus" class="muted"></div>
@@ -543,6 +552,12 @@
     const aiStatusEl = document.getElementById('aiStatus');
     const aiResultTextEl = document.getElementById('aiResultText');
     const aiSafetyNoticeEl = document.getElementById('aiSafetyNotice');
+    const aiSpoilerActionsEl = document.getElementById('aiSpoilerActions');
+    const btnReviewBlockedSummaryEl = document.getElementById('btnReviewBlockedSummary');
+    const btnTakePagePhotoEl = document.getElementById('btnTakePagePhoto');
+    const btnUploadPageImageEl = document.getElementById('btnUploadPageImage');
+    const btnRetryWithPageEvidenceEl = document.getElementById('btnRetryWithPageEvidence');
+    const aiBlockedSummaryPreviewEl = document.getElementById('aiBlockedSummaryPreview');
     const btnReportSpoilerEl = document.getElementById('btnReportSpoiler');
     const aiGeneratedImagesEl = document.getElementById('aiGeneratedImages');
     const imageCaptionEl = document.getElementById('imageCaption');
@@ -566,7 +581,7 @@
     const btnFeedbackCancel = document.getElementById('btnFeedbackCancel');
     const feedbackStatusEl = document.getElementById('feedbackStatus');
     const hasImageUI = !!(bookImageDropzone && btnTakePhoto && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && btnReportSpoilerEl && aiGeneratedImagesEl);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -675,11 +690,40 @@
         recommendedAction: recommendedAction || 'Add manual notes or page-specific context before saving.',
       };
     }
+    function hideSpoilerBlockedActions() {
+      if (!hasAIUI) return;
+      aiSpoilerActionsEl.classList.add('hidden');
+      aiBlockedSummaryPreviewEl.classList.add('hidden');
+      aiBlockedSummaryPreviewEl.textContent = '';
+      btnReviewBlockedSummaryEl.textContent = 'Review blocked summary';
+    }
+    function renderBlockedSummaryPreview() {
+      if (!hasAIUI) return;
+      const isVisible = !aiBlockedSummaryPreviewEl.classList.contains('hidden');
+      if (!isVisible) {
+        aiBlockedSummaryPreviewEl.textContent = '';
+        btnReviewBlockedSummaryEl.textContent = 'Review blocked summary';
+        return;
+      }
+      const summaryText = latestAISummaryContext && latestAISummaryContext.summaryText
+        ? String(latestAISummaryContext.summaryText).trim()
+        : '';
+      aiBlockedSummaryPreviewEl.textContent = summaryText || 'No blocked summary text is available.';
+      btnReviewBlockedSummaryEl.textContent = 'Hide blocked summary';
+    }
+    function showSpoilerBlockedActions() {
+      if (!hasAIUI) return;
+      aiSpoilerActionsEl.classList.remove('hidden');
+      aiBlockedSummaryPreviewEl.classList.add('hidden');
+      aiBlockedSummaryPreviewEl.textContent = '';
+      btnReviewBlockedSummaryEl.textContent = 'Review blocked summary';
+    }
     function renderAISafetyNotice(safety, strictModeEnabled) {
       if (!hasAIUI) return;
       if (!safety) {
         aiSafetyNoticeEl.textContent = '';
         aiSafetyNoticeEl.className = 'small muted';
+        hideSpoilerBlockedActions();
         btnReportSpoilerEl.style.display = 'none';
         return;
       }
@@ -687,11 +731,17 @@
       if (safety.isSpoilerSafe) {
         aiSafetyNoticeEl.textContent = `Spoiler safety check: PASS (${confidenceText} confidence).`;
         aiSafetyNoticeEl.className = 'small status-success';
+        hideSpoilerBlockedActions();
         btnReportSpoilerEl.style.display = 'none';
       } else {
         const modeText = strictModeEnabled ? 'Strict guard blocked auto-save.' : 'Strict guard is OFF.';
         aiSafetyNoticeEl.textContent = `Spoiler safety check: WARNING (${confidenceText} confidence, ${safety.riskLevel} risk). ${modeText} ${safety.recommendedAction}`;
         aiSafetyNoticeEl.className = 'small status-error';
+        if (strictModeEnabled) {
+          showSpoilerBlockedActions();
+        } else {
+          hideSpoilerBlockedActions();
+        }
         btnReportSpoilerEl.style.display = 'inline-flex';
       }
     }
@@ -869,6 +919,22 @@
       const first = selectRes.data && selectRes.data[0] ? selectRes.data[0] : null;
       return first && first.audit_id ? String(first.audit_id) : null;
     }
+    async function buildPendingPageEvidencePayload() {
+      if (!pendingImageFiles.length) return null;
+      const sourceFile = pendingImageFiles[0];
+      const preparedFile = await optimizeImageForUpload(sourceFile);
+      const dataUrl = await readFileAsDataUrl(preparedFile);
+      const match = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        throw new Error('Could not prepare selected page image for AI retry.');
+      }
+      return {
+        mimeType: match[1],
+        base64Data: match[2],
+        fileName: preparedFile.name || sourceFile.name || 'page-image',
+        fileSize: preparedFile.size || sourceFile.size || null,
+      };
+    }
     async function saveAIGenerationAudit(user, auditPayload) {
       if (!user || !auditPayload || !aiAuditAvailable) return null;
       const auditId = String(auditPayload.id || '').trim();
@@ -1034,6 +1100,9 @@
       queueImageFiles([capturedFile]);
       closeCameraCaptureModal();
       setImageStatus('Photo captured. Click Upload/Save Images to store it.');
+      if (latestAISummaryContext && latestAISummaryContext.blockedBySpoiler) {
+        setAIStatus('Page photo captured. Click Retry with page evidence to try again.');
+      }
     }
     function setBusyState(busy, message) {
       isBusy = busy;
@@ -1138,6 +1207,10 @@
         aiNotesEl.disabled = disableBookScoped;
         aiStrictSpoilerGuardEl.disabled = disableBookScoped;
         btnGenerateAI.disabled = disableBookScoped;
+        btnReviewBlockedSummaryEl.disabled = disableBookScoped;
+        btnTakePagePhotoEl.disabled = disableBookScoped;
+        btnUploadPageImageEl.disabled = disableBookScoped;
+        btnRetryWithPageEvidenceEl.disabled = disableBookScoped;
         btnReportSpoilerEl.disabled = disableBookScoped;
       }
       if (hasImageUI) {
@@ -1447,6 +1520,7 @@
       renderAIResultText('');
       aiSafetyNoticeEl.textContent = '';
       aiSafetyNoticeEl.className = 'small muted';
+      hideSpoilerBlockedActions();
       btnReportSpoilerEl.style.display = 'none';
       aiGeneratedImagesEl.innerHTML = '';
       setAIStatus('');
@@ -1705,8 +1779,9 @@
       return data;
     }
 
-    async function generateWithAI() {
+    async function generateWithAI(options) {
       if (!hasAIUI) return;
+      const settings = options && typeof options === 'object' ? options : {};
       const user = requireCurrentUser();
       if (!user) return;
       if (!selectedBookId) {
@@ -1744,6 +1819,8 @@
         .join('\n\n')
         .slice(0, 5000);
       const generationAuditId = generateAuditId();
+      const usePageEvidence = settings.usePageEvidence === true;
+      let pageEvidence = null;
 
       persistAIFormValues();
       renderAIResultText('');
@@ -1751,12 +1828,19 @@
       setAIStatus('Generating and saving full AI update...');
       setBusyState(true, 'Generating spoiler-safe summary notes and characters...');
       try {
+        if (usePageEvidence) {
+          pageEvidence = await buildPendingPageEvidencePayload();
+          if (!pageEvidence) {
+            throw new Error('Add a page photo or upload a page image before retrying with page evidence.');
+          }
+        }
         await trackAnalyticsEvent('ai_update_requested', {
           progressType,
           progressValue: progressNumber,
           lowerBoundary,
           strictSpoilerGuard: strictSpoilerGuardEnabled,
           hasGroundingNotes: !!combinedGroundingNotes,
+          usedPageEvidence: !!pageEvidence,
         });
         if (author !== getBookAuthorForTopic(user.id, selectedBookId)) {
           await persistBookAuthor(user.id, selectedBookId, author);
@@ -1770,7 +1854,8 @@
           existingCharacters: existingCharacterNames,
           existingLocations: existingLocationTitles,
           notes: combinedGroundingNotes,
-          auditId: generationAuditId
+          auditId: generationAuditId,
+          pageImage: pageEvidence,
         };
         const fullUpdateData = await invokeAIForMode('full_update', requestBody);
         const spoilerBoundary = fullUpdateData.spoilerBoundary || '';
@@ -1789,16 +1874,20 @@
           summaryText,
           rangeLabel,
           safety: spoilerSafety,
+          blockedBySpoiler: false,
+          hasPageEvidence: !!pageEvidence,
         };
         renderAISafetyNotice(spoilerSafety, strictSpoilerGuardEnabled);
         if (!spoilerSafety.isSpoilerSafe && strictSpoilerGuardEnabled) {
+          latestAISummaryContext.blockedBySpoiler = true;
           renderAIResultText(`Summary not auto-saved due to spoiler risk.\n\nReason: ${spoilerSafety.reason}\n\nRecommendation: ${spoilerSafety.recommendedAction}`);
-          setAIStatus('AI blocked auto-save to protect against spoilers. Add manual notes or disable strict spoiler guard.');
+          setAIStatus('AI blocked auto-save to protect against spoilers. Add manual notes, take/upload a page image, or disable strict spoiler guard.');
           await trackAnalyticsEvent('ai_update_blocked_spoiler_risk', {
             boundary: rangeLabel,
             riskLevel: spoilerSafety.riskLevel,
             confidence: spoilerSafety.confidence,
             strictSpoilerGuard: strictSpoilerGuardEnabled,
+            usedPageEvidence: !!pageEvidence,
           });
           return;
         }
@@ -1875,6 +1964,7 @@
           confidence: spoilerSafety.confidence,
           strictSpoilerGuard: strictSpoilerGuardEnabled,
           characterGuardApplied: !!characterGuardReason,
+          usedPageEvidence: !!pageEvidence,
         });
         updateEntryProgressHint();
       } catch (err) {
@@ -1936,6 +2026,9 @@
       pendingImageFiles = pendingImageFiles.concat(imageFiles);
       refreshPendingImagesUI();
       setImageStatus('');
+      if (latestAISummaryContext && latestAISummaryContext.blockedBySpoiler) {
+        setAIStatus('Page image selected. Click Retry with page evidence to try again.');
+      }
     }
     async function readFileAsDataUrl(file) {
       return await new Promise((resolve, reject) => {
@@ -3012,6 +3105,23 @@
       btnGenerateAI.addEventListener('click', async () => {
         if (btnGenerateAI.disabled) return;
         await generateWithAI();
+      });
+      btnReviewBlockedSummaryEl.addEventListener('click', () => {
+        if (btnReviewBlockedSummaryEl.disabled) return;
+        aiBlockedSummaryPreviewEl.classList.toggle('hidden');
+        renderBlockedSummaryPreview();
+      });
+      btnTakePagePhotoEl.addEventListener('click', async () => {
+        if (btnTakePagePhotoEl.disabled) return;
+        await openCameraCaptureModal();
+      });
+      btnUploadPageImageEl.addEventListener('click', () => {
+        if (btnUploadPageImageEl.disabled) return;
+        bookImageInput.click();
+      });
+      btnRetryWithPageEvidenceEl.addEventListener('click', async () => {
+        if (btnRetryWithPageEvidenceEl.disabled) return;
+        await generateWithAI({ usePageEvidence: true });
       });
       aiGeneratedImagesEl.addEventListener('click', (event) => {
         const btn = event.target.closest('[data-ai-image-index]');
