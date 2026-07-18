@@ -931,8 +931,112 @@ Rules:
       );
     }
 
-    const summaryResult = await generateSummary();
-    const characterResult = await generateCharacters(summaryResult.summaryText);
+    // For full_update, use a single combined call to halve round-trip latency.
+    const isBootstrap = safeExistingCharacters.length === 0;
+    const fullUpdateInstruction = `${sharedPrompt}
+
+Mode: full_update
+Return ONLY strict JSON with this exact shape (no markdown fences):
+{
+  "summaryText": "spoiler-aware summary prose",
+  "spoilerSafety": {
+    "isSpoilerSafe": true,
+    "riskLevel": "low|medium|high",
+    "confidence": 0,
+    "reason": "why this is safe/unsafe",
+    "recommendedAction": "what the user should do next if confidence is low"
+  },
+  "characters": [
+    {
+      "name": "character name",
+      "role": "spoiler-safe role up to boundary",
+      "description": "spoiler-safe description up to boundary",
+      "relationships": "spoiler-safe relationship notes up to boundary"
+    }
+  ]
+}
+
+Summary rules:
+- Describe only the boundary window (${spoilerBoundaryLabel}).
+- Write a concrete, specific summary (target 6–10 sentences).
+- Prefer concrete actions, character decisions, and consequences over thematic phrasing.
+- If Grounded reader context is limited, provide the safest best-effort summary from boundary-aware knowledge instead of refusing.
+- Never reveal spoilers beyond the boundary.
+- Never include markdown fences.
+
+Character rules:
+- Include every named character who appears or is clearly referenced up to ${progressType} ${upperBoundaryNumber}.
+- ${isBootstrap ? `Existing character names is empty — build a complete initial character map; include 4–15 important spoiler-safe characters introduced by this boundary.` : `Add characters who are NOT in "Existing character names". Exclude any name listed there.`}
+- Characters you mention in your summary MUST appear in the characters array (never omit them).
+- Include any character named in Grounded reader context even if you also mention them in the summary.
+- Do not limit yourself to only characters with heavy page-time; include supporting characters if they are clearly introduced.
+- Never reveal spoilers beyond the boundary.`;
+
+    const fullUpdateRawText = await callGeminiText(geminiKey, fullUpdateInstruction, {
+      responseMimeType: "application/json",
+      pageImage: safePageImage,
+    });
+
+    // Parse the combined response.
+    let parsedFullUpdate: any = {};
+    try {
+      parsedFullUpdate = parseJsonText(fullUpdateRawText);
+    } catch {
+      parsedFullUpdate = {};
+    }
+
+    const combinedSummaryText = String(parsedFullUpdate?.summaryText ?? "").trim();
+    const combinedSpoilerSafety = parsedFullUpdate?.spoilerSafety ?? {};
+
+    // Normalize summary using existing logic.
+    const syntheticSummaryRaw = JSON.stringify({ summaryText: combinedSummaryText, spoilerSafety: combinedSpoilerSafety });
+    const summaryResult = {
+      ...(normalizeSummaryPayload(syntheticSummaryRaw, {
+        hasPageImage: !!safePageImage,
+        notesLength: String(notes ?? "").trim().length,
+        hasLowerBoundary: lowerBoundaryNumber !== null,
+        boundarySpan: lowerBoundaryNumber !== null ? Math.max(0, upperBoundaryNumber - lowerBoundaryNumber) : null,
+      })),
+      rawText: fullUpdateRawText,
+    };
+
+    // Extract characters from combined response.
+    const combinedCharactersRaw = Array.isArray(parsedFullUpdate?.characters) ? parsedFullUpdate.characters : [];
+    const combinedCharacters: CharacterItem[] = combinedCharactersRaw
+      .map((item: any) => {
+        const name = String(item?.name ?? "").trim();
+        if (!name) return null;
+        return {
+          name,
+          role: String(item?.role ?? "").trim(),
+          description: String(item?.description ?? "").trim(),
+          relationships: String(item?.relationships ?? "").trim(),
+        };
+      })
+      .filter((item: CharacterItem | null): item is CharacterItem => !!item)
+      .slice(0, 25);
+
+    const existingCharacterKeys = new Set(safeExistingCharacters.map((item) => normalizeKey(item)));
+    const seenCharacterKeys = new Set<string>();
+    const uniqueCharacters: CharacterItem[] = [];
+    const droppedNames: string[] = [];
+    for (const item of combinedCharacters) {
+      const key = normalizeKey(item.name);
+      if (!key) { droppedNames.push(item.name); continue; }
+      if (existingCharacterKeys.has(key) || seenCharacterKeys.has(key)) { droppedNames.push(item.name); continue; }
+      seenCharacterKeys.add(key);
+      uniqueCharacters.push(item);
+    }
+
+    const characterResult = {
+      characters: uniqueCharacters,
+      characterGuardReason: uniqueCharacters.length
+        ? null
+        : "No spoiler-safe characters could be confirmed for this boundary window.",
+      rawText: fullUpdateRawText,
+      droppedNames,
+    };
+
     const audit = {
       id: safeAuditId,
       createdAt: new Date().toISOString(),

@@ -2360,7 +2360,7 @@
       const strictSpoilerGuardEnabled = aiStrictSpoilerGuardEl.checked !== false;
       const manualGroundingNotes = collectManualGroundingNotes(progressType, lowerBoundary, progressNumber);
       const storyStageContext = collectStoryStageContext(progressType, lowerBoundary);
-      const characterMapContext = collectCharacterMapContext(5);
+      const characterMapContext = collectCharacterMapContext(8);
       const combinedGroundingNotes = [
         notes ? `Current user note:\n${notes}` : '',
         manualGroundingNotes ? `Current boundary manual notes:\n${manualGroundingNotes}` : '',
@@ -2369,7 +2369,7 @@
       ]
         .filter((value) => !!String(value || '').trim())
         .join('\n\n')
-        .slice(0, 2200);
+        .slice(0, 3200);
       const generationAuditId = generateAuditId();
       const usePageEvidence = settings.usePageEvidence === true;
       let pageEvidence = null;
