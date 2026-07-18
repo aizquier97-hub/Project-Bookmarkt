@@ -565,6 +565,7 @@ Rules:
         .filter((value) => !!value)
         .join("\n\n")
         .trim();
+      const isCharacterBootstrap = safeExistingCharacters.length === 0;
       const boundarySpan = lowerBoundaryNumber !== null
         ? Math.max(0, upperBoundaryNumber - lowerBoundaryNumber)
         : null;
@@ -620,6 +621,7 @@ Return ONLY strict JSON with this shape:
 Rules:
 - Include 1 to 12 characters.
 - Include spoiler-safe characters who are relevant in this boundary window and useful for the reader's character map.
+- If Existing character names is "(none)", bootstrap the character map with important spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber}, even if some were introduced before the current lower boundary.
 - Exclude any names listed in "Existing character names".
 - Use ONLY names explicitly present in Grounded reader context, Grounded summary context, or attached page evidence.
 - Prefer adding at least one grounded character when the evidence clearly names someone in the boundary window.
@@ -665,6 +667,7 @@ Return ONLY strict JSON with this shape:
 }
 Rules:
 - Include 1 to 6 spoiler-safe characters who are clearly active or relevant in this boundary window.
+- If Existing character names is "(none)", bootstrap with major spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber}, not only this boundary window.
 - Exclude any names listed in "Existing character names".
 - You may recover a full character name from book context when the grounded summary clearly refers to that character, even if the exact full name is not repeated verbatim.
 - Prefer well-established or clearly evidenced characters over speculative minor figures.
@@ -677,6 +680,47 @@ Rules:
       });
       const fallbackParsedCharacters = normalizeCharacterPayload(fallbackRawText);
       const fallbackFiltered = filterCharacters(fallbackParsedCharacters);
+      if (isCharacterBootstrap && !fallbackFiltered.characters.length && !primaryFiltered.characters.length) {
+        const bootstrapInstruction = `${sharedPrompt}
+
+Grounded summary context: ${summaryForGrounding || "(none)"}
+
+Mode: characters
+Return ONLY strict JSON with this shape:
+{
+  "characters": [
+    {
+      "name": "character name",
+      "role": "spoiler-safe role up to boundary",
+      "description": "spoiler-safe description up to boundary",
+      "relationships": "spoiler-safe relationship notes up to boundary"
+    }
+  ]
+}
+Rules:
+- Existing character names are empty, so build an initial character map.
+- Include 6 to 14 important spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber}.
+- Do not include characters first introduced after ${progressType} ${upperBoundaryNumber}.
+- Prioritize major and recurring characters over speculative or minor uncertain figures.
+- Never include markdown fences.
+- Never include spoilers beyond the boundary.`;
+        const bootstrapRawText = await callGeminiText(geminiKey, bootstrapInstruction, {
+          responseMimeType: "application/json",
+        });
+        const bootstrapParsedCharacters = normalizeCharacterPayload(bootstrapRawText);
+        const bootstrapFiltered = filterCharacters(bootstrapParsedCharacters);
+        const bootstrapGuardReason = bootstrapFiltered.characters.length
+          ? null
+          : "No spoiler-safe characters could be confirmed for initial character map bootstrap.";
+        return {
+          characters: bootstrapFiltered.characters,
+          characterGuardReason: bootstrapGuardReason,
+          rawText: `${charactersRawText}\n\n[FALLBACK]\n${fallbackRawText}\n\n[BOOTSTRAP]\n${bootstrapRawText}`,
+          droppedNames: primaryFiltered.droppedNames
+            .concat(fallbackFiltered.droppedNames)
+            .concat(bootstrapFiltered.droppedNames),
+        };
+      }
       const characterGuardReason = fallbackFiltered.characters.length
         ? null
         : "No spoiler-safe characters could be confirmed from the available summary context.";
