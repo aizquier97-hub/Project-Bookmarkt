@@ -534,6 +534,7 @@ Return ONLY strict JSON with this shape:
 }
 Rules:
 - Summary must describe only the boundary window.
+- Keep summaryText concise (3 to 5 short sentences maximum).
 - You may rely on Grounded reader context and attached page evidence; direct access to the full book text is not required.
 - If Grounded reader context is limited, still provide the safest concise best-effort summary you can from boundary-aware book knowledge instead of refusing outright.
 - Do not restate plot points from before the lower boundary when a lower boundary is provided.
@@ -565,7 +566,13 @@ Rules:
         .filter((value) => !!value)
         .join("\n\n")
         .trim();
-      const allowSummaryFallback = !safePageImage && !notesForGrounding && summaryForGrounding.length >= 40;
+      const boundarySpan = lowerBoundaryNumber !== null
+        ? Math.max(0, upperBoundaryNumber - lowerBoundaryNumber)
+        : null;
+      const allowSummaryFallback = !safePageImage
+        && !notesForGrounding
+        && summaryForGrounding.length >= 120
+        && (boundarySpan === null || boundarySpan <= 30);
       if (combinedGroundingText.length < 8 && !safePageImage) {
         return {
           characters: [],
@@ -616,7 +623,7 @@ Return ONLY strict JSON with this shape:
   ]
 }
 Rules:
-- Include 1 to 25 characters.
+- Include 1 to 12 characters.
 - Include spoiler-safe characters who are relevant in this boundary window and useful for the reader's character map.
 - Exclude any names listed in "Existing character names".
 - Use ONLY names explicitly present in Grounded reader context, Grounded summary context, or attached page evidence.
@@ -662,7 +669,7 @@ Return ONLY strict JSON with this shape:
   ]
 }
 Rules:
-- Include 1 to 10 spoiler-safe characters who are clearly active or relevant in this boundary window.
+- Include 1 to 6 spoiler-safe characters who are clearly active or relevant in this boundary window.
 - Exclude any names listed in "Existing character names".
 - You may recover a full character name from book context when the grounded summary clearly refers to that character, even if the exact full name is not repeated verbatim.
 - Prefer well-established or clearly evidenced characters over speculative minor figures.

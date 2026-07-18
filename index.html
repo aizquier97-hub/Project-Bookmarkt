@@ -1497,7 +1497,7 @@
     function summarizeEntryForAIContext(rawText, label) {
       const bodyText = String(rawText || '').split('\n').slice(1).join('\n').trim();
       if (!bodyText || isLikelyAIRefusalText(bodyText)) return '';
-      return `${label}: ${bodyText.slice(0, 500)}`;
+      return `${label}: ${bodyText.slice(0, 320)}`;
     }
 
     function getLatestProgressBoundary(progressType) {
@@ -1971,7 +1971,7 @@
       const strictSpoilerGuardEnabled = aiStrictSpoilerGuardEl.checked !== false;
       const manualGroundingNotes = collectManualGroundingNotes(progressType, lowerBoundary, progressNumber);
       const storyStageContext = collectStoryStageContext(progressType, lowerBoundary);
-      const characterMapContext = collectCharacterMapContext(12);
+      const characterMapContext = collectCharacterMapContext(8);
       const combinedGroundingNotes = [
         notes ? `Current user note:\n${notes}` : '',
         manualGroundingNotes ? `Current boundary manual notes:\n${manualGroundingNotes}` : '',
@@ -1980,7 +1980,7 @@
       ]
         .filter((value) => !!String(value || '').trim())
         .join('\n\n')
-        .slice(0, 7000);
+        .slice(0, 3500);
       const generationAuditId = generateAuditId();
       const usePageEvidence = settings.usePageEvidence === true;
       let pageEvidence = null;
