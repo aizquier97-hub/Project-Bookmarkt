@@ -6,6 +6,9 @@ type RequestBody = {
   mode?: Mode;
   bookTitle?: string;
   author?: string;
+  publisher?: string | null;
+  publicationYear?: number | string | null;
+  totalPages?: number | string | null;
   progressType?: "chapter" | "page";
   progressValue?: number | string;
   lowerBoundary?: number | string | null;
@@ -290,6 +293,21 @@ function sanitizeAuditId(value: unknown) {
   return safe || null;
 }
 
+function sanitizeOptionalPositiveInt(value: unknown) {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.floor(parsed);
+}
+
+function sanitizeOptionalPublicationYear(value: unknown) {
+  const parsed = sanitizeOptionalPositiveInt(value);
+  if (!parsed) return null;
+  const currentYear = new Date().getFullYear();
+  if (parsed < 1000 || parsed > currentYear + 1) return null;
+  return parsed;
+}
+
 function sanitizePageImage(pageImage: RequestBody["pageImage"]) {
   if (!pageImage || typeof pageImage !== "object") return null;
   const mimeType = String(pageImage.mimeType ?? "").trim().toLowerCase();
@@ -431,6 +449,9 @@ serve(async (req) => {
       mode,
       bookTitle,
       author,
+      publisher,
+      publicationYear,
+      totalPages,
       progressType,
       progressValue,
       lowerBoundary,
@@ -467,9 +488,17 @@ serve(async (req) => {
       return jsonResponse({ error: "Missing GEMINI_API_KEY secret" }, 500);
     }
 
-    const upperBoundaryNumber = Number(progressValue);
+    let upperBoundaryNumber = Number(progressValue);
     if (!Number.isFinite(upperBoundaryNumber) || upperBoundaryNumber <= 0) {
       return jsonResponse({ error: "Invalid progressValue", details: { progressValue } }, 400);
+    }
+    const safePublisher = String(publisher ?? "").trim() || null;
+    const safePublicationYear = sanitizeOptionalPublicationYear(publicationYear);
+    const safeTotalPages = sanitizeOptionalPositiveInt(totalPages);
+    let wasProgressCapped = false;
+    if (progressType === "page" && safeTotalPages && upperBoundaryNumber > safeTotalPages) {
+      upperBoundaryNumber = safeTotalPages;
+      wasProgressCapped = true;
     }
 
     let lowerBoundaryNumber: number | null = null;
@@ -500,6 +529,7 @@ serve(async (req) => {
       : `Include details up to ${progressType} ${upperBoundaryNumber}.`;
     const sharedPrompt = `You are Bookmarkt AI.
 Book: ${bookTitle} by ${author}
+Edition metadata: publisher=${safePublisher ?? "(unknown)"}, publication_year=${safePublicationYear ?? "(unknown)"}, total_pages=${safeTotalPages ?? "(unknown)"}
 Boundary window: ${spoilerBoundaryLabel}
 
 STRICT SPOILER RULES:
@@ -909,6 +939,10 @@ Rules:
         mode,
         bookTitle,
         author,
+        publisher: safePublisher,
+        publicationYear: safePublicationYear,
+        totalPages: safeTotalPages,
+        wasProgressCapped,
         progressType,
         lowerBoundary: lowerBoundaryNumber,
         upperBoundary: upperBoundaryNumber,

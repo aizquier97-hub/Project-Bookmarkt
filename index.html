@@ -228,6 +228,15 @@
         <label>Author
           <input id="bookCreationAuthor" type="text" placeholder="Author name" />
         </label>
+        <label>Publisher (optional)
+          <input id="bookCreationPublisher" type="text" placeholder="e.g., Ace Books" />
+        </label>
+        <label>Publication year (optional)
+          <input id="bookCreationYear" type="number" min="1000" max="3000" step="1" placeholder="e.g., 1984" />
+        </label>
+        <label>Total pages (optional)
+          <input id="bookCreationPages" type="number" min="1" step="1" placeholder="e.g., 336" />
+        </label>
         <button id="btnAddTopic" type="button">Add Book</button>
         <div id="topicsList" class="list"></div>
       </section>
@@ -513,6 +522,9 @@
 
     const newTopicEl = document.getElementById('newTopic');
     const bookCreationAuthorEl = document.getElementById('bookCreationAuthor');
+    const bookCreationPublisherEl = document.getElementById('bookCreationPublisher');
+    const bookCreationYearEl = document.getElementById('bookCreationYear');
+    const bookCreationPagesEl = document.getElementById('bookCreationPages');
     const btnAddTopic = document.getElementById('btnAddTopic');
     const topicsList = document.getElementById('topicsList');
     const entriesForBookEl = document.getElementById('entriesForBook');
@@ -646,6 +658,15 @@
       const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
       return message.includes('topics') && message.includes('author') && (message.includes('column') || message.includes('schema cache'));
     }
+    function isMissingTopicsMetadataColumnError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      const isMissingColumn = message.includes('column') || message.includes('schema cache');
+      return message.includes('topics') && isMissingColumn && (
+        message.includes('publisher') ||
+        message.includes('publication_year') ||
+        message.includes('total_pages')
+      );
+    }
     function isMissingAnalyticsTableError(errorLike) {
       const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
       return (
@@ -672,6 +693,77 @@
         return window.crypto.randomUUID();
       }
       return `audit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+    function normalizeOptionalPositiveInt(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return null;
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed) || parsed <= 0) return null;
+      return Math.floor(parsed);
+    }
+    function normalizeOptionalPublicationYear(value) {
+      const parsed = normalizeOptionalPositiveInt(value);
+      if (!parsed) return null;
+      const currentYear = new Date().getFullYear();
+      if (parsed < 1000 || parsed > currentYear + 1) return null;
+      return parsed;
+    }
+    async function lookupBookMetadata(query) {
+      const title = query && query.title ? String(query.title).trim() : '';
+      const author = query && query.author ? String(query.author).trim() : '';
+      const publisherHint = query && query.publisherHint ? String(query.publisherHint).trim() : '';
+      const yearHint = normalizeOptionalPublicationYear(query && query.yearHint);
+      if (!title) return null;
+      const params = new URLSearchParams();
+      params.set('title', title);
+      if (author) params.set('author', author);
+      params.set('limit', '8');
+      const lookupUrl = `https://openlibrary.org/search.json?${params.toString()}`;
+      const resp = await withTimeout(
+        fetch(lookupUrl),
+        9000,
+        'Book metadata lookup timed out.'
+      );
+      if (!resp.ok) return null;
+      const payload = await resp.json();
+      const docs = payload && Array.isArray(payload.docs) ? payload.docs : [];
+      if (!docs.length) return null;
+      const normalizedAuthorHint = author.toLowerCase();
+      const normalizedPublisherHint = publisherHint.toLowerCase();
+      let bestDoc = null;
+      let bestScore = -Infinity;
+      for (let i = 0; i < docs.length; i += 1) {
+        const doc = docs[i] || {};
+        let score = 0;
+        const docAuthors = Array.isArray(doc.author_name) ? doc.author_name.map((item) => String(item || '').toLowerCase()) : [];
+        const docPublishers = Array.isArray(doc.publisher) ? doc.publisher.map((item) => String(item || '').toLowerCase()) : [];
+        const docYear = normalizeOptionalPublicationYear(doc.first_publish_year);
+        const docPages = normalizeOptionalPositiveInt(doc.number_of_pages_median);
+        if (normalizedAuthorHint && docAuthors.some((item) => item.includes(normalizedAuthorHint) || normalizedAuthorHint.includes(item))) score += 25;
+        if (normalizedPublisherHint && docPublishers.some((item) => item.includes(normalizedPublisherHint) || normalizedPublisherHint.includes(item))) score += 15;
+        if (yearHint && docYear) {
+          const yearDistance = Math.abs(docYear - yearHint);
+          score += Math.max(0, 15 - yearDistance);
+        }
+        if (docPages) score += 8;
+        if (docYear) score += 4;
+        if (score > bestScore) {
+          bestScore = score;
+          bestDoc = doc;
+        }
+      }
+      if (!bestDoc) return null;
+      const publisherList = Array.isArray(bestDoc.publisher) ? bestDoc.publisher : [];
+      const resolvedPublisher = publisherList.length ? String(publisherList[0] || '').trim() : '';
+      const resolvedYear = normalizeOptionalPublicationYear(bestDoc.first_publish_year);
+      const resolvedPages = normalizeOptionalPositiveInt(bestDoc.number_of_pages_median);
+      if (!resolvedPublisher && !resolvedYear && !resolvedPages) return null;
+      return {
+        publisher: resolvedPublisher || null,
+        publicationYear: resolvedYear || null,
+        totalPages: resolvedPages || null,
+        source: 'openlibrary-search',
+      };
     }
     function normalizeSpoilerSafety(rawSafety) {
       const safe = rawSafety && typeof rawSafety === 'object' ? rawSafety : {};
@@ -1256,6 +1348,9 @@
 
       newTopicEl.disabled = !isSignedIn || isBusy;
       if (bookCreationAuthorEl) bookCreationAuthorEl.disabled = !isSignedIn || isBusy;
+      if (bookCreationPublisherEl) bookCreationPublisherEl.disabled = !isSignedIn || isBusy;
+      if (bookCreationYearEl) bookCreationYearEl.disabled = !isSignedIn || isBusy;
+      if (bookCreationPagesEl) bookCreationPagesEl.disabled = !isSignedIn || isBusy;
       btnAddTopic.disabled = !isSignedIn || isBusy;
       syncBookScopedControlState();
     }
@@ -1327,6 +1422,16 @@
       if (!userId || !topicId) return '';
       const matchedBook = loadedBooks.find((book) => String(book && book.id) === String(topicId));
       return matchedBook && matchedBook.author ? String(matchedBook.author).trim() : '';
+    }
+    function getBookMetadataForTopic(topicId) {
+      if (!topicId) return null;
+      const matchedBook = loadedBooks.find((book) => String(book && book.id) === String(topicId));
+      if (!matchedBook) return null;
+      return {
+        publisher: matchedBook.publisher ? String(matchedBook.publisher).trim() : '',
+        publicationYear: normalizeOptionalPublicationYear(matchedBook.publication_year),
+        totalPages: normalizeOptionalPositiveInt(matchedBook.total_pages),
+      };
     }
     function setLoadedBookAuthor(topicId, author) {
       if (!topicId) return;
@@ -1954,15 +2059,30 @@
         setAIStatus('AI error: Book title, author, and progress value are required.');
         return;
       }
-      const progressNumber = Number(progressValue);
+      let progressNumber = Number(progressValue);
+      const requestedProgressNumber = progressNumber;
       if (!Number.isFinite(progressNumber) || progressNumber <= 0) {
         setAIStatus('AI error: Progress value must be a positive number.');
         return;
       }
+      const selectedBookMetadata = getBookMetadataForTopic(selectedBookId) || {};
+      const totalPages = normalizeOptionalPositiveInt(selectedBookMetadata.totalPages);
+      const publicationYear = normalizeOptionalPublicationYear(selectedBookMetadata.publicationYear);
+      const publisher = selectedBookMetadata.publisher ? String(selectedBookMetadata.publisher).trim() : '';
+      let wasProgressCapped = false;
+      if (progressType === 'page' && totalPages && progressNumber > totalPages) {
+        progressNumber = totalPages;
+        wasProgressCapped = true;
+        aiProgressValueEl.value = String(progressNumber);
+      }
       const latestBoundary = getLatestProgressBoundary(progressType);
       const lowerBoundary = latestBoundary ? latestBoundary.upper : null;
       if (Number.isFinite(lowerBoundary) && progressNumber <= lowerBoundary) {
-        setAIStatus(`AI error: ${progressType} value must be greater than the last saved ${progressType} (${lowerBoundary}).`);
+        if (wasProgressCapped && progressType === 'page' && totalPages && lowerBoundary >= totalPages) {
+          setAIStatus(`AI error: You are already at the configured end of this book (page ${totalPages}).`);
+        } else {
+          setAIStatus(`AI error: ${progressType} value must be greater than the last saved ${progressType} (${lowerBoundary}).`);
+        }
         return;
       }
       const existingCharacterNames = Array.from(getExistingCharacterNameSet());
@@ -1986,6 +2106,9 @@
       let pageEvidence = null;
 
       persistAIFormValues();
+      if (wasProgressCapped && progressType === 'page') {
+        setDevInfo(`Requested page ${requestedProgressNumber} exceeds configured total pages (${totalPages}). Using page ${progressNumber}.`, false);
+      }
       renderAIResultText('');
       renderAIGeneratedImages([]);
       setAIStatus('Generating and saving full AI update...');
@@ -2000,6 +2123,8 @@
         await trackAnalyticsEvent('ai_update_requested', {
           progressType,
           progressValue: progressNumber,
+          requestedProgressValue: requestedProgressNumber,
+          wasProgressCapped,
           lowerBoundary,
           strictSpoilerGuard: strictSpoilerGuardEnabled,
           hasGroundingNotes: !!combinedGroundingNotes,
@@ -2017,6 +2142,9 @@
           existingCharacters: existingCharacterNames,
           existingLocations: existingLocationTitles,
           notes: combinedGroundingNotes,
+          publisher: publisher || null,
+          publicationYear: publicationYear || null,
+          totalPages: totalPages || null,
           auditId: generationAuditId,
           pageImage: pageEvidence,
         };
@@ -2460,10 +2588,25 @@
       try {
         let res = await supabase
           .from('topics')
-          .select('id,name,author,created_at')
+          .select('id,name,author,publisher,publication_year,total_pages,created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
         let authorMigrationMissing = false;
+        let metadataMigrationMissing = false;
+        if (res.error && isMissingTopicsMetadataColumnError(res.error)) {
+          metadataMigrationMissing = true;
+          res = await supabase
+            .from('topics')
+            .select('id,name,author,created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+          if (!res.error) {
+            res = {
+              ...res,
+              data: (res.data || []).map((book) => ({ ...book, publisher: null, publication_year: null, total_pages: null })),
+            };
+          }
+        }
         if (res.error && isMissingTopicsAuthorColumnError(res.error)) {
           authorMigrationMissing = true;
           res = await supabase
@@ -2494,7 +2637,9 @@
         updateBookScopedLabels();
         loadAIFormValuesForSelectedBook();
         syncBookScopedControlState();
-        if (authorMigrationMissing) {
+        if (metadataMigrationMissing) {
+          setDevInfo('Books loaded. Run the topics metadata migration to enable publisher/year/pages validation.', true);
+        } else if (authorMigrationMissing) {
           setDevInfo('Books loaded. Run the topics author migration to sync edited authors across devices.', true);
         }
       } catch (err) {
@@ -2732,7 +2877,31 @@
         setDevInfo('Add book error: Author is required.', true);
         return;
       }
-      const payload = { name, author: creationAuthor, user_id: user.id };
+      const manualPublisher = bookCreationPublisherEl ? bookCreationPublisherEl.value.trim() : '';
+      const manualPublicationYear = normalizeOptionalPublicationYear(bookCreationYearEl && bookCreationYearEl.value);
+      const manualTotalPages = normalizeOptionalPositiveInt(bookCreationPagesEl && bookCreationPagesEl.value);
+      let lookupMetadata = null;
+      try {
+        lookupMetadata = await lookupBookMetadata({
+          title: name,
+          author: creationAuthor,
+          publisherHint: manualPublisher,
+          yearHint: manualPublicationYear,
+        });
+      } catch (lookupErr) {
+        console.warn('Book metadata lookup error:', lookupErr);
+      }
+      const resolvedPublisher = manualPublisher || (lookupMetadata && lookupMetadata.publisher ? String(lookupMetadata.publisher).trim() : '');
+      const resolvedPublicationYear = manualPublicationYear || (lookupMetadata ? lookupMetadata.publicationYear : null);
+      const resolvedTotalPages = manualTotalPages || (lookupMetadata ? lookupMetadata.totalPages : null);
+      const payload = {
+        name,
+        author: creationAuthor,
+        publisher: resolvedPublisher || null,
+        publication_year: resolvedPublicationYear || null,
+        total_pages: resolvedTotalPages || null,
+        user_id: user.id,
+      };
       setDevInfo('Adding book...');
       let insertResult;
       try {
@@ -2747,6 +2916,44 @@
       }
       const { data, error } = insertResult;
       if (error) {
+        if (isMissingTopicsMetadataColumnError(error)) {
+          const fallbackPayload = { name, author: creationAuthor, user_id: user.id };
+          let fallbackInsertResult;
+          try {
+            fallbackInsertResult = await withTimeout(
+              supabase.from('topics').insert([fallbackPayload]).select().single(),
+              12000,
+              'Add book timed out. Please check your connection and try again.'
+            );
+          } catch (fallbackErr) {
+            setDevInfo('Add book error: ' + fallbackErr.message, true);
+            return;
+          }
+          if (fallbackInsertResult.error) {
+            setDevInfo('Add book error: ' + fallbackInsertResult.error.message, true);
+            return;
+          }
+          newTopicEl.value = '';
+          if (bookCreationAuthorEl) bookCreationAuthorEl.value = '';
+          if (bookCreationPublisherEl) bookCreationPublisherEl.value = '';
+          if (bookCreationYearEl) bookCreationYearEl.value = '';
+          if (bookCreationPagesEl) bookCreationPagesEl.value = '';
+          if (fallbackInsertResult.data && fallbackInsertResult.data.id) selectedBookId = String(fallbackInsertResult.data.id);
+          persistSelectedBook();
+          await loadTopics(user.id);
+          await Promise.allSettled([
+            loadEntries(user.id, selectedBookId),
+            loadCharacters(user.id, selectedBookId),
+            loadBookImages(user.id, selectedBookId)
+          ]);
+          await trackAnalyticsEvent('book_added', {
+            topicId: fallbackInsertResult.data && fallbackInsertResult.data.id ? String(fallbackInsertResult.data.id) : null,
+            hasAuthor: true,
+            hasMetadata: false,
+          });
+          setDevInfo('Book added and data loaded. Run the topics metadata migration to enable publisher/year/pages validation.', true);
+          return;
+        }
         if (isMissingTopicsAuthorColumnError(error)) {
           setDevInfo('Add book error: Shared author sync is not enabled in Supabase yet. Run the topics author migration, then try again.', true);
           return;
@@ -2755,6 +2962,9 @@
       } else {
         newTopicEl.value = '';
         if (bookCreationAuthorEl) bookCreationAuthorEl.value = '';
+        if (bookCreationPublisherEl) bookCreationPublisherEl.value = '';
+        if (bookCreationYearEl) bookCreationYearEl.value = '';
+        if (bookCreationPagesEl) bookCreationPagesEl.value = '';
         if (data && data.id) selectedBookId = String(data.id);
         persistSelectedBook();
         await loadTopics(user.id);
@@ -2766,6 +2976,7 @@
         await trackAnalyticsEvent('book_added', {
           topicId: data && data.id ? String(data.id) : null,
           hasAuthor: true,
+          hasMetadata: !!(resolvedPublisher || resolvedPublicationYear || resolvedTotalPages),
         });
         setDevInfo('Book added and data loaded.');
       }
@@ -3174,11 +3385,20 @@
           const selectedClass = isSelected ? ' selected' : '';
           const author = t && t.author ? String(t.author).trim() : '';
           const authorLine = author ? `<div class="muted">Author: ${escapeHtml(author)}</div>` : '';
+          const publisher = t && t.publisher ? String(t.publisher).trim() : '';
+          const publicationYear = normalizeOptionalPublicationYear(t && t.publication_year);
+          const totalPages = normalizeOptionalPositiveInt(t && t.total_pages);
+          const metadataParts = [];
+          if (publisher) metadataParts.push(`Publisher: ${escapeHtml(publisher)}`);
+          if (publicationYear) metadataParts.push(`Year: ${publicationYear}`);
+          if (totalPages) metadataParts.push(`Pages: ${totalPages}`);
+          const metadataLine = metadataParts.length ? `<div class="muted">${metadataParts.join(' • ')}</div>` : '';
           return `<div class="item selectable${selectedClass}" data-book-id="${t.id}">
             <div class="book-row">
               <div class="book-main">
                 <strong>${escapeHtml(t.name)}</strong>
                 ${authorLine}
+                ${metadataLine}
                 <div class="muted">${formatTimestamp(t.created_at)}</div>
               </div>
               <button type="button" class="small-btn ghost" data-book-action="edit-author" data-book-id="${t.id}">Edit Author</button>
