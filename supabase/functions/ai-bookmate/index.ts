@@ -533,13 +533,15 @@ Return ONLY strict JSON with this shape:
 }
 Rules:
 - Summary must describe only the boundary window.
-- Keep summaryText concise (3 to 5 short sentences maximum).
+- Write a concrete, specific summary (target 6 to 10 sentences).
 - You may rely on Grounded reader context and attached page evidence; direct access to the full book text is not required.
 - If Grounded reader context is limited, still provide the safest concise best-effort summary you can from boundary-aware book knowledge instead of refusing outright.
 - Do not restate plot points from before the lower boundary when a lower boundary is provided.
 - If grounded context is available, produce the safest concise summary supported by that context instead of refusing only because the full book text is unavailable.
 - When uncertainty is significant, keep the summary cautious, narrow, and mark spoilerSafety as unsafe/low confidence rather than returning a refusal message.
 - If there is no meaningful grounded context for the boundary window, still provide a careful boundary-limited best-effort summary and reflect uncertainty in spoilerSafety.
+- Prefer concrete actions, character decisions, and immediate consequences over thematic or meta-level phrasing.
+- Avoid vague phrasing like "the story drives toward resolution" when concrete boundary-safe details are available.
 - Never include markdown fences.`;
 
       const summaryRawText = await callGeminiText(geminiKey, summaryInstruction, {
