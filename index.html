@@ -405,12 +405,24 @@
     </div>
   </div>
 
-  <!-- Edit Book Author Modal -->
+  <!-- Edit Book Details Modal -->
   <div id="editBookAuthorModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editBookAuthorTitle">
-      <h2 id="editBookAuthorTitle" style="font-size:18px; margin:0 0 12px 0; font-weight:700;">Edit Author</h2>
+      <h2 id="editBookAuthorTitle" style="font-size:18px; margin:0 0 12px 0; font-weight:700;">Edit Book Details</h2>
+      <label>Book title
+        <input id="editBookTitleInput" type="text" placeholder="Book title" />
+      </label>
       <label>Author name
         <input id="editBookAuthorInput" type="text" placeholder="Author name" />
+      </label>
+      <label>Publisher (optional)
+        <input id="editBookPublisherInput" type="text" placeholder="Publisher" />
+      </label>
+      <label>Publication year (optional)
+        <input id="editBookYearInput" type="number" min="1000" max="3000" step="1" placeholder="e.g., 1984" />
+      </label>
+      <label>Total pages (optional)
+        <input id="editBookPagesInput" type="number" min="1" step="1" placeholder="e.g., 336" />
       </label>
       <div class="row" style="margin-top:12px;">
         <button id="btnEditBookAuthorConfirm">Save changes</button>
@@ -508,7 +520,11 @@
     const btnEditCharCancel = document.getElementById('btnEditCharCancel');
     const editCharStatusEl = document.getElementById('editCharStatus');
     const editBookAuthorModalBackdrop = document.getElementById('editBookAuthorModalBackdrop');
+    const editBookTitleInputEl = document.getElementById('editBookTitleInput');
     const editBookAuthorInputEl = document.getElementById('editBookAuthorInput');
+    const editBookPublisherInputEl = document.getElementById('editBookPublisherInput');
+    const editBookYearInputEl = document.getElementById('editBookYearInput');
+    const editBookPagesInputEl = document.getElementById('editBookPagesInput');
     const btnEditBookAuthorConfirm = document.getElementById('btnEditBookAuthorConfirm');
     const btnEditBookAuthorCancel = document.getElementById('btnEditBookAuthorCancel');
     const editBookAuthorStatusEl = document.getElementById('editBookAuthorStatus');
@@ -1433,12 +1449,26 @@
         totalPages: normalizeOptionalPositiveInt(matchedBook.total_pages),
       };
     }
-    function setLoadedBookAuthor(topicId, author) {
+    function setLoadedBookDetails(topicId, details) {
       if (!topicId) return;
-      const normalizedAuthor = String(author || '').trim();
+      const normalizedName = details && typeof details.name === 'string' ? String(details.name).trim() : null;
+      const normalizedAuthor = details && typeof details.author === 'string' ? String(details.author).trim() : null;
+      const normalizedPublisher = details && typeof details.publisher === 'string' ? String(details.publisher).trim() : null;
+      const normalizedPublicationYear = details && Object.prototype.hasOwnProperty.call(details, 'publication_year')
+        ? normalizeOptionalPublicationYear(details.publication_year)
+        : undefined;
+      const normalizedTotalPages = details && Object.prototype.hasOwnProperty.call(details, 'total_pages')
+        ? normalizeOptionalPositiveInt(details.total_pages)
+        : undefined;
       loadedBooks = loadedBooks.map((book) => {
         if (String(book && book.id) !== String(topicId)) return book;
-        return { ...book, author: normalizedAuthor || null };
+        const nextBook = { ...book };
+        if (normalizedName !== null) nextBook.name = normalizedName || book.name;
+        if (normalizedAuthor !== null) nextBook.author = normalizedAuthor || null;
+        if (normalizedPublisher !== null) nextBook.publisher = normalizedPublisher || null;
+        if (normalizedPublicationYear !== undefined) nextBook.publication_year = normalizedPublicationYear || null;
+        if (normalizedTotalPages !== undefined) nextBook.total_pages = normalizedTotalPages || null;
+        return nextBook;
       });
       if (currentUser) {
         writeCache('topics', currentUser.id, loadedBooks);
@@ -1469,25 +1499,69 @@
         bookCreationAuthorEl.value = knownAuthor;
       }
     }
-    async function persistBookAuthor(userId, topicId, author) {
+    async function persistBookDetails(userId, topicId, details) {
       if (!userId || !topicId) throw new Error('Missing book author identifiers.');
-      const authorValue = String(author || '').trim();
+      const nameValue = details && typeof details.name === 'string' ? String(details.name).trim() : null;
+      const authorValue = details && typeof details.author === 'string' ? String(details.author).trim() : null;
+      const publisherValue = details && typeof details.publisher === 'string' ? String(details.publisher).trim() : null;
+      const publicationYearValue = details && Object.prototype.hasOwnProperty.call(details, 'publication_year')
+        ? normalizeOptionalPublicationYear(details.publication_year)
+        : undefined;
+      const totalPagesValue = details && Object.prototype.hasOwnProperty.call(details, 'total_pages')
+        ? normalizeOptionalPositiveInt(details.total_pages)
+        : undefined;
+      if (nameValue !== null && !nameValue) throw new Error('Book title is required.');
       if (!authorValue) throw new Error('Author name is required.');
+      const updatePayload = {};
+      if (nameValue !== null) updatePayload.name = nameValue;
+      updatePayload.author = authorValue;
+      if (publisherValue !== null) updatePayload.publisher = publisherValue || null;
+      if (publicationYearValue !== undefined) updatePayload.publication_year = publicationYearValue || null;
+      if (totalPagesValue !== undefined) updatePayload.total_pages = totalPagesValue || null;
       const updateRes = await supabase
         .from('topics')
-        .update({ author: authorValue })
+        .update(updatePayload)
         .eq('id', topicId)
         .eq('user_id', userId)
-        .select('id,author')
+        .select('id,name,author,publisher,publication_year,total_pages')
         .single();
       if (updateRes.error) {
+        if (isMissingTopicsMetadataColumnError(updateRes.error) && (publisherValue !== null || publicationYearValue !== undefined || totalPagesValue !== undefined)) {
+          const fallbackPayload = {};
+          if (nameValue !== null) fallbackPayload.name = nameValue;
+          fallbackPayload.author = authorValue;
+          const fallbackRes = await supabase
+            .from('topics')
+            .update(fallbackPayload)
+            .eq('id', topicId)
+            .eq('user_id', userId)
+            .select('id,name,author')
+            .single();
+          if (fallbackRes.error) {
+            throw fallbackRes.error;
+          }
+          setLoadedBookDetails(topicId, {
+            name: nameValue,
+            author: authorValue,
+          });
+          return fallbackRes.data;
+        }
         if (isMissingTopicsAuthorColumnError(updateRes.error)) {
           throw new Error('Shared author sync is not enabled in Supabase yet. Run the topics author migration, then try again.');
         }
         throw updateRes.error;
       }
-      setLoadedBookAuthor(topicId, authorValue);
+      setLoadedBookDetails(topicId, {
+        name: nameValue,
+        author: authorValue,
+        publisher: publisherValue,
+        publication_year: publicationYearValue,
+        total_pages: totalPagesValue,
+      });
       return updateRes.data;
+    }
+    async function persistBookAuthor(userId, topicId, author) {
+      return await persistBookDetails(userId, topicId, { author });
     }
     function writeCache(kind, userId, data, bookId) {
       if (!userId) return;
@@ -2982,25 +3056,33 @@
       }
     }
 
-    async function editBookAuthor(bookId) {
+    async function editBookDetails(bookId) {
       const user = requireCurrentUser();
       if (!user) return;
       if (!bookId) return;
       const selectedBook = loadedBooks.find(b => String(b.id) === String(bookId));
       if (!selectedBook) return;
+      const currentTitle = selectedBook && selectedBook.name ? String(selectedBook.name).trim() : '';
       const currentAuthor = getBookAuthorForTopic(user.id, bookId) || '';
-      if (!editBookAuthorModalBackdrop || !editBookAuthorInputEl || !btnEditBookAuthorConfirm || !btnEditBookAuthorCancel || !editBookAuthorStatusEl) {
-        setDevInfo('Edit author error: Edit modal is unavailable.', true);
+      const currentPublisher = selectedBook && selectedBook.publisher ? String(selectedBook.publisher).trim() : '';
+      const currentYear = normalizeOptionalPublicationYear(selectedBook && selectedBook.publication_year);
+      const currentPages = normalizeOptionalPositiveInt(selectedBook && selectedBook.total_pages);
+      if (!editBookAuthorModalBackdrop || !editBookTitleInputEl || !editBookAuthorInputEl || !editBookPublisherInputEl || !editBookYearInputEl || !editBookPagesInputEl || !btnEditBookAuthorConfirm || !btnEditBookAuthorCancel || !editBookAuthorStatusEl) {
+        setDevInfo('Edit book error: Edit modal is unavailable.', true);
         return;
       }
 
       editingBookAuthorId = String(bookId);
+      editBookTitleInputEl.value = currentTitle;
       editBookAuthorInputEl.value = currentAuthor;
+      editBookPublisherInputEl.value = currentPublisher;
+      editBookYearInputEl.value = currentYear ? String(currentYear) : '';
+      editBookPagesInputEl.value = currentPages ? String(currentPages) : '';
       editBookAuthorStatusEl.textContent = '';
       btnEditBookAuthorConfirm.disabled = false;
       editBookAuthorModalBackdrop.classList.remove('hidden');
       editBookAuthorModalBackdrop.setAttribute('aria-hidden', 'false');
-      editBookAuthorInputEl.focus();
+      editBookTitleInputEl.focus();
 
       await new Promise((resolve) => {
         function cleanup() {
@@ -3015,7 +3097,15 @@
 
         btnEditBookAuthorCancel.onclick = cleanup;
         btnEditBookAuthorConfirm.onclick = async function() {
+          const titleValue = editBookTitleInputEl.value.trim();
           const authorValue = editBookAuthorInputEl.value.trim();
+          const publisherValue = editBookPublisherInputEl.value.trim();
+          const publicationYearValue = normalizeOptionalPublicationYear(editBookYearInputEl.value);
+          const totalPagesValue = normalizeOptionalPositiveInt(editBookPagesInputEl.value);
+          if (!titleValue) {
+            editBookAuthorStatusEl.textContent = 'Book title is required.';
+            return;
+          }
           if (!authorValue) {
             editBookAuthorStatusEl.textContent = 'Author name is required.';
             return;
@@ -3023,19 +3113,29 @@
           editBookAuthorStatusEl.textContent = 'Saving...';
           btnEditBookAuthorConfirm.disabled = true;
           try {
-            await persistBookAuthor(user.id, bookId, authorValue);
+            await persistBookDetails(user.id, bookId, {
+              name: titleValue,
+              author: authorValue,
+              publisher: publisherValue,
+              publication_year: publicationYearValue,
+              total_pages: totalPagesValue,
+            });
           } catch (saveErr) {
             editBookAuthorStatusEl.textContent = 'Error: ' + (saveErr && saveErr.message ? saveErr.message : String(saveErr));
             btnEditBookAuthorConfirm.disabled = false;
             return;
           }
+          if (String(selectedBookId) === String(bookId)) {
+            updateBookScopedLabels();
+          }
           if (String(selectedBookId) === String(bookId) && hasAIUI) {
+            aiBookTitleEl.value = titleValue;
             aiAuthorEl.value = authorValue;
             persistAIFormValues();
           }
           renderTopics(loadedBooks);
           btnEditBookAuthorConfirm.disabled = false;
-          setDevInfo('Book author saved.');
+          setDevInfo('Book details saved.');
           cleanup();
         };
       });
@@ -3401,7 +3501,7 @@
                 ${metadataLine}
                 <div class="muted">${formatTimestamp(t.created_at)}</div>
               </div>
-              <button type="button" class="small-btn ghost" data-book-action="edit-author" data-book-id="${t.id}">Edit Author</button>
+              <button type="button" class="small-btn ghost" data-book-action="edit-details" data-book-id="${t.id}">Edit Details</button>
               <button type="button" class="small-btn danger" data-book-action="delete" data-book-id="${t.id}">Delete</button>
             </div>
           </div>`;
@@ -3666,8 +3766,8 @@
       if (actionBtn) {
         const action = actionBtn.getAttribute('data-book-action');
         const bookId = actionBtn.getAttribute('data-book-id');
-        if (action === 'edit-author') {
-          await editBookAuthor(bookId);
+        if (action === 'edit-details') {
+          await editBookDetails(bookId);
         }
         if (action === 'delete') {
           await deleteBook(bookId);
