@@ -251,6 +251,15 @@
         <label>AI Author
           <input id="aiAuthor" type="text" placeholder="Author name" />
         </label>
+        <label>AI Publisher (optional)
+          <input id="aiPublisher" type="text" placeholder="e.g., Ace Books" />
+        </label>
+        <label>AI Publication year (optional)
+          <input id="aiPublicationYear" type="number" min="1000" max="3000" step="1" placeholder="e.g., 1984" />
+        </label>
+        <label>AI Total pages (optional)
+          <input id="aiTotalPages" type="number" min="1" step="1" placeholder="e.g., 336" />
+        </label>
         <div id="aiControls" class="ai-controls">
           <label>Progress Type
             <select id="aiProgressType">
@@ -571,6 +580,9 @@
     const aiForBookEl = document.getElementById('aiForBook');
     const aiBookTitleEl = document.getElementById('aiBookTitle');
     const aiAuthorEl = document.getElementById('aiAuthor');
+    const aiPublisherEl = document.getElementById('aiPublisher');
+    const aiPublicationYearEl = document.getElementById('aiPublicationYear');
+    const aiTotalPagesEl = document.getElementById('aiTotalPages');
     const aiControlsEl = document.getElementById('aiControls');
     const aiProgressTypeEl = document.getElementById('aiProgressType');
     const aiProgressValueEl = document.getElementById('aiProgressValue');
@@ -611,7 +623,7 @@
     const btnFeedbackCancel = document.getElementById('btnFeedbackCancel');
     const feedbackStatusEl = document.getElementById('feedbackStatus');
     const hasImageUI = !!(bookImageDropzone && btnTakePhoto && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiPublisherEl && aiPublicationYearEl && aiTotalPagesEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -1391,6 +1403,9 @@
       if (hasAIUI) {
         aiBookTitleEl.disabled = disableBookScoped;
         aiAuthorEl.disabled = disableBookScoped;
+        aiPublisherEl.disabled = disableBookScoped;
+        aiPublicationYearEl.disabled = disableBookScoped;
+        aiTotalPagesEl.disabled = disableBookScoped;
         aiProgressTypeEl.disabled = disableBookScoped;
         aiProgressValueEl.disabled = disableBookScoped;
         aiNotesEl.disabled = disableBookScoped;
@@ -1448,6 +1463,24 @@
         publicationYear: normalizeOptionalPublicationYear(matchedBook.publication_year),
         totalPages: normalizeOptionalPositiveInt(matchedBook.total_pages),
       };
+    }
+    function getAIMetadataInputValues() {
+      if (!hasAIUI) return { publisher: '', publicationYear: null, totalPages: null };
+      return {
+        publisher: aiPublisherEl ? aiPublisherEl.value.trim() : '',
+        publicationYear: normalizeOptionalPublicationYear(aiPublicationYearEl && aiPublicationYearEl.value),
+        totalPages: normalizeOptionalPositiveInt(aiTotalPagesEl && aiTotalPagesEl.value),
+      };
+    }
+    function setAIMetadataInputValues(values) {
+      if (!hasAIUI) return;
+      const details = values && typeof values === 'object' ? values : {};
+      const publisher = details.publisher ? String(details.publisher).trim() : '';
+      const publicationYear = normalizeOptionalPublicationYear(details.publicationYear);
+      const totalPages = normalizeOptionalPositiveInt(details.totalPages);
+      aiPublisherEl.value = publisher;
+      aiPublicationYearEl.value = publicationYear ? String(publicationYear) : '';
+      aiTotalPagesEl.value = totalPages ? String(totalPages) : '';
     }
     function setLoadedBookDetails(topicId, details) {
       if (!topicId) return;
@@ -1562,6 +1595,68 @@
     }
     async function persistBookAuthor(userId, topicId, author) {
       return await persistBookDetails(userId, topicId, { author });
+    }
+    async function backfillBookMetadataIfMissing(userId, topicId, detailsHint) {
+      if (!userId || !topicId) return getBookMetadataForTopic(topicId);
+      const selectedBook = loadedBooks.find((book) => String(book && book.id) === String(topicId));
+      if (!selectedBook) return getBookMetadataForTopic(topicId);
+      const currentMetadata = getBookMetadataForTopic(topicId) || {};
+      const hasPublisher = !!(currentMetadata.publisher && String(currentMetadata.publisher).trim());
+      const hasPublicationYear = !!normalizeOptionalPublicationYear(currentMetadata.publicationYear);
+      const hasTotalPages = !!normalizeOptionalPositiveInt(currentMetadata.totalPages);
+      if (hasPublisher && hasPublicationYear && hasTotalPages) return currentMetadata;
+
+      const title = detailsHint && detailsHint.title ? String(detailsHint.title).trim() : String(selectedBook.name || '').trim();
+      const author = detailsHint && detailsHint.author ? String(detailsHint.author).trim() : String(selectedBook.author || '').trim();
+      if (!title || !author) return currentMetadata;
+
+      let lookupMetadata = null;
+      try {
+        lookupMetadata = await lookupBookMetadata({
+          title,
+          author,
+          publisherHint: currentMetadata.publisher || '',
+          yearHint: currentMetadata.publicationYear || null,
+        });
+      } catch (lookupErr) {
+        console.warn('Book metadata backfill lookup error:', lookupErr);
+        return currentMetadata;
+      }
+      if (!lookupMetadata) return currentMetadata;
+
+      const resolvedPublisher = currentMetadata.publisher || (lookupMetadata.publisher ? String(lookupMetadata.publisher).trim() : '');
+      const resolvedPublicationYear = normalizeOptionalPublicationYear(currentMetadata.publicationYear || lookupMetadata.publicationYear);
+      const resolvedTotalPages = normalizeOptionalPositiveInt(currentMetadata.totalPages || lookupMetadata.totalPages);
+      if (
+        resolvedPublisher === (currentMetadata.publisher || '') &&
+        resolvedPublicationYear === normalizeOptionalPublicationYear(currentMetadata.publicationYear) &&
+        resolvedTotalPages === normalizeOptionalPositiveInt(currentMetadata.totalPages)
+      ) {
+        return currentMetadata;
+      }
+
+      try {
+        await persistBookDetails(userId, topicId, {
+          name: title,
+          author,
+          publisher: resolvedPublisher,
+          publication_year: resolvedPublicationYear,
+          total_pages: resolvedTotalPages,
+        });
+      } catch (saveErr) {
+        console.warn('Book metadata backfill save error:', saveErr);
+        return currentMetadata;
+      }
+
+      const nextMetadata = getBookMetadataForTopic(topicId) || {
+        publisher: resolvedPublisher,
+        publicationYear: resolvedPublicationYear,
+        totalPages: resolvedTotalPages,
+      };
+      if (String(selectedBookId) === String(topicId)) {
+        setAIMetadataInputValues(nextMetadata);
+      }
+      return nextMetadata;
     }
     function writeCache(kind, userId, data, bookId) {
       if (!userId) return;
@@ -1868,6 +1963,9 @@
       const payload = {
         bookTitle: aiBookTitleEl.value.trim(),
         author: aiAuthorEl.value.trim(),
+        publisher: aiPublisherEl.value.trim(),
+        publicationYear: normalizeOptionalPublicationYear(aiPublicationYearEl.value),
+        totalPages: normalizeOptionalPositiveInt(aiTotalPagesEl.value),
         progressType: aiProgressTypeEl.value === 'page' ? 'page' : 'chapter',
         progressValue: aiProgressValueEl.value.trim(),
         strictSpoilerGuard: aiStrictSpoilerGuardEl.checked !== false,
@@ -1886,6 +1984,7 @@
       if (!currentUser || !selectedBookId) {
         aiBookTitleEl.value = '';
         aiAuthorEl.value = '';
+        setAIMetadataInputValues(null);
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
         aiStrictSpoilerGuardEl.checked = true;
@@ -1896,6 +1995,7 @@
       }
       const selectedBookName = getSelectedBookName();
       const defaultAuthor = getBookAuthorForSelectedTopic();
+      const selectedBookMetadata = getBookMetadataForTopic(selectedBookId) || {};
       const key = getAIFormStorageKey(currentUser.id, selectedBookId);
       if (!key) return;
       try {
@@ -1903,6 +2003,7 @@
         if (!raw) {
           aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
           aiAuthorEl.value = defaultAuthor;
+          setAIMetadataInputValues(selectedBookMetadata);
           aiProgressTypeEl.value = 'chapter';
           aiProgressValueEl.value = '';
           aiStrictSpoilerGuardEl.checked = true;
@@ -1914,6 +2015,12 @@
         const parsed = JSON.parse(raw);
         aiBookTitleEl.value = (parsed && parsed.bookTitle) ? String(parsed.bookTitle) : (selectedBookName === 'None' ? '' : selectedBookName);
         aiAuthorEl.value = (parsed && parsed.author) ? String(parsed.author) : defaultAuthor;
+        const aiMetadata = {
+          publisher: (parsed && parsed.publisher) ? String(parsed.publisher) : selectedBookMetadata.publisher,
+          publicationYear: (parsed && parsed.publicationYear) ? parsed.publicationYear : selectedBookMetadata.publicationYear,
+          totalPages: (parsed && parsed.totalPages) ? parsed.totalPages : selectedBookMetadata.totalPages,
+        };
+        setAIMetadataInputValues(aiMetadata);
         aiProgressTypeEl.value = (parsed && parsed.progressType === 'page') ? 'page' : 'chapter';
         aiProgressValueEl.value = (parsed && parsed.progressValue) ? String(parsed.progressValue) : '';
         aiStrictSpoilerGuardEl.checked = !(parsed && parsed.strictSpoilerGuard === false);
@@ -1923,6 +2030,7 @@
         setDevInfo('AI form load error: ' + (err && err.message ? err.message : String(err)), true);
         aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
         aiAuthorEl.value = defaultAuthor;
+        setAIMetadataInputValues(selectedBookMetadata);
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
         aiStrictSpoilerGuardEl.checked = true;
@@ -2139,10 +2247,72 @@
         setAIStatus('AI error: Progress value must be a positive number.');
         return;
       }
-      const selectedBookMetadata = getBookMetadataForTopic(selectedBookId) || {};
-      const totalPages = normalizeOptionalPositiveInt(selectedBookMetadata.totalPages);
-      const publicationYear = normalizeOptionalPublicationYear(selectedBookMetadata.publicationYear);
-      const publisher = selectedBookMetadata.publisher ? String(selectedBookMetadata.publisher).trim() : '';
+      let totalPages = null;
+      let publicationYear = null;
+      let publisher = '';
+      try {
+        const selectedBook = loadedBooks.find((book) => String(book && book.id) === String(selectedBookId));
+        const selectedBookName = selectedBook && selectedBook.name ? String(selectedBook.name).trim() : '';
+        const selectedBookAuthor = selectedBook && selectedBook.author ? String(selectedBook.author).trim() : '';
+        const selectedBookMetadata = getBookMetadataForTopic(selectedBookId) || {};
+        const selectedPublisher = selectedBookMetadata.publisher ? String(selectedBookMetadata.publisher).trim() : '';
+        const selectedPublicationYear = normalizeOptionalPublicationYear(selectedBookMetadata.publicationYear);
+        const selectedTotalPages = normalizeOptionalPositiveInt(selectedBookMetadata.totalPages);
+        const aiMetadataInput = getAIMetadataInputValues();
+        const aiPublisher = aiMetadataInput.publisher ? String(aiMetadataInput.publisher).trim() : '';
+        const aiPublicationYear = normalizeOptionalPublicationYear(aiMetadataInput.publicationYear);
+        const aiTotalPages = normalizeOptionalPositiveInt(aiMetadataInput.totalPages);
+        const mergedPublisher = aiPublisher || selectedPublisher;
+        const mergedPublicationYear = aiPublicationYear || selectedPublicationYear;
+        const mergedTotalPages = aiTotalPages || selectedTotalPages;
+        const shouldPersistBookDetails =
+          (!!selectedBook && (
+            (bookTitle && selectedBookName && bookTitle !== selectedBookName) ||
+            (author && author !== selectedBookAuthor) ||
+            (!!aiPublisher && aiPublisher !== selectedPublisher) ||
+            (!!aiPublicationYear && aiPublicationYear !== selectedPublicationYear) ||
+            (!!aiTotalPages && aiTotalPages !== selectedTotalPages)
+          ));
+        if (shouldPersistBookDetails) {
+          await persistBookDetails(user.id, selectedBookId, {
+            name: bookTitle,
+            author,
+            publisher: mergedPublisher || null,
+            publication_year: mergedPublicationYear || null,
+            total_pages: mergedTotalPages || null,
+          });
+        } else if (author !== getBookAuthorForTopic(user.id, selectedBookId)) {
+          await persistBookAuthor(user.id, selectedBookId, author);
+        }
+
+        let effectiveMetadata = getBookMetadataForTopic(selectedBookId) || {
+          publisher: mergedPublisher || '',
+          publicationYear: mergedPublicationYear || null,
+          totalPages: mergedTotalPages || null,
+        };
+        if (
+          !effectiveMetadata.publisher ||
+          !normalizeOptionalPublicationYear(effectiveMetadata.publicationYear) ||
+          !normalizeOptionalPositiveInt(effectiveMetadata.totalPages)
+        ) {
+          effectiveMetadata = await backfillBookMetadataIfMissing(user.id, selectedBookId, {
+            title: bookTitle,
+            author,
+          });
+        }
+
+        totalPages = normalizeOptionalPositiveInt(effectiveMetadata && effectiveMetadata.totalPages);
+        publicationYear = normalizeOptionalPublicationYear(effectiveMetadata && effectiveMetadata.publicationYear);
+        publisher = effectiveMetadata && effectiveMetadata.publisher ? String(effectiveMetadata.publisher).trim() : '';
+        setAIMetadataInputValues({
+          publisher,
+          publicationYear,
+          totalPages,
+        });
+      } catch (metadataErr) {
+        setAIStatus('AI error: ' + (metadataErr && metadataErr.message ? metadataErr.message : String(metadataErr)));
+        return;
+      }
       let wasProgressCapped = false;
       if (progressType === 'page' && totalPages && progressNumber > totalPages) {
         progressNumber = totalPages;
@@ -2204,9 +2374,6 @@
           hasGroundingNotes: !!combinedGroundingNotes,
           usedPageEvidence: !!pageEvidence,
         });
-        if (author !== getBookAuthorForTopic(user.id, selectedBookId)) {
-          await persistBookAuthor(user.id, selectedBookId, author);
-        }
         const requestBody = {
           bookTitle,
           author,
@@ -2710,6 +2877,18 @@
         renderTopics(loadedBooks);
         updateBookScopedLabels();
         loadAIFormValuesForSelectedBook();
+        backfillBookMetadataIfMissing(userId, selectedBookId, {
+          title: getSelectedBookName(),
+          author: getBookAuthorForTopic(userId, selectedBookId),
+        }).then((metadata) => {
+          if (!metadata) return;
+          renderTopics(loadedBooks);
+          updateBookScopedLabels();
+          setAIMetadataInputValues(metadata);
+          persistAIFormValues();
+        }).catch((err) => {
+          console.warn('Initial book metadata backfill error:', err);
+        });
         syncBookScopedControlState();
         if (metadataMigrationMissing) {
           setDevInfo('Books loaded. Run the topics metadata migration to enable publisher/year/pages validation.', true);
@@ -3662,7 +3841,7 @@
     btnAddCharacter.addEventListener('click', addCharacter);
     btnClearCharacterMap.addEventListener('click', clearCharacterMap);
     if (hasAIUI) {
-      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl, aiStrictSpoilerGuardEl];
+      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiPublisherEl, aiPublicationYearEl, aiTotalPagesEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl, aiStrictSpoilerGuardEl];
       aiInputElements.forEach((el) => {
         const eventName = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(eventName, () => {
@@ -3972,6 +4151,18 @@
             renderTopics(loadedBooks);
             updateBookScopedLabels();
             loadAIFormValuesForSelectedBook();
+            backfillBookMetadataIfMissing(currentUser.id, selectedBookId, {
+              title: getSelectedBookName(),
+              author: getBookAuthorForTopic(currentUser.id, selectedBookId),
+            }).then((metadata) => {
+              if (!metadata) return;
+              renderTopics(loadedBooks);
+              updateBookScopedLabels();
+              setAIMetadataInputValues(metadata);
+              persistAIFormValues();
+            }).catch((err) => {
+              console.warn('Selected book metadata backfill error:', err);
+            });
             syncBookScopedControlState();
             if (selectedBookId) {
               const cachedEntries = readCache('entries', currentUser.id, selectedBookId);
