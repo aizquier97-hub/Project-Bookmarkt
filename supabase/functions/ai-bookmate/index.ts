@@ -742,7 +742,8 @@ Rules:
         mergedDroppedNames = mergedDroppedNames.concat(bootstrapFiltered.droppedNames);
       }
 
-      if (!isCharacterBootstrap) {
+      // Reconcile pass is expensive; only run it when primary/fallback extraction returned too few additions.
+      if (!isCharacterBootstrap && mergedCharacters.length < 2) {
         const reconcileInstruction = `${sharedPrompt}
 
 Grounded summary context: ${summaryForGrounding || "(none)"}
