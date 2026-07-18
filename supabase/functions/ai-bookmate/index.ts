@@ -655,7 +655,8 @@ Rules:
 - Include spoiler-safe characters who are relevant in this boundary window and useful for the reader's character map.
 - If Existing character names is "(none)", bootstrap the character map with important spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber}, even if some were introduced before the current lower boundary.
 - Exclude any names listed in "Existing character names".
-- Use ONLY names explicitly present in Grounded reader context, Grounded summary context, or attached page evidence.
+- Prefer names explicitly present in Grounded reader context, Grounded summary context, or attached page evidence.
+- You may also include high-confidence core characters that are clearly introduced by this boundary, even if the grounded notes omitted their names.
 - Prefer adding at least one grounded character when the evidence clearly names someone in the boundary window.
 - If the grounded context is ambiguous or insufficient, return {"characters":[]}.
 - Never include markdown fences.
@@ -743,7 +744,7 @@ Rules:
       }
 
       // Reconcile pass is expensive; only run it when primary/fallback extraction returned too few additions.
-      if (!isCharacterBootstrap && mergedCharacters.length < 2) {
+      if (!isCharacterBootstrap && mergedCharacters.length < 4) {
         const reconcileInstruction = `${sharedPrompt}
 
 Grounded summary context: ${summaryForGrounding || "(none)"}

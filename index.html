@@ -890,43 +890,49 @@
     async function submitSpoilerReport() {
       const user = requireCurrentUser();
       if (!user) return;
-      if (!latestAISummaryContext || !latestAISummaryContext.summaryText) {
-        setAIStatus('No AI summary is available to report yet.');
-        return;
-      }
-      const reportReason = latestAISummaryContext.safety && latestAISummaryContext.safety.reason
-        ? latestAISummaryContext.safety.reason
-        : 'User reported potential spoiler content.';
-      if (spoilerReportsAvailable) {
-        const insertRes = await supabase.from('spoiler_reports').insert([{
-          user_id: user.id,
-          topic_id: selectedBookId || null,
-          audit_id: latestAISummaryContext.auditId || null,
-          boundary_label: latestAISummaryContext.rangeLabel || null,
-          summary_excerpt: String(latestAISummaryContext.summaryText || '').slice(0, 1500),
-          reason: reportReason,
-        }]);
-        if (insertRes.error) {
-          if (isMissingAnalyticsTableError(insertRes.error)) {
-            spoilerReportsAvailable = false;
-            if (!hasShownAnalyticsTableWarning) {
-              hasShownAnalyticsTableWarning = true;
-              setDevInfo('Spoiler report table is missing. Apply Supabase beta analytics migration to enable reporting.', true);
+      try {
+        if (!latestAISummaryContext || !latestAISummaryContext.summaryText) {
+          setAIStatus('No AI summary is available to report yet.');
+          return;
+        }
+        const reportReason = latestAISummaryContext.safety && latestAISummaryContext.safety.reason
+          ? latestAISummaryContext.safety.reason
+          : 'User reported potential spoiler content.';
+        if (spoilerReportsAvailable) {
+          const insertRes = await supabase.from('spoiler_reports').insert([{
+            user_id: user.id,
+            topic_id: selectedBookId || null,
+            audit_id: latestAISummaryContext.auditId || null,
+            boundary_label: latestAISummaryContext.rangeLabel || null,
+            summary_excerpt: String(latestAISummaryContext.summaryText || '').slice(0, 1500),
+            reason: reportReason,
+          }]);
+          if (insertRes.error) {
+            if (isMissingAnalyticsTableError(insertRes.error)) {
+              spoilerReportsAvailable = false;
+              if (!hasShownAnalyticsTableWarning) {
+                hasShownAnalyticsTableWarning = true;
+                setDevInfo('Spoiler report table is missing. Apply Supabase beta analytics migration to enable reporting.', true);
+              }
+            } else {
+              setAIStatus('Could not submit spoiler report.');
+              console.warn('Spoiler report insert error:', insertRes.error);
+              return;
             }
-          } else {
-            setAIStatus('Could not submit spoiler report.');
-            console.warn('Spoiler report insert error:', insertRes.error);
-            return;
           }
         }
+        await trackAnalyticsEvent('spoiler_report_submitted', {
+          boundary: latestAISummaryContext.rangeLabel || null,
+          riskLevel: latestAISummaryContext.safety ? latestAISummaryContext.safety.riskLevel : null,
+          confidence: latestAISummaryContext.safety ? latestAISummaryContext.safety.confidence : null,
+        });
+        btnReportSpoilerEl.style.display = 'none';
+        setAIStatus('Spoiler report submitted. Thank you.');
+      } catch (err) {
+        console.warn('Spoiler report error:', err);
+        setAIStatus('Could not submit spoiler report.');
+        setDevInfo('Spoiler report error: ' + (err && err.message ? err.message : String(err)), true);
       }
-      await trackAnalyticsEvent('spoiler_report_submitted', {
-        boundary: latestAISummaryContext.rangeLabel || null,
-        riskLevel: latestAISummaryContext.safety ? latestAISummaryContext.safety.riskLevel : null,
-        confidence: latestAISummaryContext.safety ? latestAISummaryContext.safety.confidence : null,
-      });
-      btnReportSpoilerEl.style.display = 'none';
-      setAIStatus('Spoiler report submitted. Thank you.');
     }
     async function openAIFeedbackModal(payload) {
       const user = requireCurrentUser();
@@ -980,39 +986,46 @@
             feedbackStatusEl.className = 'status-error';
             return;
           }
-
-          const insertRes = await supabase.from('ai_feedback_reports').insert([{
-            user_id: user.id,
-            topic_id: selectedBookId || null,
-            source_type: sourceType,
-            source_id: sourceId,
-            audit_id: auditId || null,
-            source_boundary: sourceBoundary || null,
-            source_text_excerpt: sourceTextExcerpt ? sourceTextExcerpt.slice(0, 2000) : null,
-            feedback_text: feedbackText,
-          }]);
-          if (insertRes.error) {
-            if (isMissingAIFeedbackTableError(insertRes.error)) {
-              aiFeedbackAvailable = false;
-              if (!hasShownFeedbackTableWarning) {
-                hasShownFeedbackTableWarning = true;
-                setDevInfo('AI feedback table is missing. Apply Supabase feedback migration to enable this tool.', true);
+          try {
+            const insertRes = await supabase.from('ai_feedback_reports').insert([{
+              user_id: user.id,
+              topic_id: selectedBookId || null,
+              source_type: sourceType,
+              source_id: sourceId,
+              audit_id: auditId || null,
+              source_boundary: sourceBoundary || null,
+              source_text_excerpt: sourceTextExcerpt ? sourceTextExcerpt.slice(0, 2000) : null,
+              feedback_text: feedbackText,
+            }]);
+            if (insertRes.error) {
+              if (isMissingAIFeedbackTableError(insertRes.error)) {
+                aiFeedbackAvailable = false;
+                if (!hasShownFeedbackTableWarning) {
+                  hasShownFeedbackTableWarning = true;
+                  setDevInfo('AI feedback table is missing. Apply Supabase feedback migration to enable this tool.', true);
+                }
               }
+              btnFeedbackSubmit.disabled = false;
+              feedbackStatusEl.textContent = `Could not submit feedback: ${insertRes.error.message}`;
+              feedbackStatusEl.className = 'status-error';
+              return;
             }
-            btnFeedbackSubmit.disabled = false;
-            feedbackStatusEl.textContent = `Could not submit feedback: ${insertRes.error.message}`;
-            feedbackStatusEl.className = 'status-error';
-            return;
-          }
 
-          await trackAnalyticsEvent('ai_feedback_submitted', {
-            sourceType,
-            hasBoundary: !!sourceBoundary,
-            hasAuditId: !!auditId,
-          });
-          btnFeedbackSubmit.disabled = false;
-          cleanup();
-          setAIStatus('Feedback submitted. Thank you.');
+            await trackAnalyticsEvent('ai_feedback_submitted', {
+              sourceType,
+              hasBoundary: !!sourceBoundary,
+              hasAuditId: !!auditId,
+            });
+            btnFeedbackSubmit.disabled = false;
+            cleanup();
+            setAIStatus('Feedback submitted. Thank you.');
+          } catch (err) {
+            btnFeedbackSubmit.disabled = false;
+            feedbackStatusEl.textContent = 'Could not submit feedback right now.';
+            feedbackStatusEl.className = 'status-error';
+            console.warn('Feedback submit error:', err);
+            setDevInfo('Feedback submit error: ' + (err && err.message ? err.message : String(err)), true);
+          }
         };
       });
     }
@@ -3900,7 +3913,13 @@
       });
       btnReportSpoilerEl.addEventListener('click', async () => {
         if (btnReportSpoilerEl.disabled) return;
-        await submitSpoilerReport();
+        try {
+          await submitSpoilerReport();
+        } catch (err) {
+          console.warn('Spoiler report handler error:', err);
+          setAIStatus('Could not submit spoiler report.');
+          setDevInfo('Spoiler report handler error: ' + (err && err.message ? err.message : String(err)), true);
+        }
       });
     }
     if (hasImageUI) {
@@ -3982,21 +4001,27 @@
       if (action === 'edit') await editEntry(entryId);
       if (action === 'delete') await deleteEntry(entryId);
       if (action === 'feedback') {
-        const user = requireCurrentUser();
-        if (!user) return;
-        const entry = loadedEntries.find((item) => String(item && item.id) === String(entryId));
-        if (!entry) return;
-        const firstLine = String(entry.text || '').split('\n')[0] || '';
-        const boundaryMatch = firstLine.match(/^\[AI Summary\s*-\s*(.+)\]$/i);
-        const auditId = await getAuditIdForSource(user, 'summary_entry', entry.id);
-        await openAIFeedbackModal({
-          sourceType: 'summary_entry',
-          sourceId: entry.id,
-          auditId,
-          sourceBoundary: boundaryMatch ? boundaryMatch[1] : null,
-          sourceTextExcerpt: String(entry.text || ''),
-          targetLabel: `Summary entry${boundaryMatch ? ` (${boundaryMatch[1]})` : ''}`,
-        });
+        try {
+          const user = requireCurrentUser();
+          if (!user) return;
+          const entry = loadedEntries.find((item) => String(item && item.id) === String(entryId));
+          if (!entry) return;
+          const firstLine = String(entry.text || '').split('\n')[0] || '';
+          const boundaryMatch = firstLine.match(/^\[AI Summary\s*-\s*(.+)\]$/i);
+          const auditId = await getAuditIdForSource(user, 'summary_entry', entry.id);
+          await openAIFeedbackModal({
+            sourceType: 'summary_entry',
+            sourceId: entry.id,
+            auditId,
+            sourceBoundary: boundaryMatch ? boundaryMatch[1] : null,
+            sourceTextExcerpt: String(entry.text || ''),
+            targetLabel: `Summary entry${boundaryMatch ? ` (${boundaryMatch[1]})` : ''}`,
+          });
+        } catch (err) {
+          console.warn('Summary feedback open error:', err);
+          setAIStatus('Could not open feedback form.');
+          setDevInfo('Summary feedback error: ' + (err && err.message ? err.message : String(err)), true);
+        }
       }
     });
     btnEntriesPrev.addEventListener('click', () => {
@@ -4025,19 +4050,25 @@
       if (action === 'edit') await editCharacter(characterId);
       if (action === 'delete') await deleteCharacter(characterId);
       if (action === 'feedback') {
-        const user = requireCurrentUser();
-        if (!user) return;
-        const character = loadedCharacters.find((item) => String(item && item.id) === String(characterId));
-        if (!character) return;
-        const auditId = await getAuditIdForSource(user, 'character', character.id);
-        await openAIFeedbackModal({
-          sourceType: 'character',
-          sourceId: character.id,
-          auditId,
-          sourceBoundary: null,
-          sourceTextExcerpt: `${character.name || ''}\n${character.description || ''}`.trim(),
-          targetLabel: `Character: ${character.name || 'Unnamed'}`,
-        });
+        try {
+          const user = requireCurrentUser();
+          if (!user) return;
+          const character = loadedCharacters.find((item) => String(item && item.id) === String(characterId));
+          if (!character) return;
+          const auditId = await getAuditIdForSource(user, 'character', character.id);
+          await openAIFeedbackModal({
+            sourceType: 'character',
+            sourceId: character.id,
+            auditId,
+            sourceBoundary: null,
+            sourceTextExcerpt: `${character.name || ''}\n${character.description || ''}`.trim(),
+            targetLabel: `Character: ${character.name || 'Unnamed'}`,
+          });
+        } catch (err) {
+          console.warn('Character feedback open error:', err);
+          setAIStatus('Could not open feedback form.');
+          setDevInfo('Character feedback error: ' + (err && err.message ? err.message : String(err)), true);
+        }
       }
     });
     characterSearchEl.addEventListener('input', () => {
