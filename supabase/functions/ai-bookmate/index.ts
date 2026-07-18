@@ -169,7 +169,7 @@ function normalizeSummaryPayload(
   }
 
   if (modelConfidence < 35) {
-    evaluatedConfidence -= 30;
+    evaluatedConfidence -= 12;
     evaluationReasons.push(`Model self-confidence was only ${modelConfidence}%.`);
   } else if (modelConfidence < 60) {
     evaluatedConfidence -= 15;
@@ -206,8 +206,7 @@ function normalizeSummaryPayload(
   const failedRules =
     modelRiskLevel === "high" ||
     !modelReportedSafe ||
-    modelConfidence < 35 ||
-    evaluatedConfidence < 50;
+    evaluatedConfidence < 45;
   const riskLevel: "low" | "medium" | "high" = failedRules
     ? (evaluatedConfidence < 40 || modelRiskLevel === "high" ? "high" : "medium")
     : "low";
@@ -540,7 +539,7 @@ Rules:
 - Do not restate plot points from before the lower boundary when a lower boundary is provided.
 - If grounded context is available, produce the safest concise summary supported by that context instead of refusing only because the full book text is unavailable.
 - When uncertainty is significant, keep the summary cautious, narrow, and mark spoilerSafety as unsafe/low confidence rather than returning a refusal message.
-- If there is no meaningful grounded context for the boundary window, set isSpoilerSafe=false, riskLevel=high, and explain why.
+- If there is no meaningful grounded context for the boundary window, still provide a careful boundary-limited best-effort summary and reflect uncertainty in spoilerSafety.
 - Never include markdown fences.`;
 
       const summaryRawText = await callGeminiText(geminiKey, summaryInstruction, {
@@ -582,7 +581,7 @@ Rules:
         };
       }
 
-      const filterCharacters = (items: CharacterItem[], requireExplicitNameGrounding: boolean) => {
+      const filterCharacters = (items: CharacterItem[]) => {
         const existingCharacterKeys = new Set(safeExistingCharacters.map((item) => normalizeKey(item)));
         const seenCharacterKeys = new Set<string>();
         const droppedNames: string[] = [];
@@ -593,10 +592,6 @@ Rules:
             return false;
           }
           if (existingCharacterKeys.has(key) || seenCharacterKeys.has(key)) {
-            droppedNames.push(item.name);
-            return false;
-          }
-          if (requireExplicitNameGrounding && !isCharacterNameGroundedInNotes(item.name, combinedGroundingText)) {
             droppedNames.push(item.name);
             return false;
           }
@@ -637,7 +632,7 @@ Rules:
         pageImage: safePageImage,
       });
       const parsedCharacters = normalizeCharacterPayload(charactersRawText);
-      const primaryFiltered = filterCharacters(parsedCharacters, !safePageImage);
+      const primaryFiltered = filterCharacters(parsedCharacters);
       if (primaryFiltered.characters.length || !allowSummaryFallback) {
         const characterGuardReason = primaryFiltered.characters.length
           ? null
@@ -681,7 +676,7 @@ Rules:
         responseMimeType: "application/json",
       });
       const fallbackParsedCharacters = normalizeCharacterPayload(fallbackRawText);
-      const fallbackFiltered = filterCharacters(fallbackParsedCharacters, false);
+      const fallbackFiltered = filterCharacters(fallbackParsedCharacters);
       const characterGuardReason = fallbackFiltered.characters.length
         ? null
         : "No spoiler-safe characters could be confirmed from the available summary context.";

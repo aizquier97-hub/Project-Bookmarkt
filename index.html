@@ -2071,9 +2071,8 @@
           if (persistedAuditId) {
             latestAISummaryContext.auditId = persistedAuditId;
           }
-          const hasGroundedCharacterEvidence = !!pageEvidence || combinedGroundingNotes.length >= 8;
           const insertedCharacterIds = [];
-          if (hasGroundedCharacterEvidence && uniqueCharacters.length) {
+          if (uniqueCharacters.length) {
             const characterRows = uniqueCharacters.map((item) => ({
               name: item.name,
               description: item.description,
