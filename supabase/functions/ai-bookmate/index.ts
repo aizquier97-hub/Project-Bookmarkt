@@ -561,7 +561,7 @@ Rules:
         .filter((value) => !!value)
         .join("\n\n")
         .trim();
-      if (combinedGroundingText.length < 20 && !safePageImage) {
+      if (combinedGroundingText.length < 8 && !safePageImage) {
         return {
           characters: [],
           characterGuardReason: "Characters were not generated because grounded context was too short. Add manual notes, upload/capture a page image, or retry after generating a stronger summary.",
@@ -588,9 +588,10 @@ Return ONLY strict JSON with this shape:
 }
 Rules:
 - Include 1 to 25 characters.
-- Include only characters newly introduced in the boundary window.
+- Include spoiler-safe characters who are relevant in this boundary window and useful for the reader's character map.
 - Exclude any names listed in "Existing character names".
 - Use ONLY names explicitly present in User notes, Grounded summary context, or attached page evidence.
+- Prefer adding at least one grounded character when the evidence clearly names someone in the boundary window.
 - If the grounded context is ambiguous or insufficient, return {"characters":[]}.
 - Never include markdown fences.
 - Never include spoilers beyond the boundary.`;

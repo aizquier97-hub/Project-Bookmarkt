@@ -1874,6 +1874,16 @@
         const spoilerBoundary = fullUpdateData.spoilerBoundary || '';
         const characterGuardReason = String(fullUpdateData.characterGuardReason || '').trim();
         const auditPayload = fullUpdateData && fullUpdateData.audit ? fullUpdateData.audit : null;
+        const normalizedCharacters = normalizeAICharacters(fullUpdateData.characters);
+        const knownCharacterNames = getExistingCharacterNameSet();
+        const uniqueCharacters = [];
+        for (let i = 0; i < normalizedCharacters.length; i += 1) {
+          const item = normalizedCharacters[i];
+          const key = normalizeTextKey(item && item.name);
+          if (!key || knownCharacterNames.has(key)) continue;
+          knownCharacterNames.add(key);
+          uniqueCharacters.push(item);
+        }
 
         if (spoilerBoundary) {
           aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${spoilerBoundary}`;
@@ -1897,30 +1907,54 @@
           if (persistedAuditId) {
             latestAISummaryContext.auditId = persistedAuditId;
           }
+          const hasGroundedCharacterEvidence = !!pageEvidence || combinedGroundingNotes.length >= 8;
+          const insertedCharacterIds = [];
+          if (hasGroundedCharacterEvidence && uniqueCharacters.length) {
+            const characterRows = uniqueCharacters.map((item) => ({
+              name: item.name,
+              description: item.description,
+              user_id: user.id,
+              topic_id: selectedBookId
+            }));
+            const charInsertRes = await supabase.from('characters').insert(characterRows).select('id');
+            if (charInsertRes.error) throw charInsertRes.error;
+            const insertedRows = Array.isArray(charInsertRes.data) ? charInsertRes.data : [];
+            for (let i = 0; i < insertedRows.length; i += 1) {
+              const rowId = insertedRows[i] && insertedRows[i].id ? insertedRows[i].id : null;
+              if (rowId !== null && rowId !== undefined) insertedCharacterIds.push(rowId);
+            }
+          }
+          await saveAIGeneratedArtifacts(user, persistedAuditId, null, insertedCharacterIds);
           latestAISummaryContext.blockedBySpoiler = true;
-          renderAIResultText(`Summary not auto-saved due to spoiler risk.\n\nReason: ${spoilerSafety.reason}\n\nRecommendation: ${spoilerSafety.recommendedAction}`);
-          setAIStatus('AI blocked auto-save to protect against spoilers. Add manual notes, take/upload a page image, or disable strict spoiler guard.');
+          const blockedTextParts = [
+            'Summary not auto-saved due to spoiler risk.',
+            `Reason: ${spoilerSafety.reason}`,
+            `Recommendation: ${spoilerSafety.recommendedAction}`,
+          ];
+          if (insertedCharacterIds.length) {
+            blockedTextParts.push(`Characters saved: ${insertedCharacterIds.length}`);
+          } else if (characterGuardReason) {
+            blockedTextParts.push(`Character guard: ${characterGuardReason}`);
+          }
+          renderAIResultText(blockedTextParts.join('\n\n'));
+          setAIStatus(insertedCharacterIds.length
+            ? `AI blocked summary auto-save, but saved ${insertedCharacterIds.length} character(s) to the Character Map.`
+            : 'AI blocked auto-save to protect against spoilers. Add manual notes, take/upload a page image, or disable strict spoiler guard.');
+          if (insertedCharacterIds.length) {
+            await loadCharacters(user.id, selectedBookId);
+          }
           await trackAnalyticsEvent('ai_update_blocked_spoiler_risk', {
             boundary: rangeLabel,
             riskLevel: spoilerSafety.riskLevel,
             confidence: spoilerSafety.confidence,
             strictSpoilerGuard: strictSpoilerGuardEnabled,
             usedPageEvidence: !!pageEvidence,
+            savedCharacters: insertedCharacterIds.length,
           });
           return;
         }
-        const normalizedCharacters = normalizeAICharacters(fullUpdateData.characters);
-        const knownCharacterNames = getExistingCharacterNameSet();
-        const uniqueCharacters = [];
         let summaryEntryId = null;
         const insertedCharacterIds = [];
-        for (let i = 0; i < normalizedCharacters.length; i += 1) {
-          const item = normalizedCharacters[i];
-          const key = normalizeTextKey(item && item.name);
-          if (!key || knownCharacterNames.has(key)) continue;
-          knownCharacterNames.add(key);
-          uniqueCharacters.push(item);
-        }
 
         if (summaryText) {
           const summaryEntryText = `[AI Summary - ${rangeLabel}]\n${summaryText}`;
