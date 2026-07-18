@@ -513,7 +513,7 @@ STRICT SPOILER RULES:
 Existing character names (must not be repeated): ${safeExistingCharacters.length ? safeExistingCharacters.join(", ") : "(none)"}
 Existing location titles (must not be repeated): ${safeExistingLocations.length ? safeExistingLocations.join(", ") : "(none)"}
 
-User notes: ${notes?.trim() || "(none)"}
+Grounded reader context: ${notes?.trim() || "(none)"}
 
 Attached page evidence: ${safePageImage ? "Present. Prefer concrete details visible in the page image over broad memory." : "None"}`;
 
@@ -534,8 +534,10 @@ Return ONLY strict JSON with this shape:
 }
 Rules:
 - Summary must describe only the boundary window.
+- You may rely on Grounded reader context and attached page evidence; direct access to the full book text is not required.
 - Do not restate plot points from before the lower boundary when a lower boundary is provided.
-- If uncertain, set isSpoilerSafe=false, riskLevel=high, and explain why.
+- If grounded context is available, produce the safest concise summary supported by that context instead of refusing only because the full book text is unavailable.
+- If there is no meaningful grounded context for the boundary window, set isSpoilerSafe=false, riskLevel=high, and explain why.
 - Never include markdown fences.`;
 
       const summaryRawText = await callGeminiText(geminiKey, summaryInstruction, {
@@ -615,7 +617,7 @@ Rules:
 - Include 1 to 25 characters.
 - Include spoiler-safe characters who are relevant in this boundary window and useful for the reader's character map.
 - Exclude any names listed in "Existing character names".
-- Use ONLY names explicitly present in User notes, Grounded summary context, or attached page evidence.
+- Use ONLY names explicitly present in Grounded reader context, Grounded summary context, or attached page evidence.
 - Prefer adding at least one grounded character when the evidence clearly names someone in the boundary window.
 - If the grounded context is ambiguous or insufficient, return {"characters":[]}.
 - Never include markdown fences.

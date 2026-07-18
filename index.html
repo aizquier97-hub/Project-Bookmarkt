@@ -1398,6 +1398,30 @@
       return { progressType, lower: null, upper: firstValue };
     }
 
+    function isLikelyAIRefusalText(text) {
+      const normalized = String(text || '').trim().toLowerCase();
+      if (!normalized) return false;
+      const refusalFragments = [
+        'i am unable to provide a summary',
+        'i cannot provide a summary',
+        'i do not have access to the specific textual content',
+        'without direct access to the text',
+        'cannot accurately identify plot points',
+        'cannot ensure strict adherence to the spoiler rules',
+        'because i do not have access to the specific textual content of the book'
+      ];
+      for (let i = 0; i < refusalFragments.length; i += 1) {
+        if (normalized.includes(refusalFragments[i])) return true;
+      }
+      return false;
+    }
+
+    function summarizeEntryForAIContext(rawText, label) {
+      const bodyText = String(rawText || '').split('\n').slice(1).join('\n').trim();
+      if (!bodyText || isLikelyAIRefusalText(bodyText)) return '';
+      return `${label}: ${bodyText.slice(0, 500)}`;
+    }
+
     function getLatestProgressBoundary(progressType) {
       const wantedType = normalizeProgressType(progressType);
       for (let i = 0; i < loadedEntries.length; i += 1) {
@@ -1407,6 +1431,29 @@
         return parsed;
       }
       return null;
+    }
+
+    function collectStoryStageContext(progressType, lowerBoundary) {
+      const wantedType = normalizeProgressType(progressType);
+      if (!Number.isFinite(lowerBoundary)) return '';
+      const chunks = [];
+      for (let i = 0; i < loadedEntries.length; i += 1) {
+        const rawText = String((loadedEntries[i] && loadedEntries[i].text) || '');
+        const parsed = parseProgressBoundaryFromEntryText(rawText);
+        if (!parsed || parsed.progressType !== wantedType) continue;
+        if (parsed.upper > lowerBoundary) continue;
+        const firstLine = rawText.split('\n')[0] || '';
+        const label = firstLine.startsWith('[AI Summary -')
+          ? `Previous AI summary (${firstLine.replace(/^\[AI Summary -\s*/i, '').replace(/\]$/, '')})`
+          : firstLine.startsWith('[Manual Entry -')
+            ? `Previous manual note (${firstLine.replace(/^\[Manual Entry -\s*/i, '').replace(/\]$/, '')})`
+            : 'Previous saved entry';
+        const summaryChunk = summarizeEntryForAIContext(rawText, label);
+        if (!summaryChunk) continue;
+        chunks.push(summaryChunk);
+        if (chunks.length >= 4) break;
+      }
+      return chunks.reverse().join('\n\n').trim();
     }
 
     function collectManualGroundingNotes(progressType, lowerBoundary, upperBoundary) {
@@ -1486,6 +1533,24 @@
         if (key) titles.add(key);
       }
       return titles;
+    }
+
+    function collectCharacterMapContext(limit) {
+      if (!Array.isArray(loadedCharacters) || !loadedCharacters.length) return '';
+      const maxItems = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 12;
+      const chunks = [];
+      for (let i = 0; i < loadedCharacters.length; i += 1) {
+        const item = loadedCharacters[i];
+        if (!item || !item.name) continue;
+        const details = parseCharacterDescription(item.description || '');
+        const parts = [String(item.name).trim()];
+        if (details.role) parts.push(`Role: ${details.role}`);
+        if (details.description) parts.push(`Description: ${details.description}`);
+        if (details.relationships) parts.push(`Relationships: ${details.relationships}`);
+        chunks.push(parts.join(' | '));
+        if (chunks.length >= maxItems) break;
+      }
+      return chunks.join('\n').trim();
     }
 
     function updateAISpoilerBoundaryLabel() {
@@ -1827,10 +1892,17 @@
       const rangeLabel = buildProgressRangeLabel(progressType, lowerBoundary, progressNumber);
       const strictSpoilerGuardEnabled = aiStrictSpoilerGuardEl.checked !== false;
       const manualGroundingNotes = collectManualGroundingNotes(progressType, lowerBoundary, progressNumber);
-      const combinedGroundingNotes = [notes, manualGroundingNotes]
+      const storyStageContext = collectStoryStageContext(progressType, lowerBoundary);
+      const characterMapContext = collectCharacterMapContext(12);
+      const combinedGroundingNotes = [
+        notes ? `Current user note:\n${notes}` : '',
+        manualGroundingNotes ? `Current boundary manual notes:\n${manualGroundingNotes}` : '',
+        storyStageContext ? `Previously saved story-stage context:\n${storyStageContext}` : '',
+        characterMapContext ? `Existing character map context (do not duplicate these names):\n${characterMapContext}` : ''
+      ]
         .filter((value) => !!String(value || '').trim())
         .join('\n\n')
-        .slice(0, 5000);
+        .slice(0, 7000);
       const generationAuditId = generateAuditId();
       const usePageEvidence = settings.usePageEvidence === true;
       let pageEvidence = null;
@@ -1893,6 +1965,17 @@
 
         const summaryText = String(fullUpdateData.summaryText || '').trim();
         const spoilerSafety = normalizeSpoilerSafety(fullUpdateData.spoilerSafety);
+        const summaryLooksUnavailable = isLikelyAIRefusalText(summaryText);
+        if (summaryLooksUnavailable) {
+          spoilerSafety.isSpoilerSafe = false;
+          spoilerSafety.riskLevel = 'high';
+          spoilerSafety.confidence = 0;
+          spoilerSafety.reason = [
+            'AI could not generate a grounded summary for this boundary window.',
+            spoilerSafety.reason || ''
+          ].filter(Boolean).join(' ');
+          spoilerSafety.recommendedAction = 'Add manual notes, saved story context, or page-specific image evidence before retrying.';
+        }
         latestAISummaryContext = {
           summaryText,
           rangeLabel,
@@ -1902,7 +1985,7 @@
           hasPageEvidence: !!pageEvidence,
         };
         renderAISafetyNotice(spoilerSafety, strictSpoilerGuardEnabled);
-        if (!spoilerSafety.isSpoilerSafe && strictSpoilerGuardEnabled) {
+        if ((!spoilerSafety.isSpoilerSafe || summaryLooksUnavailable) && strictSpoilerGuardEnabled) {
           const persistedAuditId = await saveAIGenerationAudit(user, auditPayload);
           if (persistedAuditId) {
             latestAISummaryContext.auditId = persistedAuditId;
@@ -1956,7 +2039,7 @@
         let summaryEntryId = null;
         const insertedCharacterIds = [];
 
-        if (summaryText) {
+        if (summaryText && !summaryLooksUnavailable) {
           const summaryEntryText = `[AI Summary - ${rangeLabel}]\n${summaryText}`;
           const entryInsertRes = await supabase.from('entries').insert([{
             text: summaryEntryText,
@@ -1989,7 +2072,11 @@
         }
 
         const aiTextParts = [];
-        if (summaryText) aiTextParts.push(`Summary saved to Entries.\n${summaryText}`);
+        if (summaryText && !summaryLooksUnavailable) {
+          aiTextParts.push(`Summary saved to Entries.\n${summaryText}`);
+        } else if (summaryLooksUnavailable) {
+          aiTextParts.push('Summary was not saved because the AI did not produce a grounded boundary-safe summary.');
+        }
         aiTextParts.push(`Characters saved: ${uniqueCharacters.length}`);
         if (characterGuardReason) {
           aiTextParts.push(`Character guard: ${characterGuardReason}`);
