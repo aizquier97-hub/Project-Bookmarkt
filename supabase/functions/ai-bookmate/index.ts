@@ -561,6 +561,7 @@ Rules:
         .filter((value) => !!value)
         .join("\n\n")
         .trim();
+      const allowSummaryFallback = !safePageImage && !notesForGrounding && summaryForGrounding.length >= 40;
       if (combinedGroundingText.length < 8 && !safePageImage) {
         return {
           characters: [],
@@ -569,6 +570,30 @@ Rules:
           droppedNames: [],
         };
       }
+
+      const filterCharacters = (items: CharacterItem[], requireExplicitNameGrounding: boolean) => {
+        const existingCharacterKeys = new Set(safeExistingCharacters.map((item) => normalizeKey(item)));
+        const seenCharacterKeys = new Set<string>();
+        const droppedNames: string[] = [];
+        const characters = items.filter((item) => {
+          const key = normalizeKey(item.name);
+          if (!key) {
+            droppedNames.push(item.name);
+            return false;
+          }
+          if (existingCharacterKeys.has(key) || seenCharacterKeys.has(key)) {
+            droppedNames.push(item.name);
+            return false;
+          }
+          if (requireExplicitNameGrounding && !isCharacterNameGroundedInNotes(item.name, combinedGroundingText)) {
+            droppedNames.push(item.name);
+            return false;
+          }
+          seenCharacterKeys.add(key);
+          return true;
+        });
+        return { characters, droppedNames };
+      };
 
       const characterInstruction = `${sharedPrompt}
 
@@ -601,33 +626,60 @@ Rules:
         pageImage: safePageImage,
       });
       const parsedCharacters = normalizeCharacterPayload(charactersRawText);
-      const existingCharacterKeys = new Set(safeExistingCharacters.map((item) => normalizeKey(item)));
-      const seenCharacterKeys = new Set<string>();
-      const droppedNames: string[] = [];
-      const characters = parsedCharacters
-        .filter((item) => {
-          const key = normalizeKey(item.name);
-          if (!key) {
-            droppedNames.push(item.name);
-            return false;
-          }
-          if (existingCharacterKeys.has(key) || seenCharacterKeys.has(key)) {
-            droppedNames.push(item.name);
-            return false;
-          }
-          if (!safePageImage && !isCharacterNameGroundedInNotes(item.name, combinedGroundingText)) {
-            droppedNames.push(item.name);
-            return false;
-          }
-          seenCharacterKeys.add(key);
-          return true;
-        });
-      const characterGuardReason = characters.length
+      const primaryFiltered = filterCharacters(parsedCharacters, !safePageImage);
+      if (primaryFiltered.characters.length || !allowSummaryFallback) {
+        const characterGuardReason = primaryFiltered.characters.length
+          ? null
+          : safePageImage
+            ? "No spoiler-safe characters could be confirmed from the available notes, summary context, or page evidence."
+            : "No grounded character names were found in the available notes or summary context.";
+        return {
+          characters: primaryFiltered.characters,
+          characterGuardReason,
+          rawText: charactersRawText,
+          droppedNames: primaryFiltered.droppedNames,
+        };
+      }
+
+      const fallbackInstruction = `${sharedPrompt}
+
+Grounded summary context: ${summaryForGrounding}
+
+Mode: characters
+Return ONLY strict JSON with this shape:
+{
+  "characters": [
+    {
+      "name": "character name",
+      "role": "spoiler-safe role up to boundary",
+      "description": "spoiler-safe description up to boundary",
+      "relationships": "spoiler-safe relationship notes up to boundary"
+    }
+  ]
+}
+Rules:
+- Include 1 to 10 spoiler-safe characters who are clearly active or relevant in this boundary window.
+- Exclude any names listed in "Existing character names".
+- You may recover a full character name from book context when the grounded summary clearly refers to that character, even if the exact full name is not repeated verbatim.
+- Prefer well-established or clearly evidenced characters over speculative minor figures.
+- If uncertain about a character's identity, omit that character.
+- Never include markdown fences.
+- Never include spoilers beyond the boundary.`;
+
+      const fallbackRawText = await callGeminiText(geminiKey, fallbackInstruction, {
+        responseMimeType: "application/json",
+      });
+      const fallbackParsedCharacters = normalizeCharacterPayload(fallbackRawText);
+      const fallbackFiltered = filterCharacters(fallbackParsedCharacters, false);
+      const characterGuardReason = fallbackFiltered.characters.length
         ? null
-        : safePageImage
-          ? "No spoiler-safe characters could be confirmed from the available notes, summary context, or page evidence."
-          : "No grounded character names were found in the available notes or summary context.";
-      return { characters, characterGuardReason, rawText: charactersRawText, droppedNames };
+        : "No spoiler-safe characters could be confirmed from the available summary context.";
+      return {
+        characters: fallbackFiltered.characters,
+        characterGuardReason,
+        rawText: `${charactersRawText}\n\n[FALLBACK]\n${fallbackRawText}`,
+        droppedNames: primaryFiltered.droppedNames.concat(fallbackFiltered.droppedNames),
+      };
     };
 
     const generateLocations = async () => {
