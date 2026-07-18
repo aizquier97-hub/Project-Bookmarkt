@@ -1551,25 +1551,33 @@
       if (publisherValue !== null) updatePayload.publisher = publisherValue || null;
       if (publicationYearValue !== undefined) updatePayload.publication_year = publicationYearValue || null;
       if (totalPagesValue !== undefined) updatePayload.total_pages = totalPagesValue || null;
-      const updateRes = await supabase
-        .from('topics')
-        .update(updatePayload)
-        .eq('id', topicId)
-        .eq('user_id', userId)
-        .select('id,name,author,publisher,publication_year,total_pages')
-        .single();
+      const updateRes = await withTimeout(
+        supabase
+          .from('topics')
+          .update(updatePayload)
+          .eq('id', topicId)
+          .eq('user_id', userId)
+          .select('id,name,author,publisher,publication_year,total_pages')
+          .single(),
+        12000,
+        'Saving book details timed out. Please check your connection and try again.'
+      );
       if (updateRes.error) {
         if (isMissingTopicsMetadataColumnError(updateRes.error) && (publisherValue !== null || publicationYearValue !== undefined || totalPagesValue !== undefined)) {
           const fallbackPayload = {};
           if (nameValue !== null) fallbackPayload.name = nameValue;
           fallbackPayload.author = authorValue;
-          const fallbackRes = await supabase
-            .from('topics')
-            .update(fallbackPayload)
-            .eq('id', topicId)
-            .eq('user_id', userId)
-            .select('id,name,author')
-            .single();
+          const fallbackRes = await withTimeout(
+            supabase
+              .from('topics')
+              .update(fallbackPayload)
+              .eq('id', topicId)
+              .eq('user_id', userId)
+              .select('id,name,author')
+              .single(),
+            12000,
+            'Saving book details timed out. Please check your connection and try again.'
+          );
           if (fallbackRes.error) {
             throw fallbackRes.error;
           }
@@ -2015,12 +2023,8 @@
         const parsed = JSON.parse(raw);
         aiBookTitleEl.value = (parsed && parsed.bookTitle) ? String(parsed.bookTitle) : (selectedBookName === 'None' ? '' : selectedBookName);
         aiAuthorEl.value = (parsed && parsed.author) ? String(parsed.author) : defaultAuthor;
-        const aiMetadata = {
-          publisher: (parsed && parsed.publisher) ? String(parsed.publisher) : selectedBookMetadata.publisher,
-          publicationYear: (parsed && parsed.publicationYear) ? parsed.publicationYear : selectedBookMetadata.publicationYear,
-          totalPages: (parsed && parsed.totalPages) ? parsed.totalPages : selectedBookMetadata.totalPages,
-        };
-        setAIMetadataInputValues(aiMetadata);
+        // Keep AI metadata aligned with saved book metadata to avoid conflicting values in the UI.
+        setAIMetadataInputValues(selectedBookMetadata);
         aiProgressTypeEl.value = (parsed && parsed.progressType === 'page') ? 'page' : 'chapter';
         aiProgressValueEl.value = (parsed && parsed.progressValue) ? String(parsed.progressValue) : '';
         aiStrictSpoilerGuardEl.checked = !(parsed && parsed.strictSpoilerGuard === false);
@@ -3310,6 +3314,11 @@
           if (String(selectedBookId) === String(bookId) && hasAIUI) {
             aiBookTitleEl.value = titleValue;
             aiAuthorEl.value = authorValue;
+            setAIMetadataInputValues({
+              publisher: publisherValue,
+              publicationYear: publicationYearValue,
+              totalPages: totalPagesValue,
+            });
             persistAIFormValues();
           }
           renderTopics(loadedBooks);
