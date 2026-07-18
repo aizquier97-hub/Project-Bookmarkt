@@ -177,20 +177,20 @@ function normalizeSummaryPayload(
   }
 
   if (!context.hasPageImage) {
-    evaluatedConfidence -= 10;
+    evaluatedConfidence -= 4;
     evaluationReasons.push("No page image evidence was provided.");
   }
 
   if (context.notesLength < 20) {
-    evaluatedConfidence -= 20;
+    evaluatedConfidence -= 8;
     evaluationReasons.push("Grounding notes were very short.");
   } else if (context.notesLength < 80) {
-    evaluatedConfidence -= 10;
+    evaluatedConfidence -= 4;
     evaluationReasons.push("Grounding notes were limited.");
   }
 
   if (!context.hasLowerBoundary) {
-    evaluatedConfidence -= 8;
+    evaluatedConfidence -= 5;
     evaluationReasons.push("No prior boundary existed, so the starting point was broad.");
   }
 
@@ -207,7 +207,7 @@ function normalizeSummaryPayload(
     modelRiskLevel === "high" ||
     !modelReportedSafe ||
     modelConfidence < 35 ||
-    evaluatedConfidence < 60;
+    evaluatedConfidence < 50;
   const riskLevel: "low" | "medium" | "high" = failedRules
     ? (evaluatedConfidence < 40 || modelRiskLevel === "high" ? "high" : "medium")
     : "low";
@@ -535,8 +535,10 @@ Return ONLY strict JSON with this shape:
 Rules:
 - Summary must describe only the boundary window.
 - You may rely on Grounded reader context and attached page evidence; direct access to the full book text is not required.
+- If Grounded reader context is limited, still provide the safest concise best-effort summary you can from boundary-aware book knowledge instead of refusing outright.
 - Do not restate plot points from before the lower boundary when a lower boundary is provided.
 - If grounded context is available, produce the safest concise summary supported by that context instead of refusing only because the full book text is unavailable.
+- When uncertainty is significant, keep the summary cautious, narrow, and mark spoilerSafety as unsafe/low confidence rather than returning a refusal message.
 - If there is no meaningful grounded context for the boundary window, set isSpoilerSafe=false, riskLevel=high, and explain why.
 - Never include markdown fences.`;
 

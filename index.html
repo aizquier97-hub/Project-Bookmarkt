@@ -264,6 +264,7 @@
           <div id="aiSafetyNotice" class="small muted" style="margin-top:8px;"></div>
           <div id="aiSpoilerActions" class="ai-spoiler-actions hidden">
             <button id="btnReviewBlockedSummary" type="button" class="small-btn ghost">Review blocked summary</button>
+            <button id="btnSaveBlockedSummary" type="button" class="small-btn">Save summary anyway</button>
             <button id="btnTakePagePhoto" type="button" class="small-btn ghost">Take page photo</button>
             <button id="btnUploadPageImage" type="button" class="small-btn ghost">Upload page image</button>
             <button id="btnRetryWithPageEvidence" type="button" class="small-btn ghost">Retry with page evidence</button>
@@ -554,6 +555,7 @@
     const aiSafetyNoticeEl = document.getElementById('aiSafetyNotice');
     const aiSpoilerActionsEl = document.getElementById('aiSpoilerActions');
     const btnReviewBlockedSummaryEl = document.getElementById('btnReviewBlockedSummary');
+    const btnSaveBlockedSummaryEl = document.getElementById('btnSaveBlockedSummary');
     const btnTakePagePhotoEl = document.getElementById('btnTakePagePhoto');
     const btnUploadPageImageEl = document.getElementById('btnUploadPageImage');
     const btnRetryWithPageEvidenceEl = document.getElementById('btnRetryWithPageEvidence');
@@ -581,7 +583,7 @@
     const btnFeedbackCancel = document.getElementById('btnFeedbackCancel');
     const feedbackStatusEl = document.getElementById('feedbackStatus');
     const hasImageUI = !!(bookImageDropzone && btnTakePhoto && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -1006,6 +1008,81 @@
         console.warn('AI artifact insert error:', insertRes.error);
       }
     }
+    async function saveBlockedSummaryAnyway() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!latestAISummaryContext || !latestAISummaryContext.blockedBySpoiler) {
+        setAIStatus('No blocked AI summary is available to save.');
+        return;
+      }
+      if (latestAISummaryContext.summaryLooksUnavailable) {
+        setAIStatus('This blocked result cannot be saved because the AI did not produce a usable summary preview.');
+        return;
+      }
+      const summaryText = String(latestAISummaryContext.summaryText || '').trim();
+      if (!summaryText) {
+        setAIStatus('No blocked summary text is available to save.');
+        return;
+      }
+      const rangeLabel = String(latestAISummaryContext.rangeLabel || '').trim();
+      const summaryEntryText = rangeLabel ? `[AI Summary - ${rangeLabel}]\n${summaryText}` : summaryText;
+      const currentCharacterNames = getExistingCharacterNameSet();
+      const pendingCharacters = Array.isArray(latestAISummaryContext.generatedCharacters)
+        ? latestAISummaryContext.generatedCharacters.filter((item) => {
+            const key = normalizeTextKey(item && item.name);
+            return key && !currentCharacterNames.has(key);
+          })
+        : [];
+      setBusyState(true, 'Saving blocked AI preview...');
+      try {
+        let savedSummaryEntryId = null;
+        if (!latestAISummaryContext.summarySaved) {
+          const entryInsertRes = await supabase.from('entries').insert([{
+            text: summaryEntryText,
+            user_id: user.id,
+            topic_id: selectedBookId
+          }]).select('id').single();
+          if (entryInsertRes.error) throw entryInsertRes.error;
+          savedSummaryEntryId = entryInsertRes.data && entryInsertRes.data.id ? entryInsertRes.data.id : null;
+        }
+        const insertedCharacterIds = [];
+        if (pendingCharacters.length) {
+          const characterRows = pendingCharacters.map((item) => ({
+            name: item.name,
+            description: item.description,
+            user_id: user.id,
+            topic_id: selectedBookId
+          }));
+          const charInsertRes = await supabase.from('characters').insert(characterRows).select('id');
+          if (charInsertRes.error) throw charInsertRes.error;
+          const insertedRows = Array.isArray(charInsertRes.data) ? charInsertRes.data : [];
+          for (let i = 0; i < insertedRows.length; i += 1) {
+            const rowId = insertedRows[i] && insertedRows[i].id ? insertedRows[i].id : null;
+            if (rowId !== null && rowId !== undefined) insertedCharacterIds.push(rowId);
+          }
+        }
+        await saveAIGeneratedArtifacts(user, latestAISummaryContext.auditId || null, savedSummaryEntryId, insertedCharacterIds);
+        latestAISummaryContext.summarySaved = true;
+        latestAISummaryContext.blockedBySpoiler = false;
+        await Promise.allSettled([
+          loadEntries(user.id, selectedBookId),
+          loadCharacters(user.id, selectedBookId)
+        ]);
+        setAIStatus('Blocked AI preview saved to Entries. Review carefully for spoilers.');
+        await trackAnalyticsEvent('ai_blocked_summary_saved_anyway', {
+          boundary: rangeLabel || null,
+          riskLevel: latestAISummaryContext.safety ? latestAISummaryContext.safety.riskLevel : null,
+          confidence: latestAISummaryContext.safety ? latestAISummaryContext.safety.confidence : null,
+          savedCharacters: insertedCharacterIds.length,
+        });
+        hideSpoilerBlockedActions();
+      } catch (err) {
+        setAIStatus('AI error: Could not save blocked summary preview.');
+        setDevInfo('Save blocked summary error: ' + (err && err.message ? err.message : String(err)), true);
+      } finally {
+        setBusyState(false);
+      }
+    }
     function setPendingImagesInfo(text) {
       if (!pendingImagesInfoEl) return;
       pendingImagesInfoEl.textContent = text;
@@ -1209,6 +1286,7 @@
         aiStrictSpoilerGuardEl.disabled = disableBookScoped;
         btnGenerateAI.disabled = disableBookScoped;
         btnReviewBlockedSummaryEl.disabled = disableBookScoped;
+        btnSaveBlockedSummaryEl.disabled = disableBookScoped;
         btnTakePagePhotoEl.disabled = disableBookScoped;
         btnUploadPageImageEl.disabled = disableBookScoped;
         btnRetryWithPageEvidenceEl.disabled = disableBookScoped;
@@ -1983,6 +2061,9 @@
           auditId: auditPayload && auditPayload.id ? String(auditPayload.id) : null,
           blockedBySpoiler: false,
           hasPageEvidence: !!pageEvidence,
+          generatedCharacters: uniqueCharacters,
+          summaryLooksUnavailable,
+          summarySaved: false,
         };
         renderAISafetyNotice(spoilerSafety, strictSpoilerGuardEnabled);
         if ((!spoilerSafety.isSpoilerSafe || summaryLooksUnavailable) && strictSpoilerGuardEnabled) {
@@ -2067,6 +2148,7 @@
         }
         const persistedAuditId = await saveAIGenerationAudit(user, auditPayload);
         await saveAIGeneratedArtifacts(user, persistedAuditId, summaryEntryId, insertedCharacterIds);
+        latestAISummaryContext.summarySaved = !!summaryEntryId;
         if (entryProgressValueEl) {
           entryProgressValueEl.value = String(progressNumber);
         }
@@ -3277,6 +3359,10 @@
         if (btnReviewBlockedSummaryEl.disabled) return;
         aiBlockedSummaryPreviewEl.classList.toggle('hidden');
         renderBlockedSummaryPreview();
+      });
+      btnSaveBlockedSummaryEl.addEventListener('click', async () => {
+        if (btnSaveBlockedSummaryEl.disabled) return;
+        await saveBlockedSummaryAnyway();
       });
       btnTakePagePhotoEl.addEventListener('click', async () => {
         if (btnTakePagePhotoEl.disabled) return;
