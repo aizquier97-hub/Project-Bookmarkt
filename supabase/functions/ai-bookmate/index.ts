@@ -582,9 +582,9 @@ Rules:
         };
       }
 
+      const existingCharacterKeys = new Set(safeExistingCharacters.map((item) => normalizeKey(item)));
+      const seenCharacterKeys = new Set<string>();
       const filterCharacters = (items: CharacterItem[]) => {
-        const existingCharacterKeys = new Set(safeExistingCharacters.map((item) => normalizeKey(item)));
-        const seenCharacterKeys = new Set<string>();
         const droppedNames: string[] = [];
         const characters = items.filter((item) => {
           const key = normalizeKey(item.name);
@@ -635,21 +635,12 @@ Rules:
       });
       const parsedCharacters = normalizeCharacterPayload(charactersRawText);
       const primaryFiltered = filterCharacters(parsedCharacters);
-      if (primaryFiltered.characters.length || !allowSummaryFallback) {
-        const characterGuardReason = primaryFiltered.characters.length
-          ? null
-          : safePageImage
-            ? "No spoiler-safe characters could be confirmed from the available notes, summary context, or page evidence."
-            : "No grounded character names were found in the available notes or summary context.";
-        return {
-          characters: primaryFiltered.characters,
-          characterGuardReason,
-          rawText: charactersRawText,
-          droppedNames: primaryFiltered.droppedNames,
-        };
-      }
+      let mergedCharacters = primaryFiltered.characters.slice();
+      let mergedDroppedNames = primaryFiltered.droppedNames.slice();
+      const rawTextParts = [charactersRawText];
 
-      const fallbackInstruction = `${sharedPrompt}
+      if (!mergedCharacters.length && allowSummaryFallback) {
+        const fallbackInstruction = `${sharedPrompt}
 
 Grounded summary context: ${summaryForGrounding}
 
@@ -675,12 +666,17 @@ Rules:
 - Never include markdown fences.
 - Never include spoilers beyond the boundary.`;
 
-      const fallbackRawText = await callGeminiText(geminiKey, fallbackInstruction, {
-        responseMimeType: "application/json",
-      });
-      const fallbackParsedCharacters = normalizeCharacterPayload(fallbackRawText);
-      const fallbackFiltered = filterCharacters(fallbackParsedCharacters);
-      if (isCharacterBootstrap && !fallbackFiltered.characters.length && !primaryFiltered.characters.length) {
+        const fallbackRawText = await callGeminiText(geminiKey, fallbackInstruction, {
+          responseMimeType: "application/json",
+        });
+        rawTextParts.push(`[FALLBACK]\n${fallbackRawText}`);
+        const fallbackParsedCharacters = normalizeCharacterPayload(fallbackRawText);
+        const fallbackFiltered = filterCharacters(fallbackParsedCharacters);
+        mergedCharacters = mergedCharacters.concat(fallbackFiltered.characters);
+        mergedDroppedNames = mergedDroppedNames.concat(fallbackFiltered.droppedNames);
+      }
+
+      if (isCharacterBootstrap && !mergedCharacters.length) {
         const bootstrapInstruction = `${sharedPrompt}
 
 Grounded summary context: ${summaryForGrounding || "(none)"}
@@ -707,28 +703,58 @@ Rules:
         const bootstrapRawText = await callGeminiText(geminiKey, bootstrapInstruction, {
           responseMimeType: "application/json",
         });
+        rawTextParts.push(`[BOOTSTRAP]\n${bootstrapRawText}`);
         const bootstrapParsedCharacters = normalizeCharacterPayload(bootstrapRawText);
         const bootstrapFiltered = filterCharacters(bootstrapParsedCharacters);
-        const bootstrapGuardReason = bootstrapFiltered.characters.length
-          ? null
-          : "No spoiler-safe characters could be confirmed for initial character map bootstrap.";
-        return {
-          characters: bootstrapFiltered.characters,
-          characterGuardReason: bootstrapGuardReason,
-          rawText: `${charactersRawText}\n\n[FALLBACK]\n${fallbackRawText}\n\n[BOOTSTRAP]\n${bootstrapRawText}`,
-          droppedNames: primaryFiltered.droppedNames
-            .concat(fallbackFiltered.droppedNames)
-            .concat(bootstrapFiltered.droppedNames),
-        };
+        mergedCharacters = mergedCharacters.concat(bootstrapFiltered.characters);
+        mergedDroppedNames = mergedDroppedNames.concat(bootstrapFiltered.droppedNames);
       }
-      const characterGuardReason = fallbackFiltered.characters.length
+
+      if (!isCharacterBootstrap) {
+        const reconcileInstruction = `${sharedPrompt}
+
+Grounded summary context: ${summaryForGrounding || "(none)"}
+
+Mode: characters
+Return ONLY strict JSON with this shape:
+{
+  "characters": [
+    {
+      "name": "character name",
+      "role": "spoiler-safe role up to boundary",
+      "description": "spoiler-safe description up to boundary",
+      "relationships": "spoiler-safe relationship notes up to boundary"
+    }
+  ]
+}
+Rules:
+- Existing character names are already saved in the map.
+- Add up to 6 spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber} that are likely missing from the current map.
+- Exclude any names listed in "Existing character names".
+- Prioritize important recurring characters that should be in the map by this reading stage.
+- Never include markdown fences.
+- Never include spoilers beyond the boundary.`;
+        const reconcileRawText = await callGeminiText(geminiKey, reconcileInstruction, {
+          responseMimeType: "application/json",
+          pageImage: safePageImage,
+        });
+        rawTextParts.push(`[RECONCILE]\n${reconcileRawText}`);
+        const reconcileParsedCharacters = normalizeCharacterPayload(reconcileRawText);
+        const reconcileFiltered = filterCharacters(reconcileParsedCharacters);
+        mergedCharacters = mergedCharacters.concat(reconcileFiltered.characters);
+        mergedDroppedNames = mergedDroppedNames.concat(reconcileFiltered.droppedNames);
+      }
+
+      const characterGuardReason = mergedCharacters.length
         ? null
-        : "No spoiler-safe characters could be confirmed from the available summary context.";
+        : safePageImage
+          ? "No spoiler-safe characters could be confirmed from the available notes, summary context, or page evidence."
+          : "No spoiler-safe characters could be confirmed for this boundary window.";
       return {
-        characters: fallbackFiltered.characters,
+        characters: mergedCharacters,
         characterGuardReason,
-        rawText: `${charactersRawText}\n\n[FALLBACK]\n${fallbackRawText}`,
-        droppedNames: primaryFiltered.droppedNames.concat(fallbackFiltered.droppedNames),
+        rawText: rawTextParts.join("\n\n"),
+        droppedNames: mergedDroppedNames,
       };
     };
 
