@@ -1,6 +1,30 @@
-# Project-Bookmarkt
-This is the project repository for all files related to project bookmarkt
+# Bookmarkt
+
+Bookmarkt modernizes the physical bookmark. A reader scans a QR code on the
+bookmark to open a secure reading companion where they can save reading progress,
+notes, AI-assisted summaries, character maps, book details, and images to an
+account that follows them across devices.
+
+The product remains QR-first and web-accessible while progressing toward
+subscription-based iOS and Android applications.
+
+## Product development
+
+Bookmarkt follows a mandatory nine-stage development process. Repository
+documentation is the durable source of truth; conversations and local task lists
+are supporting context.
+
+- [Authoritative product roadmap](docs/PRODUCT_ROADMAP.md)
+- [Stage-gate governance and approvals](docs/STAGE_GATES.md)
+- [Material product decision log](docs/DECISION_LOG.md)
+- [Gate review records](docs/gates/README.md)
 
 ## Operations
 
 - [Stage 1 operations, AI controls, monitoring, and recovery](docs/STAGE_1_OPERATIONS.md)
+
+## Current status
+
+Stage 1 stabilization is in its seven-day production observation window. The
+earliest exit review is August 23, 2026 after seven consecutive 24-hour periods,
+assuming no critical or high-severity defect occurs.

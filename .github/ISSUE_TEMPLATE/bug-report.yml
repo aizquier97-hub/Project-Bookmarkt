@@ -1,0 +1,100 @@
+name: Bug report
+description: Report a reproducible Bookmarkt defect and its gate impact.
+title: "[Bug] "
+body:
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Proposed severity
+      description: Use the definitions in docs/STAGE_GATES.md.
+      options:
+        - P0 - Critical
+        - P1 - High
+        - P2 - Medium
+        - P3 - Low
+        - Needs triage
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage affected
+      options:
+        - Stage 1 - Stabilization
+        - Stage 2 - Architecture rebuild
+        - Stage 3 - Polished UI/UX
+        - Stage 4 - Monetization and accounts
+        - Stage 5 - Native iOS/Android packaging
+        - Stage 6 - Compliance and launch operations
+        - Stage 7 - External beta
+        - Stage 8 - App-store and public launch
+        - Stage 9 - Operations and growth
+        - Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: State what failed and its user impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include production/preview, web/PWA/iOS/Android, device, OS, browser, and app version as applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Sign in...
+        2. Select...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: integrity
+    attributes:
+      label: Data, account, payment, or security impact
+      description: State whether data was exposed, lost, duplicated, assigned to another account, or billed incorrectly. Do not paste secrets or private user content.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Safe supporting evidence
+      description: Add redacted logs, screenshots, timestamps, or audit IDs. Never include passwords, tokens, or unnecessary reading content.
+
+  - type: checkboxes
+    id: stability
+    attributes:
+      label: Gate impact
+      options:
+        - label: I considered whether this blocks or resets an active stability gate.
+          required: true
+        - label: I removed secrets and unrelated personal data from this report.
+          required: true

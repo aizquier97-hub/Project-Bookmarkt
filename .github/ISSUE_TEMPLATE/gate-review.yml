@@ -1,0 +1,94 @@
+name: Stage gate review
+description: Request a formal Bookmarkt stage entry or exit decision.
+title: "[Gate][S#] "
+body:
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      options:
+        - Stage 1 - Stabilization
+        - Stage 2 - Architecture rebuild
+        - Stage 3 - Polished UI/UX
+        - Stage 4 - Monetization and accounts
+        - Stage 5 - Native iOS/Android packaging
+        - Stage 6 - Compliance and launch operations
+        - Stage 7 - External beta
+        - Stage 8 - App-store and public launch
+        - Stage 9 - Operations and growth
+    validations:
+      required: true
+
+  - type: dropdown
+    id: review
+    attributes:
+      label: Review type
+      options:
+        - Entry gate
+        - Exit gate
+        - Gate reopening
+    validations:
+      required: true
+
+  - type: input
+    id: record
+    attributes:
+      label: Repository gate record
+      description: Link the completed stage-specific file under docs/gates/.
+      placeholder: docs/gates/STAGE_2_REVIEW.md
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome that must be proven
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Criteria and evidence
+      description: Link issues, PRs, test results, device matrices, metrics, reviews, and operations documents.
+    validations:
+      required: true
+
+  - type: textarea
+    id: defects
+    attributes:
+      label: Open defects and residual risks
+      description: List severity, owner, mitigation, and disposition. State "None" when applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: deferrals
+    attributes:
+      label: Proposed deferrals or exceptions
+      description: Include destination gate, earlier trigger, owner, and accepted risk. State "None" when applicable.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: recommendation
+    attributes:
+      label: Requested decision
+      options:
+        - GO
+        - CONDITIONAL GO
+        - NO-GO
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: complete
+    attributes:
+      label: Review readiness
+      options:
+        - label: Mandatory roadmap criteria are addressed with evidence.
+          required: true
+        - label: P0/P1 defects and prohibited conditional-approval cases are resolved.
+          required: true
+        - label: The roadmap, gate register, and decision log updates are prepared.
+          required: true
