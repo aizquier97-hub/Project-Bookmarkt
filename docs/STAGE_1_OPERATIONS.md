@@ -17,6 +17,16 @@ Daily limits reset at 00:00 UTC:
 
 Quota consumption is atomic in `consume_ai_daily_quota`, so concurrent requests cannot bypass either limit. All attempts are recorded in `ai_usage_events` with mode, outcome, duration, HTTP status, provider status, and a bounded error message. This table and its RPC are service-role-only.
 
+### Prototype access versus launch entitlements
+
+Stage 1 authorizes AI using authentication and quota because subscriptions do not
+exist in the prototype. This is not the launch authorization model. Under
+Decision D-009, Stage 4 must add a server-authoritative active paid-tier and
+requested-feature check before quota consumption or provider access. The three
+permitted v1 AI features are text summary, character mapping, and image
+generation. Approved output must remain within user-owned RLS rows or private
+user-scoped Storage.
+
 ### Monitoring queries
 
 Run these in the Supabase SQL Editor.

@@ -20,6 +20,8 @@ State the result this gate must prove.
 - Physical QR and app/store-routing impact:
 - Temporary PWA or retirement impact:
 - Minimal web endpoint impact:
+- Paid tier and AI feature-entitlement impact:
+- Generated text/character/image storage impact:
 - Governing decision references:
 
 ## Criteria and evidence

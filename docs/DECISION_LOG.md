@@ -13,6 +13,7 @@ implementation choices may use separate Architecture Decision Records later.
 | D-006 | 2026-08-16 | Accepted | The Stage 1 stability window runs for seven consecutive 24-hour periods after all production-phone checks passed at 10:55 MDT (16:55 UTC). | Earliest Stage 1 exit review is August 23, 2026 at 10:55 MDT (16:55 UTC), assuming no P0/P1 defect. |
 | D-007 | 2026-08-16 | Superseded | Printed QR codes must use a Bookmarkt-controlled durable HTTPS destination with native deep-link behavior and web fallback. | Superseded by D-008. The durable destination remains, but its fallback routes mobile users to the correct app store rather than the reading PWA. |
 | D-008 | 2026-08-16 | Accepted | Bookmarkt v1 is a native iOS/Android product. A physical QR opens the installed app or routes an uninstalled mobile user to the Apple App Store/Google Play. The current PWA is a temporary prototype and is retired as a public reading product at Stage 8. | Stage 2 builds the native app core; Stage 5 completes app/store routing and native integration; Stage 8 launches the apps and retires the PWA. Minimal web infrastructure remains only for smart links, installation guidance, privacy, support, and account obligations. Supersedes D-003 and D-007. |
+| D-009 | 2026-08-16 | Accepted | Bookmarkt v1 limits AI to three paid capabilities: AI text summary, AI character mapping, and AI image generation. The backend must verify the authenticated user's active paid tier, requested feature entitlement, and quota before any provider call. | Free/inactive users retain manual features and receive an upgrade path. Paid tiers may contain different subsets of the three AI features. Approved output is stored only in user-owned RLS rows or private user-scoped Storage and synced to that account. Exact tier assignments and prices are decided in Stage 4. |
 
 ## D-008 scope clarification
 
@@ -27,6 +28,22 @@ implementation choices may use separate Architecture Decision Records later.
   durability require it.
 - Unsupported or desktop scans may show installation information, but no web
   reading application ships at v1.
+
+## D-009 scope clarification
+
+- Authentication and a remaining quota are necessary but not sufficient for AI
+  access; the active paid tier must also authorize the requested feature.
+- Entitlement denial occurs before quota consumption and before an external AI
+  provider is contacted.
+- A client-side hidden button or paywall is user experience only, not the
+  authorization boundary.
+- Manual notes, manual character-map maintenance, and personal image uploads
+  remain outside the paid-AI catalog unless a later material decision changes
+  them.
+- AI output is reviewable before save. Text and character artifacts use
+  user-owned RLS rows; generated images use private user-scoped Storage.
+- Adding another AI capability requires a material roadmap decision rather than
+  silently adding it to an existing tier.
 
 ## Decision status
 

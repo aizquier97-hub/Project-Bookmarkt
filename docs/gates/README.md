@@ -5,6 +5,12 @@ Every future gate must conform to Decision D-008: the launch reading product is
 native iOS/Android, the QR opens the app or correct platform store, and the PWA
 remains a temporary prototype until retirement.
 
+Stage 4 and later gates must also conform to Decision D-009: AI text summary, AI
+character mapping, and AI image generation are the only v1 AI capabilities;
+server-authoritative paid tier and feature authorization occurs before any
+provider call, and approved output is stored only under the user's security
+boundary.
+
 ## Records
 
 - [Stage 1 exit review](STAGE_1_REVIEW.md) - observation window active
