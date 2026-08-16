@@ -244,7 +244,7 @@
       <section id="aiAssistantSection" class="content-section section-ai">
         <h2 class="small">AI Assistant</h2>
         <div class="small" id="aiForBook"><strong>AI for book:</strong> None</div>
-        <div class="subtle-note">Run one full AI update to generate and save summary notes and characters for the new boundary window.</div>
+        <div class="subtle-note">Run one full AI update to generate a summary into the shared Entries text box and save character updates for the new boundary window.</div>
         <label>AI Book Title
           <input id="aiBookTitle" type="text" placeholder="Book title" />
         </label>
@@ -298,7 +298,6 @@
           <button id="btnReportSpoiler" type="button" class="small-btn ghost" style="display:none; margin-top:8px;">Report Spoiler Issue</button>
         </div>
         <div id="aiStatus" class="muted"></div>
-        <div id="aiResultText" class="small" style="margin-top:8px;"></div>
         <div id="aiGeneratedImages" class="ai-generated-grid"></div>
       </section>
 
@@ -307,6 +306,12 @@
       <section id="entriesSection" class="content-section section-entries">
         <h2 class="small">Entries</h2>
         <div class="small" id="entriesForBook"><strong>Entries for book:</strong> None</div>
+        <label>Entry Mode
+          <select id="entryMode">
+            <option value="manual" selected>Manual entry</option>
+            <option value="ai">AI summary</option>
+          </select>
+        </label>
         <label>Write your entry...
           <textarea id="entryText" rows="4" placeholder="Write your entry..."></textarea>
         </label>
@@ -562,6 +567,7 @@
     const entriesForBookEl = document.getElementById('entriesForBook');
 
     const entryTextEl = document.getElementById('entryText');
+    const entryModeEl = document.getElementById('entryMode');
     const entryProgressValueEl = document.getElementById('entryProgressValue');
     const entryProgressHintEl = document.getElementById('entryProgressHint');
     const btnAddEntry = document.getElementById('btnAddEntry');
@@ -599,7 +605,6 @@
     const btnGenerateAI = document.getElementById('btnGenerateAI');
     const aiSpoilerBoundaryEl = document.getElementById('aiSpoilerBoundary');
     const aiStatusEl = document.getElementById('aiStatus');
-    const aiResultTextEl = document.getElementById('aiResultText');
     const aiSafetyNoticeEl = document.getElementById('aiSafetyNotice');
     const aiSpoilerActionsEl = document.getElementById('aiSpoilerActions');
     const btnReviewBlockedSummaryEl = document.getElementById('btnReviewBlockedSummary');
@@ -631,7 +636,7 @@
     const btnFeedbackCancel = document.getElementById('btnFeedbackCancel');
     const feedbackStatusEl = document.getElementById('feedbackStatus');
     const hasImageUI = !!(bookImageDropzone && btnTakePhoto && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiPublisherEl && aiPublicationYearEl && aiTotalPagesEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiDetailLevelEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiPublisherEl && aiPublicationYearEl && aiTotalPagesEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiDetailLevelEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -1408,6 +1413,7 @@
       const hasSelectedBook = !!currentUser && !!selectedBookId;
       const disableBookScoped = !hasSelectedBook || isBusy;
       entryTextEl.disabled = disableBookScoped;
+      if (entryModeEl) entryModeEl.disabled = disableBookScoped;
       if (entryProgressValueEl) entryProgressValueEl.disabled = disableBookScoped;
       btnAddEntry.disabled = disableBookScoped;
       btnClearEntries.disabled = disableBookScoped;
@@ -1753,6 +1759,10 @@
       return Math.floor(parsed);
     }
 
+    function normalizeEntryMode(value) {
+      return value === 'ai' ? 'ai' : 'manual';
+    }
+
     function normalizeAIDetailLevel(value) {
       return value === 'low' || value === 'medium' || value === 'high' ? value : 'high';
     }
@@ -1972,16 +1982,28 @@
       syncBookScopedControlState();
     }
 
-    function renderAIResultText(text) {
-      if (!hasAIUI) return;
-      aiResultTextEl.textContent = text || '';
+    function updateEntryComposerUI() {
+      if (!entryModeEl || !entryTextEl || !btnAddEntry) return;
+      const mode = normalizeEntryMode(entryModeEl.value);
+      if (mode === 'ai') {
+        btnAddEntry.textContent = 'Save AI Summary';
+        entryTextEl.placeholder = 'AI summary text will appear here. You can edit it before saving.';
+      } else {
+        btnAddEntry.textContent = 'Add Entry';
+        entryTextEl.placeholder = 'Write your entry...';
+      }
+    }
+
+    function setEntryMode(mode) {
+      if (!entryModeEl) return;
+      entryModeEl.value = normalizeEntryMode(mode);
+      updateEntryComposerUI();
     }
 
     function resetAIResults() {
       if (!hasAIUI) return;
       aiGeneratedImagesCache = [];
       latestAISummaryContext = null;
-      renderAIResultText('');
       aiSafetyNoticeEl.textContent = '';
       aiSafetyNoticeEl.className = 'small muted';
       hideSpoilerBlockedActions();
@@ -2020,6 +2042,7 @@
         aiBookTitleEl.value = '';
         aiAuthorEl.value = '';
         setAIMetadataInputValues(null);
+        setEntryMode('manual');
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
         aiDetailLevelEl.value = 'high';
@@ -2397,9 +2420,8 @@
       if (wasProgressCapped && progressType === 'page') {
         setDevInfo(`Requested page ${requestedProgressNumber} exceeds configured total pages (${totalPages}). Using page ${progressNumber}.`, false);
       }
-      renderAIResultText('');
       renderAIGeneratedImages([]);
-      setAIStatus('Generating and saving full AI update...');
+      setAIStatus('Generating AI summary and character update...');
       setBusyState(true, 'Generating spoiler-safe summary notes and characters...');
       try {
         if (usePageEvidence) {
@@ -2504,17 +2526,6 @@
           }
           await saveAIGeneratedArtifacts(user, persistedAuditId, null, insertedCharacterIds);
           latestAISummaryContext.blockedBySpoiler = true;
-          const blockedTextParts = [
-            'Summary not auto-saved due to spoiler risk.',
-            `Reason: ${spoilerSafety.reason}`,
-            `Recommendation: ${spoilerSafety.recommendedAction}`,
-          ];
-          if (insertedCharacterIds.length) {
-            blockedTextParts.push(`Characters saved: ${insertedCharacterIds.length}`);
-          } else if (characterGuardReason) {
-            blockedTextParts.push(`Character guard: ${characterGuardReason}`);
-          }
-          renderAIResultText(blockedTextParts.join('\n\n'));
           setAIStatus(insertedCharacterIds.length
             ? `AI blocked summary auto-save, but saved ${insertedCharacterIds.length} character(s) to the Character Map.`
             : 'AI blocked auto-save to protect against spoilers. Add manual notes, take/upload a page image, or disable strict spoiler guard.');
@@ -2531,19 +2542,7 @@
           });
           return;
         }
-        let summaryEntryId = null;
         const insertedCharacterIds = [];
-
-        if (summaryText && !summaryLooksUnavailable) {
-          const summaryEntryText = `[AI Summary - ${rangeLabel}]\n${summaryText}`;
-          const entryInsertRes = await supabase.from('entries').insert([{
-            text: summaryEntryText,
-            user_id: user.id,
-            topic_id: selectedBookId
-          }]).select('id').single();
-          if (entryInsertRes.error) throw entryInsertRes.error;
-          summaryEntryId = entryInsertRes.data && entryInsertRes.data.id ? entryInsertRes.data.id : null;
-        }
 
         if (uniqueCharacters.length) {
           const characterRows = uniqueCharacters.map((item) => ({
@@ -2561,26 +2560,16 @@
           }
         }
         const persistedAuditId = await saveAIGenerationAudit(user, auditPayload);
-        await saveAIGeneratedArtifacts(user, persistedAuditId, summaryEntryId, insertedCharacterIds);
-        latestAISummaryContext.summarySaved = !!summaryEntryId;
+        await saveAIGeneratedArtifacts(user, persistedAuditId, null, insertedCharacterIds);
+        latestAISummaryContext.summarySaved = false;
         if (entryProgressValueEl) {
           entryProgressValueEl.value = String(progressNumber);
         }
 
-        const aiTextParts = [];
         if (summaryText && !summaryLooksUnavailable) {
-          aiTextParts.push(`Summary saved to Entries.\n${summaryText}`);
-        } else if (summaryLooksUnavailable) {
-          aiTextParts.push('Summary was not saved because the AI did not produce a grounded boundary-safe summary.');
+          entryTextEl.value = summaryText;
+          setEntryMode('ai');
         }
-        aiTextParts.push(`Characters saved: ${uniqueCharacters.length}`);
-        if (characterGuardReason) {
-          aiTextParts.push(`Character guard: ${characterGuardReason}`);
-        }
-        if (!spoilerSafety.isSpoilerSafe && !strictSpoilerGuardEnabled) {
-          aiTextParts.push(`Warning: Summary may contain spoilers (${spoilerSafety.riskLevel} risk). ${spoilerSafety.recommendedAction}`);
-        }
-        renderAIResultText(aiTextParts.join('\n\n'));
         renderAIGeneratedImages([]);
 
         entriesPage = 1;
@@ -2590,10 +2579,16 @@
           loadBookImages(user.id, selectedBookId)
         ]);
 
-        setAIStatus('Full AI update saved to Entries and Character Map.');
+        if (summaryText && !summaryLooksUnavailable) {
+          setAIStatus(`AI summary is ready in the shared entry box (AI Summary mode). Characters saved: ${uniqueCharacters.length}.`);
+        } else if (summaryLooksUnavailable) {
+          setAIStatus(`AI summary was unavailable. Characters saved: ${uniqueCharacters.length}.`);
+        } else {
+          setAIStatus(`AI summary completed. Characters saved: ${uniqueCharacters.length}.`);
+        }
         await trackAnalyticsEvent('ai_update_saved', {
           boundary: rangeLabel,
-          savedSummary: !!summaryText,
+          savedSummary: false,
           savedCharacters: uniqueCharacters.length,
           riskLevel: spoilerSafety.riskLevel,
           confidence: spoilerSafety.confidence,
@@ -3420,6 +3415,7 @@
       const user = requireCurrentUser();
       if (!user) return;
       if (!selectedBookId) return alert('Add and select a book first.');
+      const entryMode = normalizeEntryMode(entryModeEl && entryModeEl.value);
       const text = entryTextEl.value.trim();
       if (!text) return alert('Write something first');
       const pageValue = normalizeProgressNumber(entryProgressValueEl && entryProgressValueEl.value);
@@ -3437,8 +3433,9 @@
       const rangeLabel = Number.isFinite(lowerBoundary) && pageValue === lowerBoundary
         ? `page ${pageValue}`
         : buildProgressRangeLabel('page', lowerBoundary, pageValue);
+      const prefix = entryMode === 'ai' ? 'AI Summary' : 'Manual Entry';
       const payload = {
-        text: `[Manual Entry - ${rangeLabel}]\n${text}`,
+        text: `[${prefix} - ${rangeLabel}]\n${text}`,
         user_id: user.id,
         topic_id: selectedBookId
       };
@@ -3457,8 +3454,8 @@
         updateEntryProgressHint();
         entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
-        setDevInfo(`Entry added at ${rangeLabel}.`);
-        await trackAnalyticsEvent('manual_entry_added', {
+        setDevInfo(`${prefix} added at ${rangeLabel}.`);
+        await trackAnalyticsEvent(entryMode === 'ai' ? 'ai_summary_entry_saved' : 'manual_entry_added', {
           boundary: rangeLabel,
           progressValue: pageValue,
         });
@@ -4122,6 +4119,11 @@
         updateEntryProgressHint();
       });
     }
+    if (entryModeEl) {
+      entryModeEl.addEventListener('change', () => {
+        updateEntryComposerUI();
+      });
+    }
     if (editBookAuthorModalBackdrop) {
       editBookAuthorModalBackdrop.addEventListener('click', (event) => {
         if (event.target === editBookAuthorModalBackdrop && btnEditBookAuthorCancel) {
@@ -4319,6 +4321,7 @@
         // Attempt to fetch entries (will show errors in console if network/policies block)
         setSignedInState(null);
         if (hasAIUI) syncAIUpdateModeUI();
+        updateEntryComposerUI();
         updateBookScopedLabels();
         loadAIFormValuesForSelectedBook();
         setPendingImagesInfo('No image files selected.');
