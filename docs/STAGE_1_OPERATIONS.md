@@ -21,11 +21,16 @@ Quota consumption is atomic in `consume_ai_daily_quota`, so concurrent requests 
 
 Stage 1 authorizes AI using authentication and quota because subscriptions do not
 exist in the prototype. This is not the launch authorization model. Under
-Decision D-010, Stage 4 must add a server-authoritative active paid-tier and
-requested-feature check before quota consumption or provider access. The three
-fixed cumulative tiers are Base (AI Summary), Base+ (AI Summary and AI Character
-Mapping), and Ultimate (all Base+ features plus AI Image Generation). Approved
-output must remain within user-owned RLS rows or private user-scoped Storage.
+Decision D-011, Stage 4 must add a server-authoritative active paid-tier and
+complete selected-feature-set check before quota consumption or provider access.
+The three fixed cumulative tiers are Base (AI Summary), Base+ (AI Summary and AI
+Character Mapping), and Ultimate (all Base+ features plus AI Image Generation).
+Approved output must remain within user-owned RLS rows or private user-scoped
+Storage.
+Base+ and Ultimate must also support one generation session containing any
+non-empty subset permitted by the tier, with per-feature settings and one common
+reading boundary. The current prototype does not implement this multi-feature
+subscription workflow.
 
 ### Monitoring queries
 

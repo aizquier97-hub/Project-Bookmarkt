@@ -14,7 +14,8 @@ implementation choices may use separate Architecture Decision Records later.
 | D-007 | 2026-08-16 | Superseded | Printed QR codes must use a Bookmarkt-controlled durable HTTPS destination with native deep-link behavior and web fallback. | Superseded by D-008. The durable destination remains, but its fallback routes mobile users to the correct app store rather than the reading PWA. |
 | D-008 | 2026-08-16 | Accepted | Bookmarkt v1 is a native iOS/Android product. A physical QR opens the installed app or routes an uninstalled mobile user to the Apple App Store/Google Play. The current PWA is a temporary prototype and is retired as a public reading product at Stage 8. | Stage 2 builds the native app core; Stage 5 completes app/store routing and native integration; Stage 8 launches the apps and retires the PWA. Minimal web infrastructure remains only for smart links, installation guidance, privacy, support, and account obligations. Supersedes D-003 and D-007. |
 | D-009 | 2026-08-16 | Superseded | Bookmarkt v1 limits AI to three paid capabilities: AI text summary, AI character mapping, and AI image generation. The backend must verify the authenticated user's active paid tier, requested feature entitlement, and quota before any provider call. | Superseded by D-010, which preserves these controls and fixes the exact cumulative tier assignments. |
-| D-010 | 2026-08-16 | Accepted | Bookmarkt has three cumulative paid tiers: Base includes AI Summary only; Base+ includes AI Summary and AI Character Mapping; Ultimate includes all Base+ features plus AI Image Generation. When no paid subscription is active, the app displays all three tiers. A verified purchase enters the paid stream; no selection or a canceled/failed/abandoned purchase returns to manual entry. | The tier-feature matrix is fixed; Stage 4 sets prices, billing periods, offers, quotas, and billing implementation. The backend verifies identity, store purchase/active tier, requested feature, and quota before provider access. Approved output syncs only to the user's RLS rows/private Storage. Supersedes D-009. |
+| D-010 | 2026-08-16 | Superseded | Bookmarkt has three cumulative paid tiers: Base includes AI Summary only; Base+ includes AI Summary and AI Character Mapping; Ultimate includes all Base+ features plus AI Image Generation. When no paid subscription is active, the app displays all three tiers. A verified purchase enters the paid stream; no selection or a canceled/failed/abandoned purchase returns to manual entry. | Superseded by D-011, which preserves the fixed tier ladder and defines simultaneous multi-feature generation. |
+| D-011 | 2026-08-16 | Accepted | Paid tiers authorize feature sets in one generation session, not an either/or workflow. Base generates AI Summary. Base+ may generate Summary, Character Mapping, or both together. Ultimate may generate any one, any two, or all three entitled features together. The user controls amount/detail per selected feature within tier limits. | One user action creates one audited generation session with a common reading boundary. The backend atomically authorizes the entire selected set and reserves per-feature quotas before provider calls, then runs selected generators concurrently where safe. Results have independent status/review/retry and approved artifacts sync under the user's RLS/private Storage boundary. Supersedes D-010. |
 
 ## D-008 scope clarification
 
@@ -30,14 +31,25 @@ implementation choices may use separate Architecture Decision Records later.
 - Unsupported or desktop scans may show installation information, but no web
   reading application ships at v1.
 
-## D-010 scope clarification
+## D-011 scope clarification
 
-- Authentication and a remaining quota are necessary but not sufficient for AI
-  access; the verified active paid tier must also authorize the requested feature.
+- Authentication and remaining quotas are necessary but not sufficient for AI
+  access; the verified active paid tier must authorize the entire requested
+  feature set.
 - The feature ladder is cumulative and fixed:
   - Base: AI Summary.
   - Base+: AI Summary and AI Character Mapping.
   - Ultimate: AI Summary, AI Character Mapping, and AI Image Generation.
+- Feature selection is set-based:
+  - Base has one valid set: Summary.
+  - Base+ has three valid non-empty sets: Summary; Character Mapping; both.
+  - Ultimate has seven valid non-empty sets: each feature individually, each
+    two-feature combination, and all three.
+- "Together" means one user action and one generation session. Selected provider
+  work runs concurrently where technically safe. Internal sequencing is permitted
+  for a genuine dependency but must not require separate user workflows.
+- Every selected feature uses the same immutable reading boundary and has its own
+  amount/detail configuration, execution status, output, and approval state.
 - Pricing, billing periods, optional introductory offers/trials, and per-feature
   quotas remain Stage 4 implementation decisions.
 - Entitlement denial occurs before quota consumption and before an external AI
@@ -53,6 +65,9 @@ implementation choices may use separate Architecture Decision Records later.
   them.
 - AI output is reviewable before save. Text and character artifacts use
   user-owned RLS rows; generated images use private user-scoped Storage.
+- Entitlement and quota preflight covers the full selected feature set and is
+  all-or-none before provider calls. After execution begins, successful outputs
+  survive a sibling failure and only failed work may be retried idempotently.
 - Adding another AI capability requires a material roadmap decision rather than
   silently adding it to an existing tier.
 

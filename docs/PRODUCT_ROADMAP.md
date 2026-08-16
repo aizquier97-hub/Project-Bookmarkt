@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Roadmap version | 1.3 |
+| Roadmap version | 1.4 |
 | Status | Active |
 | Product owner | Bookmarkt product owner |
 | Current stage | Stage 1 - Stabilization |
@@ -44,12 +44,16 @@ A reader can:
 8. Choose among the fixed paid tiers: **Base** for AI Summary; **Base+** for AI
    Summary and AI Character Mapping; or **Ultimate** for all Base+ features plus
    AI Image Generation.
-9. Keep AI text, character, and image output constrained to their reading
-   boundary and save only the output they approve.
-10. Manually build and maintain book-specific character maps.
-11. Store book metadata and personal or entitled AI-generated images.
-12. Return from another supported phone and recover the same account data.
-13. Understand and control their subscription, privacy, data, and account.
+9. Select how many entitled features to generate in one session: Base generates
+   AI Summary; Base+ generates Summary, Character Mapping, or both together;
+   Ultimate generates any one feature, any two, or all three together.
+10. Configure the amount/detail of each selected output within the tier's limits.
+11. Keep every selected output constrained to one reading boundary and save only
+    the results they approve.
+12. Manually build and maintain book-specific character maps.
+13. Store book metadata and personal or entitled AI-generated images.
+14. Return from another supported phone and recover the same account data.
+15. Understand and control their subscription, privacy, data, and account.
 
 ## 3. Product principles
 
@@ -65,11 +69,15 @@ A reader can:
 - **Privacy by default.** Cross-account access is prohibited and verified, not
   merely assumed.
 - **Paid AI is server-authorized.** The backend checks the active subscription
-  tier and requested feature before any AI provider call. A client-side paywall
-  is never the security boundary.
+  tier and entire requested feature set before any AI provider call. A
+  client-side paywall is never the security boundary.
 - **Fixed cumulative paid-AI tiers.** Base includes AI Summary only; Base+
   includes AI Summary and AI Character Mapping; Ultimate includes every Base+
   feature plus AI Image Generation.
+- **Multi-feature generation.** Base+ may run AI Summary, AI Character Mapping,
+  or both in one generation session. Ultimate may run any one feature, any two,
+  or all three together. The user controls per-feature amount/detail within plan
+  limits.
 - **Spoiler-aware AI.** AI output respects the reader's recorded boundary and
   offers a clear reporting path.
 - **Human-reviewed AI feedback.** User reports inform evaluation and product
@@ -135,19 +143,22 @@ flowchart LR
     PV -->|Yes| W
     S -->|Yes| W[Load server-confirmed active tier]
     W --> X{Active paid tier}
-    X -->|Base| BA[AI Summary only]
-    X -->|Base+| BP{Choose Summary or Character Mapping}
-    X -->|Ultimate| UL{Choose Summary, Character Mapping, or Image Generation}
-    BA --> TS[Generate reading-bounded AI Summary]
-    BP -->|AI Summary| TS
-    BP -->|AI Character Mapping| CM[Generate reading-bounded Character Map]
-    UL -->|AI Summary| TS
-    UL -->|AI Character Mapping| CM
-    UL -->|AI Image Generation| IG[Generate reading-bounded AI Image]
-    TS --> RV[Review and save approved AI output]
-    CM --> RV
-    IG --> RV
-    RV --> ST[Store user records/private image object]
+    X -->|Base| BA[Select AI Summary]
+    X -->|Base+| BP[Select Summary, Character Mapping, or both]
+    X -->|Ultimate| UL[Select any one feature, any two, or all three]
+    BA --> CFG[Set amount/detail for each selected feature]
+    BP --> CFG
+    UL --> CFG
+    CFG --> PRE[Atomically authorize full set and reserve per-feature quota]
+    PRE --> OK{Authorization and reservation succeeded?}
+    OK -->|No| ADJ{Adjust request?}
+    ADJ -->|Yes| CFG
+    ADJ -->|No| Q
+    OK -->|Yes| JOB[Create one multi-feature generation session]
+    JOB --> RUN[Generate all selected outputs together/concurrently where safe]
+    RUN --> RES[Collect per-feature results and status]
+    RES --> RV[Review/save each or all approved outputs]
+    RV --> ST[Store user records/private image objects]
     R --> SY[Sync securely to account]
     ST --> SY
     SY --> END[Resume in the native app]
@@ -155,17 +166,24 @@ flowchart LR
 
 ### Paid tier feature matrix
 
-| Account state/tier | AI Summary | AI Character Mapping | AI Image Generation | AI-assist outcome |
+| Account state/tier | AI Summary | AI Character Mapping | AI Image Generation | Selection in one generation session |
 | --- | --- | --- | --- | --- |
 | No active paid subscription | Locked | Locked | Locked | Show all paid tiers; no purchase returns to manual entry |
-| Base | Included | Locked | Locked | Enter Base paid stream |
-| Base+ | Included | Included | Locked | Enter Base+ paid stream |
-| Ultimate | Included | Included | Included | Enter Ultimate paid stream |
+| Base | Included | Locked | Locked | AI Summary |
+| Base+ | Included | Included | Locked | Either feature individually or both together |
+| Ultimate | Included | Included | Included | Any one, any two, or all three together |
 
 The names and cumulative feature assignments are fixed. Stage 4 sets prices,
 billing periods, optional offers/trials, and per-feature quotas. Selecting a tier
 does not itself grant access: the store purchase and server entitlement must be
 verified first.
+
+"Together" means one user action creates one generation session for the selected
+feature set. The backend uses a common reading boundary and launches selected
+generators concurrently where technically safe. Internal sequencing is allowed
+when one output has a real dependency, but the user does not need separate
+workflows. Each feature reports its own result, failure, and retry state so one
+provider failure does not discard successful outputs.
 
 ## 6. Platform evolution
 
@@ -316,6 +334,13 @@ Supabase backend.
 - [ ] Model the fixed cumulative tier identifiers and feature grants:
       `base -> ai_summary`, `base_plus -> ai_summary + ai_character_mapping`,
       and `ultimate -> base_plus features + ai_image_generation`.
+- [ ] Define a multi-feature generation-session contract containing one user,
+      book, reading boundary, selected feature set, per-feature amount/detail
+      settings, entitlement snapshot, quota reservation, batch audit ID,
+      per-feature status, and resulting artifact IDs.
+- [ ] Authorize the complete selected feature set and reserve its per-feature
+      quotas atomically before starting any provider call. If preflight fails,
+      start none of the selected generators.
 - [ ] Define environment, secret, configuration, and deployment ownership.
 - [ ] Record architecture decisions in the decision log or dedicated ADRs.
 
@@ -345,6 +370,12 @@ Supabase backend.
 - [ ] Migrate manual character maps and character-detail controls.
 - [ ] Define bounded AI character-mapping and AI image-generation contracts,
       artifact metadata, approval state, and provider-independent interfaces.
+- [ ] Orchestrate every selected feature as one user-visible generation session,
+      launching provider work concurrently where technically safe and using the
+      same immutable reading boundary for every output.
+- [ ] Track per-feature pending/running/succeeded/failed/canceled status and allow
+      idempotent retry of only failed outputs without regenerating or charging for
+      successful outputs.
 - [ ] Store approved AI text/character output in user-owned RLS rows and
       AI-generated images in the user's private Storage folder.
 - [ ] Migrate private image upload, signing, display, edit, and deletion.
@@ -378,6 +409,10 @@ Supabase backend.
       images.
 - [ ] Add service tests proving denied AI requests do not reach any AI provider
       and approved artifacts cannot cross account boundaries.
+- [ ] Add orchestration tests for Base's one allowed selection, all three non-empty
+      Base+ selections, and all seven non-empty Ultimate selections.
+- [ ] Test mixed provider outcomes, cancellation, idempotent failed-feature retry,
+      atomic quota preflight, and coherent shared reading boundaries.
 - [ ] Add iOS and Android device automation for critical journeys.
 - [ ] Test smart-link platform detection and store-routing behavior.
 - [ ] Add explicit cross-account isolation tests against a safe test project.
@@ -405,6 +440,8 @@ Supabase backend.
 - Type-check, automated tests, and native builds pass in CI.
 - Auth restoration, cross-account isolation, private images, book switching, and
   AI generation pass automated and iOS/Android device tests.
+- Base+ multi-feature and Ultimate all-feature generation sessions pass
+  entitlement, shared-boundary, partial-failure, retry, and secure-sync tests.
 - Schema and configuration changes are reproducible from version control.
 - Native distribution/rollback, version compatibility, smart-link routing, and
   Storage-object recovery procedures are documented and exercised safely.
@@ -435,6 +472,14 @@ accessible iOS and Android reading product.
 - [ ] Display Base, Base+, and Ultimate when an AI-assisted action has no active
       paid subscription; a canceled/dismissed purchase returns to manual entry,
       while a verified purchase resumes the paid flow.
+- [ ] Use multi-select controls for entitled features: Base has Summary selected;
+      Base+ allows Summary, Character Mapping, or both; Ultimate allows any
+      non-empty subset of all three.
+- [ ] Let users set per-feature amount/detail before one Generate action (for
+      example summary detail, character-map coverage, and image quantity/style)
+      within limits finalized in Stage 4.
+- [ ] Show one generation-session progress view with per-feature states, results,
+      cancellation, review, save, and retry controls.
 - [ ] Establish Bookmarkt brand direction, typography, color, iconography,
       spacing, motion, and voice.
 - [ ] Create a reusable design system with documented component states.
@@ -490,6 +535,9 @@ support the cost of AI, storage, operations, and app-store distribution.
       - Base: AI Summary only.
       - Base+: AI Summary and AI Character Mapping.
       - Ultimate: AI Summary, AI Character Mapping, and AI Image Generation.
+- [ ] Implement set-based entitlements so Base+ authorizes Summary, Character
+      Mapping, or both in one request and Ultimate authorizes any one, any two, or
+      all three in one request.
 - [ ] Set pricing, billing periods, and introductory offers for the three fixed
       tiers. If a trial is offered, bind it to one named tier as a time-bound
       server-authorized entitlement.
@@ -505,13 +553,19 @@ support the cost of AI, storage, operations, and app-store distribution.
 - [ ] Implement idempotent signed webhooks and transaction reconciliation.
 - [ ] Map subscription entitlements to the three AI feature flags plus per-feature
       usage/cost quotas.
+- [ ] Define per-tier limits for output amount/detail and multi-feature sessions,
+      including how each selected feature consumes quota and how reservations are
+      reconciled after partial provider failures.
 - [ ] Require the Edge Function/backend to validate the authenticated user,
-      active paid tier, requested AI feature, and remaining quota before calling
-      an AI provider.
+      active paid tier, entire requested AI feature set, and all required
+      per-feature quotas before calling any AI provider.
 - [ ] Return a clear upgrade/locked-feature response without consuming quota or
       contacting an AI provider when authorization fails.
 - [ ] Audit entitlement decision, feature, tier, quota outcome, provider cost,
       latency, and generated artifact ID without logging unnecessary user content.
+- [ ] Record one parent generation-session audit plus child feature-attempt audits
+      so simultaneous work, partial success, retries, and total cost are
+      reconstructable.
 - [ ] Persist approved AI text/character artifacts under user-owned RLS and
       AI-generated images in private user-scoped Storage.
 - [ ] Implement plans, trials, purchase, restore purchase, upgrade, downgrade,
@@ -538,9 +592,14 @@ support the cost of AI, storage, operations, and app-store distribution.
   continue using manual reading features.
 - Base can invoke AI Summary and cannot invoke AI Character Mapping or AI Image
   Generation.
-- Base+ can invoke AI Summary and AI Character Mapping and cannot invoke AI Image
-  Generation.
-- Ultimate can invoke AI Summary, AI Character Mapping, and AI Image Generation.
+- Base+ can invoke AI Summary, AI Character Mapping, or both together and cannot
+  invoke AI Image Generation.
+- Ultimate can invoke any one, any two, or all three entitled features together.
+- Per-feature amount/detail controls respect the active tier and configured quota.
+- A multi-feature request uses one reading boundary and one parent audit/session.
+- Entitlement and quota preflight is all-or-none before provider access.
+- After execution begins, a feature-specific failure does not discard successful
+  sibling outputs; only failed work can be retried idempotently.
 - A user who declines, cancels, abandons, or fails purchase returns to manual
   entry without losing work.
 - A newly purchased tier enters the paid stream only after server-authoritative
@@ -730,7 +789,8 @@ and physical-QR journey with representative external users before public launch.
 - [ ] Distribute TestFlight and Google Play closed-test builds.
 - [ ] Test installed-app QR opening, uninstalled-app store routing, deferred QR
       context, signup, return login, account sync, books, manual entries, all
-      three entitled AI features, subscription gating, support, and deletion.
+      three entitled AI features individually and in permitted simultaneous
+      combinations, subscription gating, support, and deletion.
 - [ ] Test physical bookmark samples across phone models, lighting, wear, and QR
       distances.
 - [ ] Validate generic/unique bookmark replacement and transfer behavior if
@@ -745,6 +805,11 @@ and physical-QR journey with representative external users before public launch.
       provider.
 - [ ] Verify the exact Base/Base+/Ultimate feature matrix and the
       no-purchase-to-manual return path on iOS and Android.
+- [ ] Verify Base+ can generate both included features and Ultimate can generate
+      all three from one action, while users may select smaller subsets and tune
+      per-feature amount/detail.
+- [ ] Verify mixed success/failure, per-feature retry, quota reconciliation, shared
+      reading boundary, artifact review, and secure account sync.
 - [ ] Conduct load, abuse, quota, and cost-limit tests.
 - [ ] Confirm backups continue and rehearse a non-production restore.
 - [ ] Prioritize and fix beta findings through stage-linked issues and PRs.
@@ -760,6 +825,8 @@ These thresholds can change only through the roadmap decision process:
 - At least 95% successful completion of measured critical journeys.
 - No confirmed cross-account data exposure or unresolved entitlement mismatch.
 - No confirmed paid-AI entitlement bypass or cross-account generated artifact.
+- Multi-feature generation produces coherent same-boundary artifacts, retains
+  successful outputs on partial failure, and does not double-charge retries.
 - Actionable AI/spoiler reports are triaged within two business days.
 - Backup freshness, restore rehearsal, deletion, and support procedures pass.
 - Store-policy prechecks have no known launch blocker.
@@ -844,6 +911,8 @@ After Stage 8 launch, Stage 9 becomes the ongoing active product lifecycle.
       changes before release.
 - [ ] Monitor AI usage, denial rate, provider cost, quality, and safety separately
       for AI Summary, AI Character Mapping, and AI Image Generation by paid tier.
+- [ ] Monitor selected feature combinations, requested output amounts, batch
+      latency, partial-failure rate, retry rate, and cost per generation session.
 - [ ] Track activation, retention, conversion, churn, refunds, lifetime value,
       acquisition cost, and unit economics.
 - [ ] Improve onboarding, reading value, and subscription packaging through
@@ -925,6 +994,8 @@ documented exception is approved.
 | AI hallucination or spoilers | Reading boundaries, reports, audits, evaluation sets, human review |
 | AI or infrastructure cost overrun | Authenticated quotas, entitlements, budgets, alerts, unit economics |
 | Paid AI entitlement bypass | Server-side tier/feature authorization before quota use or provider calls |
+| Simultaneous generation creates cost spikes | Atomic per-feature quota reservation, tier limits, project budgets, and batch-cost monitoring |
+| Multi-feature outputs disagree or partially fail | Shared immutable reading boundary, parent/child audit records, per-feature status, review, and idempotent retry |
 | AI-generated image safety or rights issue | Provider review, prompt/output controls, moderation, reporting, private storage, legal review |
 | Database backup omits images | Independent Storage-object backup/export and restore procedure |
 | App-store billing rejection | Store-policy decision before billing implementation |
@@ -950,8 +1021,13 @@ Bookmarkt v1 is launch-ready only when:
 - Only an active paid tier can access AI features: Base receives AI Summary;
   Base+ receives AI Summary and AI Character Mapping; Ultimate receives all Base+
   features plus AI Image Generation.
+- Base+ can generate Summary, Character Mapping, or both in one session; Ultimate
+  can generate any one feature, any two, or all three in one session with
+  user-controlled per-feature amount/detail.
 - Denied AI requests never reach a provider, while approved AI artifacts are
   reviewed, saved, and synced only within the authenticated user's account.
+- Multi-feature sessions share one reading boundary, preserve successful outputs
+  on partial failure, and support idempotent retry of failed work.
 - Cross-account isolation and private-image access are verified.
 - Subscriptions and entitlements are accurate and restorable.
 - Privacy, account deletion/export, legal disclosures, and store declarations

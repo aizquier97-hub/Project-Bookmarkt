@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Governance version | 1.3 |
+| Governance version | 1.4 |
 | Status | Active |
 | Effective date | August 16, 2026 |
 | Final gate authority | Bookmarkt product owner |
@@ -83,7 +83,7 @@ flowchart LR
     application without an approved material roadmap decision superseding D-008.
 12. No gate may expose an AI provider call based only on client state,
     authentication, or quota. An active server-authoritative paid feature
-    entitlement is mandatory under D-010.
+    entitlement is mandatory under D-011.
 
 ### Launch-channel invariant
 
@@ -101,11 +101,21 @@ flowchart LR
 
 - The v1 feature ladder is fixed and cumulative: Base includes AI Summary; Base+
   adds AI Character Mapping; Ultimate adds AI Image Generation.
+- Base+ allows Summary, Character Mapping, or both in one generation session.
+  Ultimate allows any one feature, any two, or all three in one generation
+  session.
+- The user can configure amount/detail separately for every selected feature
+  within plan limits.
 - When no paid subscription is active, the app displays Base, Base+, and Ultimate.
 - A verified purchase enters the applicable paid stream. No selection or a
   canceled, abandoned, or failed purchase returns safely to manual entry.
-- The backend validates user identity, active paid tier, requested feature, and
-  quota before contacting an AI provider.
+- The backend validates user identity, active paid tier, entire requested feature
+  set, and every required per-feature quota before contacting an AI provider.
+- Entitlement/quota preflight is all-or-none. Authorized selected generators run
+  concurrently where technically safe using one immutable reading boundary and
+  one parent audit/session.
+- Each selected feature has an independent result, approval, failure, and
+  idempotent retry state; a partial failure does not erase successful siblings.
 - A denied request consumes no generation quota and incurs no provider cost.
 - Free/inactive users keep manual reading features and receive an upgrade path.
 - Saved AI text/character artifacts belong to user-owned RLS rows; AI-generated
@@ -258,7 +268,7 @@ for beta or launch.
 
 Stage 1 AI evidence validates authentication, quotas, and operational logging
 only. The prototype does not implement subscriptions, so it does not approve the
-launch paid-AI entitlement model required by D-010 and Stage 4.
+launch paid-AI entitlement model required by D-011 and Stage 4.
 
 ## 10. Change control
 
