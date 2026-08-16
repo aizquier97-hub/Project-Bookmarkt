@@ -4321,21 +4321,27 @@
       }
     });
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       const previousUserId = currentUser && currentUser.id ? String(currentUser.id) : null;
       currentUser = session ? session.user : null;
       const currentUserId = currentUser && currentUser.id ? String(currentUser.id) : null;
       setSignedInState(currentUser);
-      if (event === 'SIGNED_IN' && currentUser) {
-        setAuthStatus('Logged in as ' + currentUser.email);
-        await trackAnalyticsEvent('user_signed_in', {
-          sourceEvent: event,
-          isNewSessionUser: !!(currentUserId && currentUserId !== previousUserId),
-        });
-        // Avoid expensive full reloads when the same signed-in user is re-emitted on tab/window activity.
-        if (currentUserId && currentUserId !== previousUserId) {
-          await refreshAll(currentUser);
-        }
+      // IMPORTANT: never await supabase calls inside this callback. gotrue-js emits
+      // events while holding its internal auth lock; awaiting queries here deadlocks
+      // (queries call getSession -> same lock). Defer all work to after the lock is released.
+      const capturedUser = currentUser;
+      if (event === 'SIGNED_IN' && capturedUser) {
+        setAuthStatus('Logged in as ' + capturedUser.email);
+        setTimeout(() => {
+          trackAnalyticsEvent('user_signed_in', {
+            sourceEvent: event,
+            isNewSessionUser: !!(currentUserId && currentUserId !== previousUserId),
+          }).catch((err) => console.warn('signin analytics error', err));
+          // Avoid expensive full reloads when the same signed-in user is re-emitted on tab/window activity.
+          if (currentUserId && currentUserId !== previousUserId) {
+            refreshAll(capturedUser).catch((err) => console.error('refreshAll error', err));
+          }
+        }, 0);
         return;
       }
       if (event === 'SIGNED_OUT') {
@@ -4344,9 +4350,11 @@
         return;
       }
       if (event === 'INITIAL_SESSION') {
-        if (currentUser) {
-          setAuthStatus('Logged in as ' + currentUser.email);
-          await refreshAll(currentUser);
+        if (capturedUser) {
+          setAuthStatus('Logged in as ' + capturedUser.email);
+          setTimeout(() => {
+            refreshAll(capturedUser).catch((err) => console.error('refreshAll error', err));
+          }, 0);
         } else {
           setDevInfo('Not signed in');
           renderEmptyLists();
