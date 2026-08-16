@@ -58,6 +58,8 @@
     .ai-mode-result { margin-top:8px; color:#14532d; font-size:13px; }
     .subtle-note { margin-top:8px; color:#166534; font-size:12px; }
     .ai-controls { margin-top:10px; border:1px solid #bbf7d0; border-radius:8px; padding:10px; background:#ffffff; }
+    .ai-spoiler-actions { margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; }
+    .ai-blocked-preview { margin-top:10px; padding:10px; border:1px solid #fbbf24; border-radius:8px; background:#fffbeb; color:#78350f; white-space:pre-wrap; }
     .hidden-by-mode { display:none !important; }
     .ai-generated-grid { margin-top:10px; display:grid; grid-template-columns:1fr; gap:10px; }
     .ai-generated-card { border:1px solid #bbf7d0; border-radius:8px; padding:8px; background:#fff; }
@@ -132,6 +134,14 @@
       border-radius: 10px;
       box-shadow: 0 20px 40px rgba(0,0,0,0.2);
       padding: 16px;
+    }
+    .camera-video {
+      width: 100%;
+      background: #0f172a;
+      border-radius: 8px;
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+      margin-top: 6px;
     }
     .hidden { display: none !important; }
 
@@ -218,21 +228,45 @@
         <label>Author
           <input id="bookCreationAuthor" type="text" placeholder="Author name" />
         </label>
+        <label>Publisher (optional)
+          <input id="bookCreationPublisher" type="text" placeholder="e.g., Ace Books" />
+        </label>
+        <label>Publication year (optional)
+          <input id="bookCreationYear" type="number" min="1000" max="3000" step="1" placeholder="e.g., 1984" />
+        </label>
+        <label>Total pages (optional)
+          <input id="bookCreationPages" type="number" min="1" step="1" placeholder="e.g., 336" />
+        </label>
         <button id="btnAddTopic" type="button">Add Book</button>
         <div id="topicsList" class="list"></div>
       </section>
 
       <section id="aiAssistantSection" class="content-section section-ai">
-        <h2 class="small">AI Assistant</h2>
-        <div class="small" id="aiForBook"><strong>AI for book:</strong> None</div>
-        <div class="subtle-note">Run one full AI update to generate and save summary notes and characters for the new boundary window.</div>
-        <label>AI Book Title
+        <h2 class="small">Book Progress</h2>
+        <div class="small" id="aiForBook"><strong>Book progress for:</strong> None</div>
+        <div class="subtle-note">Track progress here. Use Manual mode to save your own note, or AI mode to generate summary + character updates.</div>
+        <label>Book Title
           <input id="aiBookTitle" type="text" placeholder="Book title" />
         </label>
-        <label>AI Author
+        <label>Author
           <input id="aiAuthor" type="text" placeholder="Author name" />
         </label>
+        <label>Publisher (optional)
+          <input id="aiPublisher" type="text" placeholder="e.g., Ace Books" />
+        </label>
+        <label>Publication year (optional)
+          <input id="aiPublicationYear" type="number" min="1000" max="3000" step="1" placeholder="e.g., 1984" />
+        </label>
+        <label>Total pages (optional)
+          <input id="aiTotalPages" type="number" min="1" step="1" placeholder="e.g., 336" />
+        </label>
         <div id="aiControls" class="ai-controls">
+          <label>Entry Mode
+            <select id="aiEntryMode">
+              <option value="manual" selected>Manual entry</option>
+              <option value="ai">AI summary</option>
+            </select>
+          </label>
           <label>Progress Type
             <select id="aiProgressType">
               <option value="chapter">Chapter</option>
@@ -242,14 +276,42 @@
           <label>Progress Value
             <input id="aiProgressValue" type="number" min="1" step="1" placeholder="e.g., 12" />
           </label>
-          <label>Optional Notes
+          <label>Summary Detail
+            <select id="aiDetailLevel">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high" selected>High</option>
+            </select>
+          </label>
+          <label>Character Detail
+            <select id="aiCharacterDetailLevel">
+              <option value="low">Low (main characters only)</option>
+              <option value="medium" selected>Medium (important characters)</option>
+              <option value="high">High (include all relevant characters)</option>
+            </select>
+          </label>
+          <label id="aiNotesLabel"><span id="aiNotesLabelText">Optional Notes</span>
             <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
           </label>
+          <label class="row" style="align-items:center; gap:8px;">
+            <input id="aiStrictSpoilerGuard" type="checkbox" checked />
+            <span>Strict spoiler guard (recommended)</span>
+          </label>
           <div id="aiSpoilerBoundary" class="ai-mode-result">Spoiler-safe up to Chapter —</div>
+          <div id="entryProgressHint" class="muted">Set the current page to track your reading boundary.</div>
           <button id="btnGenerateAI" type="button">Generate Summary + Characters</button>
+          <div id="aiSafetyNotice" class="small muted" style="margin-top:8px;"></div>
+          <div id="aiSpoilerActions" class="ai-spoiler-actions hidden">
+            <button id="btnReviewBlockedSummary" type="button" class="small-btn ghost">Review blocked summary</button>
+            <button id="btnSaveBlockedSummary" type="button" class="small-btn">Save summary anyway</button>
+            <button id="btnTakePagePhoto" type="button" class="small-btn ghost">Take page photo</button>
+            <button id="btnUploadPageImage" type="button" class="small-btn ghost">Upload page image</button>
+            <button id="btnRetryWithPageEvidence" type="button" class="small-btn ghost">Retry with page evidence</button>
+          </div>
+          <div id="aiBlockedSummaryPreview" class="ai-blocked-preview hidden"></div>
+          <button id="btnReportSpoiler" type="button" class="small-btn ghost" style="display:none; margin-top:8px;">Report Spoiler Issue</button>
         </div>
         <div id="aiStatus" class="muted"></div>
-        <div id="aiResultText" class="small" style="margin-top:8px;"></div>
         <div id="aiGeneratedImages" class="ai-generated-grid"></div>
       </section>
 
@@ -258,15 +320,7 @@
       <section id="entriesSection" class="content-section section-entries">
         <h2 class="small">Entries</h2>
         <div class="small" id="entriesForBook"><strong>Entries for book:</strong> None</div>
-        <label>Write your entry...
-          <textarea id="entryText" rows="4" placeholder="Write your entry..."></textarea>
-        </label>
-        <label>Current page
-          <input id="entryProgressValue" type="number" min="1" step="1" placeholder="e.g., 100" />
-        </label>
-        <div id="entryProgressHint" class="muted">Set the current page to track your reading boundary.</div>
         <div class="row">
-          <button id="btnAddEntry">Add Entry</button>
           <button id="btnClearEntries" class="danger">Clear Entries</button>
         </div>
         <div id="entriesList" class="list"></div>
@@ -313,7 +367,8 @@
         </label>
         <div id="bookImageDropzone" class="image-dropzone">
           <div><strong>Drag and drop images here</strong></div>
-          <div class="muted" style="margin-top:4px;">or choose files manually</div>
+          <div class="muted" style="margin-top:4px;">or capture directly from your camera</div>
+          <button id="btnTakePhoto" class="ghost" type="button">Take Photo</button>
           <button id="btnPickImages" class="ghost" type="button">Choose Images</button>
           <button id="btnUploadImages" type="button">Upload/Save Images</button>
           <input id="bookImageInput" type="file" accept="image/*" multiple class="hidden" />
@@ -371,12 +426,24 @@
     </div>
   </div>
 
-  <!-- Edit Book Author Modal -->
+  <!-- Edit Book Details Modal -->
   <div id="editBookAuthorModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editBookAuthorTitle">
-      <h2 id="editBookAuthorTitle" style="font-size:18px; margin:0 0 12px 0; font-weight:700;">Edit Author</h2>
+      <h2 id="editBookAuthorTitle" style="font-size:18px; margin:0 0 12px 0; font-weight:700;">Edit Book Details</h2>
+      <label>Book title
+        <input id="editBookTitleInput" type="text" placeholder="Book title" />
+      </label>
       <label>Author name
         <input id="editBookAuthorInput" type="text" placeholder="Author name" />
+      </label>
+      <label>Publisher (optional)
+        <input id="editBookPublisherInput" type="text" placeholder="Publisher" />
+      </label>
+      <label>Publication year (optional)
+        <input id="editBookYearInput" type="number" min="1000" max="3000" step="1" placeholder="e.g., 1984" />
+      </label>
+      <label>Total pages (optional)
+        <input id="editBookPagesInput" type="number" min="1" step="1" placeholder="e.g., 336" />
       </label>
       <div class="row" style="margin-top:12px;">
         <button id="btnEditBookAuthorConfirm">Save changes</button>
@@ -406,6 +473,33 @@
     </div>
   </div>
 
+  <div id="cameraCaptureModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cameraCaptureTitle">
+      <h2 id="cameraCaptureTitle" style="font-size:18px; margin:0 0 10px 0; font-weight:700;">Take Photo</h2>
+      <video id="cameraPreview" class="camera-video" autoplay playsinline muted></video>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnCapturePhoto" type="button">Capture</button>
+        <button id="btnCloseCamera" type="button" class="secondary">Cancel</button>
+      </div>
+      <div id="cameraStatus" class="muted"></div>
+    </div>
+  </div>
+
+  <div id="feedbackModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+      <h2 id="feedbackTitle" style="font-size:18px; margin:0 0 10px 0; font-weight:700;">Report AI Issue</h2>
+      <div id="feedbackTarget" class="small muted"></div>
+      <label>What was wrong?
+        <textarea id="feedbackText" rows="4" placeholder="Example: Character name is incorrect, summary includes wrong event, missing context..."></textarea>
+      </label>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnFeedbackSubmit" type="button">Submit feedback</button>
+        <button id="btnFeedbackCancel" type="button" class="secondary">Cancel</button>
+      </div>
+      <div id="feedbackStatus" class="muted"></div>
+    </div>
+  </div>
+
   <!-- IMPORTANT: ensure this file points to your local UMD bundle -->
   <script src="./supabase.js"></script>
 
@@ -418,9 +512,9 @@
     // ==============================
 
     // Create the client (UMD bundle exposes window.supabase)
-    // persistSession: false means every page load requires manual login
+    // Keep sessions persisted so refresh-token recovery works across reloads/sleeps.
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false }
+      auth: { persistSession: true }
     });
 
     // DOM refs
@@ -447,7 +541,11 @@
     const btnEditCharCancel = document.getElementById('btnEditCharCancel');
     const editCharStatusEl = document.getElementById('editCharStatus');
     const editBookAuthorModalBackdrop = document.getElementById('editBookAuthorModalBackdrop');
+    const editBookTitleInputEl = document.getElementById('editBookTitleInput');
     const editBookAuthorInputEl = document.getElementById('editBookAuthorInput');
+    const editBookPublisherInputEl = document.getElementById('editBookPublisherInput');
+    const editBookYearInputEl = document.getElementById('editBookYearInput');
+    const editBookPagesInputEl = document.getElementById('editBookPagesInput');
     const btnEditBookAuthorConfirm = document.getElementById('btnEditBookAuthorConfirm');
     const btnEditBookAuthorCancel = document.getElementById('btnEditBookAuthorCancel');
     const editBookAuthorStatusEl = document.getElementById('editBookAuthorStatus');
@@ -461,14 +559,18 @@
 
     const newTopicEl = document.getElementById('newTopic');
     const bookCreationAuthorEl = document.getElementById('bookCreationAuthor');
+    const bookCreationPublisherEl = document.getElementById('bookCreationPublisher');
+    const bookCreationYearEl = document.getElementById('bookCreationYear');
+    const bookCreationPagesEl = document.getElementById('bookCreationPages');
     const btnAddTopic = document.getElementById('btnAddTopic');
     const topicsList = document.getElementById('topicsList');
     const entriesForBookEl = document.getElementById('entriesForBook');
 
-    const entryTextEl = document.getElementById('entryText');
-    const entryProgressValueEl = document.getElementById('entryProgressValue');
+    const entryTextEl = document.getElementById('entryText') || document.getElementById('aiNotes');
+    const entryModeEl = document.getElementById('entryMode') || document.getElementById('aiEntryMode');
+    const entryProgressValueEl = document.getElementById('entryProgressValue') || document.getElementById('aiProgressValue');
     const entryProgressHintEl = document.getElementById('entryProgressHint');
-    const btnAddEntry = document.getElementById('btnAddEntry');
+    const btnAddEntry = document.getElementById('btnAddEntry') || document.getElementById('btnGenerateAI');
     const btnClearEntries = document.getElementById('btnClearEntries');
     const entriesList = document.getElementById('entriesList');
     const entriesPaginationEl = document.getElementById('entriesPagination');
@@ -491,25 +593,53 @@
     const aiForBookEl = document.getElementById('aiForBook');
     const aiBookTitleEl = document.getElementById('aiBookTitle');
     const aiAuthorEl = document.getElementById('aiAuthor');
+    const aiPublisherEl = document.getElementById('aiPublisher');
+    const aiPublicationYearEl = document.getElementById('aiPublicationYear');
+    const aiTotalPagesEl = document.getElementById('aiTotalPages');
     const aiControlsEl = document.getElementById('aiControls');
     const aiProgressTypeEl = document.getElementById('aiProgressType');
     const aiProgressValueEl = document.getElementById('aiProgressValue');
+    const aiDetailLevelEl = document.getElementById('aiDetailLevel');
+    const aiCharacterDetailLevelEl = document.getElementById('aiCharacterDetailLevel');
+    const aiEntryModeEl = document.getElementById('aiEntryMode');
+    const aiNotesLabelTextEl = document.getElementById('aiNotesLabelText');
     const aiNotesEl = document.getElementById('aiNotes');
+    const aiStrictSpoilerGuardEl = document.getElementById('aiStrictSpoilerGuard');
     const btnGenerateAI = document.getElementById('btnGenerateAI');
     const aiSpoilerBoundaryEl = document.getElementById('aiSpoilerBoundary');
     const aiStatusEl = document.getElementById('aiStatus');
-    const aiResultTextEl = document.getElementById('aiResultText');
+    const aiSafetyNoticeEl = document.getElementById('aiSafetyNotice');
+    const aiSpoilerActionsEl = document.getElementById('aiSpoilerActions');
+    const btnReviewBlockedSummaryEl = document.getElementById('btnReviewBlockedSummary');
+    const btnSaveBlockedSummaryEl = document.getElementById('btnSaveBlockedSummary');
+    const btnTakePagePhotoEl = document.getElementById('btnTakePagePhoto');
+    const btnUploadPageImageEl = document.getElementById('btnUploadPageImage');
+    const btnRetryWithPageEvidenceEl = document.getElementById('btnRetryWithPageEvidence');
+    const aiBlockedSummaryPreviewEl = document.getElementById('aiBlockedSummaryPreview');
+    const btnReportSpoilerEl = document.getElementById('btnReportSpoiler');
     const aiGeneratedImagesEl = document.getElementById('aiGeneratedImages');
     const imageCaptionEl = document.getElementById('imageCaption');
     const bookImageDropzone = document.getElementById('bookImageDropzone');
+    const btnTakePhoto = document.getElementById('btnTakePhoto');
     const btnPickImages = document.getElementById('btnPickImages');
     const btnUploadImages = document.getElementById('btnUploadImages');
     const bookImageInput = document.getElementById('bookImageInput');
     const pendingImagesInfoEl = document.getElementById('pendingImagesInfo');
     const imageStatusEl = document.getElementById('imageStatus');
     const bookImagesList = document.getElementById('bookImagesList');
-    const hasImageUI = !!(bookImageDropzone && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiGeneratedImagesEl);
+    const cameraCaptureModalBackdrop = document.getElementById('cameraCaptureModalBackdrop');
+    const cameraPreviewEl = document.getElementById('cameraPreview');
+    const btnCapturePhoto = document.getElementById('btnCapturePhoto');
+    const btnCloseCamera = document.getElementById('btnCloseCamera');
+    const cameraStatusEl = document.getElementById('cameraStatus');
+    const feedbackModalBackdrop = document.getElementById('feedbackModalBackdrop');
+    const feedbackTargetEl = document.getElementById('feedbackTarget');
+    const feedbackTextEl = document.getElementById('feedbackText');
+    const btnFeedbackSubmit = document.getElementById('btnFeedbackSubmit');
+    const btnFeedbackCancel = document.getElementById('btnFeedbackCancel');
+    const feedbackStatusEl = document.getElementById('feedbackStatus');
+    const hasImageUI = !!(bookImageDropzone && btnTakePhoto && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiPublisherEl && aiPublicationYearEl && aiTotalPagesEl && aiControlsEl && aiEntryModeEl && aiProgressTypeEl && aiProgressValueEl && aiDetailLevelEl && aiCharacterDetailLevelEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -521,6 +651,15 @@
     let pendingImageFiles = [];
     let selectedCharacterId = null;
     let editingBookAuthorId = null;
+    let latestAISummaryContext = null;
+    let analyticsEventsAvailable = true;
+    let spoilerReportsAvailable = true;
+    let hasShownAnalyticsTableWarning = false;
+    let aiFeedbackAvailable = true;
+    let hasShownFeedbackTableWarning = false;
+    let aiAuditAvailable = true;
+    let hasShownAuditTableWarning = false;
+    let cameraStream = null;
     let entriesPage = 1;
     let isBusy = false;
     let refreshAllPromise = null;
@@ -563,9 +702,634 @@
       const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
       return message.includes('topics') && message.includes('author') && (message.includes('column') || message.includes('schema cache'));
     }
+    function isMissingTopicsMetadataColumnError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      const isMissingColumn = message.includes('column') || message.includes('schema cache');
+      return message.includes('topics') && isMissingColumn && (
+        message.includes('publisher') ||
+        message.includes('publication_year') ||
+        message.includes('total_pages')
+      );
+    }
+    function isMissingAnalyticsTableError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      return (
+        (message.includes('analytics_events') || message.includes('spoiler_reports')) &&
+        (message.includes('does not exist') || message.includes('schema cache') || message.includes('relation'))
+      );
+    }
+    function isMissingAIFeedbackTableError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      return (
+        message.includes('ai_feedback_reports') &&
+        (message.includes('does not exist') || message.includes('schema cache') || message.includes('relation'))
+      );
+    }
+    function isMissingAIAuditTableError(errorLike) {
+      const message = (errorLike && errorLike.message ? errorLike.message : String(errorLike || '')).toLowerCase();
+      return (
+        (message.includes('ai_generation_audit') || message.includes('ai_generated_artifacts')) &&
+        (message.includes('does not exist') || message.includes('schema cache') || message.includes('relation'))
+      );
+    }
+    function generateAuditId() {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+      }
+      return `audit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+    function normalizeOptionalPositiveInt(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return null;
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed) || parsed <= 0) return null;
+      return Math.floor(parsed);
+    }
+    function normalizeOptionalPublicationYear(value) {
+      const parsed = normalizeOptionalPositiveInt(value);
+      if (!parsed) return null;
+      const currentYear = new Date().getFullYear();
+      if (parsed < 1000 || parsed > currentYear + 1) return null;
+      return parsed;
+    }
+    async function lookupBookMetadata(query) {
+      const title = query && query.title ? String(query.title).trim() : '';
+      const author = query && query.author ? String(query.author).trim() : '';
+      const publisherHint = query && query.publisherHint ? String(query.publisherHint).trim() : '';
+      const yearHint = normalizeOptionalPublicationYear(query && query.yearHint);
+      if (!title) return null;
+      const params = new URLSearchParams();
+      params.set('title', title);
+      if (author) params.set('author', author);
+      params.set('limit', '8');
+      const lookupUrl = `https://openlibrary.org/search.json?${params.toString()}`;
+      const resp = await withTimeout(
+        fetch(lookupUrl),
+        9000,
+        'Book metadata lookup timed out.'
+      );
+      if (!resp.ok) return null;
+      const payload = await resp.json();
+      const docs = payload && Array.isArray(payload.docs) ? payload.docs : [];
+      if (!docs.length) return null;
+      const normalizedAuthorHint = author.toLowerCase();
+      const normalizedPublisherHint = publisherHint.toLowerCase();
+      let bestDoc = null;
+      let bestScore = -Infinity;
+      for (let i = 0; i < docs.length; i += 1) {
+        const doc = docs[i] || {};
+        let score = 0;
+        const docAuthors = Array.isArray(doc.author_name) ? doc.author_name.map((item) => String(item || '').toLowerCase()) : [];
+        const docPublishers = Array.isArray(doc.publisher) ? doc.publisher.map((item) => String(item || '').toLowerCase()) : [];
+        const docYear = normalizeOptionalPublicationYear(doc.first_publish_year);
+        const docPages = normalizeOptionalPositiveInt(doc.number_of_pages_median);
+        if (normalizedAuthorHint && docAuthors.some((item) => item.includes(normalizedAuthorHint) || normalizedAuthorHint.includes(item))) score += 25;
+        if (normalizedPublisherHint && docPublishers.some((item) => item.includes(normalizedPublisherHint) || normalizedPublisherHint.includes(item))) score += 15;
+        if (yearHint && docYear) {
+          const yearDistance = Math.abs(docYear - yearHint);
+          score += Math.max(0, 15 - yearDistance);
+        }
+        if (docPages) score += 8;
+        if (docYear) score += 4;
+        if (score > bestScore) {
+          bestScore = score;
+          bestDoc = doc;
+        }
+      }
+      if (!bestDoc) return null;
+      const publisherList = Array.isArray(bestDoc.publisher) ? bestDoc.publisher : [];
+      const resolvedPublisher = publisherList.length ? String(publisherList[0] || '').trim() : '';
+      const resolvedYear = normalizeOptionalPublicationYear(bestDoc.first_publish_year);
+      const resolvedPages = normalizeOptionalPositiveInt(bestDoc.number_of_pages_median);
+      if (!resolvedPublisher && !resolvedYear && !resolvedPages) return null;
+      return {
+        publisher: resolvedPublisher || null,
+        publicationYear: resolvedYear || null,
+        totalPages: resolvedPages || null,
+        source: 'openlibrary-search',
+      };
+    }
+    function normalizeSpoilerSafety(rawSafety) {
+      const safe = rawSafety && typeof rawSafety === 'object' ? rawSafety : {};
+      const riskLevelRaw = String(safe.riskLevel || '').trim().toLowerCase();
+      const riskLevel = ['low', 'medium', 'high'].includes(riskLevelRaw) ? riskLevelRaw : 'high';
+      const parsedConfidence = Number(safe.confidence);
+      const confidence = Number.isFinite(parsedConfidence)
+        ? Math.max(0, Math.min(100, Math.round(parsedConfidence)))
+        : null;
+      const reason = String(safe.reason || '').trim();
+      const recommendedAction = String(safe.recommendedAction || '').trim();
+      const isSpoilerSafe = safe.isSpoilerSafe === true && riskLevel !== 'high';
+      return {
+        isSpoilerSafe,
+        riskLevel,
+        confidence,
+        reason: reason || 'Model could not confidently guarantee spoiler safety for this boundary window.',
+        recommendedAction: recommendedAction || 'Add manual notes or page-specific context before saving.',
+      };
+    }
+    function hideSpoilerBlockedActions() {
+      if (!hasAIUI) return;
+      aiSpoilerActionsEl.classList.add('hidden');
+      aiBlockedSummaryPreviewEl.classList.add('hidden');
+      aiBlockedSummaryPreviewEl.textContent = '';
+      btnReviewBlockedSummaryEl.textContent = 'Review blocked summary';
+    }
+    function renderBlockedSummaryPreview() {
+      if (!hasAIUI) return;
+      const isVisible = !aiBlockedSummaryPreviewEl.classList.contains('hidden');
+      if (!isVisible) {
+        aiBlockedSummaryPreviewEl.textContent = '';
+        btnReviewBlockedSummaryEl.textContent = 'Review blocked summary';
+        return;
+      }
+      const summaryText = latestAISummaryContext && latestAISummaryContext.summaryText
+        ? String(latestAISummaryContext.summaryText).trim()
+        : '';
+      aiBlockedSummaryPreviewEl.textContent = summaryText || 'No blocked summary text is available.';
+      btnReviewBlockedSummaryEl.textContent = 'Hide blocked summary';
+    }
+    function showSpoilerBlockedActions() {
+      if (!hasAIUI) return;
+      aiSpoilerActionsEl.classList.remove('hidden');
+      aiBlockedSummaryPreviewEl.classList.add('hidden');
+      aiBlockedSummaryPreviewEl.textContent = '';
+      btnReviewBlockedSummaryEl.textContent = 'Review blocked summary';
+    }
+    function renderAISafetyNotice(safety, strictModeEnabled) {
+      if (!hasAIUI) return;
+      if (!safety) {
+        aiSafetyNoticeEl.textContent = '';
+        aiSafetyNoticeEl.className = 'small muted';
+        hideSpoilerBlockedActions();
+        btnReportSpoilerEl.style.display = 'none';
+        return;
+      }
+      const confidenceText = Number.isFinite(safety.confidence) ? `${safety.confidence}%` : 'unknown';
+      if (safety.isSpoilerSafe) {
+        aiSafetyNoticeEl.textContent = `Spoiler safety check: PASS (${confidenceText} confidence).`;
+        aiSafetyNoticeEl.className = 'small status-success';
+        hideSpoilerBlockedActions();
+        btnReportSpoilerEl.style.display = 'none';
+      } else {
+        const modeText = strictModeEnabled ? 'Strict guard blocked auto-save.' : 'Strict guard is OFF.';
+        aiSafetyNoticeEl.textContent = `Spoiler safety check: WARNING (${confidenceText} confidence, ${safety.riskLevel} risk). ${modeText} ${safety.recommendedAction}`;
+        aiSafetyNoticeEl.className = 'small status-error';
+        if (strictModeEnabled) {
+          showSpoilerBlockedActions();
+        } else {
+          hideSpoilerBlockedActions();
+        }
+        btnReportSpoilerEl.style.display = 'inline-flex';
+      }
+    }
+    async function trackAnalyticsEvent(eventName, eventProperties) {
+      if (!analyticsEventsAvailable || !currentUser || !eventName) return;
+      const payload = {
+        user_id: currentUser.id,
+        topic_id: selectedBookId || null,
+        event_name: eventName,
+        event_properties: eventProperties && typeof eventProperties === 'object' ? eventProperties : {},
+      };
+      const insertRes = await supabase.from('analytics_events').insert([payload]);
+      if (!insertRes.error) return;
+      if (isMissingAnalyticsTableError(insertRes.error)) {
+        analyticsEventsAvailable = false;
+        if (!hasShownAnalyticsTableWarning) {
+          hasShownAnalyticsTableWarning = true;
+          setDevInfo('Analytics tracking table is missing. Apply Supabase beta analytics migration to enable event tracking.', true);
+        }
+        return;
+      }
+      console.warn('Analytics insert error:', insertRes.error);
+    }
+    async function submitSpoilerReport() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      try {
+        if (!latestAISummaryContext || !latestAISummaryContext.summaryText) {
+          setAIStatus('No AI summary is available to report yet.');
+          return;
+        }
+        const reportReason = latestAISummaryContext.safety && latestAISummaryContext.safety.reason
+          ? latestAISummaryContext.safety.reason
+          : 'User reported potential spoiler content.';
+        if (spoilerReportsAvailable) {
+          const insertRes = await supabase.from('spoiler_reports').insert([{
+            user_id: user.id,
+            topic_id: selectedBookId || null,
+            audit_id: latestAISummaryContext.auditId || null,
+            boundary_label: latestAISummaryContext.rangeLabel || null,
+            summary_excerpt: String(latestAISummaryContext.summaryText || '').slice(0, 1500),
+            reason: reportReason,
+          }]);
+          if (insertRes.error) {
+            if (isMissingAnalyticsTableError(insertRes.error)) {
+              spoilerReportsAvailable = false;
+              if (!hasShownAnalyticsTableWarning) {
+                hasShownAnalyticsTableWarning = true;
+                setDevInfo('Spoiler report table is missing. Apply Supabase beta analytics migration to enable reporting.', true);
+              }
+            } else {
+              setAIStatus('Could not submit spoiler report.');
+              console.warn('Spoiler report insert error:', insertRes.error);
+              return;
+            }
+          }
+        }
+        await trackAnalyticsEvent('spoiler_report_submitted', {
+          boundary: latestAISummaryContext.rangeLabel || null,
+          riskLevel: latestAISummaryContext.safety ? latestAISummaryContext.safety.riskLevel : null,
+          confidence: latestAISummaryContext.safety ? latestAISummaryContext.safety.confidence : null,
+        });
+        btnReportSpoilerEl.style.display = 'none';
+        setAIStatus('Spoiler report submitted. Thank you.');
+      } catch (err) {
+        console.warn('Spoiler report error:', err);
+        setAIStatus('Could not submit spoiler report.');
+        setDevInfo('Spoiler report error: ' + (err && err.message ? err.message : String(err)), true);
+      }
+    }
+    async function openAIFeedbackModal(payload) {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!feedbackModalBackdrop || !feedbackTargetEl || !feedbackTextEl || !btnFeedbackSubmit || !btnFeedbackCancel || !feedbackStatusEl) {
+        setDevInfo('Feedback modal is not available in this build.', true);
+        return;
+      }
+      const sourceType = String(payload && payload.sourceType ? payload.sourceType : '').trim();
+      const sourceId = payload && payload.sourceId ? String(payload.sourceId) : null;
+      const sourceBoundary = payload && payload.sourceBoundary ? String(payload.sourceBoundary).trim() : null;
+      const sourceTextExcerpt = payload && payload.sourceTextExcerpt ? String(payload.sourceTextExcerpt).trim() : '';
+      const auditId = payload && payload.auditId ? String(payload.auditId).trim() : null;
+      const targetLabel = payload && payload.targetLabel ? String(payload.targetLabel).trim() : 'AI output';
+      if (!sourceType || !sourceId) {
+        setDevInfo('Feedback error: Missing source context.', true);
+        return;
+      }
+
+      feedbackTargetEl.textContent = `Reporting: ${targetLabel}`;
+      feedbackTextEl.value = '';
+      feedbackStatusEl.textContent = '';
+      feedbackStatusEl.className = 'muted';
+      feedbackModalBackdrop.classList.remove('hidden');
+      feedbackModalBackdrop.setAttribute('aria-hidden', 'false');
+      feedbackTextEl.focus();
+
+      await new Promise((resolve) => {
+        const cleanup = () => {
+          feedbackModalBackdrop.classList.add('hidden');
+          feedbackModalBackdrop.setAttribute('aria-hidden', 'true');
+          btnFeedbackSubmit.onclick = null;
+          btnFeedbackCancel.onclick = null;
+          resolve();
+        };
+        btnFeedbackCancel.onclick = cleanup;
+        btnFeedbackSubmit.onclick = async () => {
+          const feedbackText = feedbackTextEl.value.trim();
+          if (feedbackText.length < 8) {
+            feedbackStatusEl.textContent = 'Please add a bit more detail so we can diagnose the issue.';
+            feedbackStatusEl.className = 'status-error';
+            return;
+          }
+          feedbackStatusEl.textContent = 'Submitting feedback...';
+          feedbackStatusEl.className = 'muted';
+          btnFeedbackSubmit.disabled = true;
+
+          if (!aiFeedbackAvailable) {
+            btnFeedbackSubmit.disabled = false;
+            feedbackStatusEl.textContent = 'Feedback table is not enabled yet. Apply the feedback migration first.';
+            feedbackStatusEl.className = 'status-error';
+            return;
+          }
+          try {
+            const insertRes = await supabase.from('ai_feedback_reports').insert([{
+              user_id: user.id,
+              topic_id: selectedBookId || null,
+              source_type: sourceType,
+              source_id: sourceId,
+              audit_id: auditId || null,
+              source_boundary: sourceBoundary || null,
+              source_text_excerpt: sourceTextExcerpt ? sourceTextExcerpt.slice(0, 2000) : null,
+              feedback_text: feedbackText,
+            }]);
+            if (insertRes.error) {
+              if (isMissingAIFeedbackTableError(insertRes.error)) {
+                aiFeedbackAvailable = false;
+                if (!hasShownFeedbackTableWarning) {
+                  hasShownFeedbackTableWarning = true;
+                  setDevInfo('AI feedback table is missing. Apply Supabase feedback migration to enable this tool.', true);
+                }
+              }
+              btnFeedbackSubmit.disabled = false;
+              feedbackStatusEl.textContent = `Could not submit feedback: ${insertRes.error.message}`;
+              feedbackStatusEl.className = 'status-error';
+              return;
+            }
+
+            await trackAnalyticsEvent('ai_feedback_submitted', {
+              sourceType,
+              hasBoundary: !!sourceBoundary,
+              hasAuditId: !!auditId,
+            });
+            btnFeedbackSubmit.disabled = false;
+            cleanup();
+            setAIStatus('Feedback submitted. Thank you.');
+          } catch (err) {
+            btnFeedbackSubmit.disabled = false;
+            feedbackStatusEl.textContent = 'Could not submit feedback right now.';
+            feedbackStatusEl.className = 'status-error';
+            console.warn('Feedback submit error:', err);
+            setDevInfo('Feedback submit error: ' + (err && err.message ? err.message : String(err)), true);
+          }
+        };
+      });
+    }
+    async function getAuditIdForSource(user, sourceType, sourceId) {
+      if (!user || !sourceType || !sourceId || !aiAuditAvailable) return null;
+      const selectRes = await supabase
+        .from('ai_generated_artifacts')
+        .select('audit_id')
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId)
+        .eq('source_type', sourceType)
+        .eq('source_id', String(sourceId))
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (selectRes.error) {
+        if (isMissingAIAuditTableError(selectRes.error)) {
+          aiAuditAvailable = false;
+          if (!hasShownAuditTableWarning) {
+            hasShownAuditTableWarning = true;
+            setDevInfo('AI audit tables are missing. Apply Supabase audit migration to enable root-cause diagnostics.', true);
+          }
+          return null;
+        }
+        console.warn('AI audit lookup error:', selectRes.error);
+        return null;
+      }
+      const first = selectRes.data && selectRes.data[0] ? selectRes.data[0] : null;
+      return first && first.audit_id ? String(first.audit_id) : null;
+    }
+    async function buildPendingPageEvidencePayload() {
+      if (!pendingImageFiles.length) return null;
+      const sourceFile = pendingImageFiles[0];
+      const preparedFile = await optimizeImageForUpload(sourceFile);
+      const dataUrl = await readFileAsDataUrl(preparedFile);
+      const match = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        throw new Error('Could not prepare selected page image for AI retry.');
+      }
+      return {
+        mimeType: match[1],
+        base64Data: match[2],
+        fileName: preparedFile.name || sourceFile.name || 'page-image',
+        fileSize: preparedFile.size || sourceFile.size || null,
+      };
+    }
+    async function saveAIGenerationAudit(user, auditPayload) {
+      if (!user || !auditPayload || !aiAuditAvailable) return null;
+      const auditId = String(auditPayload.id || '').trim();
+      if (!auditId) return null;
+      const insertRes = await supabase.from('ai_generation_audit').insert([{
+        id: auditId,
+        user_id: user.id,
+        topic_id: selectedBookId || null,
+        source_mode: 'full_update',
+        progress_type: auditPayload && auditPayload.request ? auditPayload.request.progressType || null : null,
+        lower_boundary: auditPayload && auditPayload.request ? auditPayload.request.lowerBoundary || null : null,
+        upper_boundary: auditPayload && auditPayload.request ? auditPayload.request.upperBoundary || null : null,
+        spoiler_boundary: auditPayload && auditPayload.request ? auditPayload.request.spoilerBoundary || null : null,
+        request_payload: auditPayload && auditPayload.request ? auditPayload.request : {},
+        summary_debug: auditPayload && auditPayload.summary ? auditPayload.summary : {},
+        characters_debug: auditPayload && auditPayload.characters ? auditPayload.characters : {},
+      }]);
+      if (insertRes.error) {
+        if (isMissingAIAuditTableError(insertRes.error)) {
+          aiAuditAvailable = false;
+          if (!hasShownAuditTableWarning) {
+            hasShownAuditTableWarning = true;
+            setDevInfo('AI audit tables are missing. Apply Supabase audit migration to enable root-cause diagnostics.', true);
+          }
+          return null;
+        }
+        console.warn('AI audit insert error:', insertRes.error);
+        return null;
+      }
+      return auditId;
+    }
+    async function saveAIGeneratedArtifacts(user, auditId, summaryEntryId, characterIds) {
+      if (!user || !auditId || !aiAuditAvailable) return;
+      const rows = [];
+      if (summaryEntryId) {
+        rows.push({
+          audit_id: auditId,
+          user_id: user.id,
+          topic_id: selectedBookId || null,
+          source_type: 'summary_entry',
+          source_id: String(summaryEntryId),
+        });
+      }
+      if (Array.isArray(characterIds)) {
+        for (let i = 0; i < characterIds.length; i += 1) {
+          const charId = characterIds[i];
+          if (!charId) continue;
+          rows.push({
+            audit_id: auditId,
+            user_id: user.id,
+            topic_id: selectedBookId || null,
+            source_type: 'character',
+            source_id: String(charId),
+          });
+        }
+      }
+      if (!rows.length) return;
+      const insertRes = await supabase.from('ai_generated_artifacts').insert(rows);
+      if (insertRes.error) {
+        if (isMissingAIAuditTableError(insertRes.error)) {
+          aiAuditAvailable = false;
+          if (!hasShownAuditTableWarning) {
+            hasShownAuditTableWarning = true;
+            setDevInfo('AI audit tables are missing. Apply Supabase audit migration to enable root-cause diagnostics.', true);
+          }
+          return;
+        }
+        console.warn('AI artifact insert error:', insertRes.error);
+      }
+    }
+    async function saveBlockedSummaryAnyway() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!latestAISummaryContext || !latestAISummaryContext.blockedBySpoiler) {
+        setAIStatus('No blocked AI summary is available to save.');
+        return;
+      }
+      if (latestAISummaryContext.summaryLooksUnavailable) {
+        setAIStatus('This blocked result cannot be saved because the AI did not produce a usable summary preview.');
+        return;
+      }
+      const summaryText = String(latestAISummaryContext.summaryText || '').trim();
+      if (!summaryText) {
+        setAIStatus('No blocked summary text is available to save.');
+        return;
+      }
+      const rangeLabel = String(latestAISummaryContext.rangeLabel || '').trim();
+      const summaryEntryText = rangeLabel ? `[AI Summary - ${rangeLabel}]\n${summaryText}` : summaryText;
+      const currentCharacterNames = getExistingCharacterNameSet();
+      const pendingCharacters = Array.isArray(latestAISummaryContext.generatedCharacters)
+        ? latestAISummaryContext.generatedCharacters.filter((item) => {
+            const key = normalizeTextKey(item && item.name);
+            return key && !currentCharacterNames.has(key);
+          })
+        : [];
+      setBusyState(true, 'Saving blocked AI preview...');
+      try {
+        let savedSummaryEntryId = null;
+        if (!latestAISummaryContext.summarySaved) {
+          const entryInsertRes = await supabase.from('entries').insert([{
+            text: summaryEntryText,
+            user_id: user.id,
+            topic_id: selectedBookId
+          }]).select('id').single();
+          if (entryInsertRes.error) throw entryInsertRes.error;
+          savedSummaryEntryId = entryInsertRes.data && entryInsertRes.data.id ? entryInsertRes.data.id : null;
+        }
+        const insertedCharacterIds = [];
+        if (pendingCharacters.length) {
+          const characterRows = pendingCharacters.map((item) => ({
+            name: item.name,
+            description: item.description,
+            user_id: user.id,
+            topic_id: selectedBookId
+          }));
+          const charInsertRes = await supabase.from('characters').insert(characterRows).select('id');
+          if (charInsertRes.error) throw charInsertRes.error;
+          const insertedRows = Array.isArray(charInsertRes.data) ? charInsertRes.data : [];
+          for (let i = 0; i < insertedRows.length; i += 1) {
+            const rowId = insertedRows[i] && insertedRows[i].id ? insertedRows[i].id : null;
+            if (rowId !== null && rowId !== undefined) insertedCharacterIds.push(rowId);
+          }
+        }
+        await saveAIGeneratedArtifacts(user, latestAISummaryContext.auditId || null, savedSummaryEntryId, insertedCharacterIds);
+        latestAISummaryContext.summarySaved = true;
+        latestAISummaryContext.blockedBySpoiler = false;
+        await Promise.allSettled([
+          loadEntries(user.id, selectedBookId),
+          loadCharacters(user.id, selectedBookId)
+        ]);
+        setAIStatus('Blocked AI preview saved to Entries. Review carefully for spoilers.');
+        await trackAnalyticsEvent('ai_blocked_summary_saved_anyway', {
+          boundary: rangeLabel || null,
+          riskLevel: latestAISummaryContext.safety ? latestAISummaryContext.safety.riskLevel : null,
+          confidence: latestAISummaryContext.safety ? latestAISummaryContext.safety.confidence : null,
+          savedCharacters: insertedCharacterIds.length,
+        });
+        hideSpoilerBlockedActions();
+      } catch (err) {
+        setAIStatus('AI error: Could not save blocked summary preview.');
+        setDevInfo('Save blocked summary error: ' + (err && err.message ? err.message : String(err)), true);
+      } finally {
+        setBusyState(false);
+      }
+    }
     function setPendingImagesInfo(text) {
       if (!pendingImagesInfoEl) return;
       pendingImagesInfoEl.textContent = text;
+    }
+    function setCameraStatus(text, isError) {
+      if (!cameraStatusEl) return;
+      cameraStatusEl.textContent = text || '';
+      cameraStatusEl.className = isError ? 'status-error' : 'muted';
+    }
+    function isCameraCaptureSupported() {
+      return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    }
+    function stopCameraStream() {
+      if (cameraStream && typeof cameraStream.getTracks === 'function') {
+        cameraStream.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch (_) {
+            // Ignore shutdown errors from already-ended tracks.
+          }
+        });
+      }
+      cameraStream = null;
+      if (cameraPreviewEl) cameraPreviewEl.srcObject = null;
+    }
+    function closeCameraCaptureModal() {
+      if (!cameraCaptureModalBackdrop) return;
+      cameraCaptureModalBackdrop.classList.add('hidden');
+      cameraCaptureModalBackdrop.setAttribute('aria-hidden', 'true');
+      stopCameraStream();
+      setCameraStatus('');
+    }
+    async function openCameraCaptureModal() {
+      if (!hasImageUI) return;
+      if (!selectedBookId) {
+        setImageStatus('Images error: Add and select a book first.');
+        return;
+      }
+      if (!isCameraCaptureSupported()) {
+        setImageStatus('Camera capture is not supported on this device/browser. Use Choose Images instead.');
+        return;
+      }
+      if (!window.isSecureContext) {
+        setImageStatus('Camera capture requires HTTPS or localhost.');
+        return;
+      }
+      stopCameraStream();
+      setCameraStatus('Requesting camera access...');
+      cameraCaptureModalBackdrop.classList.remove('hidden');
+      cameraCaptureModalBackdrop.setAttribute('aria-hidden', 'false');
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        });
+        cameraPreviewEl.srcObject = cameraStream;
+        setCameraStatus('Camera ready. Frame the page, then tap Capture.');
+      } catch (error) {
+        closeCameraCaptureModal();
+        const message = error && error.message ? error.message : 'Could not access camera.';
+        setImageStatus(`Camera error: ${message}`);
+      }
+    }
+    async function capturePhotoFromCamera() {
+      if (!cameraPreviewEl || !cameraStream) {
+        setCameraStatus('Camera is not ready yet.', true);
+        return;
+      }
+      const width = cameraPreviewEl.videoWidth;
+      const height = cameraPreviewEl.videoHeight;
+      if (!width || !height) {
+        setCameraStatus('Camera frame not ready. Try again in a moment.', true);
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        setCameraStatus('Camera error: Could not prepare captured image.', true);
+        return;
+      }
+      ctx.drawImage(cameraPreviewEl, 0, 0, width, height);
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.92);
+      });
+      if (!blob) {
+        setCameraStatus('Camera error: Could not capture photo.', true);
+        return;
+      }
+      const fileName = `camera-${Date.now()}.jpg`;
+      const capturedFile = new File([blob], fileName, { type: 'image/jpeg', lastModified: Date.now() });
+      queueImageFiles([capturedFile]);
+      closeCameraCaptureModal();
+      setImageStatus('Photo captured. Click Upload/Save Images to store it.');
+      if (latestAISummaryContext && latestAISummaryContext.blockedBySpoiler) {
+        setAIStatus('Page photo captured. Click Retry with page evidence to try again.');
+      }
     }
     function setBusyState(busy, message) {
       isBusy = busy;
@@ -632,6 +1396,7 @@
       authScreen.style.display = isSignedIn ? 'none' : 'flex';
       appShell.style.display = isSignedIn ? 'flex' : 'none';
       if (isSignedIn) closeSignupModal();
+      if (!isSignedIn) closeCameraCaptureModal();
 
       btnLogin.disabled = isSignedIn || isBusy;
       btnSignup.disabled = isSignedIn || isBusy;
@@ -640,6 +1405,9 @@
 
       newTopicEl.disabled = !isSignedIn || isBusy;
       if (bookCreationAuthorEl) bookCreationAuthorEl.disabled = !isSignedIn || isBusy;
+      if (bookCreationPublisherEl) bookCreationPublisherEl.disabled = !isSignedIn || isBusy;
+      if (bookCreationYearEl) bookCreationYearEl.disabled = !isSignedIn || isBusy;
+      if (bookCreationPagesEl) bookCreationPagesEl.disabled = !isSignedIn || isBusy;
       btnAddTopic.disabled = !isSignedIn || isBusy;
       syncBookScopedControlState();
     }
@@ -647,7 +1415,9 @@
     function syncBookScopedControlState() {
       const hasSelectedBook = !!currentUser && !!selectedBookId;
       const disableBookScoped = !hasSelectedBook || isBusy;
+      const isManualMode = normalizeEntryMode(entryModeEl && entryModeEl.value) === 'manual';
       entryTextEl.disabled = disableBookScoped;
+      if (entryModeEl) entryModeEl.disabled = disableBookScoped;
       if (entryProgressValueEl) entryProgressValueEl.disabled = disableBookScoped;
       btnAddEntry.disabled = disableBookScoped;
       btnClearEntries.disabled = disableBookScoped;
@@ -664,12 +1434,25 @@
       if (hasAIUI) {
         aiBookTitleEl.disabled = disableBookScoped;
         aiAuthorEl.disabled = disableBookScoped;
+        aiPublisherEl.disabled = disableBookScoped;
+        aiPublicationYearEl.disabled = disableBookScoped;
+        aiTotalPagesEl.disabled = disableBookScoped;
         aiProgressTypeEl.disabled = disableBookScoped;
         aiProgressValueEl.disabled = disableBookScoped;
+        aiDetailLevelEl.disabled = disableBookScoped || isManualMode;
+        aiCharacterDetailLevelEl.disabled = disableBookScoped || isManualMode;
         aiNotesEl.disabled = disableBookScoped;
+        aiStrictSpoilerGuardEl.disabled = disableBookScoped || isManualMode;
         btnGenerateAI.disabled = disableBookScoped;
+        btnReviewBlockedSummaryEl.disabled = disableBookScoped;
+        btnSaveBlockedSummaryEl.disabled = disableBookScoped;
+        btnTakePagePhotoEl.disabled = disableBookScoped;
+        btnUploadPageImageEl.disabled = disableBookScoped;
+        btnRetryWithPageEvidenceEl.disabled = disableBookScoped;
+        btnReportSpoilerEl.disabled = disableBookScoped;
       }
       if (hasImageUI) {
+        btnTakePhoto.disabled = disableBookScoped;
         btnPickImages.disabled = disableBookScoped;
         btnUploadImages.disabled = disableBookScoped || pendingImageFiles.length === 0;
         bookImageInput.disabled = disableBookScoped;
@@ -704,12 +1487,54 @@
       const matchedBook = loadedBooks.find((book) => String(book && book.id) === String(topicId));
       return matchedBook && matchedBook.author ? String(matchedBook.author).trim() : '';
     }
-    function setLoadedBookAuthor(topicId, author) {
+    function getBookMetadataForTopic(topicId) {
+      if (!topicId) return null;
+      const matchedBook = loadedBooks.find((book) => String(book && book.id) === String(topicId));
+      if (!matchedBook) return null;
+      return {
+        publisher: matchedBook.publisher ? String(matchedBook.publisher).trim() : '',
+        publicationYear: normalizeOptionalPublicationYear(matchedBook.publication_year),
+        totalPages: normalizeOptionalPositiveInt(matchedBook.total_pages),
+      };
+    }
+    function getAIMetadataInputValues() {
+      if (!hasAIUI) return { publisher: '', publicationYear: null, totalPages: null };
+      return {
+        publisher: aiPublisherEl ? aiPublisherEl.value.trim() : '',
+        publicationYear: normalizeOptionalPublicationYear(aiPublicationYearEl && aiPublicationYearEl.value),
+        totalPages: normalizeOptionalPositiveInt(aiTotalPagesEl && aiTotalPagesEl.value),
+      };
+    }
+    function setAIMetadataInputValues(values) {
+      if (!hasAIUI) return;
+      const details = values && typeof values === 'object' ? values : {};
+      const publisher = details.publisher ? String(details.publisher).trim() : '';
+      const publicationYear = normalizeOptionalPublicationYear(details.publicationYear);
+      const totalPages = normalizeOptionalPositiveInt(details.totalPages);
+      aiPublisherEl.value = publisher;
+      aiPublicationYearEl.value = publicationYear ? String(publicationYear) : '';
+      aiTotalPagesEl.value = totalPages ? String(totalPages) : '';
+    }
+    function setLoadedBookDetails(topicId, details) {
       if (!topicId) return;
-      const normalizedAuthor = String(author || '').trim();
+      const normalizedName = details && typeof details.name === 'string' ? String(details.name).trim() : null;
+      const normalizedAuthor = details && typeof details.author === 'string' ? String(details.author).trim() : null;
+      const normalizedPublisher = details && typeof details.publisher === 'string' ? String(details.publisher).trim() : null;
+      const normalizedPublicationYear = details && Object.prototype.hasOwnProperty.call(details, 'publication_year')
+        ? normalizeOptionalPublicationYear(details.publication_year)
+        : undefined;
+      const normalizedTotalPages = details && Object.prototype.hasOwnProperty.call(details, 'total_pages')
+        ? normalizeOptionalPositiveInt(details.total_pages)
+        : undefined;
       loadedBooks = loadedBooks.map((book) => {
         if (String(book && book.id) !== String(topicId)) return book;
-        return { ...book, author: normalizedAuthor || null };
+        const nextBook = { ...book };
+        if (normalizedName !== null) nextBook.name = normalizedName || book.name;
+        if (normalizedAuthor !== null) nextBook.author = normalizedAuthor || null;
+        if (normalizedPublisher !== null) nextBook.publisher = normalizedPublisher || null;
+        if (normalizedPublicationYear !== undefined) nextBook.publication_year = normalizedPublicationYear || null;
+        if (normalizedTotalPages !== undefined) nextBook.total_pages = normalizedTotalPages || null;
+        return nextBook;
       });
       if (currentUser) {
         writeCache('topics', currentUser.id, loadedBooks);
@@ -740,25 +1565,159 @@
         bookCreationAuthorEl.value = knownAuthor;
       }
     }
-    async function persistBookAuthor(userId, topicId, author) {
+    async function persistBookDetails(userId, topicId, details) {
       if (!userId || !topicId) throw new Error('Missing book author identifiers.');
-      const authorValue = String(author || '').trim();
+      const activeUser = await ensureActiveSessionForWrite('Saving book details');
+      if (!activeUser || String(activeUser.id) !== String(userId)) {
+        throw new Error('Session changed. Please retry after signing in again.');
+      }
+      const nameValue = details && typeof details.name === 'string' ? String(details.name).trim() : null;
+      const authorValue = details && typeof details.author === 'string' ? String(details.author).trim() : null;
+      const publisherValue = details && typeof details.publisher === 'string' ? String(details.publisher).trim() : null;
+      const publicationYearValue = details && Object.prototype.hasOwnProperty.call(details, 'publication_year')
+        ? normalizeOptionalPublicationYear(details.publication_year)
+        : undefined;
+      const totalPagesValue = details && Object.prototype.hasOwnProperty.call(details, 'total_pages')
+        ? normalizeOptionalPositiveInt(details.total_pages)
+        : undefined;
+      if (nameValue !== null && !nameValue) throw new Error('Book title is required.');
       if (!authorValue) throw new Error('Author name is required.');
-      const updateRes = await supabase
-        .from('topics')
-        .update({ author: authorValue })
-        .eq('id', topicId)
-        .eq('user_id', userId)
-        .select('id,author')
-        .single();
+      const updatePayload = {};
+      if (nameValue !== null) updatePayload.name = nameValue;
+      updatePayload.author = authorValue;
+      if (publisherValue !== null) updatePayload.publisher = publisherValue || null;
+      if (publicationYearValue !== undefined) updatePayload.publication_year = publicationYearValue || null;
+      if (totalPagesValue !== undefined) updatePayload.total_pages = totalPagesValue || null;
+      const saveTimeoutMessage = 'Saving book details timed out. Please check your connection and try again.';
+      async function runBookDetailsSaveWithRetry(queryFactory) {
+        const timeoutSequenceMs = [12000, 25000];
+        let lastError = null;
+        for (let i = 0; i < timeoutSequenceMs.length; i += 1) {
+          const timeoutMs = timeoutSequenceMs[i];
+          try {
+            return await withTimeout(queryFactory(), timeoutMs, saveTimeoutMessage);
+          } catch (err) {
+            lastError = err;
+            const message = (err && err.message ? err.message : String(err || '')).toLowerCase();
+            const timedOut = message.includes('timed out');
+            const isLastAttempt = i === timeoutSequenceMs.length - 1;
+            if (!timedOut || isLastAttempt) {
+              throw err;
+            }
+          }
+        }
+        throw lastError || new Error(saveTimeoutMessage);
+      }
+      const updateRes = await runBookDetailsSaveWithRetry(() => (
+        supabase
+          .from('topics')
+          .update(updatePayload)
+          .eq('id', topicId)
+          .eq('user_id', userId)
+          .select('id,name,author,publisher,publication_year,total_pages')
+          .single()
+      ));
       if (updateRes.error) {
+        if (isMissingTopicsMetadataColumnError(updateRes.error) && (publisherValue !== null || publicationYearValue !== undefined || totalPagesValue !== undefined)) {
+          const fallbackPayload = {};
+          if (nameValue !== null) fallbackPayload.name = nameValue;
+          fallbackPayload.author = authorValue;
+          const fallbackRes = await runBookDetailsSaveWithRetry(() => (
+            supabase
+              .from('topics')
+              .update(fallbackPayload)
+              .eq('id', topicId)
+              .eq('user_id', userId)
+              .select('id,name,author')
+              .single()
+          ));
+          if (fallbackRes.error) {
+            throw fallbackRes.error;
+          }
+          setLoadedBookDetails(topicId, {
+            name: nameValue,
+            author: authorValue,
+          });
+          return fallbackRes.data;
+        }
         if (isMissingTopicsAuthorColumnError(updateRes.error)) {
           throw new Error('Shared author sync is not enabled in Supabase yet. Run the topics author migration, then try again.');
         }
         throw updateRes.error;
       }
-      setLoadedBookAuthor(topicId, authorValue);
+      setLoadedBookDetails(topicId, {
+        name: nameValue,
+        author: authorValue,
+        publisher: publisherValue,
+        publication_year: publicationYearValue,
+        total_pages: totalPagesValue,
+      });
       return updateRes.data;
+    }
+    async function persistBookAuthor(userId, topicId, author) {
+      return await persistBookDetails(userId, topicId, { author });
+    }
+    async function backfillBookMetadataIfMissing(userId, topicId, detailsHint) {
+      if (!userId || !topicId) return getBookMetadataForTopic(topicId);
+      const selectedBook = loadedBooks.find((book) => String(book && book.id) === String(topicId));
+      if (!selectedBook) return getBookMetadataForTopic(topicId);
+      const currentMetadata = getBookMetadataForTopic(topicId) || {};
+      const hasPublisher = !!(currentMetadata.publisher && String(currentMetadata.publisher).trim());
+      const hasPublicationYear = !!normalizeOptionalPublicationYear(currentMetadata.publicationYear);
+      const hasTotalPages = !!normalizeOptionalPositiveInt(currentMetadata.totalPages);
+      if (hasPublisher && hasPublicationYear && hasTotalPages) return currentMetadata;
+
+      const title = detailsHint && detailsHint.title ? String(detailsHint.title).trim() : String(selectedBook.name || '').trim();
+      const author = detailsHint && detailsHint.author ? String(detailsHint.author).trim() : String(selectedBook.author || '').trim();
+      if (!title || !author) return currentMetadata;
+
+      let lookupMetadata = null;
+      try {
+        lookupMetadata = await lookupBookMetadata({
+          title,
+          author,
+          publisherHint: currentMetadata.publisher || '',
+          yearHint: currentMetadata.publicationYear || null,
+        });
+      } catch (lookupErr) {
+        console.warn('Book metadata backfill lookup error:', lookupErr);
+        return currentMetadata;
+      }
+      if (!lookupMetadata) return currentMetadata;
+
+      const resolvedPublisher = currentMetadata.publisher || (lookupMetadata.publisher ? String(lookupMetadata.publisher).trim() : '');
+      const resolvedPublicationYear = normalizeOptionalPublicationYear(currentMetadata.publicationYear || lookupMetadata.publicationYear);
+      const resolvedTotalPages = normalizeOptionalPositiveInt(currentMetadata.totalPages || lookupMetadata.totalPages);
+      if (
+        resolvedPublisher === (currentMetadata.publisher || '') &&
+        resolvedPublicationYear === normalizeOptionalPublicationYear(currentMetadata.publicationYear) &&
+        resolvedTotalPages === normalizeOptionalPositiveInt(currentMetadata.totalPages)
+      ) {
+        return currentMetadata;
+      }
+
+      try {
+        await persistBookDetails(userId, topicId, {
+          name: title,
+          author,
+          publisher: resolvedPublisher,
+          publication_year: resolvedPublicationYear,
+          total_pages: resolvedTotalPages,
+        });
+      } catch (saveErr) {
+        console.warn('Book metadata backfill save error:', saveErr);
+        return currentMetadata;
+      }
+
+      const nextMetadata = getBookMetadataForTopic(topicId) || {
+        publisher: resolvedPublisher,
+        publicationYear: resolvedPublicationYear,
+        totalPages: resolvedTotalPages,
+      };
+      if (String(selectedBookId) === String(topicId)) {
+        setAIMetadataInputValues(nextMetadata);
+      }
+      return nextMetadata;
     }
     function writeCache(kind, userId, data, bookId) {
       if (!userId) return;
@@ -805,7 +1764,7 @@
       characterMapForEl.innerHTML = `<strong>Character map for book:</strong> ${escapeHtml(bookName)}`;
       imagesForBookEl.innerHTML = `<strong>Images for book:</strong> ${escapeHtml(bookName)}`;
       if (aiForBookEl) {
-        aiForBookEl.innerHTML = `<strong>AI for book:</strong> ${escapeHtml(bookName)}`;
+        aiForBookEl.innerHTML = `<strong>Book progress for:</strong> ${escapeHtml(bookName)}`;
       }
       updateEntryProgressHint();
       updateAISpoilerBoundaryLabel();
@@ -825,10 +1784,26 @@
       return Math.floor(parsed);
     }
 
+    function normalizeEntryMode(value) {
+      return value === 'ai' ? 'ai' : 'manual';
+    }
+
+    function normalizeAIDetailLevel(value) {
+      return value === 'low' || value === 'medium' || value === 'high' ? value : 'high';
+    }
+
+    function normalizeAICharacterDetailLevel(value) {
+      return value === 'low' || value === 'medium' || value === 'high' ? value : 'medium';
+    }
+
     function buildProgressRangeLabel(progressType, lowerValue, upperValue) {
       const type = normalizeProgressType(progressType);
       if (Number.isFinite(lowerValue) && lowerValue > 0) {
-        return `${type} ${lowerValue}-${upperValue}`;
+        const windowStart = Math.min(Math.floor(lowerValue) + 1, upperValue);
+        if (windowStart >= upperValue) {
+          return `${type} ${upperValue}`;
+        }
+        return `${type} ${windowStart}-${upperValue}`;
       }
       return `${type} ${upperValue}`;
     }
@@ -848,6 +1823,30 @@
       return { progressType, lower: null, upper: firstValue };
     }
 
+    function isLikelyAIRefusalText(text) {
+      const normalized = String(text || '').trim().toLowerCase();
+      if (!normalized) return false;
+      const refusalFragments = [
+        'i am unable to provide a summary',
+        'i cannot provide a summary',
+        'i do not have access to the specific textual content',
+        'without direct access to the text',
+        'cannot accurately identify plot points',
+        'cannot ensure strict adherence to the spoiler rules',
+        'because i do not have access to the specific textual content of the book'
+      ];
+      for (let i = 0; i < refusalFragments.length; i += 1) {
+        if (normalized.includes(refusalFragments[i])) return true;
+      }
+      return false;
+    }
+
+    function summarizeEntryForAIContext(rawText, label) {
+      const bodyText = String(rawText || '').split('\n').slice(1).join('\n').trim();
+      if (!bodyText || isLikelyAIRefusalText(bodyText)) return '';
+      return `${label}: ${bodyText.slice(0, 240)}`;
+    }
+
     function getLatestProgressBoundary(progressType) {
       const wantedType = normalizeProgressType(progressType);
       for (let i = 0; i < loadedEntries.length; i += 1) {
@@ -857,6 +1856,53 @@
         return parsed;
       }
       return null;
+    }
+
+    function collectStoryStageContext(progressType, lowerBoundary) {
+      const wantedType = normalizeProgressType(progressType);
+      if (!Number.isFinite(lowerBoundary)) return '';
+      const chunks = [];
+      for (let i = 0; i < loadedEntries.length; i += 1) {
+        const rawText = String((loadedEntries[i] && loadedEntries[i].text) || '');
+        const parsed = parseProgressBoundaryFromEntryText(rawText);
+        if (!parsed || parsed.progressType !== wantedType) continue;
+        if (parsed.upper > lowerBoundary) continue;
+        const firstLine = rawText.split('\n')[0] || '';
+        const label = firstLine.startsWith('[AI Summary -')
+          ? `Previous AI summary (${firstLine.replace(/^\[AI Summary -\s*/i, '').replace(/\]$/, '')})`
+          : firstLine.startsWith('[Manual Entry -')
+            ? `Previous manual note (${firstLine.replace(/^\[Manual Entry -\s*/i, '').replace(/\]$/, '')})`
+            : 'Previous saved entry';
+        const summaryChunk = summarizeEntryForAIContext(rawText, label);
+        if (!summaryChunk) continue;
+        chunks.push(summaryChunk);
+        if (chunks.length >= 3) break;
+      }
+      return chunks.reverse().join('\n\n').trim();
+    }
+
+    function collectManualGroundingNotes(progressType, lowerBoundary, upperBoundary) {
+      const wantedType = normalizeProgressType(progressType);
+      const safeUpper = normalizeProgressNumber(upperBoundary);
+      if (!safeUpper) return '';
+      const chunks = [];
+      for (let i = 0; i < loadedEntries.length; i += 1) {
+        const rawText = String((loadedEntries[i] && loadedEntries[i].text) || '');
+        if (!rawText.startsWith('[Manual Entry -')) continue;
+        const parsed = parseProgressBoundaryFromEntryText(rawText);
+        if (!parsed || parsed.progressType !== wantedType) continue;
+        if (parsed.upper > safeUpper) continue;
+        if (Number.isFinite(lowerBoundary)) {
+          const isSameBoundaryNote = parsed.upper === lowerBoundary && !Number.isFinite(parsed.lower);
+          if (parsed.upper < lowerBoundary) continue;
+          if (parsed.upper === lowerBoundary && !isSameBoundaryNote) continue;
+        }
+        const bodyText = rawText.split('\n').slice(1).join('\n').trim();
+        if (!bodyText) continue;
+        chunks.push(bodyText);
+        if (chunks.length >= 3) break;
+      }
+      return chunks.join('\n\n').trim();
     }
 
     function updateEntryProgressHint() {
@@ -872,14 +1918,18 @@
         return;
       }
       if (!currentPageValue) {
-        entryProgressHintEl.textContent = `Last saved boundary: page ${latestPageBoundary.upper}. Enter a page above this value.`;
+        entryProgressHintEl.textContent = `Last saved boundary: page ${latestPageBoundary.upper}. Use the same page for another note, or a higher page for a new boundary.`;
         return;
       }
-      if (currentPageValue <= latestPageBoundary.upper) {
-        entryProgressHintEl.textContent = `Current page must be greater than ${latestPageBoundary.upper}.`;
+      if (currentPageValue < latestPageBoundary.upper) {
+        entryProgressHintEl.textContent = `Current page must be ${latestPageBoundary.upper} or higher.`;
         return;
       }
-      entryProgressHintEl.textContent = `Next boundary range: page ${latestPageBoundary.upper}-${currentPageValue}.`;
+      if (currentPageValue === latestPageBoundary.upper) {
+        entryProgressHintEl.textContent = `This will save another note at page ${latestPageBoundary.upper}.`;
+        return;
+      }
+      entryProgressHintEl.textContent = `Next boundary range: ${buildProgressRangeLabel('page', latestPageBoundary.upper, currentPageValue)}.`;
     }
 
     function getExistingCharacterNameSet() {
@@ -910,6 +1960,24 @@
       return titles;
     }
 
+    function collectCharacterMapContext(limit) {
+      if (!Array.isArray(loadedCharacters) || !loadedCharacters.length) return '';
+      const maxItems = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 12;
+      const chunks = [];
+      for (let i = 0; i < loadedCharacters.length; i += 1) {
+        const item = loadedCharacters[i];
+        if (!item || !item.name) continue;
+        const details = parseCharacterDescription(item.description || '');
+        const parts = [String(item.name).trim()];
+        if (details.role) parts.push(`Role: ${details.role}`);
+        if (details.description) parts.push(`Description: ${details.description}`);
+        if (details.relationships) parts.push(`Relationships: ${details.relationships}`);
+        chunks.push(parts.join(' | '));
+        if (chunks.length >= maxItems) break;
+      }
+      return chunks.join('\n').trim();
+    }
+
     function updateAISpoilerBoundaryLabel() {
       if (!hasAIUI) return;
       const progressType = normalizeProgressType(aiProgressTypeEl.value);
@@ -929,7 +1997,7 @@
         return;
       }
       if (latestBoundary) {
-        aiSpoilerBoundaryEl.textContent = `Spoiler-safe window: ${labelPrefix} ${latestBoundary.upper}-${nextValue}`;
+        aiSpoilerBoundaryEl.textContent = `Spoiler-safe window: ${buildProgressRangeLabel(progressType, latestBoundary.upper, nextValue)}`;
       } else {
         aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${labelPrefix} ${nextValue}`;
       }
@@ -943,15 +2011,39 @@
       syncBookScopedControlState();
     }
 
-    function renderAIResultText(text) {
-      if (!hasAIUI) return;
-      aiResultTextEl.textContent = text || '';
+    function updateEntryComposerUI() {
+      if (!entryModeEl || !aiNotesEl || !btnGenerateAI) return;
+      const mode = normalizeEntryMode(entryModeEl.value);
+      const isManualMode = mode === 'manual';
+      if (mode === 'ai') {
+        btnGenerateAI.textContent = 'Generate Summary + Characters';
+        if (aiNotesLabelTextEl) aiNotesLabelTextEl.textContent = 'Optional Notes';
+        aiNotesEl.placeholder = 'Optional context or focus area...';
+      } else {
+        btnGenerateAI.textContent = 'Save Manual Entry';
+        if (aiNotesLabelTextEl) aiNotesLabelTextEl.textContent = 'Manual Entry';
+        aiNotesEl.placeholder = 'Write your entry...';
+      }
+      const modeLock = isBusy || !currentUser || !selectedBookId;
+      aiDetailLevelEl.disabled = modeLock || isManualMode;
+      aiCharacterDetailLevelEl.disabled = modeLock || isManualMode;
+      aiStrictSpoilerGuardEl.disabled = modeLock || isManualMode;
+    }
+
+    function setEntryMode(mode) {
+      if (!entryModeEl) return;
+      entryModeEl.value = normalizeEntryMode(mode);
+      updateEntryComposerUI();
     }
 
     function resetAIResults() {
       if (!hasAIUI) return;
       aiGeneratedImagesCache = [];
-      renderAIResultText('');
+      latestAISummaryContext = null;
+      aiSafetyNoticeEl.textContent = '';
+      aiSafetyNoticeEl.className = 'small muted';
+      hideSpoilerBlockedActions();
+      btnReportSpoilerEl.style.display = 'none';
       aiGeneratedImagesEl.innerHTML = '';
       setAIStatus('');
     }
@@ -963,8 +2055,15 @@
       const payload = {
         bookTitle: aiBookTitleEl.value.trim(),
         author: aiAuthorEl.value.trim(),
+        publisher: aiPublisherEl.value.trim(),
+        publicationYear: normalizeOptionalPublicationYear(aiPublicationYearEl.value),
+        totalPages: normalizeOptionalPositiveInt(aiTotalPagesEl.value),
         progressType: aiProgressTypeEl.value === 'page' ? 'page' : 'chapter',
         progressValue: aiProgressValueEl.value.trim(),
+        entryMode: normalizeEntryMode(entryModeEl && entryModeEl.value),
+        aiDetailLevel: normalizeAIDetailLevel(aiDetailLevelEl.value),
+        aiCharacterDetailLevel: normalizeAICharacterDetailLevel(aiCharacterDetailLevelEl.value),
+        strictSpoilerGuard: aiStrictSpoilerGuardEl.checked !== false,
         notes: aiNotesEl.value || ''
       };
       try {
@@ -980,8 +2079,13 @@
       if (!currentUser || !selectedBookId) {
         aiBookTitleEl.value = '';
         aiAuthorEl.value = '';
+        setAIMetadataInputValues(null);
+        setEntryMode('manual');
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
+        aiDetailLevelEl.value = 'high';
+        aiCharacterDetailLevelEl.value = 'medium';
+        aiStrictSpoilerGuardEl.checked = true;
         aiNotesEl.value = '';
         syncAIUpdateModeUI();
         updateAISpoilerBoundaryLabel();
@@ -989,6 +2093,7 @@
       }
       const selectedBookName = getSelectedBookName();
       const defaultAuthor = getBookAuthorForSelectedTopic();
+      const selectedBookMetadata = getBookMetadataForTopic(selectedBookId) || {};
       const key = getAIFormStorageKey(currentUser.id, selectedBookId);
       if (!key) return;
       try {
@@ -996,8 +2101,13 @@
         if (!raw) {
           aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
           aiAuthorEl.value = defaultAuthor;
+          setAIMetadataInputValues(selectedBookMetadata);
+          setEntryMode('manual');
           aiProgressTypeEl.value = 'chapter';
           aiProgressValueEl.value = '';
+          aiDetailLevelEl.value = 'high';
+          aiCharacterDetailLevelEl.value = 'medium';
+          aiStrictSpoilerGuardEl.checked = true;
           aiNotesEl.value = '';
           syncAIUpdateModeUI();
           updateAISpoilerBoundaryLabel();
@@ -1006,16 +2116,27 @@
         const parsed = JSON.parse(raw);
         aiBookTitleEl.value = (parsed && parsed.bookTitle) ? String(parsed.bookTitle) : (selectedBookName === 'None' ? '' : selectedBookName);
         aiAuthorEl.value = (parsed && parsed.author) ? String(parsed.author) : defaultAuthor;
+        // Keep AI metadata aligned with saved book metadata to avoid conflicting values in the UI.
+        setAIMetadataInputValues(selectedBookMetadata);
+        setEntryMode(parsed && parsed.entryMode);
         aiProgressTypeEl.value = (parsed && parsed.progressType === 'page') ? 'page' : 'chapter';
         aiProgressValueEl.value = (parsed && parsed.progressValue) ? String(parsed.progressValue) : '';
+        aiDetailLevelEl.value = normalizeAIDetailLevel(parsed && parsed.aiDetailLevel);
+        aiCharacterDetailLevelEl.value = normalizeAICharacterDetailLevel(parsed && parsed.aiCharacterDetailLevel);
+        aiStrictSpoilerGuardEl.checked = !(parsed && parsed.strictSpoilerGuard === false);
         aiNotesEl.value = (parsed && parsed.notes) ? String(parsed.notes) : '';
         syncAIUpdateModeUI();
       } catch (err) {
         setDevInfo('AI form load error: ' + (err && err.message ? err.message : String(err)), true);
         aiBookTitleEl.value = selectedBookName === 'None' ? '' : selectedBookName;
         aiAuthorEl.value = defaultAuthor;
+        setAIMetadataInputValues(selectedBookMetadata);
+        setEntryMode('manual');
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
+        aiDetailLevelEl.value = 'high';
+        aiCharacterDetailLevelEl.value = 'medium';
+        aiStrictSpoilerGuardEl.checked = true;
         aiNotesEl.value = '';
         syncAIUpdateModeUI();
       }
@@ -1204,48 +2325,174 @@
       return data;
     }
 
-    async function generateWithAI() {
+    async function generateWithAI(options) {
       if (!hasAIUI) return;
+      const settings = options && typeof options === 'object' ? options : {};
       const user = requireCurrentUser();
       if (!user) return;
       if (!selectedBookId) {
         setAIStatus('AI error: Select a book first.');
         return;
       }
+      const entryMode = normalizeEntryMode(entryModeEl && entryModeEl.value);
+      if (entryMode === 'manual') {
+        await addEntry();
+        return;
+      }
       const bookTitle = aiBookTitleEl.value.trim();
       const author = aiAuthorEl.value.trim();
       const progressType = aiProgressTypeEl.value === 'page' ? 'page' : 'chapter';
       const progressValue = aiProgressValueEl.value.trim();
+      const aiDetailLevel = normalizeAIDetailLevel(aiDetailLevelEl.value);
+      const aiCharacterDetailLevel = normalizeAICharacterDetailLevel(aiCharacterDetailLevelEl.value);
       const notes = aiNotesEl.value.trim();
 
       if (!bookTitle || !author || !progressValue) {
         setAIStatus('AI error: Book title, author, and progress value are required.');
         return;
       }
-      const progressNumber = Number(progressValue);
+      let progressNumber = Number(progressValue);
+      const requestedProgressNumber = progressNumber;
       if (!Number.isFinite(progressNumber) || progressNumber <= 0) {
         setAIStatus('AI error: Progress value must be a positive number.');
         return;
       }
+      let totalPages = null;
+      let publicationYear = null;
+      let publisher = '';
+      try {
+        const selectedBook = loadedBooks.find((book) => String(book && book.id) === String(selectedBookId));
+        const selectedBookName = selectedBook && selectedBook.name ? String(selectedBook.name).trim() : '';
+        const selectedBookAuthor = selectedBook && selectedBook.author ? String(selectedBook.author).trim() : '';
+        const selectedBookMetadata = getBookMetadataForTopic(selectedBookId) || {};
+        const selectedPublisher = selectedBookMetadata.publisher ? String(selectedBookMetadata.publisher).trim() : '';
+        const selectedPublicationYear = normalizeOptionalPublicationYear(selectedBookMetadata.publicationYear);
+        const selectedTotalPages = normalizeOptionalPositiveInt(selectedBookMetadata.totalPages);
+        const aiMetadataInput = getAIMetadataInputValues();
+        const aiPublisher = aiMetadataInput.publisher ? String(aiMetadataInput.publisher).trim() : '';
+        const aiPublicationYear = normalizeOptionalPublicationYear(aiMetadataInput.publicationYear);
+        const aiTotalPages = normalizeOptionalPositiveInt(aiMetadataInput.totalPages);
+        const mergedPublisher = aiPublisher || selectedPublisher;
+        const mergedPublicationYear = aiPublicationYear || selectedPublicationYear;
+        const mergedTotalPages = aiTotalPages || selectedTotalPages;
+        const shouldPersistBookDetails =
+          (!!selectedBook && (
+            (bookTitle && selectedBookName && bookTitle !== selectedBookName) ||
+            (author && author !== selectedBookAuthor) ||
+            (!!aiPublisher && aiPublisher !== selectedPublisher) ||
+            (!!aiPublicationYear && aiPublicationYear !== selectedPublicationYear) ||
+            (!!aiTotalPages && aiTotalPages !== selectedTotalPages)
+          ));
+        if (shouldPersistBookDetails) {
+          await persistBookDetails(user.id, selectedBookId, {
+            name: bookTitle,
+            author,
+            publisher: mergedPublisher || null,
+            publication_year: mergedPublicationYear || null,
+            total_pages: mergedTotalPages || null,
+          });
+        } else if (author !== getBookAuthorForTopic(user.id, selectedBookId)) {
+          await persistBookAuthor(user.id, selectedBookId, author);
+        }
+
+        let effectiveMetadata = getBookMetadataForTopic(selectedBookId) || {
+          publisher: mergedPublisher || '',
+          publicationYear: mergedPublicationYear || null,
+          totalPages: mergedTotalPages || null,
+        };
+        const hasCompleteMetadata = !!(
+          effectiveMetadata.publisher &&
+          normalizeOptionalPublicationYear(effectiveMetadata.publicationYear) &&
+          normalizeOptionalPositiveInt(effectiveMetadata.totalPages)
+        );
+        if (!hasCompleteMetadata) {
+          backfillBookMetadataIfMissing(user.id, selectedBookId, {
+            title: bookTitle,
+            author,
+          }).then((metadata) => {
+            if (!metadata) return;
+            setAIMetadataInputValues(metadata);
+            persistAIFormValues();
+            renderTopics(loadedBooks);
+          }).catch((backfillErr) => {
+            console.warn('AI metadata backfill error:', backfillErr);
+          });
+        }
+
+        totalPages = normalizeOptionalPositiveInt(effectiveMetadata && effectiveMetadata.totalPages);
+        publicationYear = normalizeOptionalPublicationYear(effectiveMetadata && effectiveMetadata.publicationYear);
+        publisher = effectiveMetadata && effectiveMetadata.publisher ? String(effectiveMetadata.publisher).trim() : '';
+        setAIMetadataInputValues({
+          publisher,
+          publicationYear,
+          totalPages,
+        });
+      } catch (metadataErr) {
+        setAIStatus('AI error: ' + (metadataErr && metadataErr.message ? metadataErr.message : String(metadataErr)));
+        return;
+      }
+      let wasProgressCapped = false;
+      if (progressType === 'page' && totalPages && progressNumber > totalPages) {
+        progressNumber = totalPages;
+        wasProgressCapped = true;
+        aiProgressValueEl.value = String(progressNumber);
+      }
       const latestBoundary = getLatestProgressBoundary(progressType);
       const lowerBoundary = latestBoundary ? latestBoundary.upper : null;
       if (Number.isFinite(lowerBoundary) && progressNumber <= lowerBoundary) {
-        setAIStatus(`AI error: ${progressType} value must be greater than the last saved ${progressType} (${lowerBoundary}).`);
+        if (wasProgressCapped && progressType === 'page' && totalPages && lowerBoundary >= totalPages) {
+          setAIStatus(`AI error: You are already at the configured end of this book (page ${totalPages}).`);
+        } else {
+          setAIStatus(`AI error: ${progressType} value must be greater than the last saved ${progressType} (${lowerBoundary}).`);
+        }
         return;
       }
       const existingCharacterNames = Array.from(getExistingCharacterNameSet());
       const existingLocationTitles = Array.from(getExistingAISettingTitleSet());
       const rangeLabel = buildProgressRangeLabel(progressType, lowerBoundary, progressNumber);
+      const strictSpoilerGuardEnabled = aiStrictSpoilerGuardEl.checked !== false;
+      const manualGroundingNotes = collectManualGroundingNotes(progressType, lowerBoundary, progressNumber);
+      const storyStageContext = collectStoryStageContext(progressType, lowerBoundary);
+      const characterMapContext = collectCharacterMapContext(8);
+      const combinedGroundingNotes = [
+        notes ? `Current user note:\n${notes}` : '',
+        manualGroundingNotes ? `Current boundary manual notes:\n${manualGroundingNotes}` : '',
+        storyStageContext ? `Previously saved story-stage context:\n${storyStageContext}` : '',
+        characterMapContext ? `Existing character map context (do not duplicate these names):\n${characterMapContext}` : ''
+      ]
+        .filter((value) => !!String(value || '').trim())
+        .join('\n\n')
+        .slice(0, 3200);
+      const generationAuditId = generateAuditId();
+      const usePageEvidence = settings.usePageEvidence === true;
+      let pageEvidence = null;
 
       persistAIFormValues();
-      renderAIResultText('');
+      if (wasProgressCapped && progressType === 'page') {
+        setDevInfo(`Requested page ${requestedProgressNumber} exceeds configured total pages (${totalPages}). Using page ${progressNumber}.`, false);
+      }
       renderAIGeneratedImages([]);
-      setAIStatus('Generating and saving full AI update...');
+      setAIStatus('Generating AI summary and character update...');
       setBusyState(true, 'Generating spoiler-safe summary notes and characters...');
       try {
-        if (author !== getBookAuthorForTopic(user.id, selectedBookId)) {
-          await persistBookAuthor(user.id, selectedBookId, author);
+        if (usePageEvidence) {
+          pageEvidence = await buildPendingPageEvidencePayload();
+          if (!pageEvidence) {
+            throw new Error('Add a page photo or upload a page image before retrying with page evidence.');
+          }
         }
+        await trackAnalyticsEvent('ai_update_requested', {
+          progressType,
+          progressValue: progressNumber,
+          requestedProgressValue: requestedProgressNumber,
+          wasProgressCapped,
+          lowerBoundary,
+          strictSpoilerGuard: strictSpoilerGuardEnabled,
+          hasGroundingNotes: !!combinedGroundingNotes,
+          usedPageEvidence: !!pageEvidence,
+          aiDetailLevel,
+          aiCharacterDetailLevel,
+        });
         const requestBody = {
           bookTitle,
           author,
@@ -1254,18 +2501,19 @@
           lowerBoundary,
           existingCharacters: existingCharacterNames,
           existingLocations: existingLocationTitles,
-          notes
+          notes: combinedGroundingNotes,
+          publisher: publisher || null,
+          publicationYear: publicationYear || null,
+          totalPages: totalPages || null,
+          aiDetailLevel,
+          aiCharacterDetailLevel,
+          auditId: generationAuditId,
+          pageImage: pageEvidence,
         };
         const fullUpdateData = await invokeAIForMode('full_update', requestBody);
         const spoilerBoundary = fullUpdateData.spoilerBoundary || '';
-
-        if (spoilerBoundary) {
-          aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${spoilerBoundary}`;
-        } else {
-          updateAISpoilerBoundaryLabel();
-        }
-
-        const summaryText = String(fullUpdateData.summaryText || '').trim();
+        const characterGuardReason = String(fullUpdateData.characterGuardReason || '').trim();
+        const auditPayload = fullUpdateData && fullUpdateData.audit ? fullUpdateData.audit : null;
         const normalizedCharacters = normalizeAICharacters(fullUpdateData.characters);
         const knownCharacterNames = getExistingCharacterNameSet();
         const uniqueCharacters = [];
@@ -1277,14 +2525,88 @@
           uniqueCharacters.push(item);
         }
 
-        if (summaryText) {
+        if (spoilerBoundary) {
+          aiSpoilerBoundaryEl.textContent = `Spoiler-safe up to ${spoilerBoundary}`;
+        } else {
+          updateAISpoilerBoundaryLabel();
+        }
+
+        const summaryText = String(fullUpdateData.summaryText || '').trim();
+        const spoilerSafety = normalizeSpoilerSafety(fullUpdateData.spoilerSafety);
+        const summaryLooksUnavailable = isLikelyAIRefusalText(summaryText);
+        if (summaryLooksUnavailable) {
+          spoilerSafety.isSpoilerSafe = false;
+          spoilerSafety.riskLevel = 'high';
+          spoilerSafety.confidence = 0;
+          spoilerSafety.reason = [
+            'AI could not generate a grounded summary for this boundary window.',
+            spoilerSafety.reason || ''
+          ].filter(Boolean).join(' ');
+          spoilerSafety.recommendedAction = 'Add manual notes, saved story context, or page-specific image evidence before retrying.';
+        }
+        latestAISummaryContext = {
+          summaryText,
+          rangeLabel,
+          safety: spoilerSafety,
+          auditId: auditPayload && auditPayload.id ? String(auditPayload.id) : null,
+          blockedBySpoiler: false,
+          hasPageEvidence: !!pageEvidence,
+          generatedCharacters: uniqueCharacters,
+          summaryLooksUnavailable,
+          summarySaved: false,
+        };
+        renderAISafetyNotice(spoilerSafety, strictSpoilerGuardEnabled);
+        if ((!spoilerSafety.isSpoilerSafe || summaryLooksUnavailable) && strictSpoilerGuardEnabled) {
+          const persistedAuditId = await saveAIGenerationAudit(user, auditPayload);
+          if (persistedAuditId) {
+            latestAISummaryContext.auditId = persistedAuditId;
+          }
+          const insertedCharacterIds = [];
+          if (uniqueCharacters.length) {
+            const characterRows = uniqueCharacters.map((item) => ({
+              name: item.name,
+              description: item.description,
+              user_id: user.id,
+              topic_id: selectedBookId
+            }));
+            const charInsertRes = await supabase.from('characters').insert(characterRows).select('id');
+            if (charInsertRes.error) throw charInsertRes.error;
+            const insertedRows = Array.isArray(charInsertRes.data) ? charInsertRes.data : [];
+            for (let i = 0; i < insertedRows.length; i += 1) {
+              const rowId = insertedRows[i] && insertedRows[i].id ? insertedRows[i].id : null;
+              if (rowId !== null && rowId !== undefined) insertedCharacterIds.push(rowId);
+            }
+          }
+          await saveAIGeneratedArtifacts(user, persistedAuditId, null, insertedCharacterIds);
+          latestAISummaryContext.blockedBySpoiler = true;
+          setAIStatus(insertedCharacterIds.length
+            ? `AI blocked summary auto-save, but saved ${insertedCharacterIds.length} character(s) to the Character Map.`
+            : 'AI blocked auto-save to protect against spoilers. Add manual notes, take/upload a page image, or disable strict spoiler guard.');
+          if (insertedCharacterIds.length) {
+            await loadCharacters(user.id, selectedBookId);
+          }
+          await trackAnalyticsEvent('ai_update_blocked_spoiler_risk', {
+            boundary: rangeLabel,
+            riskLevel: spoilerSafety.riskLevel,
+            confidence: spoilerSafety.confidence,
+            strictSpoilerGuard: strictSpoilerGuardEnabled,
+            usedPageEvidence: !!pageEvidence,
+            savedCharacters: insertedCharacterIds.length,
+          });
+          return;
+        }
+        let summaryEntryId = null;
+        const insertedCharacterIds = [];
+
+        if (summaryText && !summaryLooksUnavailable) {
           const summaryEntryText = `[AI Summary - ${rangeLabel}]\n${summaryText}`;
           const entryInsertRes = await supabase.from('entries').insert([{
             text: summaryEntryText,
             user_id: user.id,
             topic_id: selectedBookId
-          }]);
+          }]).select('id').single();
           if (entryInsertRes.error) throw entryInsertRes.error;
+          summaryEntryId = entryInsertRes.data && entryInsertRes.data.id ? entryInsertRes.data.id : null;
         }
 
         if (uniqueCharacters.length) {
@@ -1294,17 +2616,21 @@
             user_id: user.id,
             topic_id: selectedBookId
           }));
-          const charInsertRes = await supabase.from('characters').insert(characterRows);
+          const charInsertRes = await supabase.from('characters').insert(characterRows).select('id');
           if (charInsertRes.error) throw charInsertRes.error;
+          const insertedRows = Array.isArray(charInsertRes.data) ? charInsertRes.data : [];
+          for (let i = 0; i < insertedRows.length; i += 1) {
+            const rowId = insertedRows[i] && insertedRows[i].id ? insertedRows[i].id : null;
+            if (rowId !== null && rowId !== undefined) insertedCharacterIds.push(rowId);
+          }
         }
+        const persistedAuditId = await saveAIGenerationAudit(user, auditPayload);
+        await saveAIGeneratedArtifacts(user, persistedAuditId, summaryEntryId, insertedCharacterIds);
+        latestAISummaryContext.summarySaved = !!summaryEntryId;
         if (entryProgressValueEl) {
           entryProgressValueEl.value = String(progressNumber);
         }
 
-        const aiTextParts = [];
-        if (summaryText) aiTextParts.push(`Summary saved to Entries.\n${summaryText}`);
-        aiTextParts.push(`Characters saved: ${uniqueCharacters.length}`);
-        renderAIResultText(aiTextParts.join('\n\n'));
         renderAIGeneratedImages([]);
 
         entriesPage = 1;
@@ -1314,12 +2640,33 @@
           loadBookImages(user.id, selectedBookId)
         ]);
 
-        setAIStatus('Full AI update saved to Entries and Character Map.');
+        if (summaryText && !summaryLooksUnavailable) {
+          setAIStatus(`AI summary saved to Entries. Characters saved: ${uniqueCharacters.length}.`);
+        } else if (summaryLooksUnavailable) {
+          setAIStatus(`AI summary was unavailable. Characters saved: ${uniqueCharacters.length}.`);
+        } else {
+          setAIStatus(`AI summary completed. Characters saved: ${uniqueCharacters.length}.`);
+        }
+        await trackAnalyticsEvent('ai_update_saved', {
+          boundary: rangeLabel,
+          savedSummary: !!summaryEntryId,
+          savedCharacters: uniqueCharacters.length,
+          riskLevel: spoilerSafety.riskLevel,
+          confidence: spoilerSafety.confidence,
+          strictSpoilerGuard: strictSpoilerGuardEnabled,
+          characterGuardApplied: !!characterGuardReason,
+          usedPageEvidence: !!pageEvidence,
+        });
         updateEntryProgressHint();
       } catch (err) {
         const message = err && err.message ? err.message : String(err);
         setAIStatus('AI error: ' + message);
         setDevInfo('AI generation error: ' + message, true);
+        await trackAnalyticsEvent('ai_update_error', {
+          boundary: rangeLabel,
+          message,
+          strictSpoilerGuard: strictSpoilerGuardEnabled,
+        });
       } finally {
         setBusyState(false);
       }
@@ -1331,6 +2678,31 @@
       characterDescriptionEl.value = '';
       characterRelationshipsEl.value = '';
       updateBookScopedLabels();
+    }
+
+    async function clearCharacterMap() {
+      const user = requireCurrentUser();
+      if (!user) return;
+      if (!selectedBookId) return alert('Select a book first.');
+      if (!loadedCharacters.length) {
+        clearCharacterMapForm();
+        setDevInfo('Character map is already empty.');
+        return;
+      }
+      if (!confirm('Clear all saved character map entries for this book?')) return;
+      const { error } = await supabase
+        .from('characters')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('topic_id', selectedBookId);
+      if (error) {
+        setDevInfo('Clear character map error: ' + error.message, true);
+        return;
+      }
+      clearCharacterMapForm();
+      selectedCharacterId = null;
+      await loadCharacters(user.id, selectedBookId);
+      setDevInfo('Character map cleared.');
     }
 
     function resetCharacterViewState() {
@@ -1370,6 +2742,9 @@
       pendingImageFiles = pendingImageFiles.concat(imageFiles);
       refreshPendingImagesUI();
       setImageStatus('');
+      if (latestAISummaryContext && latestAISummaryContext.blockedBySpoiler) {
+        setAIStatus('Page image selected. Click Retry with page evidence to try again.');
+      }
     }
     async function readFileAsDataUrl(file) {
       return await new Promise((resolve, reject) => {
@@ -1457,6 +2832,52 @@
         return null;
       }
       return currentUser;
+    }
+    async function ensureActiveSessionForWrite(actionLabel) {
+      const label = actionLabel || 'Save';
+      let sessionRes;
+      try {
+        sessionRes = await withTimeout(
+          supabase.auth.getSession(),
+          10000,
+          `${label} blocked while checking your session. Please try again.`
+        );
+      } catch (err) {
+        throw err;
+      }
+      if (sessionRes && sessionRes.error) {
+        throw sessionRes.error;
+      }
+      let session = sessionRes && sessionRes.data ? sessionRes.data.session : null;
+      if (!session || !session.user) {
+        currentUser = null;
+        setSignedInState(null);
+        renderEmptyLists();
+        setAuthStatus('Session expired. Please log in again.');
+        throw new Error('Session expired. Please log in again.');
+      }
+      const expiresAtMs = session && session.expires_at ? Number(session.expires_at) * 1000 : 0;
+      const expiresSoon = Number.isFinite(expiresAtMs) && expiresAtMs > 0 && (Date.now() >= (expiresAtMs - 15000));
+      if (expiresSoon) {
+        const refreshRes = await withTimeout(
+          supabase.auth.refreshSession(),
+          10000,
+          `${label} blocked while refreshing your session. Please log in again.`
+        );
+        if (refreshRes && refreshRes.error) {
+          throw refreshRes.error;
+        }
+        session = refreshRes && refreshRes.data ? refreshRes.data.session : null;
+        if (!session || !session.user) {
+          currentUser = null;
+          setSignedInState(null);
+          renderEmptyLists();
+          setAuthStatus('Session expired. Please log in again.');
+          throw new Error('Session expired. Please log in again.');
+        }
+      }
+      currentUser = session.user;
+      return session.user;
     }
 
     // ======= Auth handlers =======
@@ -1556,10 +2977,25 @@
       try {
         let res = await supabase
           .from('topics')
-          .select('id,name,author,created_at')
+          .select('id,name,author,publisher,publication_year,total_pages,created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
         let authorMigrationMissing = false;
+        let metadataMigrationMissing = false;
+        if (res.error && isMissingTopicsMetadataColumnError(res.error)) {
+          metadataMigrationMissing = true;
+          res = await supabase
+            .from('topics')
+            .select('id,name,author,created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+          if (!res.error) {
+            res = {
+              ...res,
+              data: (res.data || []).map((book) => ({ ...book, publisher: null, publication_year: null, total_pages: null })),
+            };
+          }
+        }
         if (res.error && isMissingTopicsAuthorColumnError(res.error)) {
           authorMigrationMissing = true;
           res = await supabase
@@ -1589,8 +3025,22 @@
         renderTopics(loadedBooks);
         updateBookScopedLabels();
         loadAIFormValuesForSelectedBook();
+        backfillBookMetadataIfMissing(userId, selectedBookId, {
+          title: getSelectedBookName(),
+          author: getBookAuthorForTopic(userId, selectedBookId),
+        }).then((metadata) => {
+          if (!metadata) return;
+          renderTopics(loadedBooks);
+          updateBookScopedLabels();
+          setAIMetadataInputValues(metadata);
+          persistAIFormValues();
+        }).catch((err) => {
+          console.warn('Initial book metadata backfill error:', err);
+        });
         syncBookScopedControlState();
-        if (authorMigrationMissing) {
+        if (metadataMigrationMissing) {
+          setDevInfo('Books loaded. Run the topics metadata migration to enable publisher/year/pages validation.', true);
+        } else if (authorMigrationMissing) {
           setDevInfo('Books loaded. Run the topics author migration to sync edited authors across devices.', true);
         }
       } catch (err) {
@@ -1618,6 +3068,8 @@
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
+        // Discard result if the user switched to a different book while this fetch was in flight.
+        if (String(bookId) !== String(selectedBookId)) return;
         loadedEntries = res.data || [];
         writeCache('entries', userId, loadedEntries, bookId);
         const latestPageBoundary = getLatestProgressBoundary('page');
@@ -1628,6 +3080,7 @@
         updateEntryProgressHint();
         updateAISpoilerBoundaryLabel();
       } catch (err) {
+        if (String(bookId) !== String(selectedBookId)) return;
         console.error('loadEntries error', err);
         entriesList.innerHTML = renderListError(`Error loading entries: ${err.message || 'Unknown error'}`);
       }
@@ -1648,10 +3101,13 @@
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
+        // Discard result if the user switched to a different book while this fetch was in flight.
+        if (String(bookId) !== String(selectedBookId)) return;
         loadedCharacters = res.data || [];
         writeCache('characters', userId, loadedCharacters, bookId);
         renderCharacters(loadedCharacters);
       } catch (err) {
+        if (String(bookId) !== String(selectedBookId)) return;
         console.error('loadCharacters error', err);
         charactersList.innerHTML = renderListError(`Error loading characters: ${err.message || 'Unknown error'}`);
       }
@@ -1672,10 +3128,13 @@
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
+        // Discard result if the user switched to a different book while this fetch was in flight.
+        if (String(bookId) !== String(selectedBookId)) return;
         loadedBookImages = res.data || [];
         writeCache('images', userId, loadedBookImages, bookId);
         renderBookImages(loadedBookImages);
       } catch (err) {
+        if (String(bookId) !== String(selectedBookId)) return;
         console.error('loadBookImages error', err);
         const msg = err && err.message ? err.message : 'Unknown error';
         const hint = msg.toLowerCase().includes('book_images')
@@ -1818,6 +3277,13 @@
     async function addTopic() {
       const user = requireCurrentUser();
       if (!user) return;
+      let activeUser = null;
+      try {
+        activeUser = await ensureActiveSessionForWrite('Add book');
+      } catch (sessionErr) {
+        setDevInfo('Add book error: ' + (sessionErr && sessionErr.message ? sessionErr.message : String(sessionErr)), true);
+        return;
+      }
       const name = newTopicEl.value.trim();
       if (!name) {
         setDevInfo('Add book error: Enter a book name.', true);
@@ -1828,14 +3294,77 @@
         setDevInfo('Add book error: Author is required.', true);
         return;
       }
-      const payload = { name, author: creationAuthor, user_id: user.id };
+      const manualPublisher = bookCreationPublisherEl ? bookCreationPublisherEl.value.trim() : '';
+      const manualPublicationYear = normalizeOptionalPublicationYear(bookCreationYearEl && bookCreationYearEl.value);
+      const manualTotalPages = normalizeOptionalPositiveInt(bookCreationPagesEl && bookCreationPagesEl.value);
+      let lookupMetadata = null;
+      try {
+        lookupMetadata = await lookupBookMetadata({
+          title: name,
+          author: creationAuthor,
+          publisherHint: manualPublisher,
+          yearHint: manualPublicationYear,
+        });
+      } catch (lookupErr) {
+        console.warn('Book metadata lookup error:', lookupErr);
+      }
+      const resolvedPublisher = manualPublisher || (lookupMetadata && lookupMetadata.publisher ? String(lookupMetadata.publisher).trim() : '');
+      const resolvedPublicationYear = manualPublicationYear || (lookupMetadata ? lookupMetadata.publicationYear : null);
+      const resolvedTotalPages = manualTotalPages || (lookupMetadata ? lookupMetadata.totalPages : null);
+      const payload = {
+        name,
+        author: creationAuthor,
+        publisher: resolvedPublisher || null,
+        publication_year: resolvedPublicationYear || null,
+        total_pages: resolvedTotalPages || null,
+        user_id: activeUser.id,
+      };
+      const addBookTimeoutMessage = 'Add book timed out. Please check your connection and try again.';
+      async function runAddBookInsertWithRetry(queryFactory, fallbackName, fallbackAuthor) {
+        const timeoutSequenceMs = [12000, 25000];
+        let lastError = null;
+        for (let i = 0; i < timeoutSequenceMs.length; i += 1) {
+          const timeoutMs = timeoutSequenceMs[i];
+          try {
+            return await withTimeout(queryFactory(), timeoutMs, addBookTimeoutMessage);
+          } catch (err) {
+            lastError = err;
+            const message = (err && err.message ? err.message : String(err || '')).toLowerCase();
+            const timedOut = message.includes('timed out');
+            const isLastAttempt = i === timeoutSequenceMs.length - 1;
+            if (!timedOut || !isLastAttempt) {
+              if (!timedOut) throw err;
+              continue;
+            }
+            // Reconcile potential success-after-timeout before failing.
+            try {
+              const reconcileRes = await withTimeout(
+                supabase
+                  .from('topics')
+                  .select('id,name,author,publisher,publication_year,total_pages,created_at')
+                  .eq('user_id', activeUser.id)
+                  .eq('name', fallbackName)
+                  .eq('author', fallbackAuthor)
+                  .order('created_at', { ascending: false })
+                  .limit(1),
+                8000,
+                addBookTimeoutMessage
+              );
+              const row = Array.isArray(reconcileRes && reconcileRes.data) ? reconcileRes.data[0] : null;
+              if (row) return { data: row, error: null };
+            } catch (_) {}
+            throw err;
+          }
+        }
+        throw lastError || new Error(addBookTimeoutMessage);
+      }
       setDevInfo('Adding book...');
       let insertResult;
       try {
-        insertResult = await withTimeout(
-          supabase.from('topics').insert([payload]).select().single(),
-          12000,
-          'Add book timed out. Please check your connection and try again.'
+        insertResult = await runAddBookInsertWithRetry(
+          () => supabase.from('topics').insert([payload]).select().single(),
+          name,
+          creationAuthor
         );
       } catch (err) {
         setDevInfo('Add book error: ' + err.message, true);
@@ -1843,6 +3372,44 @@
       }
       const { data, error } = insertResult;
       if (error) {
+        if (isMissingTopicsMetadataColumnError(error)) {
+          const fallbackPayload = { name, author: creationAuthor, user_id: activeUser.id };
+          let fallbackInsertResult;
+          try {
+            fallbackInsertResult = await runAddBookInsertWithRetry(
+              () => supabase.from('topics').insert([fallbackPayload]).select().single(),
+              name,
+              creationAuthor
+            );
+          } catch (fallbackErr) {
+            setDevInfo('Add book error: ' + fallbackErr.message, true);
+            return;
+          }
+          if (fallbackInsertResult.error) {
+            setDevInfo('Add book error: ' + fallbackInsertResult.error.message, true);
+            return;
+          }
+          newTopicEl.value = '';
+          if (bookCreationAuthorEl) bookCreationAuthorEl.value = '';
+          if (bookCreationPublisherEl) bookCreationPublisherEl.value = '';
+          if (bookCreationYearEl) bookCreationYearEl.value = '';
+          if (bookCreationPagesEl) bookCreationPagesEl.value = '';
+          if (fallbackInsertResult.data && fallbackInsertResult.data.id) selectedBookId = String(fallbackInsertResult.data.id);
+          persistSelectedBook();
+          await loadTopics(activeUser.id);
+          await Promise.allSettled([
+            loadEntries(activeUser.id, selectedBookId),
+            loadCharacters(activeUser.id, selectedBookId),
+            loadBookImages(activeUser.id, selectedBookId)
+          ]);
+          await trackAnalyticsEvent('book_added', {
+            topicId: fallbackInsertResult.data && fallbackInsertResult.data.id ? String(fallbackInsertResult.data.id) : null,
+            hasAuthor: true,
+            hasMetadata: false,
+          });
+          setDevInfo('Book added and data loaded. Run the topics metadata migration to enable publisher/year/pages validation.', true);
+          return;
+        }
         if (isMissingTopicsAuthorColumnError(error)) {
           setDevInfo('Add book error: Shared author sync is not enabled in Supabase yet. Run the topics author migration, then try again.', true);
           return;
@@ -1851,37 +3418,53 @@
       } else {
         newTopicEl.value = '';
         if (bookCreationAuthorEl) bookCreationAuthorEl.value = '';
+        if (bookCreationPublisherEl) bookCreationPublisherEl.value = '';
+        if (bookCreationYearEl) bookCreationYearEl.value = '';
+        if (bookCreationPagesEl) bookCreationPagesEl.value = '';
         if (data && data.id) selectedBookId = String(data.id);
         persistSelectedBook();
-        await loadTopics(user.id);
+        await loadTopics(activeUser.id);
         await Promise.allSettled([
-          loadEntries(user.id, selectedBookId),
-          loadCharacters(user.id, selectedBookId),
-          loadBookImages(user.id, selectedBookId)
+          loadEntries(activeUser.id, selectedBookId),
+          loadCharacters(activeUser.id, selectedBookId),
+          loadBookImages(activeUser.id, selectedBookId)
         ]);
+        await trackAnalyticsEvent('book_added', {
+          topicId: data && data.id ? String(data.id) : null,
+          hasAuthor: true,
+          hasMetadata: !!(resolvedPublisher || resolvedPublicationYear || resolvedTotalPages),
+        });
         setDevInfo('Book added and data loaded.');
       }
     }
 
-    async function editBookAuthor(bookId) {
+    async function editBookDetails(bookId) {
       const user = requireCurrentUser();
       if (!user) return;
       if (!bookId) return;
       const selectedBook = loadedBooks.find(b => String(b.id) === String(bookId));
       if (!selectedBook) return;
+      const currentTitle = selectedBook && selectedBook.name ? String(selectedBook.name).trim() : '';
       const currentAuthor = getBookAuthorForTopic(user.id, bookId) || '';
-      if (!editBookAuthorModalBackdrop || !editBookAuthorInputEl || !btnEditBookAuthorConfirm || !btnEditBookAuthorCancel || !editBookAuthorStatusEl) {
-        setDevInfo('Edit author error: Edit modal is unavailable.', true);
+      const currentPublisher = selectedBook && selectedBook.publisher ? String(selectedBook.publisher).trim() : '';
+      const currentYear = normalizeOptionalPublicationYear(selectedBook && selectedBook.publication_year);
+      const currentPages = normalizeOptionalPositiveInt(selectedBook && selectedBook.total_pages);
+      if (!editBookAuthorModalBackdrop || !editBookTitleInputEl || !editBookAuthorInputEl || !editBookPublisherInputEl || !editBookYearInputEl || !editBookPagesInputEl || !btnEditBookAuthorConfirm || !btnEditBookAuthorCancel || !editBookAuthorStatusEl) {
+        setDevInfo('Edit book error: Edit modal is unavailable.', true);
         return;
       }
 
       editingBookAuthorId = String(bookId);
+      editBookTitleInputEl.value = currentTitle;
       editBookAuthorInputEl.value = currentAuthor;
+      editBookPublisherInputEl.value = currentPublisher;
+      editBookYearInputEl.value = currentYear ? String(currentYear) : '';
+      editBookPagesInputEl.value = currentPages ? String(currentPages) : '';
       editBookAuthorStatusEl.textContent = '';
       btnEditBookAuthorConfirm.disabled = false;
       editBookAuthorModalBackdrop.classList.remove('hidden');
       editBookAuthorModalBackdrop.setAttribute('aria-hidden', 'false');
-      editBookAuthorInputEl.focus();
+      editBookTitleInputEl.focus();
 
       await new Promise((resolve) => {
         function cleanup() {
@@ -1896,7 +3479,15 @@
 
         btnEditBookAuthorCancel.onclick = cleanup;
         btnEditBookAuthorConfirm.onclick = async function() {
+          const titleValue = editBookTitleInputEl.value.trim();
           const authorValue = editBookAuthorInputEl.value.trim();
+          const publisherValue = editBookPublisherInputEl.value.trim();
+          const publicationYearValue = normalizeOptionalPublicationYear(editBookYearInputEl.value);
+          const totalPagesValue = normalizeOptionalPositiveInt(editBookPagesInputEl.value);
+          if (!titleValue) {
+            editBookAuthorStatusEl.textContent = 'Book title is required.';
+            return;
+          }
           if (!authorValue) {
             editBookAuthorStatusEl.textContent = 'Author name is required.';
             return;
@@ -1904,19 +3495,34 @@
           editBookAuthorStatusEl.textContent = 'Saving...';
           btnEditBookAuthorConfirm.disabled = true;
           try {
-            await persistBookAuthor(user.id, bookId, authorValue);
+            await persistBookDetails(user.id, bookId, {
+              name: titleValue,
+              author: authorValue,
+              publisher: publisherValue,
+              publication_year: publicationYearValue,
+              total_pages: totalPagesValue,
+            });
           } catch (saveErr) {
             editBookAuthorStatusEl.textContent = 'Error: ' + (saveErr && saveErr.message ? saveErr.message : String(saveErr));
             btnEditBookAuthorConfirm.disabled = false;
             return;
           }
+          if (String(selectedBookId) === String(bookId)) {
+            updateBookScopedLabels();
+          }
           if (String(selectedBookId) === String(bookId) && hasAIUI) {
+            aiBookTitleEl.value = titleValue;
             aiAuthorEl.value = authorValue;
+            setAIMetadataInputValues({
+              publisher: publisherValue,
+              publicationYear: publicationYearValue,
+              totalPages: totalPagesValue,
+            });
             persistAIFormValues();
           }
           renderTopics(loadedBooks);
           btnEditBookAuthorConfirm.disabled = false;
-          setDevInfo('Book author saved.');
+          setDevInfo('Book details saved.');
           cleanup();
         };
       });
@@ -1971,6 +3577,7 @@
       const user = requireCurrentUser();
       if (!user) return;
       if (!selectedBookId) return alert('Add and select a book first.');
+      const entryMode = normalizeEntryMode(entryModeEl && entryModeEl.value);
       const text = entryTextEl.value.trim();
       if (!text) return alert('Write something first');
       const pageValue = normalizeProgressNumber(entryProgressValueEl && entryProgressValueEl.value);
@@ -1980,14 +3587,17 @@
       }
       const latestPageBoundary = getLatestProgressBoundary('page');
       const lowerBoundary = latestPageBoundary ? latestPageBoundary.upper : null;
-      if (Number.isFinite(lowerBoundary) && pageValue <= lowerBoundary) {
-        setDevInfo(`Add entry error: Current page must be greater than the last saved page (${lowerBoundary}).`, true);
+      if (Number.isFinite(lowerBoundary) && pageValue < lowerBoundary) {
+        setDevInfo(`Add entry error: Current page must be ${lowerBoundary} or greater.`, true);
         updateEntryProgressHint();
         return;
       }
-      const rangeLabel = buildProgressRangeLabel('page', lowerBoundary, pageValue);
+      const rangeLabel = Number.isFinite(lowerBoundary) && pageValue === lowerBoundary
+        ? `page ${pageValue}`
+        : buildProgressRangeLabel('page', lowerBoundary, pageValue);
+      const prefix = entryMode === 'ai' ? 'AI Summary' : 'Manual Entry';
       const payload = {
-        text: `[Manual Entry - ${rangeLabel}]\n${text}`,
+        text: `[${prefix} - ${rangeLabel}]\n${text}`,
         user_id: user.id,
         topic_id: selectedBookId
       };
@@ -2006,6 +3616,11 @@
         updateEntryProgressHint();
         entriesPage = 1;
         await loadEntries(user.id, selectedBookId);
+        setDevInfo(`${prefix} added at ${rangeLabel}.`);
+        await trackAnalyticsEvent(entryMode === 'ai' ? 'ai_summary_entry_saved' : 'manual_entry_added', {
+          boundary: rangeLabel,
+          progressValue: pageValue,
+        });
       }
     }
 
@@ -2259,14 +3874,23 @@
           const selectedClass = isSelected ? ' selected' : '';
           const author = t && t.author ? String(t.author).trim() : '';
           const authorLine = author ? `<div class="muted">Author: ${escapeHtml(author)}</div>` : '';
+          const publisher = t && t.publisher ? String(t.publisher).trim() : '';
+          const publicationYear = normalizeOptionalPublicationYear(t && t.publication_year);
+          const totalPages = normalizeOptionalPositiveInt(t && t.total_pages);
+          const metadataParts = [];
+          if (publisher) metadataParts.push(`Publisher: ${escapeHtml(publisher)}`);
+          if (publicationYear) metadataParts.push(`Year: ${publicationYear}`);
+          if (totalPages) metadataParts.push(`Pages: ${totalPages}`);
+          const metadataLine = metadataParts.length ? `<div class="muted">${metadataParts.join(' • ')}</div>` : '';
           return `<div class="item selectable${selectedClass}" data-book-id="${t.id}">
             <div class="book-row">
               <div class="book-main">
                 <strong>${escapeHtml(t.name)}</strong>
                 ${authorLine}
+                ${metadataLine}
                 <div class="muted">${formatTimestamp(t.created_at)}</div>
               </div>
-              <button type="button" class="small-btn ghost" data-book-action="edit-author" data-book-id="${t.id}">Edit Author</button>
+              <button type="button" class="small-btn ghost" data-book-action="edit-details" data-book-id="${t.id}">Edit Details</button>
               <button type="button" class="small-btn danger" data-book-action="delete" data-book-id="${t.id}">Delete</button>
             </div>
           </div>`;
@@ -2287,7 +3911,14 @@
       const pageItems = items.slice(startIndex, startIndex + ENTRIES_PAGE_SIZE);
 
       entriesList.innerHTML = pageItems
-        .map(e => `<div class="item"><div>${escapeHtml(e.text)}</div><div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-entry-action="edit" data-entry-id="${e.id}">Edit</button><button class="small-btn danger" data-entry-action="delete" data-entry-id="${e.id}">Delete</button></div><div class="muted" style="margin-top:6px;">${formatRecordTimestamp(e)}</div></div>`)
+        .map((e) => {
+          const text = String(e && e.text ? e.text : '');
+          const isAISummary = /^\[AI Summary\s*-\s*/i.test(text);
+          const feedbackBtn = isAISummary
+            ? `<button class="small-btn ghost" data-entry-action="feedback" data-entry-id="${e.id}">Report AI issue</button>`
+            : '';
+          return `<div class="item"><div>${escapeHtml(text)}</div><div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-entry-action="edit" data-entry-id="${e.id}">Edit</button><button class="small-btn danger" data-entry-action="delete" data-entry-id="${e.id}">Delete</button>${feedbackBtn}</div><div class="muted" style="margin-top:6px;">${formatRecordTimestamp(e)}</div></div>`;
+        })
         .join('');
 
       entriesPaginationEl.style.display = totalPages > 1 ? 'flex' : 'none';
@@ -2353,6 +3984,7 @@
           <div class="row" style="margin-top:10px;">
             <button class="small-btn ghost" data-character-action="edit" data-character-id="${selectedCharacter.id}">Edit</button>
             <button class="small-btn danger" data-character-action="delete" data-character-id="${selectedCharacter.id}">Delete</button>
+            <button class="small-btn ghost" data-character-action="feedback" data-character-id="${selectedCharacter.id}">Report AI issue</button>
           </div>
           <div class="character-time">${formatRecordTimestamp(selectedCharacter)}</div>
         </div>`;
@@ -2414,15 +4046,18 @@
     btnLogout.addEventListener('click', signOut);
     newTopicEl.addEventListener('input', syncDraftBookAuthorFromKnownBooks);
     btnAddTopic.addEventListener('click', addTopic);
-    btnAddEntry.addEventListener('click', addEntry);
+    if (btnAddEntry && btnAddEntry !== btnGenerateAI) {
+      btnAddEntry.addEventListener('click', addEntry);
+    }
     btnClearEntries.addEventListener('click', clearEntries);
     btnAddCharacter.addEventListener('click', addCharacter);
-    btnClearCharacterMap.addEventListener('click', clearCharacterMapForm);
+    btnClearCharacterMap.addEventListener('click', clearCharacterMap);
     if (hasAIUI) {
-      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl];
+      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiPublisherEl, aiPublicationYearEl, aiTotalPagesEl, aiEntryModeEl, aiProgressTypeEl, aiProgressValueEl, aiDetailLevelEl, aiCharacterDetailLevelEl, aiNotesEl, aiStrictSpoilerGuardEl];
       aiInputElements.forEach((el) => {
-        const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
+        const eventName = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(eventName, () => {
+          updateEntryComposerUI();
           updateAISpoilerBoundaryLabel();
           persistAIFormValues();
         });
@@ -2431,6 +4066,27 @@
         if (btnGenerateAI.disabled) return;
         await generateWithAI();
       });
+      btnReviewBlockedSummaryEl.addEventListener('click', () => {
+        if (btnReviewBlockedSummaryEl.disabled) return;
+        aiBlockedSummaryPreviewEl.classList.toggle('hidden');
+        renderBlockedSummaryPreview();
+      });
+      btnSaveBlockedSummaryEl.addEventListener('click', async () => {
+        if (btnSaveBlockedSummaryEl.disabled) return;
+        await saveBlockedSummaryAnyway();
+      });
+      btnTakePagePhotoEl.addEventListener('click', async () => {
+        if (btnTakePagePhotoEl.disabled) return;
+        await openCameraCaptureModal();
+      });
+      btnUploadPageImageEl.addEventListener('click', () => {
+        if (btnUploadPageImageEl.disabled) return;
+        bookImageInput.click();
+      });
+      btnRetryWithPageEvidenceEl.addEventListener('click', async () => {
+        if (btnRetryWithPageEvidenceEl.disabled) return;
+        await generateWithAI({ usePageEvidence: true });
+      });
       aiGeneratedImagesEl.addEventListener('click', (event) => {
         const btn = event.target.closest('[data-ai-image-index]');
         if (!btn) return;
@@ -2438,8 +4094,22 @@
         if (!Number.isFinite(index) || index < 0) return;
         queueGeneratedImageAtIndex(index);
       });
+      btnReportSpoilerEl.addEventListener('click', async () => {
+        if (btnReportSpoilerEl.disabled) return;
+        try {
+          await submitSpoilerReport();
+        } catch (err) {
+          console.warn('Spoiler report handler error:', err);
+          setAIStatus('Could not submit spoiler report.');
+          setDevInfo('Spoiler report handler error: ' + (err && err.message ? err.message : String(err)), true);
+        }
+      });
     }
     if (hasImageUI) {
+      btnTakePhoto.addEventListener('click', async () => {
+        if (btnTakePhoto.disabled) return;
+        await openCameraCaptureModal();
+      });
       btnPickImages.addEventListener('click', () => {
         if (btnPickImages.disabled) return;
         bookImageInput.click();
@@ -2478,14 +4148,24 @@
         if (action === 'edit') await editBookImage(imageId);
         if (action === 'delete') await deleteBookImage(imageId);
       });
+      btnCloseCamera.addEventListener('click', () => {
+        closeCameraCaptureModal();
+      });
+      btnCapturePhoto.addEventListener('click', async () => {
+        if (btnCapturePhoto.disabled) return;
+        await capturePhotoFromCamera();
+      });
+      cameraCaptureModalBackdrop.addEventListener('click', (event) => {
+        if (event.target === cameraCaptureModalBackdrop) closeCameraCaptureModal();
+      });
     }
     topicsList.addEventListener('click', async (event) => {
       const actionBtn = event.target.closest('[data-book-action]');
       if (actionBtn) {
         const action = actionBtn.getAttribute('data-book-action');
         const bookId = actionBtn.getAttribute('data-book-id');
-        if (action === 'edit-author') {
-          await editBookAuthor(bookId);
+        if (action === 'edit-details') {
+          await editBookDetails(bookId);
         }
         if (action === 'delete') {
           await deleteBook(bookId);
@@ -2503,6 +4183,29 @@
       const entryId = btn.getAttribute('data-entry-id');
       if (action === 'edit') await editEntry(entryId);
       if (action === 'delete') await deleteEntry(entryId);
+      if (action === 'feedback') {
+        try {
+          const user = requireCurrentUser();
+          if (!user) return;
+          const entry = loadedEntries.find((item) => String(item && item.id) === String(entryId));
+          if (!entry) return;
+          const firstLine = String(entry.text || '').split('\n')[0] || '';
+          const boundaryMatch = firstLine.match(/^\[AI Summary\s*-\s*(.+)\]$/i);
+          const auditId = await getAuditIdForSource(user, 'summary_entry', entry.id);
+          await openAIFeedbackModal({
+            sourceType: 'summary_entry',
+            sourceId: entry.id,
+            auditId,
+            sourceBoundary: boundaryMatch ? boundaryMatch[1] : null,
+            sourceTextExcerpt: String(entry.text || ''),
+            targetLabel: `Summary entry${boundaryMatch ? ` (${boundaryMatch[1]})` : ''}`,
+          });
+        } catch (err) {
+          console.warn('Summary feedback open error:', err);
+          setAIStatus('Could not open feedback form.');
+          setDevInfo('Summary feedback error: ' + (err && err.message ? err.message : String(err)), true);
+        }
+      }
     });
     btnEntriesPrev.addEventListener('click', () => {
       if (entriesPage <= 1) return;
@@ -2529,6 +4232,27 @@
       const characterId = btn.getAttribute('data-character-id');
       if (action === 'edit') await editCharacter(characterId);
       if (action === 'delete') await deleteCharacter(characterId);
+      if (action === 'feedback') {
+        try {
+          const user = requireCurrentUser();
+          if (!user) return;
+          const character = loadedCharacters.find((item) => String(item && item.id) === String(characterId));
+          if (!character) return;
+          const auditId = await getAuditIdForSource(user, 'character', character.id);
+          await openAIFeedbackModal({
+            sourceType: 'character',
+            sourceId: character.id,
+            auditId,
+            sourceBoundary: null,
+            sourceTextExcerpt: `${character.name || ''}\n${character.description || ''}`.trim(),
+            targetLabel: `Character: ${character.name || 'Unnamed'}`,
+          });
+        } catch (err) {
+          console.warn('Character feedback open error:', err);
+          setAIStatus('Could not open feedback form.');
+          setDevInfo('Character feedback error: ' + (err && err.message ? err.message : String(err)), true);
+        }
+      }
     });
     characterSearchEl.addEventListener('input', () => {
       renderCharacters(loadedCharacters);
@@ -2550,7 +4274,7 @@
       }
     });
     entryTextEl.addEventListener('keydown', async (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
+      if (event.key === 'Enter' && !event.shiftKey && normalizeEntryMode(entryModeEl && entryModeEl.value) === 'manual') {
         event.preventDefault();
         await addEntry();
       }
@@ -2558,6 +4282,12 @@
     if (entryProgressValueEl) {
       entryProgressValueEl.addEventListener('input', () => {
         updateEntryProgressHint();
+      });
+    }
+    if (entryModeEl) {
+      entryModeEl.addEventListener('change', () => {
+        updateEntryComposerUI();
+        persistAIFormValues();
       });
     }
     if (editBookAuthorModalBackdrop) {
@@ -2570,6 +4300,13 @@
     signupModalBackdrop.addEventListener('click', (event) => {
       if (event.target === signupModalBackdrop) closeSignupModal();
     });
+    if (feedbackModalBackdrop) {
+      feedbackModalBackdrop.addEventListener('click', (event) => {
+        if (event.target === feedbackModalBackdrop && btnFeedbackCancel) {
+          btnFeedbackCancel.click();
+        }
+      });
+    }
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         if (!signupModalBackdrop.classList.contains('hidden')) closeSignupModal();
@@ -2578,20 +4315,33 @@
         if (editBookAuthorModalBackdrop && !editBookAuthorModalBackdrop.classList.contains('hidden') && btnEditBookAuthorCancel) {
           btnEditBookAuthorCancel.click();
         }
+        if (feedbackModalBackdrop && !feedbackModalBackdrop.classList.contains('hidden') && btnFeedbackCancel) {
+          btnFeedbackCancel.click();
+        }
       }
     });
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       const previousUserId = currentUser && currentUser.id ? String(currentUser.id) : null;
       currentUser = session ? session.user : null;
       const currentUserId = currentUser && currentUser.id ? String(currentUser.id) : null;
       setSignedInState(currentUser);
-      if (event === 'SIGNED_IN' && currentUser) {
-        setAuthStatus('Logged in as ' + currentUser.email);
-        // Avoid expensive full reloads when the same signed-in user is re-emitted on tab/window activity.
-        if (currentUserId && currentUserId !== previousUserId) {
-          await refreshAll(currentUser);
-        }
+      // IMPORTANT: never await supabase calls inside this callback. gotrue-js emits
+      // events while holding its internal auth lock; awaiting queries here deadlocks
+      // (queries call getSession -> same lock). Defer all work to after the lock is released.
+      const capturedUser = currentUser;
+      if (event === 'SIGNED_IN' && capturedUser) {
+        setAuthStatus('Logged in as ' + capturedUser.email);
+        setTimeout(() => {
+          trackAnalyticsEvent('user_signed_in', {
+            sourceEvent: event,
+            isNewSessionUser: !!(currentUserId && currentUserId !== previousUserId),
+          }).catch((err) => console.warn('signin analytics error', err));
+          // Avoid expensive full reloads when the same signed-in user is re-emitted on tab/window activity.
+          if (currentUserId && currentUserId !== previousUserId) {
+            refreshAll(capturedUser).catch((err) => console.error('refreshAll error', err));
+          }
+        }, 0);
         return;
       }
       if (event === 'SIGNED_OUT') {
@@ -2600,9 +4350,11 @@
         return;
       }
       if (event === 'INITIAL_SESSION') {
-        if (currentUser) {
-          setAuthStatus('Logged in as ' + currentUser.email);
-          await refreshAll(currentUser);
+        if (capturedUser) {
+          setAuthStatus('Logged in as ' + capturedUser.email);
+          setTimeout(() => {
+            refreshAll(capturedUser).catch((err) => console.error('refreshAll error', err));
+          }, 0);
         } else {
           setDevInfo('Not signed in');
           renderEmptyLists();
@@ -2644,6 +4396,18 @@
             renderTopics(loadedBooks);
             updateBookScopedLabels();
             loadAIFormValuesForSelectedBook();
+            backfillBookMetadataIfMissing(currentUser.id, selectedBookId, {
+              title: getSelectedBookName(),
+              author: getBookAuthorForTopic(currentUser.id, selectedBookId),
+            }).then((metadata) => {
+              if (!metadata) return;
+              renderTopics(loadedBooks);
+              updateBookScopedLabels();
+              setAIMetadataInputValues(metadata);
+              persistAIFormValues();
+            }).catch((err) => {
+              console.warn('Selected book metadata backfill error:', err);
+            });
             syncBookScopedControlState();
             if (selectedBookId) {
               const cachedEntries = readCache('entries', currentUser.id, selectedBookId);
@@ -2731,6 +4495,7 @@
         // Attempt to fetch entries (will show errors in console if network/policies block)
         setSignedInState(null);
         if (hasAIUI) syncAIUpdateModeUI();
+        updateEntryComposerUI();
         updateBookScopedLabels();
         loadAIFormValuesForSelectedBook();
         setPendingImagesInfo('No image files selected.');
