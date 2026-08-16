@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Roadmap version | 1.2 |
+| Roadmap version | 1.3 |
 | Status | Active |
 | Product owner | Bookmarkt product owner |
 | Current stage | Stage 1 - Stabilization |
@@ -41,8 +41,9 @@ A reader can:
 5. Create an account or sign in securely.
 6. Add and organize books they are reading.
 7. Record reading progress and personal notes manually.
-8. Use only the AI capabilities included in their active paid tier: AI text
-   summary, AI character mapping, and/or AI image generation.
+8. Choose among the fixed paid tiers: **Base** for AI Summary; **Base+** for AI
+   Summary and AI Character Mapping; or **Ultimate** for all Base+ features plus
+   AI Image Generation.
 9. Keep AI text, character, and image output constrained to their reading
    boundary and save only the output they approve.
 10. Manually build and maintain book-specific character maps.
@@ -66,9 +67,9 @@ A reader can:
 - **Paid AI is server-authorized.** The backend checks the active subscription
   tier and requested feature before any AI provider call. A client-side paywall
   is never the security boundary.
-- **Limited v1 AI catalog.** Paid tiers may include only AI text summary, AI
-  character mapping, and AI image generation unless a later material decision
-  expands the catalog.
+- **Fixed cumulative paid-AI tiers.** Base includes AI Summary only; Base+
+  includes AI Summary and AI Character Mapping; Ultimate includes every Base+
+  feature plus AI Image Generation.
 - **Spoiler-aware AI.** AI output respects the reader's recorded boundary and
   offers a clear reporting path.
 - **Human-reviewed AI feedback.** User reports inform evaluation and product
@@ -91,8 +92,8 @@ Bookmarkt v1 is a personal reading companion. It is not initially:
 - A public social network.
 - A source of licensed full-book text.
 - An autonomous AI correction or model-training platform.
-- An open-ended catalog of AI tools beyond text summary, character mapping, and
-  image generation.
+- An open-ended catalog of AI tools beyond AI Summary, AI Character Mapping, and
+  AI Image Generation.
 - A public web or PWA reading application.
 
 The minimal website and smart-link service may display installation guidance on
@@ -125,23 +126,46 @@ flowchart LR
     P -->|Manual| Q[Write and save notes]
     Q --> R[Optional manual character updates/image uploads]
     P -->|AI-assisted| S{Paid subscription active?}
-    S -->|No| T[Show eligible paid tiers]
-    T --> Q
-    S -->|Yes| U[Load server-authoritative tier entitlements]
-    U --> V{Requested AI feature included?}
-    V -->|No| T
-    V -->|Yes| W{Entitled AI feature}
-    W -->|Text summary| X[Generate reading-bounded text summary]
-    W -->|Character mapping| Y[Generate reading-bounded character map]
-    W -->|Image generator| Z[Generate reading-bounded AI image]
-    X --> AA[Review and save approved AI output]
-    Y --> AA
-    Z --> AA
-    AA --> AB[Store user records/private image object]
-    R --> AC[Sync securely to account]
-    AB --> AC
-    AC --> AD[Resume in the native app]
+    S -->|No| T[Display Base, Base+, and Ultimate]
+    T --> U{Paid tier selected?}
+    U -->|No| Q
+    U -->|Yes| V[Complete App Store/Google Play purchase]
+    V --> PV{Purchase verified and entitlement active?}
+    PV -->|No/cancel/abandon/fail| Q
+    PV -->|Yes| W
+    S -->|Yes| W[Load server-confirmed active tier]
+    W --> X{Active paid tier}
+    X -->|Base| BA[AI Summary only]
+    X -->|Base+| BP{Choose Summary or Character Mapping}
+    X -->|Ultimate| UL{Choose Summary, Character Mapping, or Image Generation}
+    BA --> TS[Generate reading-bounded AI Summary]
+    BP -->|AI Summary| TS
+    BP -->|AI Character Mapping| CM[Generate reading-bounded Character Map]
+    UL -->|AI Summary| TS
+    UL -->|AI Character Mapping| CM
+    UL -->|AI Image Generation| IG[Generate reading-bounded AI Image]
+    TS --> RV[Review and save approved AI output]
+    CM --> RV
+    IG --> RV
+    RV --> ST[Store user records/private image object]
+    R --> SY[Sync securely to account]
+    ST --> SY
+    SY --> END[Resume in the native app]
 ```
+
+### Paid tier feature matrix
+
+| Account state/tier | AI Summary | AI Character Mapping | AI Image Generation | AI-assist outcome |
+| --- | --- | --- | --- | --- |
+| No active paid subscription | Locked | Locked | Locked | Show all paid tiers; no purchase returns to manual entry |
+| Base | Included | Locked | Locked | Enter Base paid stream |
+| Base+ | Included | Included | Locked | Enter Base+ paid stream |
+| Ultimate | Included | Included | Included | Enter Ultimate paid stream |
+
+The names and cumulative feature assignments are fixed. Stage 4 sets prices,
+billing periods, optional offers/trials, and per-feature quotas. Selecting a tier
+does not itself grant access: the store purchase and server entitlement must be
+verified first.
 
 ## 6. Platform evolution
 
@@ -289,6 +313,9 @@ Supabase backend.
       AI, characters, images, reporting, analytics, and subscriptions.
 - [ ] Define a server-authoritative entitlement boundary shared by all three AI
       feature services; the native client can request but cannot grant access.
+- [ ] Model the fixed cumulative tier identifiers and feature grants:
+      `base -> ai_summary`, `base_plus -> ai_summary + ai_character_mapping`,
+      and `ultimate -> base_plus features + ai_image_generation`.
 - [ ] Define environment, secret, configuration, and deployment ownership.
 - [ ] Record architecture decisions in the decision log or dedicated ADRs.
 
@@ -405,6 +432,9 @@ accessible iOS and Android reading product.
 - [ ] Design locked-feature, tier-comparison, upgrade, entitlement-loading, and
       expired/downgraded subscription states without blocking manual reading
       features.
+- [ ] Display Base, Base+, and Ultimate when an AI-assisted action has no active
+      paid subscription; a canceled/dismissed purchase returns to manual entry,
+      while a verified purchase resumes the paid flow.
 - [ ] Establish Bookmarkt brand direction, typography, color, iconography,
       spacing, motion, and voice.
 - [ ] Create a reusable design system with documented component states.
@@ -456,11 +486,13 @@ support the cost of AI, storage, operations, and app-store distribution.
 
 ### Work plan
 
-- [ ] Define free and paid tiers. If a trial is offered, model it as a time-bound
-      server-authorized paid entitlement.
-- [ ] Define the tier matrix using only three v1 AI capabilities: AI text
-      summary, AI character mapping, and AI image generation. A tier may include
-      any approved subset.
+- [ ] Implement the fixed paid tier matrix:
+      - Base: AI Summary only.
+      - Base+: AI Summary and AI Character Mapping.
+      - Ultimate: AI Summary, AI Character Mapping, and AI Image Generation.
+- [ ] Set pricing, billing periods, and introductory offers for the three fixed
+      tiers. If a trial is offered, bind it to one named tier as a time-bound
+      server-authorized entitlement.
 - [ ] Build a financial model for AI cost, infrastructure, app-store commission,
       taxes, refunds, support, and target margin.
 - [ ] Decide the native billing architecture before implementation. Evaluate
@@ -484,6 +516,9 @@ support the cost of AI, storage, operations, and app-store distribution.
       AI-generated images in private user-scoped Storage.
 - [ ] Implement plans, trials, purchase, restore purchase, upgrade, downgrade,
       cancellation, grace period, expiry, refund, and billing-retry states.
+- [ ] After tier selection, require verified App Store/Google Play purchase state
+      before entering the paid stream; canceled, failed, or abandoned purchases
+      return safely to manual entry.
 - [ ] Build subscription and account-management screens.
 - [ ] Prevent client-only entitlement decisions.
 - [ ] Add account email/password recovery and secure sensitive-account changes.
@@ -501,8 +536,15 @@ support the cost of AI, storage, operations, and app-store distribution.
   server-authoritative account state.
 - A free/inactive account cannot invoke any of the three AI providers and can
   continue using manual reading features.
-- Every paid tier can invoke only its configured subset of AI text summary, AI
-  character mapping, and AI image generation.
+- Base can invoke AI Summary and cannot invoke AI Character Mapping or AI Image
+  Generation.
+- Base+ can invoke AI Summary and AI Character Mapping and cannot invoke AI Image
+  Generation.
+- Ultimate can invoke AI Summary, AI Character Mapping, and AI Image Generation.
+- A user who declines, cancels, abandons, or fails purchase returns to manual
+  entry without losing work.
+- A newly purchased tier enters the paid stream only after server-authoritative
+  purchase verification and entitlement activation.
 - Denied requests consume neither provider cost nor generation quota.
 - Approved AI artifacts sync only to the authenticated user's account and
   AI-generated images remain private.
@@ -701,6 +743,8 @@ and physical-QR journey with representative external users before public launch.
 - [ ] Verify free, paid-tier, upgrade, downgrade, expiration, restoration, and
       locked-AI-feature paths; confirm unauthorized requests never reach a
       provider.
+- [ ] Verify the exact Base/Base+/Ultimate feature matrix and the
+      no-purchase-to-manual return path on iOS and Android.
 - [ ] Conduct load, abuse, quota, and cost-limit tests.
 - [ ] Confirm backups continue and rehearse a non-production restore.
 - [ ] Prioritize and fix beta findings through stage-linked issues and PRs.
@@ -799,7 +843,7 @@ After Stage 8 launch, Stage 9 becomes the ongoing active product lifecycle.
 - [ ] Review AI/spoiler reports, maintain evaluation sets, and test prompt/model
       changes before release.
 - [ ] Monitor AI usage, denial rate, provider cost, quality, and safety separately
-      for text summary, character mapping, and image generation by paid tier.
+      for AI Summary, AI Character Mapping, and AI Image Generation by paid tier.
 - [ ] Track activation, retention, conversion, churn, refunds, lifetime value,
       acquisition cost, and unit economics.
 - [ ] Improve onboarding, reading value, and subscription packaging through
@@ -863,7 +907,7 @@ documented exception is approved.
 | Stage 2 kickoff | Final native application architecture and state strategy |
 | Stage 2 kickoff | Smart-link, platform store-routing, and deferred-link approach |
 | Stage 3 | Brand, target reader, information architecture, accessibility target |
-| Stage 4 | Plans, prices, optional trial, three-feature AI tier matrix, quotas, billing and entitlement providers |
+| Stage 4 | Base/Base+/Ultimate prices, billing periods, optional trial, quotas, billing and entitlement providers |
 | Stage 5 | Supported OS versions, native capabilities, bundle IDs, and store-routing details |
 | Stage 6 | Launch regions, age eligibility, retention, legal terms, support SLA |
 | Stage 7 entry | Supabase Pro activation and external-beta operating readiness |
@@ -903,9 +947,9 @@ Bookmarkt v1 is launch-ready only when:
 - New and returning users can authenticate and recover account data.
 - Books, progress, notes, manual character maps, and personal images work
   consistently across supported platforms.
-- Only an active paid tier can access AI text summary, AI character mapping,
-  and/or AI image generation, and only according to its server-authoritative
-  feature matrix.
+- Only an active paid tier can access AI features: Base receives AI Summary;
+  Base+ receives AI Summary and AI Character Mapping; Ultimate receives all Base+
+  features plus AI Image Generation.
 - Denied AI requests never reach a provider, while approved AI artifacts are
   reviewed, saved, and synced only within the authenticated user's account.
 - Cross-account isolation and private-image access are verified.
