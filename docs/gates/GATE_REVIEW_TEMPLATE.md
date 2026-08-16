@@ -14,6 +14,14 @@
 
 State the result this gate must prove.
 
+## Product-scope conformance
+
+- Native iOS/Android impact:
+- Physical QR and app/store-routing impact:
+- Temporary PWA or retirement impact:
+- Minimal web endpoint impact:
+- Governing decision references:
+
 ## Criteria and evidence
 
 | Criterion | Status | Evidence | Owner |

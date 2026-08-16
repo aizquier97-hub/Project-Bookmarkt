@@ -26,7 +26,7 @@ Describe the user, product, or operational result.
 - [ ] Privacy, secrets, logging, analytics, and user-content exposure considered.
 - [ ] AI safety, quota, provider cost, and report/audit behavior considered.
 - [ ] Subscription, entitlement, webhook, tax, and store-policy impact considered.
-- [ ] PWA caching, native platforms, deep links, accessibility, and supported devices considered.
+- [ ] Native platforms, smart links/store routing, deferred links, prototype retirement, accessibility, and supported devices considered.
 - [ ] Not applicable items are explained below.
 
 ## Deployment and rollback

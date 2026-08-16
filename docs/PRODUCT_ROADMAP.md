@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Roadmap version | 1.0 |
+| Roadmap version | 1.1 |
 | Status | Active |
 | Product owner | Bookmarkt product owner |
 | Current stage | Stage 1 - Stabilization |
@@ -16,37 +16,47 @@ roadmap decisions are recorded in [DECISION_LOG.md](DECISION_LOG.md).
 
 ## 1. Product goal
 
-**Build a cross-platform product that modernizes the physical bookmark by using
-a QR code on the bookmark to open a secure reading companion where a reader can
-record, recover, and build on everything they have read so far.**
+**Build a native iOS and Android application that modernizes the physical
+bookmark by using its QR code to open Bookmarkt when installed or route the
+reader to the correct app store when Bookmarkt is not installed.**
 
-The QR experience must work without requiring an app installation. A reader who
-has installed the iOS or Android app should be taken into the app when possible,
-while every other reader receives a reliable web experience. Information belongs
-to the reader's account, not to one browser, phone, or physical bookmark.
+The complete reading experience belongs in the native application. The current
+PWA exists to validate the concept quickly and provide a behavioral reference
+during development; it is not a launch channel. A Bookmarkt-controlled HTTPS
+smart-link service remains necessary for universal/App Links, platform-specific
+store routing, deferred QR context when applicable, privacy, support, and account
+obligations. It does not provide the Bookmarkt reading application.
+
+Information belongs to the reader's account, not to one phone or physical
+bookmark.
 
 ## 2. Product promise
 
 A reader can:
 
 1. Scan a Bookmarkt QR code.
-2. Create an account or sign in securely.
-3. Add and organize books they are reading.
-4. Record reading progress and personal notes.
-5. Generate an optional AI summary constrained to what they have read.
-6. Build and maintain book-specific character maps.
-7. Store book metadata and personal images.
-8. Return from another device and recover the same account data.
-9. Use the product through the web, an installable PWA, or the future iOS and
-   Android applications.
-10. Understand and control their subscription, privacy, data, and account.
+2. Open Bookmarkt directly when it is installed.
+3. Reach the Apple App Store or Google Play when it is not installed.
+4. Install the app and recover any supported deferred QR context.
+5. Create an account or sign in securely.
+6. Add and organize books they are reading.
+7. Record reading progress and personal notes.
+8. Generate an optional AI summary constrained to what they have read.
+9. Build and maintain book-specific character maps.
+10. Store book metadata and personal images.
+11. Return from another supported phone and recover the same account data.
+12. Understand and control their subscription, privacy, data, and account.
 
 ## 3. Product principles
 
-- **QR first, not app only.** A printed bookmark must remain useful even when the
-  native app is not installed.
-- **One shared product core.** Web, PWA, iOS, and Android should share domain
-  behavior instead of becoming separate products.
+- **App-first launch product.** All reading workflows ship in the native iOS and
+  Android applications.
+- **Prototype, not permanent PWA.** The PWA remains a temporary validation and
+  behavior-reference environment until the native product replaces it.
+- **One shared native product core.** iOS and Android should share domain behavior
+  and backend services instead of becoming separate products.
+- **Install-aware QR routing.** A durable smart link opens the installed app or
+  sends an uninstalled mobile user to the correct platform store.
 - **Account-centered continuity.** Reading data follows the authenticated user.
 - **Privacy by default.** Cross-account access is prohibited and verified, not
   merely assumed.
@@ -61,8 +71,8 @@ A reader can:
 - **Reversible releases.** Schema, configuration, and application changes require
   deployment and rollback plans.
 - **Permanent QR destinations.** Printed codes should resolve through a
-  Bookmarkt-controlled HTTPS domain or redirect service, never a disposable
-  deployment URL.
+  Bookmarkt-controlled HTTPS smart-link service, never a disposable deployment
+  URL or direct store URL that cannot evolve.
 
 ## 4. Initial v1 product boundaries
 
@@ -72,7 +82,10 @@ Bookmarkt v1 is a personal reading companion. It is not initially:
 - A public social network.
 - A source of licensed full-book text.
 - An autonomous AI correction or model-training platform.
-- Dependent on native installation for the QR journey.
+- A public web or PWA reading application.
+
+The minimal website and smart-link service may display installation guidance on
+unsupported/desktop devices, but they do not expose the reading product.
 
 Changes to these boundaries require the roadmap change process.
 
@@ -80,40 +93,51 @@ Changes to these boundaries require the roadmap change process.
 
 ```mermaid
 flowchart LR
-    A[Scan physical bookmark QR] --> B{Native app installed?}
-    B -->|Yes| C[Open app through universal/app link]
-    B -->|No| D[Open secure web/PWA landing]
-    C --> E{Authenticated?}
-    D --> E
-    E -->|No| F[Create account or sign in]
-    E -->|Yes| G[Open library]
-    F --> G
-    G --> H[Select or add book]
-    H --> I[Record reading boundary]
-    I --> J{Entry type}
-    J -->|Manual| K[Write and save notes]
-    J -->|AI-assisted| L[Generate bounded summary]
-    K --> M[Update character map and images]
+    A[Scan physical bookmark QR] --> B[Bookmarkt smart link]
+    B --> C{Native app installed?}
+    C -->|Yes| D[Open app through universal/App Link]
+    C -->|No| E{Mobile platform}
+    E -->|iOS| F[Open Apple App Store]
+    E -->|Android| G[Open Google Play]
+    E -->|Unsupported/desktop| H[Show installation information]
+    F --> I[Install and open Bookmarkt]
+    G --> I
+    I --> J[Restore deferred QR context if supported]
+    D --> K{Authenticated?}
+    J --> K
+    K -->|No| L[Create account or sign in]
+    K -->|Yes| M[Open library]
     L --> M
-    M --> N[Sync securely to account]
-    N --> O[Resume on any supported device]
+    M --> N[Select or add book]
+    N --> O[Record reading boundary]
+    O --> P{Entry type}
+    P -->|Manual| Q[Write and save notes]
+    P -->|AI-assisted| R[Generate bounded summary]
+    Q --> S[Update character map and images]
+    R --> S
+    S --> T[Sync securely to account]
+    T --> U[Resume in the native app]
 ```
 
 ## 6. Platform evolution
 
-Stage 2 begins the app-quality product build, but it does not remove the PWA.
-Native packaging occurs in Stage 5.
+Stage 2 begins the native application rebuild. The PWA remains temporarily
+available as a frozen prototype/reference while the native product reaches
+parity. Stage 5 completes platform integration and signed distribution. Stage 8
+retires the public PWA reading experience when the native apps launch.
 
 ```mermaid
 flowchart LR
-    A[Validated PWA prototype] --> B[Stage 2 shared React/TypeScript core]
-    B --> C[Stage 3 polished responsive product]
-    C --> D[Stage 4 entitlements and subscriptions]
-    D --> E[Stage 5 Capacitor iOS/Android shells]
+    A[Validated PWA prototype] --> B[Stage 2 native app architecture and core]
+    B --> C[Stage 3 polished native experience]
+    C --> D[Stage 4 native subscriptions and entitlements]
+    D --> E[Stage 5 signed iOS/Android platform integration]
     E --> F[Stage 6 compliant release candidate]
     F --> G[Stage 7 external beta]
     G --> H[Stage 8 App Store and Google Play launch]
     H --> I[Stage 9 operations and growth]
+    A --> J[Frozen prototype during transition]
+    J --> K[Public PWA retired at Stage 8]
 ```
 
 ## 7. Roadmap status
@@ -122,13 +146,13 @@ flowchart LR
 | --- | --- | --- | --- |
 | Foundation | Functional prototype | Complete | QR-accessible production PWA proved the product concept |
 | Stage 1 | Stabilization | Observation | Reliable and secure baseline with seven clean days |
-| Stage 2 | Architecture rebuild | Planned | Maintainable, tested, app-quality shared codebase |
-| Stage 3 | Polished UI/UX | Planned | Accessible, branded, validated user experience |
+| Stage 2 | Architecture rebuild | Planned | Maintainable, tested native application core |
+| Stage 3 | Polished UI/UX | Planned | Accessible, branded, validated native experience |
 | Stage 4 | Monetization and accounts | Planned | Store-compliant subscriptions and entitlement system |
 | Stage 5 | Native iOS/Android packaging | Planned | Signed internal builds on real devices |
 | Stage 6 | Compliance and launch operations | Planned | Legally and operationally ready external-beta candidate |
 | Stage 7 | External beta | Planned | Evidence that real users and operations are launch-ready |
-| Stage 8 | App-store launch | Planned | Controlled public iOS, Android, and web release |
+| Stage 8 | App-store launch | Planned | Public iOS/Android release and retirement of the PWA product |
 | Stage 9 | Operations and growth | Planned | Sustainable ongoing product reliability and growth |
 
 ## 8. Foundation history - completed
@@ -153,7 +177,8 @@ This work predates formal gate tracking but forms the Stage 1 baseline.
 
 **Purpose:** Prove that the current production baseline is reliable, private,
 secure against obvious abuse, and safe to use as the behavioral reference for
-the architecture rebuild.
+the native application rebuild. Stage 1 validates behavior and backend controls;
+it does not approve the PWA as a launch channel.
 
 ### Completed work
 
@@ -204,6 +229,7 @@ invited, or Free-plan capacity/pausing becomes material.
 - All production-phone acceptance flows pass.
 - Database and Storage isolation are verified.
 - AI authentication, cost limits, and operational logging are active.
+- The PWA is accepted only as a temporary prototype and behavioral reference.
 - No unresolved P0 or P1 defect exists.
 - The full seven-day stability window is complete.
 - The product owner records an explicit `GO` decision.
@@ -212,8 +238,9 @@ invited, or Free-plan capacity/pausing becomes material.
 
 **Status:** Planned
 
-**Purpose:** Replace the monolithic prototype with a maintainable, typed, tested
-shared application while preserving the QR-accessible web/PWA experience.
+**Purpose:** Build the maintainable, typed, tested native application foundation
+for iOS and Android while preserving validated prototype behavior and the shared
+Supabase backend.
 
 ### Entry gate
 
@@ -228,8 +255,12 @@ shared application while preserving the QR-accessible web/PWA experience.
 - [ ] Decide whether QR codes are generic product launchers or uniquely identify
       a physical bookmark. Document account-linking, replacement, transfer, and
       manufacturing implications before changing the data model.
-- [ ] Confirm the target architecture. The recommended baseline is Vite, React,
-      TypeScript, Supabase, and a later Capacitor native shell.
+- [ ] Confirm the native target architecture. The recommended baseline is React
+      Native with Expo, TypeScript, and Supabase. Compare alternatives such as
+      Flutter or Capacitor against native UX, maintainability, app-store
+      requirements, and the app-only launch scope before approval.
+- [ ] Select the universal/App Link, platform store-routing, and deferred
+      deep-link approach. The QR destination must remain under Bookmarkt control.
 - [ ] Define domain boundaries for authentication, library, progress, entries,
       AI, characters, images, reporting, analytics, and subscriptions.
 - [ ] Define environment, secret, configuration, and deployment ownership.
@@ -237,13 +268,16 @@ shared application while preserving the QR-accessible web/PWA experience.
 
 #### Application foundation
 
-- [ ] Create the Vite/React/TypeScript application and strict type-checking.
-- [ ] Establish routes, authenticated layouts, reusable components, services,
-      state/query management, types, utilities, and styles.
+- [ ] Create the approved native iOS/Android application workspace with strict
+      type-checking.
+- [ ] Establish native navigation, authenticated screens, reusable components,
+      services, state/query management, types, utilities, and themes.
 - [ ] Generate and use Supabase database types.
 - [ ] Isolate Supabase behind typed service/repository modules.
-- [ ] Add validated environment configuration for local, preview, and production.
-- [ ] Add protected routing and deterministic session restoration.
+- [ ] Add validated environment and build-profile configuration for local,
+      preview/internal, and production applications.
+- [ ] Add protected native navigation and deterministic session restoration.
+- [ ] Use platform-appropriate secure storage for native session material.
 - [ ] Preserve the rule that database work is deferred outside Auth callbacks.
 - [ ] Make selected-book state and request cancellation/versioning explicit so
       stale responses cannot cross book boundaries.
@@ -265,8 +299,12 @@ shared application while preserving the QR-accessible web/PWA experience.
 
 - [ ] Standardize loading, empty, success, timeout, offline, and error states.
 - [ ] Replace developer-facing alerts with a shared notification system.
-- [ ] Define PWA install, service-worker update, cache invalidation, and
-      stale-version recovery behavior.
+- [ ] Define native installation, app-version compatibility, over-the-air update
+      boundaries, store update, offline, and stale-client behavior.
+- [ ] Freeze the PWA to critical stabilization fixes and document its transition,
+      access restriction, service-worker cleanup, and final retirement plan.
+- [ ] Build the minimal smart-link/store-routing service separately from the
+      reading application.
 - [ ] Add structured client error and performance telemetry with privacy limits.
 - [ ] Design and automate export/backup of actual Storage image objects; database
       backups only preserve Storage metadata.
@@ -277,31 +315,39 @@ shared application while preserving the QR-accessible web/PWA experience.
 
 - [ ] Add unit tests for domain rules and validation.
 - [ ] Add integration tests for Supabase service boundaries.
-- [ ] Add browser tests for authentication, book CRUD, book switching, entries,
-      AI error handling, character maps, and private images.
+- [ ] Add native component and integration tests for authentication, book CRUD,
+      book switching, entries, AI error handling, character maps, and private
+      images.
+- [ ] Add iOS and Android device automation for critical journeys.
+- [ ] Test smart-link platform detection and store-routing behavior.
 - [ ] Add explicit cross-account isolation tests against a safe test project.
 - [ ] Add type-check, test, build, and migration checks to pull-request CI.
-- [ ] Add Netlify preview deployments and a production release checklist.
-- [ ] Define performance budgets for initial load and core interactions.
+- [ ] Add internal native preview builds and a release checklist; retain Netlify
+      only for the temporary prototype and minimal web endpoints.
+- [ ] Define native cold-start, QR-to-app, screen-load, and interaction budgets.
 
 #### Cutover
 
 - [ ] Run old and new implementations against the same acceptance checklist.
 - [ ] Resolve all parity gaps and migration risks.
-- [ ] Deploy through a controlled release with a tested rollback.
-- [ ] Retire the legacy monolithic `index.html` implementation only after the new
-      application proves feature parity.
+- [ ] Prove the native alpha through controlled internal builds with rollback.
+- [ ] Keep the legacy PWA available only as the temporary validated prototype
+      until native beta/launch readiness; do not expand it into the final product.
+- [ ] Approve a retirement runbook covering routing, service-worker cleanup,
+      cached installations, user communication, and backend/data continuity.
 
 ### Stage 2 exit gate
 
-- Production no longer depends on the monolithic application.
-- Every Stage 1 user journey has parity on desktop, mobile web, and installed PWA.
-- Type-check, automated tests, and production builds pass in CI.
+- The native application alpha runs on both iOS and Android development/internal
+  builds.
+- Every relevant Stage 1 user journey has native feature parity.
+- The temporary PWA scope is frozen and its retirement runbook is approved.
+- Type-check, automated tests, and native builds pass in CI.
 - Auth restoration, cross-account isolation, private images, book switching, and
-  AI generation pass automated and real-device tests.
+  AI generation pass automated and iOS/Android device tests.
 - Schema and configuration changes are reproducible from version control.
-- Deployment, rollback, cache update, and Storage-object recovery procedures are
-  documented and exercised safely.
+- Native distribution/rollback, version compatibility, smart-link routing, and
+  Storage-object recovery procedures are documented and exercised safely.
 - No unresolved P0 or P1 defect exists.
 - The product owner records a `GO` decision.
 
@@ -309,12 +355,12 @@ shared application while preserving the QR-accessible web/PWA experience.
 
 **Status:** Planned
 
-**Purpose:** Turn the reliable shared application into an intuitive, distinctive,
-accessible reading product.
+**Purpose:** Turn the reliable native application into an intuitive, distinctive,
+accessible iOS and Android reading product.
 
 ### Entry gate
 
-- Stage 2 is approved and the shared component architecture is stable.
+- Stage 2 is approved and the native shared-component architecture is stable.
 - Product analytics can measure critical journeys without collecting unnecessary
   personal content.
 
@@ -326,8 +372,10 @@ accessible reading product.
 - [ ] Establish Bookmarkt brand direction, typography, color, iconography,
       spacing, motion, and voice.
 - [ ] Create a reusable design system with documented component states.
-- [ ] Design mobile-first navigation and responsive tablet/desktop layouts.
-- [ ] Build a focused QR landing and first-run onboarding experience.
+- [ ] Design native phone navigation and define whether tablets are supported in
+      v1; desktop is not a reading-product target.
+- [ ] Build the app-store-to-first-run onboarding experience and the minimal
+      unsupported-device installation page.
 - [ ] Add clear empty states and progressive guidance for a first book and entry.
 - [ ] Polish progress entry, AI controls, metadata, images, and character-map
       interactions.
@@ -335,8 +383,9 @@ accessible reading product.
 - [ ] Add useful confirmation and status messaging for AI/spoiler reports.
 - [ ] Design offline, poor-network, expired-session, update-available, and
       recoverable-error states.
-- [ ] Meet WCAG 2.2 AA for core journeys, including keyboard, screen-reader,
-      contrast, focus, text scaling, and reduced-motion behavior.
+- [ ] Meet WCAG 2.2 AA where applicable plus Apple and Android accessibility
+      guidance for screen readers, contrast, focus, text scaling, input, and
+      reduced-motion behavior.
 - [ ] Test touch targets and complex character-map interactions on small screens.
 - [ ] Conduct moderated usability tests with representative readers.
 - [ ] Resolve all high-severity usability findings and verify analytics funnels.
@@ -347,9 +396,9 @@ accessible reading product.
 
 - The design system is consistently implemented.
 - Core journeys meet WCAG 2.2 AA acceptance checks.
-- Representative users can complete scan-to-first-entry and return-to-book tasks
-  without facilitator intervention.
-- Mobile, tablet, and desktop layouts pass the supported-device matrix.
+- Representative users can complete scan-to-install/open-to-first-entry and
+  return-to-book tasks without facilitator intervention.
+- Supported iOS and Android phone/device layouts pass the device matrix.
 - No unresolved critical usability or accessibility defect exists.
 - Physical bookmark samples scan reliably under defined test conditions.
 - The product owner approves the v1 experience and brand direction.
@@ -373,9 +422,10 @@ support the cost of AI, storage, operations, and app-store distribution.
       entitlements.
 - [ ] Build a financial model for AI cost, infrastructure, app-store commission,
       taxes, refunds, support, and target margin.
-- [ ] Decide the billing architecture before implementation. Evaluate native
-      StoreKit/Google Play Billing with a shared entitlement provider such as
-      RevenueCat, plus Stripe for eligible web purchases.
+- [ ] Decide the native billing architecture before implementation. Evaluate
+      StoreKit and Google Play Billing with a shared entitlement provider such as
+      RevenueCat. Do not add web purchase flows without a separate approved
+      product and store-policy decision.
 - [ ] Verify current Apple and Google rules for digital subscriptions; do not
       route native users around required in-app purchase mechanisms.
 - [ ] Create a server-authoritative entitlement model in Supabase.
@@ -396,7 +446,8 @@ support the cost of AI, storage, operations, and app-store distribution.
 
 ### Stage 4 exit gate
 
-- Entitlements are consistent across web, iOS test, and Android test contexts.
+- Entitlements are consistent across iOS and Android test contexts and the
+  server-authoritative account state.
 - Billing events are verified server-side, idempotent, and reconcilable.
 - Purchase restoration, cancellation, expiry, and refund cases pass.
 - AI and storage limits enforce the selected plan safely.
@@ -408,8 +459,8 @@ support the cost of AI, storage, operations, and app-store distribution.
 
 **Status:** Planned
 
-**Purpose:** Package the shared product as reliable signed native applications
-without breaking the universal QR-to-web fallback.
+**Purpose:** Complete platform-specific integration, signing, distribution, and
+QR app-or-store routing for the native iOS and Android applications.
 
 ### Entry gate
 
@@ -420,7 +471,8 @@ without breaking the universal QR-to-web fallback.
 
 ### Work plan
 
-- [ ] Add Capacitor iOS and Android projects around the shared application.
+- [ ] Configure the native iOS and Android projects produced by the approved
+      Stage 2 architecture.
 - [ ] Configure stable bundle/application IDs, signing, capabilities, and build
       environments.
 - [ ] Create production icons, splash screens, launch behavior, and platform
@@ -428,7 +480,12 @@ without breaking the universal QR-to-web fallback.
 - [ ] Store sensitive native session material using platform-appropriate secure
       storage.
 - [ ] Implement Bookmarkt-controlled universal links and Android App Links.
-- [ ] Ensure each QR destination falls back safely to web when the app is absent.
+- [ ] Route an uninstalled iOS user to the Apple App Store and an uninstalled
+      Android user to Google Play.
+- [ ] Show only installation/support information for unsupported or desktop
+      devices; do not expose the reading application on the web.
+- [ ] Preserve deferred QR context through installation when the approved QR
+      identity model requires it.
 - [ ] Decide and implement generic-versus-unique bookmark linking from Stage 2.
 - [ ] Handle offline, interrupted network, background/resume, and expired-session
       behavior on both platforms.
@@ -442,12 +499,17 @@ without breaking the universal QR-to-web fallback.
 - [ ] Distribute builds through TestFlight internal testing and Google Play
       internal testing.
 - [ ] Run the device/OS compatibility matrix on physical devices.
+- [ ] Prepare and safely test the PWA retirement switch, including service-worker
+      unregistering, cached installations, routing, and user communication.
 - [ ] Perform a preliminary App Review and Play policy checklist.
 
 ### Stage 5 exit gate
 
 - Signed iOS and Android builds install and launch on supported real devices.
-- QR universal/app links work with installed-app and web-fallback paths.
+- Installed-app QR scans open Bookmarkt on iOS and Android.
+- Uninstalled-app QR scans reach the correct platform store; unsupported devices
+  receive installation information rather than the reading product.
+- Required deferred QR context survives installation.
 - Login, account sync, all core reading workflows, images, AI, and subscription
   restoration pass on both platforms.
 - No unnecessary permission or insecure secret is present.
@@ -524,6 +586,8 @@ for people outside the development team.
       reports, auth, and core funnels.
 - [ ] Define service indicators, alert thresholds, escalation, and ownership.
 - [ ] Prepare status, support, privacy, deletion, and contact URLs.
+- [ ] Verify minimal web endpoints contain only routing, installation, privacy,
+      support, and account-obligation functions, not reading-product features.
 - [ ] Complete an accessibility conformance review.
 - [ ] Prepare the beta runbook, tester agreement, support coverage, and rollback.
 
@@ -556,13 +620,15 @@ and physical-QR journey with representative external users before public launch.
 - The AI/spoiler report queue is monitored with an assigned reviewer.
 - Signed builds are approved for TestFlight external and Google Play closed
   testing.
+- The temporary PWA is not an external-beta product channel.
 
 ### Work plan
 
 - [ ] Recruit a representative tester cohort and obtain appropriate consent.
-- [ ] Distribute web/PWA, TestFlight, and Google Play closed-test builds.
-- [ ] Test scan-to-app, scan-to-web, signup, return login, account sync, books,
-      entries, AI, maps, images, subscriptions, support, and deletion.
+- [ ] Distribute TestFlight and Google Play closed-test builds.
+- [ ] Test installed-app QR opening, uninstalled-app store routing, deferred QR
+      context, signup, return login, account sync, books, entries, AI, maps,
+      images, subscriptions, support, and deletion.
 - [ ] Test physical bookmark samples across phone models, lighting, wear, and QR
       distances.
 - [ ] Validate generic/unique bookmark replacement and transfer behavior if
@@ -589,14 +655,16 @@ These thresholds can change only through the roadmap decision process:
 - Actionable AI/spoiler reports are triaged within two business days.
 - Backup freshness, restore rehearsal, deletion, and support procedures pass.
 - Store-policy prechecks have no known launch blocker.
+- External testers complete core journeys without relying on the PWA.
 - The product owner records a `GO` decision for public launch preparation.
 
 ## 16. Stage 8 - App-store and public launch
 
 **Status:** Planned
 
-**Purpose:** Release Bookmarkt safely through the Apple App Store, Google Play,
-and the production web/PWA channel.
+**Purpose:** Release Bookmarkt through the Apple App Store and Google Play,
+activate production app-or-store QR routing, and retire the public PWA reading
+experience.
 
 ### Entry gate
 
@@ -615,6 +683,13 @@ and the production web/PWA channel.
 - [ ] Verify production signing, versioning, release notes, and provenance.
 - [ ] Validate Bookmarkt-owned QR redirects and universal/app links against the
       exact release builds.
+- [ ] Verify installed scans open Bookmarkt and uninstalled scans open the correct
+      platform store on every supported OS/device combination.
+- [ ] Activate the PWA retirement plan: stop new PWA installation, unregister its
+      service worker, handle previously cached installations, and replace public
+      reading routes with app/store guidance without deleting account data.
+- [ ] Keep only the minimal smart-link, installation, privacy, support, and
+      account-obligation website.
 - [ ] Freeze and quality-check the production physical-bookmark QR artwork.
 - [ ] Define manufacturing batch, QR traceability, packaging instructions,
       replacement process, inventory, and fulfillment quality controls.
@@ -630,7 +705,9 @@ and the production web/PWA channel.
 ### Stage 8 exit gate
 
 - iOS and Android applications are approved and publicly available.
-- The web/PWA fallback and physical QR journey remain operational.
+- Physical QR scans open the installed app or the correct platform store.
+- The public PWA reading application is retired; minimal web routing and required
+  support/legal/account pages remain operational.
 - Subscription and entitlement production reconciliation is healthy.
 - No unresolved launch P0/P1 exists.
 - Initial staged rollout is complete or intentionally paused with a documented
@@ -650,7 +727,7 @@ After Stage 8 launch, Stage 9 becomes the ongoing active product lifecycle.
 ### Recurring work
 
 - [ ] Monitor availability, latency, crashes, auth, data integrity, subscriptions,
-      AI quality/cost, support, reports, and QR redirect health.
+      AI quality/cost, support, reports, app/store routing, and QR redirect health.
 - [ ] Triage P0/P1 alerts immediately and conduct blameless incident reviews.
 - [ ] Verify backups continuously and rehearse restoration at a defined cadence.
 - [ ] Patch dependencies, rotate credentials, review access, and repeat security
@@ -686,23 +763,26 @@ Stage 9 does not have a final exit. It establishes the operating lifecycle.
 
 ```mermaid
 flowchart TD
-    S1[Stage 1 stable behavioral baseline] --> S2[Stage 2 shared architecture]
-    S2 --> S3[Stage 3 polished UX]
-    S3 --> S4[Stage 4 subscriptions]
-    S4 --> S5[Stage 5 native builds]
+    S1[Stage 1 stable PWA behavioral baseline] --> S2[Stage 2 native app architecture]
+    S2 --> S3[Stage 3 polished native UX]
+    S3 --> S4[Stage 4 native subscriptions]
+    S4 --> S5[Stage 5 signed native builds and app/store routing]
     S5 --> S6[Stage 6 compliance and operations]
     S6 --> P[Supabase Pro plus backup and leaked-password controls]
     P --> S7[Stage 7 external beta]
     S7 --> S8[Stage 8 public launch]
     S8 --> S9[Stage 9 operations and growth]
 
-    Q[QR identity decision in Stage 2] --> U[Universal/app links in Stage 5]
+    Q[QR identity and deferred-link decisions in Stage 2] --> U[Universal/App Links and store routing in Stage 5]
     U --> B[Physical beta samples in Stage 7]
     B --> M[Production manufacturing in Stage 8]
 
     E[Entitlement design in Stage 4] --> N[Native purchase integration in Stage 5]
     N --> C[Store compliance in Stage 6]
     C --> S7
+
+    W[Temporary PWA prototype] --> X[Frozen reference during Stages 2-7]
+    X --> Y[Public PWA retired in Stage 8]
 ```
 
 Planning and research for a later stage may occur early when it reduces lead
@@ -714,10 +794,11 @@ documented exception is approved.
 | Deadline | Decision |
 | --- | --- |
 | Stage 2 kickoff | Generic versus uniquely identified physical QR bookmarks |
-| Stage 2 kickoff | Final shared application architecture and state strategy |
+| Stage 2 kickoff | Final native application architecture and state strategy |
+| Stage 2 kickoff | Smart-link, platform store-routing, and deferred-link approach |
 | Stage 3 | Brand, target reader, information architecture, accessibility target |
 | Stage 4 | Plans, prices, trials, AI quotas, billing and entitlement providers |
-| Stage 5 | Supported OS versions, native capabilities, bundle IDs, deep links |
+| Stage 5 | Supported OS versions, native capabilities, bundle IDs, and store-routing details |
 | Stage 6 | Launch regions, age eligibility, retention, legal terms, support SLA |
 | Stage 7 entry | Supabase Pro activation and external-beta operating readiness |
 | Stage 7 exit | Launch thresholds and accepted residual beta risk |
@@ -727,15 +808,17 @@ documented exception is approved.
 
 | Risk | Planned control |
 | --- | --- |
-| Printed QR becomes obsolete | Product-owned permanent redirect and tested web fallback |
+| Printed QR becomes obsolete | Product-owned permanent smart link with tested app/store routing |
 | QR identity model chosen too late | Mandatory Stage 2 product/data/manufacturing decision |
+| Store installation creates excessive activation drop-off | Measure scan-to-store-to-activation funnel and improve store/onboarding conversion |
 | Cross-account data exposure | RLS, least privilege, automated isolation tests, security review |
 | AI hallucination or spoilers | Reading boundaries, reports, audits, evaluation sets, human review |
 | AI or infrastructure cost overrun | Authenticated quotas, entitlements, budgets, alerts, unit economics |
 | Database backup omits images | Independent Storage-object backup/export and restore procedure |
 | App-store billing rejection | Store-policy decision before billing implementation |
-| Web/native behavior diverges | Shared core, parity tests, native shells rather than separate products |
-| PWA serves stale releases | Explicit service-worker version/update strategy and rollback |
+| Prototype/native behavior diverges during transition | Stage 1 acceptance baseline, parity tests, and frozen PWA scope |
+| Temporary PWA remains accessible after launch | Tested retirement switch, service-worker cleanup, routing, and communication |
+| App-store outage, delisting, or review delay blocks acquisition | Staged submissions, policy prechecks, operational alerts, and installation guidance |
 | Subscription inconsistency | Server-authoritative entitlements and webhook reconciliation |
 | Legal/privacy mismatch | Data inventory, verified deletion/export, accurate store disclosures |
 | Reports collected but ignored | Secure admin queue, assigned reviewer, triage SLA, audit history |
@@ -745,7 +828,10 @@ documented exception is approved.
 
 Bookmarkt v1 is launch-ready only when:
 
-- A physical QR code reliably opens the correct web or native destination.
+- A physical QR code opens Bookmarkt when installed or the correct Apple App
+  Store/Google Play listing when uninstalled.
+- Unsupported/desktop scans receive installation information, not a web reading
+  application.
 - New and returning users can authenticate and recover account data.
 - Books, progress, notes, bounded AI summaries, character maps, and images work
   consistently across supported platforms.
@@ -756,4 +842,5 @@ Bookmarkt v1 is launch-ready only when:
 - Database and image recovery, incident response, support, and report review are
   operational.
 - iOS and Android release candidates meet their respective store policies.
+- The public PWA reading experience is retired without losing account data.
 - Stage 7 evidence supports a documented launch `GO` decision.

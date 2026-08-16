@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Governance version | 1.0 |
+| Governance version | 1.1 |
 | Status | Active |
 | Effective date | August 16, 2026 |
 | Final gate authority | Bookmarkt product owner |
@@ -79,6 +79,20 @@ flowchart LR
    legal/privacy, and operations provide evidence and recommendations within
    their domains.
 10. A gate can be reopened if later evidence invalidates its assumptions.
+11. No gate may redefine the v1 launch product as a public web/PWA reading
+    application without an approved material roadmap decision superseding D-008.
+
+### Launch-channel invariant
+
+- Bookmarkt v1 reading workflows ship through the native iOS and Android apps.
+- A physical QR uses a Bookmarkt-controlled smart link.
+- If Bookmarkt is installed, the QR opens the app through a Universal/App Link.
+- If it is not installed, an iOS or Android user reaches the correct app store.
+- Unsupported or desktop users may receive installation information.
+- Minimal web infrastructure may provide routing, privacy, support, and required
+  account functions, but not the reading application.
+- Stage 1 PWA results remain valid prototype evidence. They do not establish the
+  PWA as a launch requirement.
 
 ## 4. Work-item lifecycle
 
@@ -122,8 +136,9 @@ Every material pull request should:
 
 - Name its stage and link its issue.
 - Explain the outcome, not only the changed files.
-- Identify migrations, configuration, security/privacy, billing, AI, PWA/native,
-  and accessibility impacts.
+- Identify migrations, configuration, security/privacy, billing, AI, native
+  platforms, smart-link/store routing, prototype retirement, and accessibility
+  impacts.
 - Include the smallest sufficient automated and manual validation.
 - Include rollout, monitoring, and rollback information when behavior changes.
 - Update roadmap, operations, or user documentation when the source of truth
@@ -150,7 +165,9 @@ Gate reviews should use direct evidence appropriate to the stage:
 
 - Linked issues and merged pull requests.
 - CI test, type-check, build, migration, and security results.
-- Real-device and supported-browser test matrices.
+- iOS/Android real-device matrices, smart-link/store-routing tests, and
+  supported-browser evidence only for the temporary prototype or minimal web
+  endpoints.
 - Production or beta monitoring windows.
 - RLS, account-isolation, entitlement, backup, restore, and deletion tests.
 - Accessibility and usability findings.
@@ -214,6 +231,10 @@ Supabase Pro backups and leaked-password protection are accepted deferrals to th
 Stage 7 entry gate. This is not permission to invite external beta users without
 those controls.
 
+Stage 1 approval validates the temporary PWA and shared backend as a behavioral
+baseline for the native rebuild. It does not approve a public PWA reading product
+for beta or launch.
+
 ## 10. Change control
 
 ### Material change
@@ -222,8 +243,8 @@ A change is material when it affects any of the following:
 
 - Product goal, target user, initial v1 boundaries, or stage order.
 - A stage's mandatory entry or exit criteria.
-- QR identity, account ownership, data model, supported platform, or native
-  strategy.
+- QR identity, app/store routing, account ownership, data model, launch channel,
+  PWA retirement, supported platform, or native strategy.
 - Subscription, pricing, entitlement, payment provider, or app-store policy.
 - Security, privacy, retention, backup, deletion, AI safety, or legal posture.
 - Launch threshold, supported region, age eligibility, or accepted risk.

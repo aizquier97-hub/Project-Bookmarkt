@@ -1,6 +1,9 @@
 # Gate Review Records
 
 This directory contains durable evidence and decisions for Bookmarkt stage gates.
+Every future gate must conform to Decision D-008: the launch reading product is
+native iOS/Android, the QR opens the app or correct platform store, and the PWA
+remains a temporary prototype until retirement.
 
 ## Records
 
