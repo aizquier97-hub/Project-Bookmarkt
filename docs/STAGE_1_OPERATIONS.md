@@ -50,6 +50,14 @@ Change either limit without redeploying:
 npx supabase secrets set AI_DAILY_USER_LIMIT=30 AI_DAILY_PROJECT_LIMIT=500 --project-ref bfallxtcxxyykcnkedom
 ```
 
+## Storage and account security
+
+The `book-images` bucket is private. Object policies only allow an authenticated user to select, upload, update, or delete files whose first folder segment matches that user's id. The app stores stable object paths and creates one-hour signed display URLs after authentication. Anonymous bucket listing and public object URLs must remain blocked.
+
+New accounts require at least 12 characters containing uppercase, lowercase, a number, and a symbol. The requirement is enforced by both the hosted Auth service and the signup UI.
+
+Leaked-password protection is valid and recommended, but Supabase exposes it only on Pro and above. After upgrading for production backups, enable **Authentication > Password strength > Prevent use of leaked passwords**. Existing password hashes cannot be checked retrospectively; the control applies when users sign up or change passwords.
+
 ## Database backups
 
 Audit result on 2026-08-16:

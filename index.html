@@ -457,13 +457,14 @@
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
       <h2 id="signupTitle" class="small" style="font-size:18px; margin:0 0 10px 0;">Create account</h2>
       <label>Email
-        <input id="signupEmail" type="email" placeholder="you@example.com" />
+        <input id="signupEmail" type="email" placeholder="you@example.com" autocomplete="email" />
       </label>
       <label>Password
-        <input id="signupPassword" type="password" placeholder="password" />
+        <input id="signupPassword" type="password" placeholder="Create a strong password" minlength="12" autocomplete="new-password" />
       </label>
+      <div class="small muted">Use at least 12 characters with uppercase, lowercase, a number, and a symbol.</div>
       <label>Confirm password
-        <input id="signupConfirmPassword" type="password" placeholder="confirm password" />
+        <input id="signupConfirmPassword" type="password" placeholder="Confirm your password" minlength="12" autocomplete="new-password" />
       </label>
       <div class="row">
         <button id="btnSignupConfirm">Create account</button>
@@ -642,6 +643,8 @@
     const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiPublisherEl && aiPublicationYearEl && aiTotalPagesEl && aiControlsEl && aiEntryModeEl && aiProgressTypeEl && aiProgressValueEl && aiDetailLevelEl && aiCharacterDetailLevelEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
+    const BOOK_IMAGE_SIGNED_URL_TTL_SECONDS = 60 * 60;
+    const ACCOUNT_PASSWORD_MIN_LENGTH = 12;
     let currentUser = null;
     let selectedBookId = null;
     let loadedBooks = [];
@@ -2235,9 +2238,6 @@
             .from(BOOK_IMAGES_BUCKET)
             .upload(filePath, blob, { upsert: false, contentType: mimeType });
           if (uploadRes.error) throw uploadRes.error;
-          const { data: publicUrlData } = supabase.storage.from(BOOK_IMAGES_BUCKET).getPublicUrl(filePath);
-          const imageUrl = publicUrlData && publicUrlData.publicUrl ? publicUrlData.publicUrl : null;
-          if (!imageUrl) throw new Error('Could not retrieve public URL for generated image.');
           const captionParts = ['[AI Setting]'];
           if (item.title) captionParts.push(String(item.title));
           if (spoilerBoundary) captionParts.push(`(${spoilerBoundary})`);
@@ -2246,7 +2246,7 @@
             .insert([{
               user_id: user.id,
               topic_id: selectedBookId,
-              image_url: imageUrl,
+              image_url: filePath,
               caption: captionParts.join(' ')
             }])
             .select('id')
@@ -2711,17 +2711,70 @@
       characterSearchMetaEl.textContent = '';
     }
 
-    function extractStoragePathFromPublicUrl(url) {
-      if (!url) return null;
-      const marker = `/storage/v1/object/public/${BOOK_IMAGES_BUCKET}/`;
-      const idx = url.indexOf(marker);
-      if (idx < 0) return null;
-      const encodedPath = url.substring(idx + marker.length);
-      try {
-        return decodeURIComponent(encodedPath);
-      } catch (e) {
-        return encodedPath;
+    function extractStoragePathFromPublicUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return null;
+      const markers = [
+        '/storage/v1/object/public/' + BOOK_IMAGES_BUCKET + '/',
+        '/storage/v1/object/sign/' + BOOK_IMAGES_BUCKET + '/',
+        '/storage/v1/object/authenticated/' + BOOK_IMAGES_BUCKET + '/'
+      ];
+      for (let i = 0; i < markers.length; i += 1) {
+        const marker = markers[i];
+        const markerIndex = raw.indexOf(marker);
+        if (markerIndex < 0) continue;
+        const encodedPath = raw.substring(markerIndex + marker.length).split('?')[0];
+        try {
+          return decodeURIComponent(encodedPath);
+        } catch (_) {
+          return encodedPath;
+        }
       }
+      if (/^(?:https?:|data:|blob:)/i.test(raw)) return null;
+      const normalizedPath = raw.replace(/^\/+/, '');
+      const bucketPrefix = BOOK_IMAGES_BUCKET + '/';
+      return normalizedPath.startsWith(bucketPrefix)
+        ? normalizedPath.substring(bucketPrefix.length)
+        : normalizedPath;
+    }
+
+    async function attachSignedBookImageUrls(rows) {
+      const preparedRows = (Array.isArray(rows) ? rows : []).map((row) => ({
+        row,
+        storagePath: extractStoragePathFromPublicUrl(row && row.image_url)
+      }));
+      const storagePaths = Array.from(new Set(
+        preparedRows.map((item) => item.storagePath).filter(Boolean)
+      ));
+      if (!storagePaths.length) {
+        return preparedRows.map((item) => ({
+          ...item.row,
+          storage_path: item.storagePath,
+          image_url: item.storagePath ? '' : String(item.row && item.row.image_url || '')
+        }));
+      }
+      const signedRes = await withTimeout(
+        supabase.storage
+          .from(BOOK_IMAGES_BUCKET)
+          .createSignedUrls(storagePaths, BOOK_IMAGE_SIGNED_URL_TTL_SECONDS),
+        12000,
+        'Secure image links timed out. Please try again.'
+      );
+      if (signedRes.error) throw signedRes.error;
+      const signedUrlByPath = new Map();
+      const signedItems = Array.isArray(signedRes.data) ? signedRes.data : [];
+      for (let i = 0; i < signedItems.length; i += 1) {
+        const signedItem = signedItems[i] || {};
+        const itemPath = String(signedItem.path || storagePaths[i] || '');
+        if (itemPath && signedItem.signedUrl) {
+          signedUrlByPath.set(itemPath, signedItem.signedUrl);
+        }
+      }
+      return preparedRows.map((item) => ({
+        ...item.row,
+        storage_path: item.storagePath,
+        image_url: item.storagePath ? (signedUrlByPath.get(item.storagePath) || '') : String(item.row && item.row.image_url || '')
+      }));
     }
 
     function refreshPendingImagesUI() {
@@ -2881,11 +2934,32 @@
     }
 
     // ======= Auth handlers =======
+    function validateNewAccountPassword(password) {
+      const value = String(password || '');
+      const meetsRequirements =
+        value.length >= ACCOUNT_PASSWORD_MIN_LENGTH &&
+        /[a-z]/.test(value) &&
+        /[A-Z]/.test(value) &&
+        /[0-9]/.test(value) &&
+        /[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,.\/`~]/.test(value);
+      return meetsRequirements
+        ? ''
+        : 'Use at least ' + ACCOUNT_PASSWORD_MIN_LENGTH + ' characters with uppercase, lowercase, a number, and a symbol.';
+    }
+
     async function signUp() {
       const email = signupEmailEl.value.trim();
       const password = signupPasswordEl.value;
       const confirmPassword = signupConfirmPasswordEl.value;
-      if (!email || !password) return alert('Provide email and password');
+      if (!email || !password) {
+        setSignupStatus('Sign up error: Provide an email and password.');
+        return;
+      }
+      const passwordError = validateNewAccountPassword(password);
+      if (passwordError) {
+        setSignupStatus('Sign up error: ' + passwordError);
+        return;
+      }
       if (password !== confirmPassword) {
         setSignupStatus('Sign up error: Password and confirm password must match.');
         return;
@@ -3130,7 +3204,9 @@
         if (res.error) throw res.error;
         // Discard result if the user switched to a different book while this fetch was in flight.
         if (String(bookId) !== String(selectedBookId)) return;
-        loadedBookImages = res.data || [];
+        const signedImageRows = await attachSignedBookImageUrls(res.data || []);
+        if (String(bookId) !== String(selectedBookId)) return;
+        loadedBookImages = signedImageRows;
         writeCache('images', userId, loadedBookImages, bookId);
         renderBookImages(loadedBookImages);
       } catch (err) {
@@ -3182,21 +3258,13 @@
             return;
           }
 
-          const { data: publicUrlData } = supabase.storage.from(BOOK_IMAGES_BUCKET).getPublicUrl(filePath);
-          const imageUrl = publicUrlData && publicUrlData.publicUrl ? publicUrlData.publicUrl : null;
-          if (!imageUrl) {
-            setImageStatus('Image upload error: Could not retrieve public URL.');
-            setDevInfo('Image upload error: Could not retrieve public URL.', true);
-            return;
-          }
-
           const insertRes = await withTimeout(
             supabase
               .from('book_images')
               .insert([{
                 user_id: user.id,
                 topic_id: selectedBookId,
-                image_url: imageUrl,
+                image_url: filePath,
                 caption: caption || null
               }]),
             12000,
@@ -3252,7 +3320,7 @@
       if (!existing) return;
       if (!confirm('Delete this image?')) return;
 
-      const storagePath = extractStoragePathFromPublicUrl(existing.image_url);
+      const storagePath = existing.storage_path || extractStoragePathFromPublicUrl(existing.image_url);
       if (storagePath) {
         const removeRes = await supabase.storage.from(BOOK_IMAGES_BUCKET).remove([storagePath]);
         if (removeRes.error) {
@@ -4001,7 +4069,10 @@
         .map(img => {
           const caption = img.caption ? `<div class="image-caption">${escapeHtml(img.caption)}</div>` : '';
           const imageUrl = escapeHtml(img.image_url || '');
-          return `<div class="image-card"><img src="${imageUrl}" alt="Book related image" loading="lazy" />${caption}<div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-image-action="edit" data-image-id="${img.id}">Edit</button><button class="small-btn danger" data-image-action="delete" data-image-id="${img.id}">Delete</button></div><div class="image-time">${formatRecordTimestamp(img)}</div></div>`;
+          const imagePreview = imageUrl
+            ? `<img src="${imageUrl}" alt="Book related image" loading="lazy" />`
+            : '<div class="item muted">Secure image preview unavailable. Refresh to retry.</div>';
+          return `<div class="image-card">${imagePreview}${caption}<div class="row" style="margin-top:8px;"><button class="small-btn ghost" data-image-action="edit" data-image-id="${img.id}">Edit</button><button class="small-btn danger" data-image-action="delete" data-image-id="${img.id}">Delete</button></div><div class="image-time">${formatRecordTimestamp(img)}</div></div>`;
         })
         .join('');
     }
