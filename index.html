@@ -1584,33 +1584,49 @@
       if (publisherValue !== null) updatePayload.publisher = publisherValue || null;
       if (publicationYearValue !== undefined) updatePayload.publication_year = publicationYearValue || null;
       if (totalPagesValue !== undefined) updatePayload.total_pages = totalPagesValue || null;
-      const updateRes = await withTimeout(
+      const saveTimeoutMessage = 'Saving book details timed out. Please check your connection and try again.';
+      async function runBookDetailsSaveWithRetry(queryFactory) {
+        const timeoutSequenceMs = [12000, 25000];
+        let lastError = null;
+        for (let i = 0; i < timeoutSequenceMs.length; i += 1) {
+          const timeoutMs = timeoutSequenceMs[i];
+          try {
+            return await withTimeout(queryFactory(), timeoutMs, saveTimeoutMessage);
+          } catch (err) {
+            lastError = err;
+            const message = (err && err.message ? err.message : String(err || '')).toLowerCase();
+            const timedOut = message.includes('timed out');
+            const isLastAttempt = i === timeoutSequenceMs.length - 1;
+            if (!timedOut || isLastAttempt) {
+              throw err;
+            }
+          }
+        }
+        throw lastError || new Error(saveTimeoutMessage);
+      }
+      const updateRes = await runBookDetailsSaveWithRetry(() => (
         supabase
           .from('topics')
           .update(updatePayload)
           .eq('id', topicId)
           .eq('user_id', userId)
           .select('id,name,author,publisher,publication_year,total_pages')
-          .single(),
-        12000,
-        'Saving book details timed out. Please check your connection and try again.'
-      );
+          .single()
+      ));
       if (updateRes.error) {
         if (isMissingTopicsMetadataColumnError(updateRes.error) && (publisherValue !== null || publicationYearValue !== undefined || totalPagesValue !== undefined)) {
           const fallbackPayload = {};
           if (nameValue !== null) fallbackPayload.name = nameValue;
           fallbackPayload.author = authorValue;
-          const fallbackRes = await withTimeout(
+          const fallbackRes = await runBookDetailsSaveWithRetry(() => (
             supabase
               .from('topics')
               .update(fallbackPayload)
               .eq('id', topicId)
               .eq('user_id', userId)
               .select('id,name,author')
-              .single(),
-            12000,
-            'Saving book details timed out. Please check your connection and try again.'
-          );
+              .single()
+          ));
           if (fallbackRes.error) {
             throw fallbackRes.error;
           }
