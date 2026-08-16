@@ -245,19 +245,19 @@
         <h2 class="small">Book Progress</h2>
         <div class="small" id="aiForBook"><strong>Book progress for:</strong> None</div>
         <div class="subtle-note">Track progress here. Use Manual mode to save your own note, or AI mode to generate summary + character updates.</div>
-        <label>AI Book Title
+        <label>Book Title
           <input id="aiBookTitle" type="text" placeholder="Book title" />
         </label>
-        <label>AI Author
+        <label>Author
           <input id="aiAuthor" type="text" placeholder="Author name" />
         </label>
-        <label>AI Publisher (optional)
+        <label>Publisher (optional)
           <input id="aiPublisher" type="text" placeholder="e.g., Ace Books" />
         </label>
-        <label>AI Publication year (optional)
+        <label>Publication year (optional)
           <input id="aiPublicationYear" type="number" min="1000" max="3000" step="1" placeholder="e.g., 1984" />
         </label>
-        <label>AI Total pages (optional)
+        <label>Total pages (optional)
           <input id="aiTotalPages" type="number" min="1" step="1" placeholder="e.g., 336" />
         </label>
         <div id="aiControls" class="ai-controls">
@@ -276,21 +276,21 @@
           <label>Progress Value
             <input id="aiProgressValue" type="number" min="1" step="1" placeholder="e.g., 12" />
           </label>
-          <label>AI Summary Detail
+          <label>Summary Detail
             <select id="aiDetailLevel">
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high" selected>High</option>
             </select>
           </label>
-          <label>AI Character Detail
+          <label>Character Detail
             <select id="aiCharacterDetailLevel">
               <option value="low">Low (main characters only)</option>
               <option value="medium" selected>Medium (important characters)</option>
               <option value="high">High (include all relevant characters)</option>
             </select>
           </label>
-          <label id="aiNotesLabel">Optional Notes
+          <label id="aiNotesLabel"><span id="aiNotesLabelText">Optional Notes</span>
             <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
           </label>
           <label class="row" style="align-items:center; gap:8px;">
@@ -602,7 +602,7 @@
     const aiDetailLevelEl = document.getElementById('aiDetailLevel');
     const aiCharacterDetailLevelEl = document.getElementById('aiCharacterDetailLevel');
     const aiEntryModeEl = document.getElementById('aiEntryMode');
-    const aiNotesLabelEl = document.getElementById('aiNotesLabel');
+    const aiNotesLabelTextEl = document.getElementById('aiNotesLabelText');
     const aiNotesEl = document.getElementById('aiNotes');
     const aiStrictSpoilerGuardEl = document.getElementById('aiStrictSpoilerGuard');
     const btnGenerateAI = document.getElementById('btnGenerateAI');
@@ -1415,6 +1415,7 @@
     function syncBookScopedControlState() {
       const hasSelectedBook = !!currentUser && !!selectedBookId;
       const disableBookScoped = !hasSelectedBook || isBusy;
+      const isManualMode = normalizeEntryMode(entryModeEl && entryModeEl.value) === 'manual';
       entryTextEl.disabled = disableBookScoped;
       if (entryModeEl) entryModeEl.disabled = disableBookScoped;
       if (entryProgressValueEl) entryProgressValueEl.disabled = disableBookScoped;
@@ -1438,10 +1439,10 @@
         aiTotalPagesEl.disabled = disableBookScoped;
         aiProgressTypeEl.disabled = disableBookScoped;
         aiProgressValueEl.disabled = disableBookScoped;
-        aiDetailLevelEl.disabled = disableBookScoped;
-        aiCharacterDetailLevelEl.disabled = disableBookScoped;
+        aiDetailLevelEl.disabled = disableBookScoped || isManualMode;
+        aiCharacterDetailLevelEl.disabled = disableBookScoped || isManualMode;
         aiNotesEl.disabled = disableBookScoped;
-        aiStrictSpoilerGuardEl.disabled = disableBookScoped;
+        aiStrictSpoilerGuardEl.disabled = disableBookScoped || isManualMode;
         btnGenerateAI.disabled = disableBookScoped;
         btnReviewBlockedSummaryEl.disabled = disableBookScoped;
         btnSaveBlockedSummaryEl.disabled = disableBookScoped;
@@ -1993,15 +1994,20 @@
     function updateEntryComposerUI() {
       if (!entryModeEl || !aiNotesEl || !btnGenerateAI) return;
       const mode = normalizeEntryMode(entryModeEl.value);
+      const isManualMode = mode === 'manual';
       if (mode === 'ai') {
         btnGenerateAI.textContent = 'Generate Summary + Characters';
-        if (aiNotesLabelEl) aiNotesLabelEl.textContent = 'Optional Notes';
+        if (aiNotesLabelTextEl) aiNotesLabelTextEl.textContent = 'Optional Notes';
         aiNotesEl.placeholder = 'Optional context or focus area...';
       } else {
         btnGenerateAI.textContent = 'Save Manual Entry';
-        if (aiNotesLabelEl) aiNotesLabelEl.textContent = 'Manual Entry';
+        if (aiNotesLabelTextEl) aiNotesLabelTextEl.textContent = 'Manual Entry';
         aiNotesEl.placeholder = 'Write your entry...';
       }
+      const modeLock = isBusy || !currentUser || !selectedBookId;
+      aiDetailLevelEl.disabled = modeLock || isManualMode;
+      aiCharacterDetailLevelEl.disabled = modeLock || isManualMode;
+      aiStrictSpoilerGuardEl.disabled = modeLock || isManualMode;
     }
 
     function setEntryMode(mode) {
