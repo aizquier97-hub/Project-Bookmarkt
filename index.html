@@ -3068,6 +3068,8 @@
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
+        // Discard result if the user switched to a different book while this fetch was in flight.
+        if (String(bookId) !== String(selectedBookId)) return;
         loadedEntries = res.data || [];
         writeCache('entries', userId, loadedEntries, bookId);
         const latestPageBoundary = getLatestProgressBoundary('page');
@@ -3078,6 +3080,7 @@
         updateEntryProgressHint();
         updateAISpoilerBoundaryLabel();
       } catch (err) {
+        if (String(bookId) !== String(selectedBookId)) return;
         console.error('loadEntries error', err);
         entriesList.innerHTML = renderListError(`Error loading entries: ${err.message || 'Unknown error'}`);
       }
@@ -3098,10 +3101,13 @@
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
+        // Discard result if the user switched to a different book while this fetch was in flight.
+        if (String(bookId) !== String(selectedBookId)) return;
         loadedCharacters = res.data || [];
         writeCache('characters', userId, loadedCharacters, bookId);
         renderCharacters(loadedCharacters);
       } catch (err) {
+        if (String(bookId) !== String(selectedBookId)) return;
         console.error('loadCharacters error', err);
         charactersList.innerHTML = renderListError(`Error loading characters: ${err.message || 'Unknown error'}`);
       }
@@ -3122,10 +3128,13 @@
           .eq('topic_id', bookId)
           .order('created_at', { ascending: false });
         if (res.error) throw res.error;
+        // Discard result if the user switched to a different book while this fetch was in flight.
+        if (String(bookId) !== String(selectedBookId)) return;
         loadedBookImages = res.data || [];
         writeCache('images', userId, loadedBookImages, bookId);
         renderBookImages(loadedBookImages);
       } catch (err) {
+        if (String(bookId) !== String(selectedBookId)) return;
         console.error('loadBookImages error', err);
         const msg = err && err.message ? err.message : 'Unknown error';
         const hint = msg.toLowerCase().includes('book_images')
