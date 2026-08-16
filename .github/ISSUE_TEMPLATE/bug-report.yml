@@ -46,7 +46,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Include production/preview, web/PWA/iOS/Android, device, OS, browser, and app version as applicable.
+      description: Include temporary prototype PWA, smart-link/store route, iOS, Android, device, OS, browser, and app/build version as applicable.
     validations:
       required: true
 

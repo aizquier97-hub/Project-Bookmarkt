@@ -7,11 +7,26 @@ implementation choices may use separate Architecture Decision Records later.
 | --- | --- | --- | --- | --- |
 | D-001 | 2026-08-16 | Accepted | Bookmarkt uses a nine-stage process: Stabilization, Architecture, UI/UX, Monetization, Native Packaging, Compliance, Beta, Launch, and Operations/Growth. | Work and approval follow the stage order defined in the roadmap. |
 | D-002 | 2026-08-16 | Accepted | Repository roadmap, governance, gate records, and decision history are the durable source of truth. | Conversation and local task history remain supporting context only. |
-| D-003 | 2026-08-16 | Accepted | Stage 2 creates an app-quality shared web/PWA core; it does not abandon the PWA. Native iOS/Android packaging occurs in Stage 5. | QR users retain a no-install web path while native applications reuse the shared core. |
+| D-003 | 2026-08-16 | Superseded | Stage 2 creates an app-quality shared web/PWA core; it does not abandon the PWA. Native iOS/Android packaging occurs in Stage 5. | Superseded by D-008 because the final product is native-app-only. |
 | D-004 | 2026-08-16 | Accepted | Supabase Pro is not required to enter Stages 2-6. Daily backups and leaked-password protection are mandatory before Stage 7 external beta. | Stage 1 can close on stability evidence; external users cannot be invited until the paid controls are active. Upgrade earlier if data value or Free limits justify it. |
 | D-005 | 2026-08-16 | Accepted | AI and spoiler reports require human review before corrective action. Raw reports do not automatically modify user content or retrain a model. | Stage 2 adds report lifecycle foundations, Stage 6 adds secure administration and operations, and Stage 7 requires active monitoring. |
 | D-006 | 2026-08-16 | Accepted | The Stage 1 stability window runs for seven consecutive 24-hour periods after all production-phone checks passed at 10:55 MDT (16:55 UTC). | Earliest Stage 1 exit review is August 23, 2026 at 10:55 MDT (16:55 UTC), assuming no P0/P1 defect. |
-| D-007 | 2026-08-16 | Accepted | Printed QR codes must use a Bookmarkt-controlled durable HTTPS destination with native deep-link behavior and web fallback. | Hosting or app changes must not invalidate physical bookmarks already distributed. |
+| D-007 | 2026-08-16 | Superseded | Printed QR codes must use a Bookmarkt-controlled durable HTTPS destination with native deep-link behavior and web fallback. | Superseded by D-008. The durable destination remains, but its fallback routes mobile users to the correct app store rather than the reading PWA. |
+| D-008 | 2026-08-16 | Accepted | Bookmarkt v1 is a native iOS/Android product. A physical QR opens the installed app or routes an uninstalled mobile user to the Apple App Store/Google Play. The current PWA is a temporary prototype and is retired as a public reading product at Stage 8. | Stage 2 builds the native app core; Stage 5 completes app/store routing and native integration; Stage 8 launches the apps and retires the PWA. Minimal web infrastructure remains only for smart links, installation guidance, privacy, support, and account obligations. Supersedes D-003 and D-007. |
+
+## D-008 scope clarification
+
+- Stage 1 PWA evidence remains valid as historical prototype and backend-behavior
+  evidence.
+- The PWA may remain available during Stages 2-7 as a frozen internal/reference
+  implementation and may receive critical stabilization fixes.
+- New product capabilities target the native application rather than expanding
+  the PWA into a permanent channel.
+- The Bookmarkt-controlled HTTPS destination remains permanent because iOS
+  Universal Links, Android App Links, platform store routing, and printed QR
+  durability require it.
+- Unsupported or desktop scans may show installation information, but no web
+  reading application ships at v1.
 
 ## Decision status
 

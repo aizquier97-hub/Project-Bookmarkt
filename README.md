@@ -1,12 +1,15 @@
 # Bookmarkt
 
 Bookmarkt modernizes the physical bookmark. A reader scans a QR code on the
-bookmark to open a secure reading companion where they can save reading progress,
-notes, AI-assisted summaries, character maps, book details, and images to an
-account that follows them across devices.
+bookmark to open the installed native application or, when it is not installed,
+the correct Apple App Store or Google Play listing. In the app, readers save
+reading progress, notes, AI-assisted summaries, character maps, book details, and
+images to an account that follows them across devices.
 
-The product remains QR-first and web-accessible while progressing toward
-subscription-based iOS and Android applications.
+The current PWA is a temporary prototype used to validate the product quickly.
+The launch product is a subscription-based iOS and Android application, not a
+public web/PWA reading application. A minimal website remains only for durable QR
+routing, store redirection, privacy, support, and account-management obligations.
 
 ## Product development
 

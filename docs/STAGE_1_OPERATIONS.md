@@ -1,5 +1,11 @@
 # Stage 1 Operations
 
+This runbook operates the temporary Stage 1 PWA prototype and its shared
+Supabase backend during the native-app transition. Backend security, AI,
+monitoring, and recovery controls carry forward to the native product. The PWA
+itself is not a launch channel and is scheduled for public retirement in Stage 8
+under Decision D-008.
+
 ## AI safeguards
 
 The production `ai-bookmate` Edge Function requires an authenticated Supabase user before it can call Gemini.
