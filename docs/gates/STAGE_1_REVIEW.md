@@ -8,7 +8,7 @@
 | Observation start | August 16, 2026 at 10:55 MDT (16:55 UTC) |
 | Earliest review | August 23, 2026 at 10:55 MDT (16:55 UTC) |
 | Product owner | Bookmarkt product owner |
-| Roadmap version | 1.1 |
+| Roadmap version | 1.2 |
 
 ## Outcome required
 
@@ -21,6 +21,11 @@ This record preserves historical PWA and website evidence exactly because that i
 what Stage 1 tested. Passing Stage 1 does not approve the PWA as a beta or launch
 channel. Under Decision D-008, Stage 2 builds the native app core and Stage 8
 retires the public PWA reading experience.
+
+The Stage 1 AI test proves authenticated generation, quotas, and logging in the
+prototype. It does not prove paid subscription gating. Decision D-009 and Stage 4
+require server-authoritative paid-tier and feature entitlement before launch AI
+provider calls.
 
 ## Criteria and evidence
 

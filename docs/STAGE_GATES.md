@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Governance version | 1.1 |
+| Governance version | 1.2 |
 | Status | Active |
 | Effective date | August 16, 2026 |
 | Final gate authority | Bookmarkt product owner |
@@ -81,6 +81,9 @@ flowchart LR
 10. A gate can be reopened if later evidence invalidates its assumptions.
 11. No gate may redefine the v1 launch product as a public web/PWA reading
     application without an approved material roadmap decision superseding D-008.
+12. No gate may expose an AI provider call based only on client state,
+    authentication, or quota. An active server-authoritative paid feature
+    entitlement is mandatory under D-009.
 
 ### Launch-channel invariant
 
@@ -93,6 +96,19 @@ flowchart LR
   account functions, but not the reading application.
 - Stage 1 PWA results remain valid prototype evidence. They do not establish the
   PWA as a launch requirement.
+
+### Paid-AI entitlement invariant
+
+- The v1 paid-AI catalog contains only AI text summary, AI character mapping, and
+  AI image generation.
+- Paid tiers may authorize different subsets of these features.
+- The backend validates user identity, active paid tier, requested feature, and
+  quota before contacting an AI provider.
+- A denied request consumes no generation quota and incurs no provider cost.
+- Free/inactive users keep manual reading features and receive an upgrade path.
+- Saved AI text/character artifacts belong to user-owned RLS rows; AI-generated
+  images belong to private user-scoped Storage.
+- Expanding the AI catalog requires a material roadmap decision.
 
 ## 4. Work-item lifecycle
 
@@ -169,7 +185,8 @@ Gate reviews should use direct evidence appropriate to the stage:
   supported-browser evidence only for the temporary prototype or minimal web
   endpoints.
 - Production or beta monitoring windows.
-- RLS, account-isolation, entitlement, backup, restore, and deletion tests.
+- RLS, account-isolation, paid-tier/AI-feature entitlement, denied-provider-call,
+  generated-artifact ownership, backup, restore, and deletion tests.
 - Accessibility and usability findings.
 - Store-policy, legal/privacy, and security reviews.
 - Operational runbooks and incident simulations.
@@ -235,6 +252,10 @@ Stage 1 approval validates the temporary PWA and shared backend as a behavioral
 baseline for the native rebuild. It does not approve a public PWA reading product
 for beta or launch.
 
+Stage 1 AI evidence validates authentication, quotas, and operational logging
+only. The prototype does not implement subscriptions, so it does not approve the
+launch paid-AI entitlement model required by D-009 and Stage 4.
+
 ## 10. Change control
 
 ### Material change
@@ -245,8 +266,10 @@ A change is material when it affects any of the following:
 - A stage's mandatory entry or exit criteria.
 - QR identity, app/store routing, account ownership, data model, launch channel,
   PWA retirement, supported platform, or native strategy.
-- Subscription, pricing, entitlement, payment provider, or app-store policy.
-- Security, privacy, retention, backup, deletion, AI safety, or legal posture.
+- Subscription, pricing, paid-AI feature matrix, entitlement, payment provider,
+  or app-store policy.
+- Security, privacy, retention, backup, deletion, AI catalog/safety, or legal
+  posture.
 - Launch threshold, supported region, age eligibility, or accepted risk.
 
 ### Required process

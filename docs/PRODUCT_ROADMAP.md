@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Roadmap version | 1.1 |
+| Roadmap version | 1.2 |
 | Status | Active |
 | Product owner | Bookmarkt product owner |
 | Current stage | Stage 1 - Stabilization |
@@ -40,12 +40,15 @@ A reader can:
 4. Install the app and recover any supported deferred QR context.
 5. Create an account or sign in securely.
 6. Add and organize books they are reading.
-7. Record reading progress and personal notes.
-8. Generate an optional AI summary constrained to what they have read.
-9. Build and maintain book-specific character maps.
-10. Store book metadata and personal images.
-11. Return from another supported phone and recover the same account data.
-12. Understand and control their subscription, privacy, data, and account.
+7. Record reading progress and personal notes manually.
+8. Use only the AI capabilities included in their active paid tier: AI text
+   summary, AI character mapping, and/or AI image generation.
+9. Keep AI text, character, and image output constrained to their reading
+   boundary and save only the output they approve.
+10. Manually build and maintain book-specific character maps.
+11. Store book metadata and personal or entitled AI-generated images.
+12. Return from another supported phone and recover the same account data.
+13. Understand and control their subscription, privacy, data, and account.
 
 ## 3. Product principles
 
@@ -60,6 +63,12 @@ A reader can:
 - **Account-centered continuity.** Reading data follows the authenticated user.
 - **Privacy by default.** Cross-account access is prohibited and verified, not
   merely assumed.
+- **Paid AI is server-authorized.** The backend checks the active subscription
+  tier and requested feature before any AI provider call. A client-side paywall
+  is never the security boundary.
+- **Limited v1 AI catalog.** Paid tiers may include only AI text summary, AI
+  character mapping, and AI image generation unless a later material decision
+  expands the catalog.
 - **Spoiler-aware AI.** AI output respects the reader's recorded boundary and
   offers a clear reporting path.
 - **Human-reviewed AI feedback.** User reports inform evaluation and product
@@ -82,6 +91,8 @@ Bookmarkt v1 is a personal reading companion. It is not initially:
 - A public social network.
 - A source of licensed full-book text.
 - An autonomous AI correction or model-training platform.
+- An open-ended catalog of AI tools beyond text summary, character mapping, and
+  image generation.
 - A public web or PWA reading application.
 
 The minimal website and smart-link service may display installation guidance on
@@ -112,11 +123,24 @@ flowchart LR
     N --> O[Record reading boundary]
     O --> P{Entry type}
     P -->|Manual| Q[Write and save notes]
-    P -->|AI-assisted| R[Generate bounded summary]
-    Q --> S[Update character map and images]
-    R --> S
-    S --> T[Sync securely to account]
-    T --> U[Resume in the native app]
+    Q --> R[Optional manual character updates/image uploads]
+    P -->|AI-assisted| S{Paid subscription active?}
+    S -->|No| T[Show eligible paid tiers]
+    T --> Q
+    S -->|Yes| U[Load server-authoritative tier entitlements]
+    U --> V{Requested AI feature included?}
+    V -->|No| T
+    V -->|Yes| W{Entitled AI feature}
+    W -->|Text summary| X[Generate reading-bounded text summary]
+    W -->|Character mapping| Y[Generate reading-bounded character map]
+    W -->|Image generator| Z[Generate reading-bounded AI image]
+    X --> AA[Review and save approved AI output]
+    Y --> AA
+    Z --> AA
+    AA --> AB[Store user records/private image object]
+    R --> AC[Sync securely to account]
+    AB --> AC
+    AC --> AD[Resume in the native app]
 ```
 
 ## 6. Platform evolution
@@ -263,6 +287,8 @@ Supabase backend.
       deep-link approach. The QR destination must remain under Bookmarkt control.
 - [ ] Define domain boundaries for authentication, library, progress, entries,
       AI, characters, images, reporting, analytics, and subscriptions.
+- [ ] Define a server-authoritative entitlement boundary shared by all three AI
+      feature services; the native client can request but cannot grant access.
 - [ ] Define environment, secret, configuration, and deployment ownership.
 - [ ] Record architecture decisions in the decision log or dedicated ADRs.
 
@@ -287,8 +313,13 @@ Supabase backend.
 - [ ] Migrate signup, login, logout, recovery, session expiry, and re-login.
 - [ ] Migrate library, book metadata, and Open Library lookup.
 - [ ] Migrate reading progress and manual entries.
-- [ ] Migrate bounded AI summaries and AI usage messaging.
-- [ ] Migrate character maps and character-detail controls.
+- [ ] Migrate bounded AI text summaries and AI usage messaging behind an
+      entitlement-ready service.
+- [ ] Migrate manual character maps and character-detail controls.
+- [ ] Define bounded AI character-mapping and AI image-generation contracts,
+      artifact metadata, approval state, and provider-independent interfaces.
+- [ ] Store approved AI text/character output in user-owned RLS rows and
+      AI-generated images in the user's private Storage folder.
 - [ ] Migrate private image upload, signing, display, edit, and deletion.
 - [ ] Migrate analytics, spoiler reporting, and AI issue reporting.
 - [ ] Add report lifecycle fields and typed services for status, priority,
@@ -318,6 +349,8 @@ Supabase backend.
 - [ ] Add native component and integration tests for authentication, book CRUD,
       book switching, entries, AI error handling, character maps, and private
       images.
+- [ ] Add service tests proving denied AI requests do not reach any AI provider
+      and approved artifacts cannot cross account boundaries.
 - [ ] Add iOS and Android device automation for critical journeys.
 - [ ] Test smart-link platform detection and store-routing behavior.
 - [ ] Add explicit cross-account isolation tests against a safe test project.
@@ -369,6 +402,9 @@ accessible iOS and Android reading product.
 - [ ] Define target readers, primary jobs-to-be-done, and priority use cases.
 - [ ] Map signup, onboarding, QR entry, library, book progress, AI assistance,
       character maps, settings, subscription, and support journeys.
+- [ ] Design locked-feature, tier-comparison, upgrade, entitlement-loading, and
+      expired/downgraded subscription states without blocking manual reading
+      features.
 - [ ] Establish Bookmarkt brand direction, typography, color, iconography,
       spacing, motion, and voice.
 - [ ] Create a reusable design system with documented component states.
@@ -380,6 +416,8 @@ accessible iOS and Android reading product.
 - [ ] Polish progress entry, AI controls, metadata, images, and character-map
       interactions.
 - [ ] Make AI-generated content and reading boundaries unmistakable.
+- [ ] Require review/approval before generated text, character mappings, or images
+      become saved account artifacts.
 - [ ] Add useful confirmation and status messaging for AI/spoiler reports.
 - [ ] Design offline, poor-network, expired-session, update-available, and
       recoverable-error states.
@@ -418,8 +456,11 @@ support the cost of AI, storage, operations, and app-store distribution.
 
 ### Work plan
 
-- [ ] Define free, trial, and paid tiers, including AI, storage, and feature
-      entitlements.
+- [ ] Define free and paid tiers. If a trial is offered, model it as a time-bound
+      server-authorized paid entitlement.
+- [ ] Define the tier matrix using only three v1 AI capabilities: AI text
+      summary, AI character mapping, and AI image generation. A tier may include
+      any approved subset.
 - [ ] Build a financial model for AI cost, infrastructure, app-store commission,
       taxes, refunds, support, and target margin.
 - [ ] Decide the native billing architecture before implementation. Evaluate
@@ -430,7 +471,17 @@ support the cost of AI, storage, operations, and app-store distribution.
       route native users around required in-app purchase mechanisms.
 - [ ] Create a server-authoritative entitlement model in Supabase.
 - [ ] Implement idempotent signed webhooks and transaction reconciliation.
-- [ ] Map subscription entitlements to AI and storage quotas.
+- [ ] Map subscription entitlements to the three AI feature flags plus per-feature
+      usage/cost quotas.
+- [ ] Require the Edge Function/backend to validate the authenticated user,
+      active paid tier, requested AI feature, and remaining quota before calling
+      an AI provider.
+- [ ] Return a clear upgrade/locked-feature response without consuming quota or
+      contacting an AI provider when authorization fails.
+- [ ] Audit entitlement decision, feature, tier, quota outcome, provider cost,
+      latency, and generated artifact ID without logging unnecessary user content.
+- [ ] Persist approved AI text/character artifacts under user-owned RLS and
+      AI-generated images in private user-scoped Storage.
 - [ ] Implement plans, trials, purchase, restore purchase, upgrade, downgrade,
       cancellation, grace period, expiry, refund, and billing-retry states.
 - [ ] Build subscription and account-management screens.
@@ -448,6 +499,13 @@ support the cost of AI, storage, operations, and app-store distribution.
 
 - Entitlements are consistent across iOS and Android test contexts and the
   server-authoritative account state.
+- A free/inactive account cannot invoke any of the three AI providers and can
+  continue using manual reading features.
+- Every paid tier can invoke only its configured subset of AI text summary, AI
+  character mapping, and AI image generation.
+- Denied requests consume neither provider cost nor generation quota.
+- Approved AI artifacts sync only to the authenticated user's account and
+  AI-generated images remain private.
 - Billing events are verified server-side, idempotent, and reconcilable.
 - Purchase restoration, cancellation, expiry, and refund cases pass.
 - AI and storage limits enforce the selected plan safely.
@@ -541,6 +599,8 @@ for people outside the development team.
 - [ ] Define age eligibility, parental-consent requirements, content rating, and
       launch regions.
 - [ ] Review copyright, trademark, book-metadata, user-image, and AI-output risks.
+- [ ] Define AI image safety, intellectual-property, prohibited-content,
+      moderation, reporting, and deletion requirements.
 - [ ] Document AI use, limitations, spoiler risk, and user reporting.
 - [ ] Implement in-app and web account deletion that satisfies Apple and Google
       requirements.
@@ -627,8 +687,8 @@ and physical-QR journey with representative external users before public launch.
 - [ ] Recruit a representative tester cohort and obtain appropriate consent.
 - [ ] Distribute TestFlight and Google Play closed-test builds.
 - [ ] Test installed-app QR opening, uninstalled-app store routing, deferred QR
-      context, signup, return login, account sync, books, entries, AI, maps,
-      images, subscriptions, support, and deletion.
+      context, signup, return login, account sync, books, manual entries, all
+      three entitled AI features, subscription gating, support, and deletion.
 - [ ] Test physical bookmark samples across phone models, lighting, wear, and QR
       distances.
 - [ ] Validate generic/unique bookmark replacement and transfer behavior if
@@ -638,6 +698,9 @@ and physical-QR journey with representative external users before public launch.
 - [ ] Exercise report triage and incident-response procedures.
 - [ ] Validate subscription purchase, restore, cancellation, expiry, refunds, and
       entitlement reconciliation in store test environments.
+- [ ] Verify free, paid-tier, upgrade, downgrade, expiration, restoration, and
+      locked-AI-feature paths; confirm unauthorized requests never reach a
+      provider.
 - [ ] Conduct load, abuse, quota, and cost-limit tests.
 - [ ] Confirm backups continue and rehearse a non-production restore.
 - [ ] Prioritize and fix beta findings through stage-linked issues and PRs.
@@ -652,6 +715,7 @@ These thresholds can change only through the roadmap decision process:
 - At least 99.5% crash-free sessions on each native platform.
 - At least 95% successful completion of measured critical journeys.
 - No confirmed cross-account data exposure or unresolved entitlement mismatch.
+- No confirmed paid-AI entitlement bypass or cross-account generated artifact.
 - Actionable AI/spoiler reports are triaged within two business days.
 - Backup freshness, restore rehearsal, deletion, and support procedures pass.
 - Store-policy prechecks have no known launch blocker.
@@ -734,6 +798,8 @@ After Stage 8 launch, Stage 9 becomes the ongoing active product lifecycle.
       testing.
 - [ ] Review AI/spoiler reports, maintain evaluation sets, and test prompt/model
       changes before release.
+- [ ] Monitor AI usage, denial rate, provider cost, quality, and safety separately
+      for text summary, character mapping, and image generation by paid tier.
 - [ ] Track activation, retention, conversion, churn, refunds, lifetime value,
       acquisition cost, and unit economics.
 - [ ] Improve onboarding, reading value, and subscription packaging through
@@ -797,7 +863,7 @@ documented exception is approved.
 | Stage 2 kickoff | Final native application architecture and state strategy |
 | Stage 2 kickoff | Smart-link, platform store-routing, and deferred-link approach |
 | Stage 3 | Brand, target reader, information architecture, accessibility target |
-| Stage 4 | Plans, prices, trials, AI quotas, billing and entitlement providers |
+| Stage 4 | Plans, prices, optional trial, three-feature AI tier matrix, quotas, billing and entitlement providers |
 | Stage 5 | Supported OS versions, native capabilities, bundle IDs, and store-routing details |
 | Stage 6 | Launch regions, age eligibility, retention, legal terms, support SLA |
 | Stage 7 entry | Supabase Pro activation and external-beta operating readiness |
@@ -814,6 +880,8 @@ documented exception is approved.
 | Cross-account data exposure | RLS, least privilege, automated isolation tests, security review |
 | AI hallucination or spoilers | Reading boundaries, reports, audits, evaluation sets, human review |
 | AI or infrastructure cost overrun | Authenticated quotas, entitlements, budgets, alerts, unit economics |
+| Paid AI entitlement bypass | Server-side tier/feature authorization before quota use or provider calls |
+| AI-generated image safety or rights issue | Provider review, prompt/output controls, moderation, reporting, private storage, legal review |
 | Database backup omits images | Independent Storage-object backup/export and restore procedure |
 | App-store billing rejection | Store-policy decision before billing implementation |
 | Prototype/native behavior diverges during transition | Stage 1 acceptance baseline, parity tests, and frozen PWA scope |
@@ -833,8 +901,13 @@ Bookmarkt v1 is launch-ready only when:
 - Unsupported/desktop scans receive installation information, not a web reading
   application.
 - New and returning users can authenticate and recover account data.
-- Books, progress, notes, bounded AI summaries, character maps, and images work
+- Books, progress, notes, manual character maps, and personal images work
   consistently across supported platforms.
+- Only an active paid tier can access AI text summary, AI character mapping,
+  and/or AI image generation, and only according to its server-authoritative
+  feature matrix.
+- Denied AI requests never reach a provider, while approved AI artifacts are
+  reviewed, saved, and synced only within the authenticated user's account.
 - Cross-account isolation and private-image access are verified.
 - Subscriptions and entitlements are accurate and restorable.
 - Privacy, account deletion/export, legal disclosures, and store declarations
