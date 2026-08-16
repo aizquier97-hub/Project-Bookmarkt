@@ -512,9 +512,9 @@
     // ==============================
 
     // Create the client (UMD bundle exposes window.supabase)
-    // persistSession: false means every page load requires manual login
+    // Keep sessions persisted so refresh-token recovery works across reloads/sleeps.
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false }
+      auth: { persistSession: true }
     });
 
     // DOM refs
@@ -1567,6 +1567,10 @@
     }
     async function persistBookDetails(userId, topicId, details) {
       if (!userId || !topicId) throw new Error('Missing book author identifiers.');
+      const activeUser = await ensureActiveSessionForWrite('Saving book details');
+      if (!activeUser || String(activeUser.id) !== String(userId)) {
+        throw new Error('Session changed. Please retry after signing in again.');
+      }
       const nameValue = details && typeof details.name === 'string' ? String(details.name).trim() : null;
       const authorValue = details && typeof details.author === 'string' ? String(details.author).trim() : null;
       const publisherValue = details && typeof details.publisher === 'string' ? String(details.publisher).trim() : null;
@@ -2829,6 +2833,52 @@
       }
       return currentUser;
     }
+    async function ensureActiveSessionForWrite(actionLabel) {
+      const label = actionLabel || 'Save';
+      let sessionRes;
+      try {
+        sessionRes = await withTimeout(
+          supabase.auth.getSession(),
+          10000,
+          `${label} blocked while checking your session. Please try again.`
+        );
+      } catch (err) {
+        throw err;
+      }
+      if (sessionRes && sessionRes.error) {
+        throw sessionRes.error;
+      }
+      let session = sessionRes && sessionRes.data ? sessionRes.data.session : null;
+      if (!session || !session.user) {
+        currentUser = null;
+        setSignedInState(null);
+        renderEmptyLists();
+        setAuthStatus('Session expired. Please log in again.');
+        throw new Error('Session expired. Please log in again.');
+      }
+      const expiresAtMs = session && session.expires_at ? Number(session.expires_at) * 1000 : 0;
+      const expiresSoon = Number.isFinite(expiresAtMs) && expiresAtMs > 0 && (Date.now() >= (expiresAtMs - 15000));
+      if (expiresSoon) {
+        const refreshRes = await withTimeout(
+          supabase.auth.refreshSession(),
+          10000,
+          `${label} blocked while refreshing your session. Please log in again.`
+        );
+        if (refreshRes && refreshRes.error) {
+          throw refreshRes.error;
+        }
+        session = refreshRes && refreshRes.data ? refreshRes.data.session : null;
+        if (!session || !session.user) {
+          currentUser = null;
+          setSignedInState(null);
+          renderEmptyLists();
+          setAuthStatus('Session expired. Please log in again.');
+          throw new Error('Session expired. Please log in again.');
+        }
+      }
+      currentUser = session.user;
+      return session.user;
+    }
 
     // ======= Auth handlers =======
     async function signUp() {
@@ -3218,6 +3268,13 @@
     async function addTopic() {
       const user = requireCurrentUser();
       if (!user) return;
+      let activeUser = null;
+      try {
+        activeUser = await ensureActiveSessionForWrite('Add book');
+      } catch (sessionErr) {
+        setDevInfo('Add book error: ' + (sessionErr && sessionErr.message ? sessionErr.message : String(sessionErr)), true);
+        return;
+      }
       const name = newTopicEl.value.trim();
       if (!name) {
         setDevInfo('Add book error: Enter a book name.', true);
@@ -3251,7 +3308,7 @@
         publisher: resolvedPublisher || null,
         publication_year: resolvedPublicationYear || null,
         total_pages: resolvedTotalPages || null,
-        user_id: user.id,
+        user_id: activeUser.id,
       };
       const addBookTimeoutMessage = 'Add book timed out. Please check your connection and try again.';
       async function runAddBookInsertWithRetry(queryFactory, fallbackName, fallbackAuthor) {
@@ -3276,7 +3333,7 @@
                 supabase
                   .from('topics')
                   .select('id,name,author,publisher,publication_year,total_pages,created_at')
-                  .eq('user_id', user.id)
+                  .eq('user_id', activeUser.id)
                   .eq('name', fallbackName)
                   .eq('author', fallbackAuthor)
                   .order('created_at', { ascending: false })
@@ -3307,7 +3364,7 @@
       const { data, error } = insertResult;
       if (error) {
         if (isMissingTopicsMetadataColumnError(error)) {
-          const fallbackPayload = { name, author: creationAuthor, user_id: user.id };
+          const fallbackPayload = { name, author: creationAuthor, user_id: activeUser.id };
           let fallbackInsertResult;
           try {
             fallbackInsertResult = await runAddBookInsertWithRetry(
@@ -3330,11 +3387,11 @@
           if (bookCreationPagesEl) bookCreationPagesEl.value = '';
           if (fallbackInsertResult.data && fallbackInsertResult.data.id) selectedBookId = String(fallbackInsertResult.data.id);
           persistSelectedBook();
-          await loadTopics(user.id);
+          await loadTopics(activeUser.id);
           await Promise.allSettled([
-            loadEntries(user.id, selectedBookId),
-            loadCharacters(user.id, selectedBookId),
-            loadBookImages(user.id, selectedBookId)
+            loadEntries(activeUser.id, selectedBookId),
+            loadCharacters(activeUser.id, selectedBookId),
+            loadBookImages(activeUser.id, selectedBookId)
           ]);
           await trackAnalyticsEvent('book_added', {
             topicId: fallbackInsertResult.data && fallbackInsertResult.data.id ? String(fallbackInsertResult.data.id) : null,
@@ -3357,11 +3414,11 @@
         if (bookCreationPagesEl) bookCreationPagesEl.value = '';
         if (data && data.id) selectedBookId = String(data.id);
         persistSelectedBook();
-        await loadTopics(user.id);
+        await loadTopics(activeUser.id);
         await Promise.allSettled([
-          loadEntries(user.id, selectedBookId),
-          loadCharacters(user.id, selectedBookId),
-          loadBookImages(user.id, selectedBookId)
+          loadEntries(activeUser.id, selectedBookId),
+          loadCharacters(activeUser.id, selectedBookId),
+          loadBookImages(activeUser.id, selectedBookId)
         ]);
         await trackAnalyticsEvent('book_added', {
           topicId: data && data.id ? String(data.id) : null,
