@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Governance version | 1.2 |
+| Governance version | 1.3 |
 | Status | Active |
 | Effective date | August 16, 2026 |
 | Final gate authority | Bookmarkt product owner |
@@ -83,7 +83,7 @@ flowchart LR
     application without an approved material roadmap decision superseding D-008.
 12. No gate may expose an AI provider call based only on client state,
     authentication, or quota. An active server-authoritative paid feature
-    entitlement is mandatory under D-009.
+    entitlement is mandatory under D-010.
 
 ### Launch-channel invariant
 
@@ -99,9 +99,11 @@ flowchart LR
 
 ### Paid-AI entitlement invariant
 
-- The v1 paid-AI catalog contains only AI text summary, AI character mapping, and
-  AI image generation.
-- Paid tiers may authorize different subsets of these features.
+- The v1 feature ladder is fixed and cumulative: Base includes AI Summary; Base+
+  adds AI Character Mapping; Ultimate adds AI Image Generation.
+- When no paid subscription is active, the app displays Base, Base+, and Ultimate.
+- A verified purchase enters the applicable paid stream. No selection or a
+  canceled, abandoned, or failed purchase returns safely to manual entry.
 - The backend validates user identity, active paid tier, requested feature, and
   quota before contacting an AI provider.
 - A denied request consumes no generation quota and incurs no provider cost.
@@ -109,6 +111,8 @@ flowchart LR
 - Saved AI text/character artifacts belong to user-owned RLS rows; AI-generated
   images belong to private user-scoped Storage.
 - Expanding the AI catalog requires a material roadmap decision.
+- Changing tier names or their feature assignments requires a material roadmap
+  decision; prices, billing periods, offers, and quotas remain Stage 4 decisions.
 
 ## 4. Work-item lifecycle
 
@@ -254,7 +258,7 @@ for beta or launch.
 
 Stage 1 AI evidence validates authentication, quotas, and operational logging
 only. The prototype does not implement subscriptions, so it does not approve the
-launch paid-AI entitlement model required by D-009 and Stage 4.
+launch paid-AI entitlement model required by D-010 and Stage 4.
 
 ## 10. Change control
 

@@ -4,8 +4,9 @@ Bookmarkt modernizes the physical bookmark. A reader scans a QR code on the
 bookmark to open the installed native application or, when it is not installed,
 the correct Apple App Store or Google Play listing. In the app, readers save
 reading progress, notes, manual character maps, book details, and images to an
-account that follows them across devices. Paid subscription tiers may add AI text
-summaries, AI character mapping, and AI image generation.
+account that follows them across devices. The paid subscription ladder is:
+**Base** includes AI Summary; **Base+** adds AI Character Mapping; and
+**Ultimate** adds AI Image Generation.
 
 The current PWA is a temporary prototype used to validate the product quickly.
 The launch product is a subscription-based iOS and Android application, not a
