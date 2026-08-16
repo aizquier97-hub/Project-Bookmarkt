@@ -6,6 +6,7 @@ type RequestBody = {
   mode?: Mode;
   bookTitle?: string;
   author?: string;
+  aiDetailLevel?: "low" | "medium" | "high" | string;
   publisher?: string | null;
   publicationYear?: number | string | null;
   totalPages?: number | string | null;
@@ -308,6 +309,12 @@ function sanitizeOptionalPublicationYear(value: unknown) {
   return parsed;
 }
 
+function sanitizeAIDetailLevel(value: unknown): "low" | "medium" | "high" {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "low" || raw === "medium" || raw === "high") return raw;
+  return "high";
+}
+
 function sanitizePageImage(pageImage: RequestBody["pageImage"]) {
   if (!pageImage || typeof pageImage !== "object") return null;
   const mimeType = String(pageImage.mimeType ?? "").trim().toLowerCase();
@@ -449,6 +456,7 @@ serve(async (req) => {
       mode,
       bookTitle,
       author,
+      aiDetailLevel,
       publisher,
       publicationYear,
       totalPages,
@@ -493,6 +501,7 @@ serve(async (req) => {
       return jsonResponse({ error: "Invalid progressValue", details: { progressValue } }, 400);
     }
     const safePublisher = String(publisher ?? "").trim() || null;
+    const safeAIDetailLevel = sanitizeAIDetailLevel(aiDetailLevel);
     const safePublicationYear = sanitizeOptionalPublicationYear(publicationYear);
     const safeTotalPages = sanitizeOptionalPositiveInt(totalPages);
     let wasProgressCapped = false;
@@ -544,7 +553,14 @@ Existing location titles (must not be repeated): ${safeExistingLocations.length 
 
 Grounded reader context: ${notes?.trim() || "(none)"}
 
-Attached page evidence: ${safePageImage ? "Present. Prefer concrete details visible in the page image over broad memory." : "None"}`;
+Attached page evidence: ${safePageImage ? "Present. Prefer concrete details visible in the page image over broad memory." : "None"}
+
+Requested summary detail level: ${safeAIDetailLevel.toUpperCase()}`;
+    const summaryDetailInstruction = safeAIDetailLevel === "low"
+      ? "Write a very concise summary (target 2 to 3 sentences) focused only on the most important boundary-safe developments."
+      : safeAIDetailLevel === "medium"
+        ? "Write a concise summary (target 4 to 6 sentences) covering major boundary-safe developments and key character actions."
+        : "Write a concrete, specific summary (target 6 to 10 sentences).";
 
     const generateSummary = async () => {
       const summaryInstruction = `${sharedPrompt}
@@ -563,7 +579,7 @@ Return ONLY strict JSON with this shape:
 }
 Rules:
 - Summary must describe only the boundary window.
-- Write a concrete, specific summary (target 6 to 10 sentences).
+- ${summaryDetailInstruction}
 - You may rely on Grounded reader context and attached page evidence; direct access to the full book text is not required.
 - If Grounded reader context is limited, still provide the safest concise best-effort summary you can from boundary-aware book knowledge instead of refusing outright.
 - Do not restate plot points from before the lower boundary when a lower boundary is provided.
@@ -958,7 +974,7 @@ Return ONLY strict JSON with this exact shape (no markdown fences):
 
 Summary rules:
 - Describe only the boundary window (${spoilerBoundaryLabel}).
-- Write a concrete, specific summary (target 6–10 sentences).
+- ${summaryDetailInstruction}
 - Prefer concrete actions, character decisions, and consequences over thematic phrasing.
 - If Grounded reader context is limited, provide the safest best-effort summary from boundary-aware knowledge instead of refusing.
 - Never reveal spoilers beyond the boundary.
@@ -1045,6 +1061,7 @@ Character rules:
         mode,
         bookTitle,
         author,
+        aiDetailLevel: safeAIDetailLevel,
         publisher: safePublisher,
         publicationYear: safePublicationYear,
         totalPages: safeTotalPages,

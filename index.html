@@ -270,6 +270,13 @@
           <label>Progress Value
             <input id="aiProgressValue" type="number" min="1" step="1" placeholder="e.g., 12" />
           </label>
+          <label>AI Summary Detail
+            <select id="aiDetailLevel">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high" selected>High</option>
+            </select>
+          </label>
           <label>Optional Notes
             <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
           </label>
@@ -586,6 +593,7 @@
     const aiControlsEl = document.getElementById('aiControls');
     const aiProgressTypeEl = document.getElementById('aiProgressType');
     const aiProgressValueEl = document.getElementById('aiProgressValue');
+    const aiDetailLevelEl = document.getElementById('aiDetailLevel');
     const aiNotesEl = document.getElementById('aiNotes');
     const aiStrictSpoilerGuardEl = document.getElementById('aiStrictSpoilerGuard');
     const btnGenerateAI = document.getElementById('btnGenerateAI');
@@ -623,7 +631,7 @@
     const btnFeedbackCancel = document.getElementById('btnFeedbackCancel');
     const feedbackStatusEl = document.getElementById('feedbackStatus');
     const hasImageUI = !!(bookImageDropzone && btnTakePhoto && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiPublisherEl && aiPublicationYearEl && aiTotalPagesEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiPublisherEl && aiPublicationYearEl && aiTotalPagesEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiDetailLevelEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiResultTextEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -1421,6 +1429,7 @@
         aiTotalPagesEl.disabled = disableBookScoped;
         aiProgressTypeEl.disabled = disableBookScoped;
         aiProgressValueEl.disabled = disableBookScoped;
+        aiDetailLevelEl.disabled = disableBookScoped;
         aiNotesEl.disabled = disableBookScoped;
         aiStrictSpoilerGuardEl.disabled = disableBookScoped;
         btnGenerateAI.disabled = disableBookScoped;
@@ -1744,6 +1753,10 @@
       return Math.floor(parsed);
     }
 
+    function normalizeAIDetailLevel(value) {
+      return value === 'low' || value === 'medium' || value === 'high' ? value : 'high';
+    }
+
     function buildProgressRangeLabel(progressType, lowerValue, upperValue) {
       const type = normalizeProgressType(progressType);
       if (Number.isFinite(lowerValue) && lowerValue > 0) {
@@ -1989,6 +2002,7 @@
         totalPages: normalizeOptionalPositiveInt(aiTotalPagesEl.value),
         progressType: aiProgressTypeEl.value === 'page' ? 'page' : 'chapter',
         progressValue: aiProgressValueEl.value.trim(),
+        aiDetailLevel: normalizeAIDetailLevel(aiDetailLevelEl.value),
         strictSpoilerGuard: aiStrictSpoilerGuardEl.checked !== false,
         notes: aiNotesEl.value || ''
       };
@@ -2008,6 +2022,7 @@
         setAIMetadataInputValues(null);
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
+        aiDetailLevelEl.value = 'high';
         aiStrictSpoilerGuardEl.checked = true;
         aiNotesEl.value = '';
         syncAIUpdateModeUI();
@@ -2027,6 +2042,7 @@
           setAIMetadataInputValues(selectedBookMetadata);
           aiProgressTypeEl.value = 'chapter';
           aiProgressValueEl.value = '';
+          aiDetailLevelEl.value = 'high';
           aiStrictSpoilerGuardEl.checked = true;
           aiNotesEl.value = '';
           syncAIUpdateModeUI();
@@ -2040,6 +2056,7 @@
         setAIMetadataInputValues(selectedBookMetadata);
         aiProgressTypeEl.value = (parsed && parsed.progressType === 'page') ? 'page' : 'chapter';
         aiProgressValueEl.value = (parsed && parsed.progressValue) ? String(parsed.progressValue) : '';
+        aiDetailLevelEl.value = normalizeAIDetailLevel(parsed && parsed.aiDetailLevel);
         aiStrictSpoilerGuardEl.checked = !(parsed && parsed.strictSpoilerGuard === false);
         aiNotesEl.value = (parsed && parsed.notes) ? String(parsed.notes) : '';
         syncAIUpdateModeUI();
@@ -2050,6 +2067,7 @@
         setAIMetadataInputValues(selectedBookMetadata);
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
+        aiDetailLevelEl.value = 'high';
         aiStrictSpoilerGuardEl.checked = true;
         aiNotesEl.value = '';
         syncAIUpdateModeUI();
@@ -2252,6 +2270,7 @@
       const author = aiAuthorEl.value.trim();
       const progressType = aiProgressTypeEl.value === 'page' ? 'page' : 'chapter';
       const progressValue = aiProgressValueEl.value.trim();
+      const aiDetailLevel = normalizeAIDetailLevel(aiDetailLevelEl.value);
       const notes = aiNotesEl.value.trim();
 
       if (!bookTitle || !author || !progressValue) {
@@ -2398,6 +2417,7 @@
           strictSpoilerGuard: strictSpoilerGuardEnabled,
           hasGroundingNotes: !!combinedGroundingNotes,
           usedPageEvidence: !!pageEvidence,
+          aiDetailLevel,
         });
         const requestBody = {
           bookTitle,
@@ -2411,6 +2431,7 @@
           publisher: publisher || null,
           publicationYear: publicationYear || null,
           totalPages: totalPages || null,
+          aiDetailLevel,
           auditId: generationAuditId,
           pageImage: pageEvidence,
         };
@@ -3871,7 +3892,7 @@
     btnAddCharacter.addEventListener('click', addCharacter);
     btnClearCharacterMap.addEventListener('click', clearCharacterMap);
     if (hasAIUI) {
-      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiPublisherEl, aiPublicationYearEl, aiTotalPagesEl, aiProgressTypeEl, aiProgressValueEl, aiNotesEl, aiStrictSpoilerGuardEl];
+      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiPublisherEl, aiPublicationYearEl, aiTotalPagesEl, aiProgressTypeEl, aiProgressValueEl, aiDetailLevelEl, aiNotesEl, aiStrictSpoilerGuardEl];
       aiInputElements.forEach((el) => {
         const eventName = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(eventName, () => {
