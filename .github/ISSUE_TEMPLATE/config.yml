@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Product roadmap
+    url: https://github.com/aizquier97-hub/Project-Bookmarkt/blob/main/docs/PRODUCT_ROADMAP.md
+    about: Review the product goal, active stage, and stage scope before opening work.
+  - name: Stage-gate governance
+    url: https://github.com/aizquier97-hub/Project-Bookmarkt/blob/main/docs/STAGE_GATES.md
+    about: Review gate, evidence, severity, and change-control requirements.

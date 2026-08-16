@@ -67,16 +67,18 @@ Audit result on 2026-08-16:
 - Available physical backups: none
 - Point-in-Time Recovery (PITR): disabled
 
-For Stage 1, use the Supabase Pro daily backups with seven-day retention. PITR is not required for the MVP because it is a separate, substantially more expensive add-on; reconsider it when paid usage and recovery requirements justify it.
+Supabase Pro daily backups with seven-day retention are mandatory before the Stage 7 external-beta entry gate. By product-owner decision, they do not block Stage 1 or work in Stages 2-6. Upgrade earlier if production data becomes irreplaceable, external users are invited, or Free-plan capacity/pausing becomes material.
 
-Owner action:
+PITR is not required for the MVP because it is a separate, substantially more expensive add-on; reconsider it when paid usage and recovery requirements justify it.
+
+Pre-beta owner action:
 
 1. In Supabase, open **Organization billing** and move the project to Pro if it is still on Free.
 2. Open **Database > Backups > Scheduled backups**.
 3. Confirm a daily backup is listed. A newly upgraded project may need up to 24 hours to create its first backup.
 4. Do not run an actual production restore merely as a test; confirm availability and use the procedure below during an incident or against a cloned project.
 
-### Restore procedure
+### Pro scheduled-backup incident restore procedure
 
 1. Confirm the incident and choose the latest recovery point before the unwanted change.
 2. Announce maintenance and stop application writes before restoring.
@@ -86,4 +88,16 @@ Owner action:
 6. Run one controlled add/edit/delete workflow and one AI generation before reopening writes.
 7. Record the incident time, recovery point, estimated lost-data window, and validation results.
 
-Supabase database backups contain Storage metadata but not the image objects themselves. Off-site replication of the `book-images` bucket remains a Stage 2 production-architecture item. Until then, treat user-uploaded images as non-recoverable if the underlying Storage object is deleted.
+Supabase database backups contain Storage metadata but not the image objects themselves. Design and automation for exporting or replicating the `book-images` objects is a Stage 2 production-architecture item and must be operational before Stage 7 external beta. Until then, treat user-uploaded images as non-recoverable if the underlying Storage object is deleted.
+
+### Pre-Pro recovery rehearsal
+
+Stages 2-6 do not depend on the Pro managed-backup feature. Before Pro is
+activated, rehearse recovery by creating a self-managed logical database export
+and restoring it only into a disposable local, test, or staging database. Test
+the Storage-object export and recovery separately. Never overwrite production as
+part of a rehearsal.
+
+After Pro is activated at the Stage 7 entry gate, confirm the first scheduled
+backup exists and validate the managed-backup procedure against a safe clone or
+other non-production target when the available Supabase workflow permits it.

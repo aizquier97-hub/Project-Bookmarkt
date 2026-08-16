@@ -1,0 +1,116 @@
+name: Stage task
+description: Propose or track work within the approved Bookmarkt roadmap.
+title: "[S#][Workstream] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for planned product work. A task does not authorize entry into a later stage.
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      description: Select the stage that owns this outcome.
+      options:
+        - Stage 1 - Stabilization
+        - Stage 2 - Architecture rebuild
+        - Stage 3 - Polished UI/UX
+        - Stage 4 - Monetization and accounts
+        - Stage 5 - Native iOS/Android packaging
+        - Stage 6 - Compliance and launch operations
+        - Stage 7 - External beta
+        - Stage 8 - App-store and public launch
+        - Stage 9 - Operations and growth
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workstream
+    attributes:
+      label: Workstream
+      options:
+        - Product
+        - Architecture
+        - Frontend
+        - Backend and data
+        - Authentication and security
+        - AI and safety
+        - UI/UX and accessibility
+        - Monetization and billing
+        - Native iOS/Android
+        - Privacy, legal, and compliance
+        - Quality and testing
+        - Operations and support
+        - Physical bookmark and QR
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Required outcome
+      description: Describe the user, product, or operational result rather than only the implementation.
+      placeholder: A returning reader can...
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-scope
+      description: State what is included and explicitly excluded.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Add measurable criteria using a checklist.
+      placeholder: |
+        - [ ] Criterion one
+        - [ ] Criterion two
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and decisions
+      description: Link prerequisite issues, gate decisions, migrations, vendors, or product-owner choices.
+
+  - type: textarea
+    id: impacts
+    attributes:
+      label: Risk and impact review
+      description: Cover data, security, privacy, AI, billing, native, accessibility, operations, and store policy where applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Verification evidence
+      description: Identify automated tests, device checks, metrics, or documents required before closure.
+    validations:
+      required: true
+
+  - type: input
+    id: roadmap
+    attributes:
+      label: Roadmap reference
+      description: Link the owning roadmap section or accepted decision.
+      placeholder: docs/PRODUCT_ROADMAP.md#10-stage-2---architecture-rebuild
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: governance
+    attributes:
+      label: Governance confirmation
+      options:
+        - label: This work belongs to the selected stage or has a documented approved exception.
+          required: true
+        - label: No secret or private user content is included in this issue.
+          required: true
