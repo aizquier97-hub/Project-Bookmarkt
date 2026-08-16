@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createSupabaseContext } from "npm:@supabase/server@1";
 
 type Mode = "summary" | "characters" | "locations" | "full_update";
 
@@ -56,6 +57,27 @@ const corsHeaders = {
 };
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+const DEFAULT_AI_DAILY_USER_LIMIT = 30;
+const DEFAULT_AI_DAILY_PROJECT_LIMIT = 500;
+
+type AIUsageStatus = "succeeded" | "failed";
+type FinalizeAIUsage = (
+  status: AIUsageStatus,
+  httpStatus: number,
+  errorCode?: string | null,
+  errorMessage?: string | null,
+  upstreamStatus?: number | null,
+) => Promise<void>;
+
+function readPositiveLimit(raw: string | undefined, fallback: number, maximum: number) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(maximum, Math.floor(parsed));
+}
+
+function truncateLogValue(value: unknown, maxLength = 500) {
+  return String(value ?? "").trim().slice(0, maxLength) || null;
+}
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { status, headers: jsonHeaders });
@@ -449,6 +471,9 @@ async function generateImageFromPrompt(geminiKey: string, prompt: string) {
 }
 
 serve(async (req) => {
+  const requestStartedAt = Date.now();
+  let finalizeUsage: FinalizeAIUsage | null = null;
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -458,6 +483,25 @@ serve(async (req) => {
   }
 
   try {
+    const { data: authContext, error: authError } = await createSupabaseContext(req, { auth: "user" });
+    if (authError || !authContext) {
+      return jsonResponse(
+        {
+          error: "Authentication required. Please sign in again.",
+          code: authError?.code ?? "UNAUTHORIZED",
+        },
+        authError?.status ?? 401,
+      );
+    }
+
+    const userId = String(authContext.userClaims?.id ?? authContext.jwtClaims?.sub ?? "").trim();
+    if (!userId) {
+      return jsonResponse(
+        { error: "Authentication required. Please sign in again.", code: "UNAUTHORIZED" },
+        401,
+      );
+    }
+
     const body = (await req.json()) as RequestBody;
     const {
       mode,
@@ -541,6 +585,105 @@ serve(async (req) => {
     const safeExistingLocations = sanitizeStringArray(existingLocations);
     const safeAuditId = sanitizeAuditId(auditId) ?? crypto.randomUUID();
     const safePageImage = sanitizePageImage(pageImage);
+    const userDailyLimit = readPositiveLimit(
+      Deno.env.get("AI_DAILY_USER_LIMIT"),
+      DEFAULT_AI_DAILY_USER_LIMIT,
+      500,
+    );
+    const projectDailyLimit = readPositiveLimit(
+      Deno.env.get("AI_DAILY_PROJECT_LIMIT"),
+      DEFAULT_AI_DAILY_PROJECT_LIMIT,
+      100000,
+    );
+    const { data: quotaData, error: quotaError } = await authContext.supabaseAdmin.rpc(
+      "consume_ai_daily_quota",
+      {
+        p_user_id: userId,
+        p_mode: mode,
+        p_audit_id: safeAuditId,
+        p_user_daily_limit: userDailyLimit,
+        p_project_daily_limit: projectDailyLimit,
+      },
+    );
+    if (quotaError) {
+      const err = new Error("AI usage protection is temporarily unavailable. Please try again shortly.");
+      (err as any).code = "AI_QUOTA_UNAVAILABLE";
+      (err as any).status = 503;
+      (err as any).details = quotaError;
+      throw err;
+    }
+
+    const quotaRow = Array.isArray(quotaData) ? quotaData[0] : quotaData;
+    if (!quotaRow || !quotaRow.event_id) {
+      const err = new Error("AI usage protection returned an invalid response.");
+      (err as any).code = "AI_QUOTA_UNAVAILABLE";
+      (err as any).status = 503;
+      throw err;
+    }
+
+    const quotaScope = String(quotaRow.quota_scope || "user");
+    const quota = {
+      scope: quotaScope,
+      limit: quotaScope === "project"
+        ? Number(quotaRow.project_limit || projectDailyLimit)
+        : Number(quotaRow.user_limit || userDailyLimit),
+      used: quotaScope === "project"
+        ? Number(quotaRow.project_used || 0)
+        : Number(quotaRow.user_used || 0),
+      remaining: Math.max(
+        0,
+        quotaScope === "project"
+          ? Number(quotaRow.project_remaining || 0)
+          : Number(quotaRow.user_remaining || 0),
+      ),
+      resetAt: quotaRow.reset_at,
+    };
+    if (quotaRow.allowed !== true) {
+      const projectLimitReached = quota.scope === "project";
+      return jsonResponse(
+        {
+          error: projectLimitReached
+            ? "AI service capacity has been reached for today. Please try again after the daily reset."
+            : "Daily AI limit reached (" + quota.limit + " generations). Please try again after the daily reset.",
+          code: projectLimitReached ? "AI_PROJECT_DAILY_LIMIT_EXCEEDED" : "AI_DAILY_LIMIT_EXCEEDED",
+          quota,
+        },
+        429,
+      );
+    }
+
+    const usageEventId = Number(quotaRow.event_id);
+    finalizeUsage = async (
+      status,
+      httpStatus,
+      errorCode = null,
+      errorMessage = null,
+      upstreamStatus = null,
+    ) => {
+      try {
+        const { error: updateError } = await authContext.supabaseAdmin
+          .from("ai_usage_events")
+          .update({
+            status,
+            completed_at: new Date().toISOString(),
+            duration_ms: Math.max(0, Date.now() - requestStartedAt),
+            http_status: httpStatus,
+            upstream_status: upstreamStatus,
+            error_code: truncateLogValue(errorCode, 80),
+            error_message: truncateLogValue(errorMessage),
+          })
+          .eq("id", usageEventId)
+          .eq("user_id", userId);
+        if (updateError) console.error("Failed to finalize AI usage event", updateError);
+      } catch (logError) {
+        console.error("Failed to finalize AI usage event", logError);
+      }
+    };
+
+    const successResponse = async (payload: Record<string, unknown>, status = 200) => {
+      await finalizeUsage?.("succeeded", status);
+      return jsonResponse({ ...payload, quota }, status);
+    };
     const spoilerBoundaryLabel = buildBoundaryWindowLabel(progressType, lowerBoundaryNumber, upperBoundaryNumber);
     const boundaryInstruction = lowerBoundaryNumber !== null
       ? `Only include details first introduced after ${progressType} ${lowerBoundaryNumber}; the effective spoiler-safe window is ${spoilerBoundaryLabel}.`
@@ -916,7 +1059,7 @@ Rules:
 
     if (mode === "summary") {
       const summaryResult = await generateSummary();
-      return jsonResponse(
+      return await successResponse(
         {
           ok: true,
           mode,
@@ -933,7 +1076,7 @@ Rules:
 
     if (mode === "characters") {
       const characterResult = await generateCharacters();
-      return jsonResponse(
+      return await successResponse(
         {
           ok: true,
           mode,
@@ -950,7 +1093,7 @@ Rules:
 
     if (mode === "locations") {
       const locationResult = await generateLocations();
-      return jsonResponse(
+      return await successResponse(
         {
           ok: true,
           mode,
@@ -1114,7 +1257,7 @@ Character rules:
       },
     };
 
-    return jsonResponse(
+    return await successResponse(
       {
         ok: true,
         mode,
@@ -1136,14 +1279,31 @@ Character rules:
       200
     );
   } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    const rawStatus = Number((e as any)?.status);
+    const upstreamStatus = Number.isFinite(rawStatus) && rawStatus >= 100 && rawStatus <= 599
+      ? rawStatus
+      : null;
+    const errorCode = truncateLogValue(
+      (e as any)?.code
+        ?? (upstreamStatus === 429 ? "AI_PROVIDER_RATE_LIMITED" : "AI_GENERATION_FAILED"),
+      80,
+    );
+    const responseStatus = errorCode === "AI_QUOTA_UNAVAILABLE"
+      ? 503
+      : upstreamStatus === 429
+        ? 503
+        : 500;
+    await finalizeUsage?.("failed", responseStatus, errorCode, errorMessage, upstreamStatus);
+    console.error("ai-bookmate request failed", { errorCode, upstreamStatus, error: errorMessage });
     return jsonResponse(
       {
-        error: e instanceof Error ? e.message : String(e),
-        details: (e as any)?.details,
-        status: (e as any)?.status,
-        stack: e instanceof Error ? e.stack : undefined,
+        error: upstreamStatus === 429
+          ? "AI service is temporarily busy. Please try again shortly."
+          : errorMessage,
+        code: errorCode,
       },
-      500
+      responseStatus,
     );
   }
 });
