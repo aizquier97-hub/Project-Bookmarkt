@@ -277,6 +277,13 @@
               <option value="high" selected>High</option>
             </select>
           </label>
+          <label>AI Character Detail
+            <select id="aiCharacterDetailLevel">
+              <option value="low">Low (main characters only)</option>
+              <option value="medium" selected>Medium (important characters)</option>
+              <option value="high">High (include all relevant characters)</option>
+            </select>
+          </label>
           <label>Optional Notes
             <textarea id="aiNotes" rows="3" placeholder="Optional context or focus area..."></textarea>
           </label>
@@ -600,6 +607,7 @@
     const aiProgressTypeEl = document.getElementById('aiProgressType');
     const aiProgressValueEl = document.getElementById('aiProgressValue');
     const aiDetailLevelEl = document.getElementById('aiDetailLevel');
+    const aiCharacterDetailLevelEl = document.getElementById('aiCharacterDetailLevel');
     const aiNotesEl = document.getElementById('aiNotes');
     const aiStrictSpoilerGuardEl = document.getElementById('aiStrictSpoilerGuard');
     const btnGenerateAI = document.getElementById('btnGenerateAI');
@@ -636,7 +644,7 @@
     const btnFeedbackCancel = document.getElementById('btnFeedbackCancel');
     const feedbackStatusEl = document.getElementById('feedbackStatus');
     const hasImageUI = !!(bookImageDropzone && btnTakePhoto && btnPickImages && btnUploadImages && bookImageInput && pendingImagesInfoEl && imageStatusEl && bookImagesList);
-    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiPublisherEl && aiPublicationYearEl && aiTotalPagesEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiDetailLevelEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
+    const hasAIUI = !!(aiBookTitleEl && aiAuthorEl && aiPublisherEl && aiPublicationYearEl && aiTotalPagesEl && aiControlsEl && aiProgressTypeEl && aiProgressValueEl && aiDetailLevelEl && aiCharacterDetailLevelEl && aiNotesEl && aiStrictSpoilerGuardEl && btnGenerateAI && aiSpoilerBoundaryEl && aiStatusEl && aiSafetyNoticeEl && aiSpoilerActionsEl && btnReviewBlockedSummaryEl && btnSaveBlockedSummaryEl && btnTakePagePhotoEl && btnUploadPageImageEl && btnRetryWithPageEvidenceEl && aiBlockedSummaryPreviewEl && btnReportSpoilerEl && aiGeneratedImagesEl);
     const devInfo = document.getElementById('devInfo');
     const BOOK_IMAGES_BUCKET = 'book-images';
     let currentUser = null;
@@ -1436,6 +1444,7 @@
         aiProgressTypeEl.disabled = disableBookScoped;
         aiProgressValueEl.disabled = disableBookScoped;
         aiDetailLevelEl.disabled = disableBookScoped;
+        aiCharacterDetailLevelEl.disabled = disableBookScoped;
         aiNotesEl.disabled = disableBookScoped;
         aiStrictSpoilerGuardEl.disabled = disableBookScoped;
         btnGenerateAI.disabled = disableBookScoped;
@@ -1767,6 +1776,10 @@
       return value === 'low' || value === 'medium' || value === 'high' ? value : 'high';
     }
 
+    function normalizeAICharacterDetailLevel(value) {
+      return value === 'low' || value === 'medium' || value === 'high' ? value : 'medium';
+    }
+
     function buildProgressRangeLabel(progressType, lowerValue, upperValue) {
       const type = normalizeProgressType(progressType);
       if (Number.isFinite(lowerValue) && lowerValue > 0) {
@@ -2025,6 +2038,7 @@
         progressType: aiProgressTypeEl.value === 'page' ? 'page' : 'chapter',
         progressValue: aiProgressValueEl.value.trim(),
         aiDetailLevel: normalizeAIDetailLevel(aiDetailLevelEl.value),
+        aiCharacterDetailLevel: normalizeAICharacterDetailLevel(aiCharacterDetailLevelEl.value),
         strictSpoilerGuard: aiStrictSpoilerGuardEl.checked !== false,
         notes: aiNotesEl.value || ''
       };
@@ -2046,6 +2060,7 @@
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
         aiDetailLevelEl.value = 'high';
+        aiCharacterDetailLevelEl.value = 'medium';
         aiStrictSpoilerGuardEl.checked = true;
         aiNotesEl.value = '';
         syncAIUpdateModeUI();
@@ -2066,6 +2081,7 @@
           aiProgressTypeEl.value = 'chapter';
           aiProgressValueEl.value = '';
           aiDetailLevelEl.value = 'high';
+          aiCharacterDetailLevelEl.value = 'medium';
           aiStrictSpoilerGuardEl.checked = true;
           aiNotesEl.value = '';
           syncAIUpdateModeUI();
@@ -2080,6 +2096,7 @@
         aiProgressTypeEl.value = (parsed && parsed.progressType === 'page') ? 'page' : 'chapter';
         aiProgressValueEl.value = (parsed && parsed.progressValue) ? String(parsed.progressValue) : '';
         aiDetailLevelEl.value = normalizeAIDetailLevel(parsed && parsed.aiDetailLevel);
+        aiCharacterDetailLevelEl.value = normalizeAICharacterDetailLevel(parsed && parsed.aiCharacterDetailLevel);
         aiStrictSpoilerGuardEl.checked = !(parsed && parsed.strictSpoilerGuard === false);
         aiNotesEl.value = (parsed && parsed.notes) ? String(parsed.notes) : '';
         syncAIUpdateModeUI();
@@ -2091,6 +2108,7 @@
         aiProgressTypeEl.value = 'chapter';
         aiProgressValueEl.value = '';
         aiDetailLevelEl.value = 'high';
+        aiCharacterDetailLevelEl.value = 'medium';
         aiStrictSpoilerGuardEl.checked = true;
         aiNotesEl.value = '';
         syncAIUpdateModeUI();
@@ -2294,6 +2312,7 @@
       const progressType = aiProgressTypeEl.value === 'page' ? 'page' : 'chapter';
       const progressValue = aiProgressValueEl.value.trim();
       const aiDetailLevel = normalizeAIDetailLevel(aiDetailLevelEl.value);
+      const aiCharacterDetailLevel = normalizeAICharacterDetailLevel(aiCharacterDetailLevelEl.value);
       const notes = aiNotesEl.value.trim();
 
       if (!bookTitle || !author || !progressValue) {
@@ -2440,6 +2459,7 @@
           hasGroundingNotes: !!combinedGroundingNotes,
           usedPageEvidence: !!pageEvidence,
           aiDetailLevel,
+          aiCharacterDetailLevel,
         });
         const requestBody = {
           bookTitle,
@@ -2454,6 +2474,7 @@
           publicationYear: publicationYear || null,
           totalPages: totalPages || null,
           aiDetailLevel,
+          aiCharacterDetailLevel,
           auditId: generationAuditId,
           pageImage: pageEvidence,
         };
@@ -3889,7 +3910,7 @@
     btnAddCharacter.addEventListener('click', addCharacter);
     btnClearCharacterMap.addEventListener('click', clearCharacterMap);
     if (hasAIUI) {
-      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiPublisherEl, aiPublicationYearEl, aiTotalPagesEl, aiProgressTypeEl, aiProgressValueEl, aiDetailLevelEl, aiNotesEl, aiStrictSpoilerGuardEl];
+      const aiInputElements = [aiBookTitleEl, aiAuthorEl, aiPublisherEl, aiPublicationYearEl, aiTotalPagesEl, aiProgressTypeEl, aiProgressValueEl, aiDetailLevelEl, aiCharacterDetailLevelEl, aiNotesEl, aiStrictSpoilerGuardEl];
       aiInputElements.forEach((el) => {
         const eventName = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(eventName, () => {

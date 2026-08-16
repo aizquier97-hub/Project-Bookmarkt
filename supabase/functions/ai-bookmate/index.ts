@@ -7,6 +7,7 @@ type RequestBody = {
   bookTitle?: string;
   author?: string;
   aiDetailLevel?: "low" | "medium" | "high" | string;
+  aiCharacterDetailLevel?: "low" | "medium" | "high" | string;
   publisher?: string | null;
   publicationYear?: number | string | null;
   totalPages?: number | string | null;
@@ -315,6 +316,12 @@ function sanitizeAIDetailLevel(value: unknown): "low" | "medium" | "high" {
   return "high";
 }
 
+function sanitizeAICharacterDetailLevel(value: unknown): "low" | "medium" | "high" {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "low" || raw === "medium" || raw === "high") return raw;
+  return "medium";
+}
+
 function sanitizePageImage(pageImage: RequestBody["pageImage"]) {
   if (!pageImage || typeof pageImage !== "object") return null;
   const mimeType = String(pageImage.mimeType ?? "").trim().toLowerCase();
@@ -457,6 +464,7 @@ serve(async (req) => {
       bookTitle,
       author,
       aiDetailLevel,
+      aiCharacterDetailLevel,
       publisher,
       publicationYear,
       totalPages,
@@ -502,6 +510,7 @@ serve(async (req) => {
     }
     const safePublisher = String(publisher ?? "").trim() || null;
     const safeAIDetailLevel = sanitizeAIDetailLevel(aiDetailLevel);
+    const safeAICharacterDetailLevel = sanitizeAICharacterDetailLevel(aiCharacterDetailLevel);
     const safePublicationYear = sanitizeOptionalPublicationYear(publicationYear);
     const safeTotalPages = sanitizeOptionalPositiveInt(totalPages);
     let wasProgressCapped = false;
@@ -555,12 +564,23 @@ Grounded reader context: ${notes?.trim() || "(none)"}
 
 Attached page evidence: ${safePageImage ? "Present. Prefer concrete details visible in the page image over broad memory." : "None"}
 
-Requested summary detail level: ${safeAIDetailLevel.toUpperCase()}`;
+Requested summary detail level: ${safeAIDetailLevel.toUpperCase()}
+Requested character detail level: ${safeAICharacterDetailLevel.toUpperCase()}`;
     const summaryDetailInstruction = safeAIDetailLevel === "low"
       ? "Write a very concise summary (target 2 to 3 sentences) focused only on the most important boundary-safe developments."
       : safeAIDetailLevel === "medium"
         ? "Write a concise summary (target 4 to 6 sentences) covering major boundary-safe developments and key character actions."
         : "Write a concrete, specific summary (target 6 to 10 sentences).";
+    const characterDetailInstruction = safeAICharacterDetailLevel === "low"
+      ? "Character detail LOW: include only main characters central to this boundary window (target 1 to 4); exclude minor/supporting mentions."
+      : safeAICharacterDetailLevel === "medium"
+        ? "Character detail MEDIUM: include important characters needed to follow this boundary window (target 3 to 8); include key supporting characters only."
+        : "Character detail HIGH: include all clearly relevant spoiler-safe characters in this boundary window (target 6 to 15), including supporting characters.";
+    const bootstrapCharacterInstruction = safeAICharacterDetailLevel === "low"
+      ? `Existing character names is empty — build a compact initial map of main characters only (target 2 to 4) introduced up to ${progressType} ${upperBoundaryNumber}.`
+      : safeAICharacterDetailLevel === "medium"
+        ? `Existing character names is empty — build an initial map of important characters (target 4 to 9) introduced up to ${progressType} ${upperBoundaryNumber}.`
+        : `Existing character names is empty — build a complete initial character map; include 6 to 15 important spoiler-safe characters introduced by this boundary.`;
 
     const generateSummary = async () => {
       const summaryInstruction = `${sharedPrompt}
@@ -667,9 +687,9 @@ Return ONLY strict JSON with this shape:
   ]
 }
 Rules:
-- Include 1 to 12 characters.
+- ${characterDetailInstruction}
 - Include spoiler-safe characters who are relevant in this boundary window and useful for the reader's character map.
-- If Existing character names is "(none)", bootstrap the character map with important spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber}, even if some were introduced before the current lower boundary.
+- If Existing character names is "(none)", ${bootstrapCharacterInstruction}
 - Exclude any names listed in "Existing character names".
 - Prefer names explicitly present in Grounded reader context, Grounded summary context, or attached page evidence.
 - You may also include high-confidence core characters that are clearly introduced by this boundary, even if the grounded notes omitted their names.
@@ -706,8 +726,8 @@ Return ONLY strict JSON with this shape:
   ]
 }
 Rules:
-- Include 1 to 6 spoiler-safe characters who are clearly active or relevant in this boundary window.
-- If Existing character names is "(none)", bootstrap with major spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber}, not only this boundary window.
+- ${characterDetailInstruction}
+- If Existing character names is "(none)", ${bootstrapCharacterInstruction}
 - Exclude any names listed in "Existing character names".
 - You may recover a full character name from book context when the grounded summary clearly refers to that character, even if the exact full name is not repeated verbatim.
 - Prefer well-established or clearly evidenced characters over speculative minor figures.
@@ -744,7 +764,7 @@ Return ONLY strict JSON with this shape:
 }
 Rules:
 - Existing character names are empty, so build an initial character map.
-- Include 6 to 14 important spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber}.
+- ${bootstrapCharacterInstruction}
 - Do not include characters first introduced after ${progressType} ${upperBoundaryNumber}.
 - Prioritize major and recurring characters over speculative or minor uncertain figures.
 - Never include markdown fences.
@@ -779,7 +799,8 @@ Return ONLY strict JSON with this shape:
 }
 Rules:
 - Existing character names are already saved in the map.
-- Add up to 6 spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber} that are likely missing from the current map.
+- ${characterDetailInstruction}
+- Add spoiler-safe characters introduced up to ${progressType} ${upperBoundaryNumber} that are likely missing from the current map.
 - Exclude any names listed in "Existing character names".
 - Prioritize important recurring characters that should be in the map by this reading stage.
 - Never include markdown fences.
@@ -981,8 +1002,9 @@ Summary rules:
 - Never include markdown fences.
 
 Character rules:
+- ${characterDetailInstruction}
 - Include every named character who appears or is clearly referenced up to ${progressType} ${upperBoundaryNumber}.
-- ${isBootstrap ? `Existing character names is empty — build a complete initial character map; include 4–15 important spoiler-safe characters introduced by this boundary.` : `Add characters who are NOT in "Existing character names". Exclude any name listed there.`}
+- ${isBootstrap ? bootstrapCharacterInstruction : `Add characters who are NOT in "Existing character names". Exclude any name listed there.`}
 - Characters you mention in your summary MUST appear in the characters array (never omit them).
 - Include any character named in Grounded reader context even if you also mention them in the summary.
 - Do not limit yourself to only characters with heavy page-time; include supporting characters if they are clearly introduced.
@@ -1062,6 +1084,7 @@ Character rules:
         bookTitle,
         author,
         aiDetailLevel: safeAIDetailLevel,
+        aiCharacterDetailLevel: safeAICharacterDetailLevel,
         publisher: safePublisher,
         publicationYear: safePublicationYear,
         totalPages: safeTotalPages,
