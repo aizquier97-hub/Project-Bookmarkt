@@ -24,7 +24,7 @@ Describe the user, product, or operational result.
 - [ ] Authentication, authorization, and cross-account isolation considered.
 - [ ] Database, migration, RLS, Storage, retention, and recovery considered.
 - [ ] Privacy, secrets, logging, analytics, and user-content exposure considered.
-- [ ] Base/Base+/Ultimate purchase verification, AI-feature authorization, quota, provider cost, artifact ownership, safety, and report/audit behavior considered.
+- [ ] Base/Base+/Ultimate purchase verification, multi-feature selection, per-feature settings, atomic quota preflight, concurrent generation, partial failure/retry, provider cost, artifact ownership, safety, and audits considered.
 - [ ] Subscription, entitlement, webhook, tax, and store-policy impact considered.
 - [ ] Native platforms, smart links/store routing, deferred links, prototype retirement, accessibility, and supported devices considered.
 - [ ] Not applicable items are explained below.

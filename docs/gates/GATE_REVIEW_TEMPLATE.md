@@ -21,6 +21,8 @@ State the result this gate must prove.
 - Temporary PWA or retirement impact:
 - Minimal web endpoint impact:
 - Base/Base+/Ultimate purchase and AI feature-entitlement impact:
+- Multi-feature selection, amount/detail, simultaneous generation, partial
+  failure, quota reservation, and retry impact:
 - Generated text/character/image storage impact:
 - Governing decision references:
 
