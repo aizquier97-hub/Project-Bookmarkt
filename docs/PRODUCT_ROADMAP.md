@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Roadmap version | 1.4 |
+| Roadmap version | 1.5 |
 | Status | Active |
 | Product owner | Bookmarkt product owner |
 | Current stage | Stage 1 - Stabilization |
@@ -112,56 +112,85 @@ Changes to these boundaries require the roadmap change process.
 ## 5. Core user journey
 
 ```mermaid
-flowchart LR
-    A[Scan physical bookmark QR] --> B[Bookmarkt smart link]
-    B --> C{Native app installed?}
-    C -->|Yes| D[Open app through universal/App Link]
-    C -->|No| E{Mobile platform}
-    E -->|iOS| F[Open Apple App Store]
-    E -->|Android| G[Open Google Play]
-    E -->|Unsupported/desktop| H[Show installation information]
-    F --> I[Install and open Bookmarkt]
-    G --> I
-    I --> J[Restore deferred QR context if supported]
-    D --> K{Authenticated?}
+flowchart TB
+    subgraph QR["1. Open or install Bookmarkt"]
+        A[Scan physical bookmark QR] --> B[Bookmarkt smart link]
+        B --> C{Native app installed?}
+        C -->|Yes| D[Open app through<br/>Universal/App Link]
+        C -->|No| E{Mobile platform}
+        E -->|iOS| F[Open Apple App Store]
+        E -->|Android| G[Open Google Play]
+        E -->|Unsupported/desktop| H[Show installation<br/>information]
+        F --> I[Install and open Bookmarkt]
+        G --> I
+        I --> J[Restore deferred QR context<br/>if supported]
+    end
+
+    subgraph ACCOUNT["2. Access the account and book"]
+        K{Authenticated?}
+        K -->|No| L[Create account or sign in]
+        K -->|Yes| M[Open library]
+        L --> M
+        M --> N[Select or add book]
+        N --> O[Record reading boundary]
+        O --> P{Entry type}
+    end
+
+    D --> K
     J --> K
-    K -->|No| L[Create account or sign in]
-    K -->|Yes| M[Open library]
-    L --> M
-    M --> N[Select or add book]
-    N --> O[Record reading boundary]
-    O --> P{Entry type}
-    P -->|Manual| Q[Write and save notes]
-    Q --> R[Optional manual character updates/image uploads]
-    P -->|AI-assisted| S{Paid subscription active?}
-    S -->|No| T[Display Base, Base+, and Ultimate]
-    T --> U{Paid tier selected?}
-    U -->|No| Q
-    U -->|Yes| V[Complete App Store/Google Play purchase]
-    V --> PV{Purchase verified and entitlement active?}
-    PV -->|No/cancel/abandon/fail| Q
-    PV -->|Yes| W
-    S -->|Yes| W[Load server-confirmed active tier]
-    W --> X{Active paid tier}
-    X -->|Base| BA[Select AI Summary]
-    X -->|Base+| BP[Select Summary, Character Mapping, or both]
-    X -->|Ultimate| UL[Select any one feature, any two, or all three]
-    BA --> CFG[Set amount/detail for each selected feature]
+
+    subgraph MANUAL["3A. Manual entry and AI fallback"]
+        BACK[Return to manual entry]
+        Q[Write and save notes]
+        R[Optional manual character updates<br/>and/or image uploads]
+        BACK --> Q
+        Q --> R
+    end
+
+    P -->|Manual| Q
+
+    subgraph ACCESS["3B. Verify paid AI access"]
+        S{Paid subscription active?}
+        S -->|No| T[Display Base, Base+,<br/>and Ultimate]
+        T --> U{Paid tier selected?}
+        U -->|Yes| V[Complete Apple App Store or<br/>Google Play purchase]
+        V --> PV{Purchase verified and<br/>entitlement active?}
+        PV -->|Yes| W[Load server-confirmed<br/>active tier]
+        S -->|Yes| W
+        W --> X{Active paid tier}
+        X -->|Base| BA[Select AI Summary]
+        X -->|Base+| BP[Select Summary,<br/>Character Mapping, or both]
+        X -->|Ultimate| UL[Select any one feature,<br/>any two, or all three]
+    end
+
+    P -->|AI-assisted| S
+    U -->|No| BACK
+    PV -->|No/cancel/abandon/fail| BACK
+
+    subgraph GENERATE["4. Configure and generate AI outputs"]
+        CFG[Set amount/detail for<br/>each selected feature]
+        CFG --> PRE[Backend atomically authorizes full set<br/>and reserves per-feature quota]
+        PRE -->|Failed| ADJ{Choose a recovery option}
+        ADJ -->|Modify and retry| RETRY[Return to feature settings and<br/>repeat this authorization check]
+        PRE -->|Succeeded| JOB[Create one multi-feature<br/>generation session]
+        JOB --> RUN[Generate all selected outputs together,<br/>concurrently where safe]
+        RUN --> RES[Collect per-feature<br/>results and status]
+    end
+
+    BA --> CFG
     BP --> CFG
     UL --> CFG
-    CFG --> PRE[Atomically authorize full set and reserve per-feature quota]
-    PRE --> OK{Authorization and reservation succeeded?}
-    OK -->|No| ADJ{Adjust request?}
-    ADJ -->|Yes| CFG
-    ADJ -->|No| Q
-    OK -->|Yes| JOB[Create one multi-feature generation session]
-    JOB --> RUN[Generate all selected outputs together/concurrently where safe]
-    RUN --> RES[Collect per-feature results and status]
-    RES --> RV[Review/save each or all approved outputs]
-    RV --> ST[Store user records/private image objects]
-    R --> SY[Sync securely to account]
-    ST --> SY
-    SY --> END[Resume in the native app]
+    ADJ -->|Use manual entry| BACK
+
+    subgraph SAVE["5. Review, save, and sync"]
+        RV[Review results and save<br/>any or all approved outputs]
+        RV --> ST[Store user records and<br/>private image objects]
+        ST --> SY[Sync securely to account]
+        SY --> END[Resume in the native app]
+    end
+
+    RES --> RV
+    R --> SY
 ```
 
 ### Paid tier feature matrix
@@ -208,18 +237,26 @@ flowchart LR
 
 ## 7. Roadmap status
 
-| Phase | Name | Status | Exit outcome |
-| --- | --- | --- | --- |
-| Foundation | Functional prototype | Complete | QR-accessible production PWA proved the product concept |
-| Stage 1 | Stabilization | Observation | Reliable and secure baseline with seven clean days |
-| Stage 2 | Architecture rebuild | Planned | Maintainable, tested native application core |
-| Stage 3 | Polished UI/UX | Planned | Accessible, branded, validated native experience |
-| Stage 4 | Monetization and accounts | Planned | Store-compliant subscriptions and entitlement system |
-| Stage 5 | Native iOS/Android packaging | Planned | Signed internal builds on real devices |
-| Stage 6 | Compliance and launch operations | Planned | Legally and operationally ready external-beta candidate |
-| Stage 7 | External beta | Planned | Evidence that real users and operations are launch-ready |
-| Stage 8 | App-store launch | Planned | Public iOS/Android release and retirement of the PWA product |
-| Stage 9 | Operations and growth | Planned | Sustainable ongoing product reliability and growth |
+| Phase | Name | Status | Initial planning duration | Exit outcome |
+| --- | --- | --- | --- | --- |
+| Foundation | Functional prototype | Complete | Completed before formal tracking | QR-accessible production PWA proved the product concept |
+| Stage 1 | Stabilization | Observation | Minimum 1-week clean observation | Reliable and secure baseline with seven clean days |
+| Stage 2 | Architecture rebuild | Planned | 12-16 weeks | Maintainable, tested native application core |
+| Stage 3 | Polished UI/UX | Planned | 8-12 weeks | Accessible, branded, validated native experience |
+| Stage 4 | Monetization and accounts | Planned | 10-14 weeks | Store-compliant subscriptions and entitlement system |
+| Stage 5 | Native iOS/Android packaging | Planned | 6-8 weeks | Signed internal builds on real devices |
+| Stage 6 | Compliance and launch operations | Planned | 6-10 weeks | Legally and operationally ready external-beta candidate |
+| Stage 7 | External beta | Planned | 6-8 weeks, including at least 14 observed days | Evidence that real users and operations are launch-ready |
+| Stage 8 | App-store launch | Planned | 4-6 weeks | Public iOS/Android release and retirement of the PWA product |
+| Stage 9 | Operations and growth | Planned | Ongoing after launch | Sustainable ongoing product reliability and growth |
+
+These are gate-relative planning ranges, not fixed release commitments. Each
+duration begins only after the stage entry gate passes and ends when its exit gate
+is approved. The initial Stage 2-through-Stage 8 path therefore represents
+approximately 52-74 weeks after Stage 2 entry. Scope changes, unresolved defects,
+gate conditions, staffing, external legal or store review, and third-party
+dependencies can change the ranges. Reforecast the remaining stages at every gate
+review and record any material schedule change in the roadmap.
 
 ## 8. Foundation history - completed
 

@@ -8,7 +8,7 @@
 | Observation start | August 16, 2026 at 10:55 MDT (16:55 UTC) |
 | Earliest review | August 23, 2026 at 10:55 MDT (16:55 UTC) |
 | Product owner | Bookmarkt product owner |
-| Roadmap version | 1.4 |
+| Roadmap version | 1.5 |
 
 ## Outcome required
 
