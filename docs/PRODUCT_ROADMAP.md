@@ -2,23 +2,63 @@
 
 | Field | Value |
 | --- | --- |
-| Roadmap version | 1.5 |
+| Roadmap version | 2.0 |
 | Status | Active |
 | Product owner | Bookmarkt product owner |
 | Current stage | Stage 1 - Stabilization |
 | Current gate state | Seven-day production stability observation |
 | Observation window | August 16, 2026 at 10:55 MDT through August 23, 2026 at 10:55 MDT |
-| Last updated | August 16, 2026 |
+| Last updated | August 17, 2026 |
 
 This document is the authoritative product roadmap for Bookmarkt. Execution and
 approval rules are defined in [STAGE_GATES.md](STAGE_GATES.md), and material
 roadmap decisions are recorded in [DECISION_LOG.md](DECISION_LOG.md).
 
-## 1. Product goal
+Roadmap version 2.0 implements Decision D-012: Bookmarkt pivots from
+AI-generated content to reader-authored capture plus a single paid AI Reading
+Companion that works exclusively on the reader's own entries.
 
-**Build a native iOS and Android application that modernizes the physical
-bookmark by using its QR code to open Bookmarkt when installed or route the
-reader to the correct app store when Bookmarkt is not installed.**
+## 1. Problem statement
+
+**Fragmented attention - trained by short-form digital media - impairs people's
+ability to read books. It shows up as three failures:**
+
+- **P1 - Stamina:** readers cannot sustain long-form reading sessions without
+  drifting.
+- **P2 - Recall:** returning to a book after days or weeks, the thread is lost -
+  who people are, what happened - so re-entry feels like work and the book gets
+  abandoned.
+- **P3 - Comprehension:** even while reading, readers struggle to track
+  characters, plot threads, and causality deeply enough to stay engaged.
+
+**The consequence:** books stall and reading declines - and with it, the
+sustained thinking that reading uniquely exercises.
+
+### Honest coverage assessment
+
+The product attacks P2 directly and centrally; every companion feature exists to
+make re-entry cheap. It attacks P3 through active production: writing your own
+summary and building your own character map are well-supported comprehension
+interventions, reinforced by Socratic dialogue and continuity flags. P1 is
+addressed only indirectly: the bet is that lower re-entry cost and deeper
+engagement produce more frequent sessions, and stamina rebuilds through reading
+itself. No feature directly extends session length. If P1 ever deserves direct
+treatment, lightweight session mechanics (streaks, gentle session goals) fit the
+mission without drift - but they are additive, not required for launch, and must
+not dilute the recall/comprehension core.
+
+## 2. Mission and product goal
+
+**For individuals whose fragmented attention impedes their ability to read for
+long periods or to recall and understand what they're reading, Bookmarkt makes
+it easy to pick a book back up, stay oriented in it, and finish it.**
+
+Bookmarkt helps people read - it never reads for them. The success metric is
+**books finished**.
+
+The launch product is a native iOS and Android application that modernizes the
+physical bookmark by using its QR code to open Bookmarkt when installed or route
+the reader to the correct app store when Bookmarkt is not installed.
 
 The complete reading experience belongs in the native application. The current
 PWA exists to validate the concept quickly and provide a behavioral reference
@@ -30,7 +70,7 @@ obligations. It does not provide the Bookmarkt reading application.
 Information belongs to the reader's account, not to one phone or physical
 bookmark.
 
-## 2. Product promise
+## 3. Product promise
 
 A reader can:
 
@@ -40,46 +80,54 @@ A reader can:
 4. Install the app and recover any supported deferred QR context.
 5. Create an account or sign in securely.
 6. Add and organize books they are reading.
-7. Record reading progress and personal notes manually.
-8. Choose among the fixed paid tiers: **Base** for AI Summary; **Base+** for AI
-   Summary and AI Character Mapping; or **Ultimate** for all Base+ features plus
-   AI Image Generation.
-9. Select how many entitled features to generate in one session: Base generates
-   AI Summary; Base+ generates Summary, Character Mapping, or both together;
-   Ultimate generates any one feature, any two, or all three together.
-10. Configure the amount/detail of each selected output within the tier's limits.
-11. Keep every selected output constrained to one reading boundary and save only
-    the results they approve.
-12. Manually build and maintain book-specific character maps.
-13. Store book metadata and personal or entitled AI-generated images.
-14. Return from another supported phone and recover the same account data.
-15. Understand and control their subscription, privacy, data, and account.
+7. Record progress and entries in their own words - typed or spoken - where one
+   sentence is always enough and the entry is never judged.
+8. Manually build and maintain book-specific character maps.
+9. Rely on their latest entry as the spoiler-safe boundary for everything the
+   product shows or asks.
+10. Store book metadata and personal images.
+11. Optionally subscribe to the **AI Reading Companion**: "Previously on..."
+    recaps, Socratic dialogue, cue cards, character-map quizzes, semantic
+    search, cross-book threads, book-club prep, continuity flags, and a
+    vocabulary bank - all grounded exclusively in their own entries.
+12. Return from another supported phone and recover the same account data.
+13. Understand and control their subscription, privacy, data, and account.
 
-## 3. Product principles
+## 4. Product principles
 
+- **The reader authors everything.** Summaries, notes, and character maps are
+  written by the reader - typed or by voice. No product surface writes the
+  reading record for them.
+- **The companion works only on the reader's input.** It never writes the
+  record, never presents model memory of the book as unlabeled fact, and asks
+  more than it answers. Hallucinated recall is structurally excluded because the
+  reader's entries are the only content source.
+- **Boundary from the latest entry.** The reader's most recent entry marks the
+  upper boundary; no companion feature quotes, asks about, or reveals anything
+  beyond it.
+- **Provenance or silence.** Companion statements are labeled as coming from the
+  reader's notes or, only on explicit request, from model knowledge. On weak
+  recognition it declines rather than guesses, and it never grades a reader's
+  answer using unverifiable knowledge.
+- **Capture is free forever.** The paid subscription covers the companion,
+  never the reader's own records.
+- **Paid AI is server-authorized.** The backend checks the active companion
+  subscription before any AI provider call. A client-side paywall is never the
+  security boundary.
 - **App-first launch product.** All reading workflows ship in the native iOS and
   Android applications.
 - **Prototype, not permanent PWA.** The PWA remains a temporary validation and
   behavior-reference environment until the native product replaces it.
-- **One shared native product core.** iOS and Android should share domain behavior
-  and backend services instead of becoming separate products.
+- **One shared native product core.** iOS and Android share domain behavior and
+  backend services instead of becoming separate products.
 - **Install-aware QR routing.** A durable smart link opens the installed app or
   sends an uninstalled mobile user to the correct platform store.
 - **Account-centered continuity.** Reading data follows the authenticated user.
 - **Privacy by default.** Cross-account access is prohibited and verified, not
-  merely assumed.
-- **Paid AI is server-authorized.** The backend checks the active subscription
-  tier and entire requested feature set before any AI provider call. A
-  client-side paywall is never the security boundary.
-- **Fixed cumulative paid-AI tiers.** Base includes AI Summary only; Base+
-  includes AI Summary and AI Character Mapping; Ultimate includes every Base+
-  feature plus AI Image Generation.
-- **Multi-feature generation.** Base+ may run AI Summary, AI Character Mapping,
-  or both in one generation session. Ultimate may run any one feature, any two,
-  or all three together. The user controls per-feature amount/detail within plan
-  limits.
-- **Spoiler-aware AI.** AI output respects the reader's recorded boundary and
-  offers a clear reporting path.
+  merely assumed. Reader entries are private records, not a model-training
+  corpus.
+- **Voice respects the reader's words.** The raw transcript is preserved;
+  cleanup touches punctuation, never meaning.
 - **Human-reviewed AI feedback.** User reports inform evaluation and product
   improvements; they do not automatically overwrite data or retrain a model.
 - **Accessible and resilient.** Core reading workflows work on mobile devices,
@@ -88,20 +136,25 @@ A reader can:
   earlier gate.
 - **Reversible releases.** Schema, configuration, and application changes require
   deployment and rollback plans.
-- **Permanent QR destinations.** Printed codes should resolve through a
+- **Permanent QR destinations.** Printed codes resolve through a
   Bookmarkt-controlled HTTPS smart-link service, never a disposable deployment
   URL or direct store URL that cannot evolve.
 
-## 4. Initial v1 product boundaries
+## 5. Initial v1 product boundaries
 
-Bookmarkt v1 is a personal reading companion. It is not initially:
+Bookmarkt v1 is a reading-capture product with an optional AI companion. It is
+not initially:
 
 - An ebook reader or book-content marketplace.
 - A public social network.
 - A source of licensed full-book text.
+- An AI content generator. No product surface produces AI-written summaries,
+  character maps, or images. The image-generation backend remains dormant
+  behind a server-side disabled flag; re-enabling it requires a material
+  roadmap decision.
+- A note-quality grader. The companion never scores, corrects, or coaches the
+  reader's writing style; grading capture kills the habit.
 - An autonomous AI correction or model-training platform.
-- An open-ended catalog of AI tools beyond AI Summary, AI Character Mapping, and
-  AI Image Generation.
 - A public web or PWA reading application.
 
 The minimal website and smart-link service may display installation guidance on
@@ -109,7 +162,7 @@ unsupported/desktop devices, but they do not expose the reading product.
 
 Changes to these boundaries require the roadmap change process.
 
-## 5. Core user journey
+## 6. Core user journey
 
 ```mermaid
 flowchart TB
@@ -132,89 +185,75 @@ flowchart TB
         K -->|Yes| M[Open library]
         L --> M
         M --> N[Select or add book]
-        N --> O[Record reading boundary]
-        O --> P{Entry type}
     end
 
     D --> K
     J --> K
 
-    subgraph MANUAL["3A. Manual entry and AI fallback"]
-        BACK[Return to manual entry]
-        Q[Write and save notes]
-        R[Optional manual character updates<br/>and/or image uploads]
-        BACK --> Q
-        Q --> R
+    subgraph CAPTURE["3. Capture the session in the reader's own words"]
+        O{Entry method}
+        O -->|Typed| P[Write summary, notes, or<br/>character-map updates]
+        O -->|Voice| Q[Record a voice note]
+        Q --> R[Transcribe with<br/>punctuation-only cleanup]
+        R --> RC[Reader reviews and<br/>confirms the transcript]
+        P --> S[Save the entry]
+        RC --> S
+        S --> T[Reading boundary moves<br/>to the latest entry]
+        T --> U[Optional metadata and<br/>personal image updates]
     end
 
-    P -->|Manual| Q
+    N --> O
 
-    subgraph ACCESS["3B. Verify paid AI access"]
-        S{Paid subscription active?}
-        S -->|No| T[Display Base, Base+,<br/>and Ultimate]
-        T --> U{Paid tier selected?}
-        U -->|Yes| V[Complete Apple App Store or<br/>Google Play purchase]
-        V --> PV{Purchase verified and<br/>entitlement active?}
-        PV -->|Yes| W[Load server-confirmed<br/>active tier]
-        S -->|Yes| W
-        W --> X{Active paid tier}
-        X -->|Base| BA[Select AI Summary]
-        X -->|Base+| BP[Select Summary,<br/>Character Mapping, or both]
-        X -->|Ultimate| UL[Select any one feature,<br/>any two, or all three]
+    subgraph SYNC["4. Save and sync"]
+        V[Store entries, maps, and images in<br/>user-owned rows and private Storage]
+        V --> W[Sync securely to the account]
     end
 
-    P -->|AI-assisted| S
-    U -->|No| BACK
-    PV -->|No/cancel/abandon/fail| BACK
+    U --> V
 
-    subgraph GENERATE["4. Configure and generate AI outputs"]
-        CFG[Set amount/detail for<br/>each selected feature]
-        CFG --> PRE[Backend atomically authorizes full set<br/>and reserves per-feature quota]
-        PRE -->|Failed| ADJ{Choose a recovery option}
-        ADJ -->|Modify and retry| RETRY[Return to feature settings and<br/>repeat this authorization check]
-        PRE -->|Succeeded| JOB[Create one multi-feature<br/>generation session]
-        JOB --> RUN[Generate all selected outputs together,<br/>concurrently where safe]
-        RUN --> RES[Collect per-feature<br/>results and status]
+    subgraph COMPANION["5. AI Reading Companion - optional paid layer"]
+        X{Companion entitlement active?}
+        X -->|No| Y[Show subscription offer<br/>capture remains free]
+        Y --> Z{Store purchase verified?}
+        Z -->|No/cancel/abandon| AA[Return to capture<br/>nothing is lost]
+        Z -->|Yes| AB[Server-confirmed<br/>companion entitlement]
+        X -->|Yes| AB
+        AB --> AC[Companion grounded only in<br/>this reader's saved entries]
+        AC --> AD[Recaps, Socratic dialogue,<br/>cue cards, quizzes, search]
     end
 
-    BA --> CFG
-    BP --> CFG
-    UL --> CFG
-    ADJ -->|Use manual entry| BACK
-
-    subgraph SAVE["5. Review, save, and sync"]
-        RV[Review results and save<br/>any or all approved outputs]
-        RV --> ST[Store user records and<br/>private image objects]
-        ST --> SY[Sync securely to account]
-        SY --> END[Resume in the native app]
-    end
-
-    RES --> RV
-    R --> SY
+    W --> X
+    AD --> AE[Return to reading]
 ```
 
-### Paid tier feature matrix
+### Free and paid feature matrix
 
-| Account state/tier | AI Summary | AI Character Mapping | AI Image Generation | Selection in one generation session |
-| --- | --- | --- | --- | --- |
-| No active paid subscription | Locked | Locked | Locked | Show all paid tiers; no purchase returns to manual entry |
-| Base | Included | Locked | Locked | AI Summary |
-| Base+ | Included | Included | Locked | Either feature individually or both together |
-| Ultimate | Included | Included | Included | Any one, any two, or all three together |
+| Capability | Free capture tier | AI Reading Companion (paid) |
+| --- | --- | --- |
+| Manual summaries and notes - typed or voice | Included | Included |
+| Manual character maps | Included | Included |
+| Progress and boundary tracking (latest entry = ceiling) | Included | Included |
+| Book metadata and personal images | Included | Included |
+| "Previously on..." recaps from the reader's entries | - | Included |
+| Socratic dialogue - questions-first, ungraded by default | - | Included |
+| Cue cards with deterministic spaced repetition | - | Included |
+| Character-map quizzes - the reader's map is the answer key | - | Included |
+| Semantic search across every logged book | - | Included |
+| Cross-book threads | - | Included |
+| Book-club prep - boundary-bounded | - | Included |
+| Continuity flags between the reader's own entries | - | Included |
+| Vocabulary bank feeding cue cards | - | Included |
 
-The names and cumulative feature assignments are fixed. Stage 4 sets prices,
-billing periods, optional offers/trials, and per-feature quotas. Selecting a tier
-does not itself grant access: the store purchase and server entitlement must be
-verified first.
+*"Your notes are free forever. The companion that helps you think about them is
+the subscription."*
 
-"Together" means one user action creates one generation session for the selected
-feature set. The backend uses a common reading boundary and launches selected
-generators concurrently where technically safe. Internal sequencing is allowed
-when one output has a real dependency, but the user does not need separate
-workflows. Each feature reports its own result, failure, and retry state so one
-provider failure does not discard successful outputs.
+There is exactly one paid subscription. Stage 4 sets its price, billing period,
+usage quotas, and the trial that begins only after a few entries exist.
+Subscribing does not itself grant access: the store purchase and server
+entitlement must be verified first, and a declined, canceled, or abandoned
+purchase returns the reader to capture without losing work.
 
-## 6. Platform evolution
+## 7. Platform evolution
 
 Stage 2 begins the native application rebuild. The PWA remains temporarily
 available as a frozen prototype/reference while the native product reaches
@@ -225,7 +264,7 @@ retires the public PWA reading experience when the native apps launch.
 flowchart LR
     A[Validated PWA prototype] --> B[Stage 2 native app architecture and core]
     B --> C[Stage 3 polished native experience]
-    C --> D[Stage 4 native subscriptions and entitlements]
+    C --> D[Stage 4 companion subscription and entitlements]
     D --> E[Stage 5 signed iOS/Android platform integration]
     E --> F[Stage 6 compliant release candidate]
     F --> G[Stage 7 external beta]
@@ -235,7 +274,7 @@ flowchart LR
     J --> K[Public PWA retired at Stage 8]
 ```
 
-## 7. Roadmap status
+## 8. Roadmap status
 
 | Phase | Name | Status | Initial planning duration | Exit outcome |
 | --- | --- | --- | --- | --- |
@@ -243,7 +282,7 @@ flowchart LR
 | Stage 1 | Stabilization | Observation | Minimum 1-week clean observation | Reliable and secure baseline with seven clean days |
 | Stage 2 | Architecture rebuild | Planned | 12-16 weeks | Maintainable, tested native application core |
 | Stage 3 | Polished UI/UX | Planned | 8-12 weeks | Accessible, branded, validated native experience |
-| Stage 4 | Monetization and accounts | Planned | 10-14 weeks | Store-compliant subscriptions and entitlement system |
+| Stage 4 | Monetization and accounts | Planned | 10-14 weeks | Store-compliant companion subscription and entitlement system |
 | Stage 5 | Native iOS/Android packaging | Planned | 6-8 weeks | Signed internal builds on real devices |
 | Stage 6 | Compliance and launch operations | Planned | 6-10 weeks | Legally and operationally ready external-beta candidate |
 | Stage 7 | External beta | Planned | 6-8 weeks, including at least 14 observed days | Evidence that real users and operations are launch-ready |
@@ -258,7 +297,7 @@ gate conditions, staffing, external legal or store review, and third-party
 dependencies can change the ranges. Reforecast the remaining stages at every gate
 review and record any material schedule change in the roadmap.
 
-## 8. Foundation history - completed
+## 9. Foundation history - completed
 
 This work predates formal gate tracking but forms the Stage 1 baseline.
 
@@ -274,7 +313,13 @@ This work predates formal gate tracking but forms the Stage 1 baseline.
 - [x] Deployed the production PWA through Netlify.
 - [x] Confirmed installation and basic use on a phone.
 
-## 9. Stage 1 - Stabilization
+The AI Summary and AI Character Map generation capabilities above were part of
+the validated prototype. Prototype evidence from that work - and the quality
+failures it surfaced - directly motivated Decision D-012, which retires
+AI-generated content from the launch product. The evidence remains valid for the
+backend controls it exercised.
+
+## 10. Stage 1 - Stabilization
 
 **Status:** Observation
 
@@ -282,6 +327,15 @@ This work predates formal gate tracking but forms the Stage 1 baseline.
 secure against obvious abuse, and safe to use as the behavioral reference for
 the native application rebuild. Stage 1 validates behavior and backend controls;
 it does not approve the PWA as a launch channel.
+
+### Product-scope note under D-012
+
+Decision D-012 retires the prototype's AI-generation features from the launch
+product. Stage 1 observation continues unchanged against the retained scope:
+authentication, storage isolation, account sync, manual entry, image handling,
+and backend cost controls. The prototype's deployed AI endpoints remain under
+their Stage 1 safeguards until removed by a code change; their evidence counts
+toward backend-control reliability, not toward any launch AI feature.
 
 ### Completed work
 
@@ -331,13 +385,13 @@ invited, or Free-plan capacity/pausing becomes material.
 
 - All production-phone acceptance flows pass.
 - Database and Storage isolation are verified.
-- AI authentication, cost limits, and operational logging are active.
+- AI-endpoint authentication, cost limits, and operational logging are active.
 - The PWA is accepted only as a temporary prototype and behavioral reference.
 - No unresolved P0 or P1 defect exists.
 - The full seven-day stability window is complete.
 - The product owner records an explicit `GO` decision.
 
-## 10. Stage 2 - Architecture rebuild
+## 11. Stage 2 - Architecture rebuild
 
 **Status:** Planned
 
@@ -348,7 +402,8 @@ Supabase backend.
 ### Entry gate
 
 - Stage 1 has a recorded `GO` decision.
-- Current production behavior is captured as acceptance criteria.
+- Current production behavior for the retained scope is captured as acceptance
+  criteria.
 - A rollback path to the validated Stage 1 production build exists.
 
 ### Work plan
@@ -365,19 +420,20 @@ Supabase backend.
 - [ ] Select the universal/App Link, platform store-routing, and deferred
       deep-link approach. The QR destination must remain under Bookmarkt control.
 - [ ] Define domain boundaries for authentication, library, progress, entries,
-      AI, characters, images, reporting, analytics, and subscriptions.
-- [ ] Define a server-authoritative entitlement boundary shared by all three AI
-      feature services; the native client can request but cannot grant access.
-- [ ] Model the fixed cumulative tier identifiers and feature grants:
-      `base -> ai_summary`, `base_plus -> ai_summary + ai_character_mapping`,
-      and `ultimate -> base_plus features + ai_image_generation`.
-- [ ] Define a multi-feature generation-session contract containing one user,
-      book, reading boundary, selected feature set, per-feature amount/detail
-      settings, entitlement snapshot, quota reservation, batch audit ID,
-      per-feature status, and resulting artifact IDs.
-- [ ] Authorize the complete selected feature set and reserve its per-feature
-      quotas atomically before starting any provider call. If preflight fails,
-      start none of the selected generators.
+      voice capture, companion, characters, images, reporting, analytics, and
+      subscriptions.
+- [ ] Define the server-authoritative companion entitlement boundary; the native
+      client can request but cannot grant access, and free capture never touches
+      it.
+- [ ] Define the companion session contract: one user, one book (or the user's
+      library for cross-book features), the boundary from the latest entry,
+      retrieval restricted to that user's entries, provenance labeling, decline
+      behavior on weak recognition, and an audit record.
+- [ ] Decide the voice transcription approach (on-device versus provider), raw
+      audio retention, and transcript storage.
+- [ ] Remove AI-generation user flows from the native product scope. Keep the
+      image-generation backend dormant behind a server-side disabled flag whose
+      state is covered by a configuration test.
 - [ ] Define environment, secret, configuration, and deployment ownership.
 - [ ] Record architecture decisions in the decision log or dedicated ADRs.
 
@@ -397,26 +453,21 @@ Supabase backend.
 - [ ] Make selected-book state and request cancellation/versioning explicit so
       stale responses cannot cross book boundaries.
 
-#### Feature-parity migration
+#### Feature migration and new capture foundations
 
 - [ ] Migrate signup, login, logout, recovery, session expiry, and re-login.
 - [ ] Migrate library, book metadata, and Open Library lookup.
-- [ ] Migrate reading progress and manual entries.
-- [ ] Migrate bounded AI text summaries and AI usage messaging behind an
-      entitlement-ready service.
+- [ ] Migrate reading progress and manual entries; the latest entry drives the
+      boundary everywhere.
 - [ ] Migrate manual character maps and character-detail controls.
-- [ ] Define bounded AI character-mapping and AI image-generation contracts,
-      artifact metadata, approval state, and provider-independent interfaces.
-- [ ] Orchestrate every selected feature as one user-visible generation session,
-      launching provider work concurrently where technically safe and using the
-      same immutable reading boundary for every output.
-- [ ] Track per-feature pending/running/succeeded/failed/canceled status and allow
-      idempotent retry of only failed outputs without regenerating or charging for
-      successful outputs.
-- [ ] Store approved AI text/character output in user-owned RLS rows and
-      AI-generated images in the user's private Storage folder.
+- [ ] Build voice capture: record, transcribe, punctuation-only cleanup, reader
+      review and confirmation, and storage of the raw transcript alongside the
+      cleaned text.
+- [ ] Build the companion retrieval foundation behind an entitlement-ready
+      service: assemble context exclusively from the requesting user's entries,
+      apply the latest-entry boundary, and attach provenance metadata.
 - [ ] Migrate private image upload, signing, display, edit, and deletion.
-- [ ] Migrate analytics, spoiler reporting, and AI issue reporting.
+- [ ] Migrate analytics, spoiler reporting, and issue reporting.
 - [ ] Add report lifecycle fields and typed services for status, priority,
       assignment, resolution notes, and resolution timestamps.
 - [ ] Preserve legacy image-path compatibility until every row is migrated.
@@ -442,14 +493,17 @@ Supabase backend.
 - [ ] Add unit tests for domain rules and validation.
 - [ ] Add integration tests for Supabase service boundaries.
 - [ ] Add native component and integration tests for authentication, book CRUD,
-      book switching, entries, AI error handling, character maps, and private
+      book switching, typed and voice entries, character maps, and private
       images.
-- [ ] Add service tests proving denied AI requests do not reach any AI provider
-      and approved artifacts cannot cross account boundaries.
-- [ ] Add orchestration tests for Base's one allowed selection, all three non-empty
-      Base+ selections, and all seven non-empty Ultimate selections.
-- [ ] Test mixed provider outcomes, cancellation, idempotent failed-feature retry,
-      atomic quota preflight, and coherent shared reading boundaries.
+- [ ] Add transcription tests proving the raw transcript is preserved and
+      cleanup is limited to punctuation and casing.
+- [ ] Add grounding tests proving companion context contains only the requesting
+      user's entries, respects the latest-entry boundary, and carries provenance
+      metadata.
+- [ ] Add service tests proving denied companion requests do not reach any AI
+      provider and companion retrieval cannot cross account boundaries.
+- [ ] Add a configuration test proving the image-generation backend flag is
+      disabled.
 - [ ] Add iOS and Android device automation for critical journeys.
 - [ ] Test smart-link platform detection and store-routing behavior.
 - [ ] Add explicit cross-account isolation tests against a safe test project.
@@ -460,7 +514,8 @@ Supabase backend.
 
 #### Cutover
 
-- [ ] Run old and new implementations against the same acceptance checklist.
+- [ ] Run old and new implementations against the same acceptance checklist for
+      the retained scope.
 - [ ] Resolve all parity gaps and migration risks.
 - [ ] Prove the native alpha through controlled internal builds with rollback.
 - [ ] Keep the legacy PWA available only as the temporary validated prototype
@@ -472,25 +527,31 @@ Supabase backend.
 
 - The native application alpha runs on both iOS and Android development/internal
   builds.
-- Every relevant Stage 1 user journey has native feature parity.
+- Every retained Stage 1 user journey has native feature parity: authentication,
+  library, metadata, progress, entries, character maps, images, and reporting.
+- Voice capture works end-to-end on internal device builds, including transcript
+  review and raw-transcript preservation.
+- The companion retrieval foundation passes grounding, boundary, cross-account,
+  and denied-request tests behind an entitlement-ready flag.
+- No AI-generation user flow exists in the native product; the image-generation
+  backend flag is verified disabled.
 - The temporary PWA scope is frozen and its retirement runbook is approved.
 - Type-check, automated tests, and native builds pass in CI.
-- Auth restoration, cross-account isolation, private images, book switching, and
-  AI generation pass automated and iOS/Android device tests.
-- Base+ multi-feature and Ultimate all-feature generation sessions pass
-  entitlement, shared-boundary, partial-failure, retry, and secure-sync tests.
+- Auth restoration, cross-account isolation, private images, and book switching
+  pass automated and iOS/Android device tests.
 - Schema and configuration changes are reproducible from version control.
 - Native distribution/rollback, version compatibility, smart-link routing, and
   Storage-object recovery procedures are documented and exercised safely.
 - No unresolved P0 or P1 defect exists.
 - The product owner records a `GO` decision.
 
-## 11. Stage 3 - Polished UI/UX
+## 12. Stage 3 - Polished UI/UX
 
 **Status:** Planned
 
 **Purpose:** Turn the reliable native application into an intuitive, distinctive,
-accessible iOS and Android reading product.
+accessible iOS and Android reading product built around fast, judgment-free
+capture.
 
 ### Entry gate
 
@@ -500,23 +561,29 @@ accessible iOS and Android reading product.
 
 ### Work plan
 
-- [ ] Define target readers, primary jobs-to-be-done, and priority use cases.
-- [ ] Map signup, onboarding, QR entry, library, book progress, AI assistance,
-      character maps, settings, subscription, and support journeys.
-- [ ] Design locked-feature, tier-comparison, upgrade, entitlement-loading, and
-      expired/downgraded subscription states without blocking manual reading
-      features.
-- [ ] Display Base, Base+, and Ultimate when an AI-assisted action has no active
-      paid subscription; a canceled/dismissed purchase returns to manual entry,
-      while a verified purchase resumes the paid flow.
-- [ ] Use multi-select controls for entitled features: Base has Summary selected;
-      Base+ allows Summary, Character Mapping, or both; Ultimate allows any
-      non-empty subset of all three.
-- [ ] Let users set per-feature amount/detail before one Generate action (for
-      example summary detail, character-map coverage, and image quantity/style)
-      within limits finalized in Stage 4.
-- [ ] Show one generation-session progress view with per-feature states, results,
-      cancellation, review, save, and retry controls.
+- [ ] Define target readers - individuals whose fragmented attention impedes
+      long-form reading, recall, or comprehension - and their priority
+      jobs-to-be-done: pick the book back up, stay oriented, finish it.
+- [ ] Map signup, onboarding, QR entry, library, book progress, capture (typed
+      and voice), character maps, companion, settings, subscription, and support
+      journeys.
+- [ ] Design capture as the fastest path in the product: one-sentence entries
+      are visibly acceptable, voice is one tap away, and no surface judges or
+      grades the reader's writing.
+- [ ] Design the voice flow: record, live or post-hoc transcript, punctuation-only
+      cleanup, reader confirmation, and clear preservation of the reader's words.
+- [ ] Design the companion experience: questions-first dialogue, ungraded by
+      default, provenance labels ("from your notes" versus "from my knowledge"),
+      explicit verified-answer requests, visible declines, and the notes-mirror
+      stance when an answer conflicts with the reader's own entries.
+- [ ] Design "Previously on..." recaps, cue-card review, character-map quizzes,
+      semantic search, cross-book threads, book-club prep, continuity flags, and
+      the vocabulary bank as boundary-safe surfaces built from the reader's
+      entries.
+- [ ] Design locked-companion, subscription-offer, trial, entitlement-loading,
+      and expired/downgraded states without ever blocking capture.
+- [ ] Show the companion offer only after a few entries exist, matching the
+      trial rule; a canceled or dismissed purchase returns to capture.
 - [ ] Establish Bookmarkt brand direction, typography, color, iconography,
       spacing, motion, and voice.
 - [ ] Create a reusable design system with documented component states.
@@ -524,20 +591,20 @@ accessible iOS and Android reading product.
       v1; desktop is not a reading-product target.
 - [ ] Build the app-store-to-first-run onboarding experience and the minimal
       unsupported-device installation page.
-- [ ] Add clear empty states and progressive guidance for a first book and entry.
-- [ ] Polish progress entry, AI controls, metadata, images, and character-map
-      interactions.
-- [ ] Make AI-generated content and reading boundaries unmistakable.
-- [ ] Require review/approval before generated text, character mappings, or images
-      become saved account artifacts.
-- [ ] Add useful confirmation and status messaging for AI/spoiler reports.
+- [ ] Add clear empty states and progressive guidance for a first book and first
+      entry.
+- [ ] Polish progress entry, metadata, images, and character-map interactions.
+- [ ] Make the reading boundary and provenance labels unmistakable in every
+      companion surface.
+- [ ] Add useful confirmation and status messaging for spoiler/issue reports.
 - [ ] Design offline, poor-network, expired-session, update-available, and
-      recoverable-error states.
+      recoverable-error states, including interrupted voice recordings.
 - [ ] Meet WCAG 2.2 AA where applicable plus Apple and Android accessibility
       guidance for screen readers, contrast, focus, text scaling, input, and
-      reduced-motion behavior.
+      reduced-motion behavior; voice capture must have an equivalent typed path.
 - [ ] Test touch targets and complex character-map interactions on small screens.
-- [ ] Conduct moderated usability tests with representative readers.
+- [ ] Conduct moderated usability tests with representative readers, including
+      readers who self-describe fragmented attention.
 - [ ] Resolve all high-severity usability findings and verify analytics funnels.
 - [ ] Prototype the physical bookmark, QR placement, scan distance, contrast, and
       instructions without committing to mass production.
@@ -548,38 +615,38 @@ accessible iOS and Android reading product.
 - Core journeys meet WCAG 2.2 AA acceptance checks.
 - Representative users can complete scan-to-install/open-to-first-entry and
   return-to-book tasks without facilitator intervention.
+- A returning reader can go from opening the app to reading a recap or saving a
+  new entry in seconds, validated in usability tests.
+- Voice and typed capture are equally viable paths to a saved entry.
+- Companion surfaces show boundary and provenance clearly in usability tests.
 - Supported iOS and Android phone/device layouts pass the device matrix.
 - No unresolved critical usability or accessibility defect exists.
 - Physical bookmark samples scan reliably under defined test conditions.
 - The product owner approves the v1 experience and brand direction.
 
-## 12. Stage 4 - Monetization and accounts
+## 13. Stage 4 - Monetization and accounts
 
 **Status:** Planned
 
-**Purpose:** Add a policy-compliant subscription and entitlement system that can
-support the cost of AI, storage, operations, and app-store distribution.
+**Purpose:** Add a policy-compliant subscription and entitlement system for the
+single AI Reading Companion tier that can support the cost of AI, storage,
+operations, and app-store distribution.
 
 ### Entry gate
 
 - Stage 3 has a recorded `GO` decision.
 - Stage 3 user journeys and subscription surfaces are designed.
-- Pricing assumptions and AI unit costs are available.
+- Pricing assumptions and companion unit costs are available.
 
 ### Work plan
 
-- [ ] Implement the fixed paid tier matrix:
-      - Base: AI Summary only.
-      - Base+: AI Summary and AI Character Mapping.
-      - Ultimate: AI Summary, AI Character Mapping, and AI Image Generation.
-- [ ] Implement set-based entitlements so Base+ authorizes Summary, Character
-      Mapping, or both in one request and Ultimate authorizes any one, any two, or
-      all three in one request.
-- [ ] Set pricing, billing periods, and introductory offers for the three fixed
-      tiers. If a trial is offered, bind it to one named tier as a time-bound
-      server-authorized entitlement.
-- [ ] Build a financial model for AI cost, infrastructure, app-store commission,
-      taxes, refunds, support, and target margin.
+- [ ] Implement the single paid subscription: **AI Reading Companion**. Free
+      capture is never paywalled and never degraded by subscription state.
+- [ ] Set the companion price, billing period, and introductory offer. The trial
+      is server-authorized, time-bound, limited to one per account, and begins
+      only after the qualifying number of entries exists.
+- [ ] Build a financial model for AI cost per companion session, infrastructure,
+      app-store commission, taxes, refunds, support, and target margin.
 - [ ] Decide the native billing architecture before implementation. Evaluate
       StoreKit and Google Play Billing with a shared entitlement provider such as
       RevenueCat. Do not add web purchase flows without a separate approved
@@ -588,32 +655,30 @@ support the cost of AI, storage, operations, and app-store distribution.
       route native users around required in-app purchase mechanisms.
 - [ ] Create a server-authoritative entitlement model in Supabase.
 - [ ] Implement idempotent signed webhooks and transaction reconciliation.
-- [ ] Map subscription entitlements to the three AI feature flags plus per-feature
-      usage/cost quotas.
-- [ ] Define per-tier limits for output amount/detail and multi-feature sessions,
-      including how each selected feature consumes quota and how reservations are
-      reconciled after partial provider failures.
-- [ ] Require the Edge Function/backend to validate the authenticated user,
-      active paid tier, entire requested AI feature set, and all required
-      per-feature quotas before calling any AI provider.
-- [ ] Return a clear upgrade/locked-feature response without consuming quota or
+- [ ] Map the companion entitlement to server-checked feature access plus usage
+      quotas (for example dialogue turns and recap/quiz generations per day) as
+      cost controls.
+- [ ] Require the Edge Function/backend to validate the authenticated user, the
+      active companion entitlement, and the applicable usage quota before
+      calling any AI provider.
+- [ ] Return a clear subscription-offer response without consuming quota or
       contacting an AI provider when authorization fails.
-- [ ] Audit entitlement decision, feature, tier, quota outcome, provider cost,
-      latency, and generated artifact ID without logging unnecessary user content.
-- [ ] Record one parent generation-session audit plus child feature-attempt audits
-      so simultaneous work, partial success, retries, and total cost are
-      reconstructable.
-- [ ] Persist approved AI text/character artifacts under user-owned RLS and
-      AI-generated images in private user-scoped Storage.
-- [ ] Implement plans, trials, purchase, restore purchase, upgrade, downgrade,
-      cancellation, grace period, expiry, refund, and billing-retry states.
-- [ ] After tier selection, require verified App Store/Google Play purchase state
-      before entering the paid stream; canceled, failed, or abandoned purchases
-      return safely to manual entry.
+- [ ] Audit every companion session: entitlement decision, feature, quota
+      outcome, provider cost, latency, and grounding source counts, without
+      logging unnecessary entry content.
+- [ ] Keep all companion context assembly inside the user's security boundary;
+      entries never leave user-owned RLS rows, and no reader content is used to
+      train models.
+- [ ] Implement purchase, restore purchase, cancellation, grace period, expiry,
+      refund, and billing-retry states.
+- [ ] After subscribing, require verified App Store/Google Play purchase state
+      before companion access; canceled, failed, or abandoned purchases return
+      safely to capture.
 - [ ] Build subscription and account-management screens.
 - [ ] Prevent client-only entitlement decisions.
 - [ ] Add account email/password recovery and secure sensitive-account changes.
-- [ ] Implement data export and account-deletion foundations.
+- [ ] Implement data export and account-deletion foundations covering entries,
+      character maps, images, and voice transcripts.
 - [ ] Add subscription analytics without exposing payment details.
 - [ ] Test sandbox purchases, duplicate events, delayed webhooks, refunds,
       revocations, offline receipts, and cross-platform account restoration.
@@ -625,33 +690,27 @@ support the cost of AI, storage, operations, and app-store distribution.
 
 - Entitlements are consistent across iOS and Android test contexts and the
   server-authoritative account state.
-- A free/inactive account cannot invoke any of the three AI providers and can
-  continue using manual reading features.
-- Base can invoke AI Summary and cannot invoke AI Character Mapping or AI Image
-  Generation.
-- Base+ can invoke AI Summary, AI Character Mapping, or both together and cannot
-  invoke AI Image Generation.
-- Ultimate can invoke any one, any two, or all three entitled features together.
-- Per-feature amount/detail controls respect the active tier and configured quota.
-- A multi-feature request uses one reading boundary and one parent audit/session.
-- Entitlement and quota preflight is all-or-none before provider access.
-- After execution begins, a feature-specific failure does not discard successful
-  sibling outputs; only failed work can be retried idempotently.
-- A user who declines, cancels, abandons, or fails purchase returns to manual
-  entry without losing work.
-- A newly purchased tier enters the paid stream only after server-authoritative
+- A free account keeps full capture functionality and cannot invoke any AI
+  provider.
+- An active companion subscription can use every companion feature within its
+  usage quotas.
+- The trial activates server-side only after the qualifying entries exist, once
+  per account.
+- Denied requests consume neither provider cost nor quota.
+- A user who declines, cancels, abandons, or fails purchase returns to capture
+  without losing work.
+- A new subscription grants companion access only after server-authoritative
   purchase verification and entitlement activation.
-- Denied requests consume neither provider cost nor generation quota.
-- Approved AI artifacts sync only to the authenticated user's account and
-  AI-generated images remain private.
+- Companion sessions are fully reconstructable from audit records: entitlement
+  decision, quota outcome, cost, and latency.
 - Billing events are verified server-side, idempotent, and reconcilable.
 - Purchase restoration, cancellation, expiry, and refund cases pass.
-- AI and storage limits enforce the selected plan safely.
+- Usage quotas enforce cost limits safely.
 - Pricing demonstrates an acceptable expected margin.
 - No unresolved P0/P1 payment, entitlement, or account-lifecycle defect exists.
 - The product owner approves pricing and subscription behavior.
 
-## 13. Stage 5 - Native iOS and Android packaging
+## 14. Stage 5 - Native iOS and Android packaging
 
 **Status:** Planned
 
@@ -684,10 +743,13 @@ QR app-or-store routing for the native iOS and Android applications.
       identity model requires it.
 - [ ] Decide and implement generic-versus-unique bookmark linking from Stage 2.
 - [ ] Handle offline, interrupted network, background/resume, and expired-session
-      behavior on both platforms.
+      behavior on both platforms, including interrupted voice recordings.
 - [ ] Integrate native purchase and purchase-restoration flows.
-- [ ] Add only necessary permissions and explain each permission in context.
-- [ ] Prepare Apple privacy manifests and Android permission declarations.
+- [ ] Add only necessary permissions and explain each permission in context; the
+      microphone permission is requested only when the reader chooses voice
+      capture.
+- [ ] Prepare Apple privacy manifests and Android permission declarations,
+      including microphone and speech-recognition usage descriptions.
 - [ ] Add privacy-conscious crash and performance monitoring.
 - [ ] Test file/image selection, keyboards, safe areas, orientation, text scaling,
       back navigation, and assistive technologies.
@@ -706,14 +768,14 @@ QR app-or-store routing for the native iOS and Android applications.
 - Uninstalled-app QR scans reach the correct platform store; unsupported devices
   receive installation information rather than the reading product.
 - Required deferred QR context survives installation.
-- Login, account sync, all core reading workflows, images, AI, and subscription
-  restoration pass on both platforms.
+- Login, account sync, capture (typed and voice), character maps, images,
+  companion access, and subscription restoration pass on both platforms.
 - No unnecessary permission or insecure secret is present.
 - Crash/performance telemetry and release rollback controls are available.
 - No unresolved P0/P1 native defect exists.
 - The product owner approves both internal builds.
 
-## 14. Stage 6 - Compliance and launch operations
+## 15. Stage 6 - Compliance and launch operations
 
 **Status:** Planned
 
@@ -724,22 +786,29 @@ for people outside the development team.
 
 - Stage 5 has a recorded `GO` decision.
 - Stage 5 produces stable signed internal builds.
-- Data flows, processors, subscriptions, AI behavior, and target regions are
-  known.
+- Data flows, processors, subscriptions, companion behavior, and target regions
+  are known.
 
 ### Work plan
 
 #### Privacy, legal, and store compliance
 
-- [ ] Create a complete data inventory and processor/subprocessor register.
+- [ ] Create a complete data inventory and processor/subprocessor register,
+      including voice recordings, transcripts, and companion session data.
 - [ ] Publish a privacy policy, terms of service, subscription terms, and
       acceptable-use/content rules.
-- [ ] Define age eligibility, parental-consent requirements, content rating, and
-      launch regions.
-- [ ] Review copyright, trademark, book-metadata, user-image, and AI-output risks.
-- [ ] Define AI image safety, intellectual-property, prohibited-content,
-      moderation, reporting, and deletion requirements.
-- [ ] Document AI use, limitations, spoiler risk, and user reporting.
+- [ ] Implement the launch age posture: 13+ with an age gate. Document the
+      COPPA/GDPR-K parental-consent work required before any future under-13
+      access; that expansion is a separate material decision.
+- [ ] Set app-store age ratings consistent with the 13+ posture and the presence
+      of AI chat.
+- [ ] Review copyright, trademark, book-metadata, and user-image risks. Confirm
+      the companion's user-content-only grounding avoids reproducing licensed
+      book text.
+- [ ] Document companion behavior, limitations, provenance labels, decline
+      behavior, and user reporting in plain language.
+- [ ] Define voice-data handling: raw-audio retention (per the Stage 2
+      decision), transcript storage, and deletion behavior.
 - [ ] Implement in-app and web account deletion that satisfies Apple and Google
       requirements.
 - [ ] Complete data export, deletion, retention, and legal-hold behavior.
@@ -750,8 +819,8 @@ for people outside the development team.
 
 #### Security and recovery
 
-- [ ] Complete a threat model for Auth, Supabase, AI, payments, admin tools,
-      native links, QR identity, and user uploads.
+- [ ] Complete a threat model for Auth, Supabase, companion AI, payments, admin
+      tools, native links, QR identity, voice capture, and user uploads.
 - [ ] Review RLS, Storage policies, service-role use, secrets, dependencies, and
       webhook verification.
 - [ ] Complete security testing and resolve high-confidence critical/high issues.
@@ -765,8 +834,8 @@ for people outside the development team.
 
 #### Feedback, moderation, and support
 
-- [ ] Build a secure role-based admin review screen for `ai_feedback_reports` and
-      `spoiler_reports`.
+- [ ] Build a secure role-based admin review screen for companion issue reports
+      and `spoiler_reports`.
 - [ ] Add report status, priority, ownership, notes, timestamps, and immutable
       administrative audit history.
 - [ ] Notify the review team of actionable reports without exposing report
@@ -774,14 +843,15 @@ for people outside the development team.
 - [ ] Define triage, escalation, response, retention, and resolution procedures.
 - [ ] Allow an appropriate user-facing acknowledgment/status without exposing
       internal diagnostics.
-- [ ] Convert validated AI failures into evaluation/regression cases; never
-      automatically retrain or overwrite content from an unreviewed report.
+- [ ] Convert validated companion failures - especially grounding violations -
+      into evaluation/regression cases; never automatically retrain or overwrite
+      content from an unreviewed report.
 - [ ] Establish customer-support intake, ownership, templates, and response goals.
 
 #### Release operations
 
-- [ ] Create operational dashboards for errors, latency, AI cost, subscriptions,
-      reports, auth, and core funnels.
+- [ ] Create operational dashboards for errors, latency, companion cost,
+      subscriptions, reports, auth, and core funnels.
 - [ ] Define service indicators, alert thresholds, escalation, and ownership.
 - [ ] Prepare status, support, privacy, deletion, and contact URLs.
 - [ ] Verify minimal web endpoints contain only routing, installation, privacy,
@@ -791,17 +861,19 @@ for people outside the development team.
 
 ### Stage 6 exit gate
 
-- Legal documents and store disclosures match actual behavior.
+- Legal documents and store disclosures match actual behavior, including the
+  13+ age gate and voice-data handling.
 - Account export and deletion pass end-to-end tests.
 - No unresolved critical/high security issue exists.
 - Self-managed logical database and Storage-object recovery procedures are
   documented and rehearsed against a disposable environment.
-- AI/spoiler reports have an active secure review workflow and accountable owner.
+- Companion and spoiler reports have an active secure review workflow and an
+  accountable owner.
 - Monitoring, alerting, incident response, and customer support are staffed for
   external beta.
 - The product owner accepts residual legal, security, and operational risk.
 
-## 15. Stage 7 - External beta
+## 16. Stage 7 - External beta
 
 **Status:** Planned
 
@@ -815,38 +887,43 @@ and physical-QR journey with representative external users before public launch.
 - Leaked-password protection is enabled.
 - At least one scheduled daily database backup is available.
 - Storage image objects have an independent backup/export mechanism.
-- The AI/spoiler report queue is monitored with an assigned reviewer.
+- The companion/spoiler report queue is monitored with an assigned reviewer.
 - Signed builds are approved for TestFlight external and Google Play closed
   testing.
 - The temporary PWA is not an external-beta product channel.
 
 ### Work plan
 
-- [ ] Recruit a representative tester cohort and obtain appropriate consent.
+- [ ] Recruit a representative tester cohort - including readers who
+      self-describe fragmented attention - and obtain appropriate consent.
 - [ ] Distribute TestFlight and Google Play closed-test builds.
 - [ ] Test installed-app QR opening, uninstalled-app store routing, deferred QR
-      context, signup, return login, account sync, books, manual entries, all
-      three entitled AI features individually and in permitted simultaneous
-      combinations, subscription gating, support, and deletion.
+      context, signup, return login, account sync, books, typed and voice
+      capture, character maps, companion features, subscription gating, support,
+      and deletion.
 - [ ] Test physical bookmark samples across phone models, lighting, wear, and QR
       distances.
 - [ ] Validate generic/unique bookmark replacement and transfer behavior if
       unique codes are used.
+- [ ] Measure the capture habit: entry frequency, voice-versus-typed mix,
+      time-to-save, return-to-book rate, and books finished.
+- [ ] Measure companion value: trial starts after qualifying entries, trial-to-
+      paid conversion, recap usage at re-entry, dialogue depth, and quiz/cue-card
+      engagement.
+- [ ] Verify companion grounding in the field: responses labeled "from your
+      notes" trace to actual entries; verified answers appear only on request;
+      weak-recognition declines happen; nothing references content beyond the
+      latest entry. Treat a confirmed grounding violation as a P1 defect.
+- [ ] Test voice capture in real conditions: noise, accents, interruptions, and
+      transcript-review correctness.
 - [ ] Monitor activation, task completion, retention, crashes, errors, latency,
-      AI cost, AI quality, spoiler reports, and support load.
+      companion cost, and support load.
 - [ ] Exercise report triage and incident-response procedures.
 - [ ] Validate subscription purchase, restore, cancellation, expiry, refunds, and
       entitlement reconciliation in store test environments.
-- [ ] Verify free, paid-tier, upgrade, downgrade, expiration, restoration, and
-      locked-AI-feature paths; confirm unauthorized requests never reach a
-      provider.
-- [ ] Verify the exact Base/Base+/Ultimate feature matrix and the
-      no-purchase-to-manual return path on iOS and Android.
-- [ ] Verify Base+ can generate both included features and Ultimate can generate
-      all three from one action, while users may select smaller subsets and tune
-      per-feature amount/detail.
-- [ ] Verify mixed success/failure, per-feature retry, quota reconciliation, shared
-      reading boundary, artifact review, and secure account sync.
+- [ ] Verify free, trial, subscribed, expired, and restored entitlement paths;
+      confirm unauthorized requests never reach a provider and capture is never
+      blocked.
 - [ ] Conduct load, abuse, quota, and cost-limit tests.
 - [ ] Confirm backups continue and rehearse a non-production restore.
 - [ ] Prioritize and fix beta findings through stage-linked issues and PRs.
@@ -861,16 +938,17 @@ These thresholds can change only through the roadmap decision process:
 - At least 99.5% crash-free sessions on each native platform.
 - At least 95% successful completion of measured critical journeys.
 - No confirmed cross-account data exposure or unresolved entitlement mismatch.
-- No confirmed paid-AI entitlement bypass or cross-account generated artifact.
-- Multi-feature generation produces coherent same-boundary artifacts, retains
-  successful outputs on partial failure, and does not double-charge retries.
-- Actionable AI/spoiler reports are triaged within two business days.
+- No confirmed companion entitlement bypass.
+- No unresolved companion grounding violation: content presented as the
+  reader's notes that is not in their notes, unlabeled model knowledge, or any
+  reference beyond the latest entry.
+- Actionable companion/spoiler reports are triaged within two business days.
 - Backup freshness, restore rehearsal, deletion, and support procedures pass.
 - Store-policy prechecks have no known launch blocker.
 - External testers complete core journeys without relying on the PWA.
 - The product owner records a `GO` decision for public launch preparation.
 
-## 16. Stage 8 - App-store and public launch
+## 17. Stage 8 - App-store and public launch
 
 **Status:** Planned
 
@@ -911,8 +989,8 @@ experience.
       kill switches, and customer communications.
 - [ ] Tag and archive the approved `v1.0.0` source and release evidence.
 - [ ] Roll out progressively where the stores permit it.
-- [ ] Monitor onboarding, errors, subscriptions, AI cost, reports, ratings, and
-      support during launch.
+- [ ] Monitor onboarding, errors, subscriptions, companion cost and grounding
+      reports, ratings, and support during launch.
 
 ### Stage 8 exit gate
 
@@ -927,7 +1005,7 @@ experience.
 - Support, incident, backup, and report-review operations are functioning.
 - The product owner records launch completion.
 
-## 17. Stage 9 - Operations and growth
+## 18. Stage 9 - Operations and growth
 
 **Status:** Planned
 
@@ -939,21 +1017,25 @@ After Stage 8 launch, Stage 9 becomes the ongoing active product lifecycle.
 ### Recurring work
 
 - [ ] Monitor availability, latency, crashes, auth, data integrity, subscriptions,
-      AI quality/cost, support, reports, app/store routing, and QR redirect health.
+      companion quality/cost, support, reports, app/store routing, and QR redirect
+      health.
+- [ ] Track the north-star metric - books finished - alongside capture
+      frequency, re-entry rate after breaks, and reader-reported recall and
+      comprehension improvement.
 - [ ] Triage P0/P1 alerts immediately and conduct blameless incident reviews.
 - [ ] Verify backups continuously and rehearse restoration at a defined cadence.
 - [ ] Patch dependencies, rotate credentials, review access, and repeat security
       testing.
-- [ ] Review AI/spoiler reports, maintain evaluation sets, and test prompt/model
-      changes before release.
-- [ ] Monitor AI usage, denial rate, provider cost, quality, and safety separately
-      for AI Summary, AI Character Mapping, and AI Image Generation by paid tier.
-- [ ] Monitor selected feature combinations, requested output amounts, batch
-      latency, partial-failure rate, retry rate, and cost per generation session.
-- [ ] Track activation, retention, conversion, churn, refunds, lifetime value,
-      acquisition cost, and unit economics.
-- [ ] Improve onboarding, reading value, and subscription packaging through
-      controlled experiments.
+- [ ] Review companion/spoiler reports, maintain grounding evaluation sets, and
+      test prompt/model changes against them before release.
+- [ ] Monitor companion grounding-violation reports, decline rates,
+      provenance-label accuracy, usage, cost per session, and quota outcomes.
+- [ ] Track activation, retention, trial conversion, churn, refunds, lifetime
+      value, acquisition cost, and unit economics.
+- [ ] Improve onboarding, capture speed, and subscription packaging through
+      controlled experiments that never add friction to capture.
+- [ ] Evaluate direct stamina (P1) support - streaks or gentle session goals -
+      as an additive post-launch candidate through the roadmap decision process.
 - [ ] Maintain store compliance, OS compatibility, SDK requirements, privacy
       disclosures, and release notes.
 - [ ] Manage support knowledge, response quality, ratings, and user research.
@@ -975,13 +1057,13 @@ Every material release requires:
 
 Stage 9 does not have a final exit. It establishes the operating lifecycle.
 
-## 18. Critical dependencies and sequencing
+## 19. Critical dependencies and sequencing
 
 ```mermaid
 flowchart TD
     S1[Stage 1 stable PWA behavioral baseline] --> S2[Stage 2 native app architecture]
     S2 --> S3[Stage 3 polished native UX]
-    S3 --> S4[Stage 4 native subscriptions]
+    S3 --> S4[Stage 4 companion subscription]
     S4 --> S5[Stage 5 signed native builds and app/store routing]
     S5 --> S6[Stage 6 compliance and operations]
     S6 --> P[Supabase Pro plus backup and leaked-password controls]
@@ -993,7 +1075,9 @@ flowchart TD
     U --> B[Physical beta samples in Stage 7]
     B --> M[Production manufacturing in Stage 8]
 
-    E[Entitlement design in Stage 4] --> N[Native purchase integration in Stage 5]
+    V[Voice capture and companion foundations in Stage 2] --> D[Companion UX in Stage 3]
+    D --> E[Companion entitlement in Stage 4]
+    E --> N[Native purchase integration in Stage 5]
     N --> C[Store compliance in Stage 6]
     C --> S7
 
@@ -1005,22 +1089,23 @@ Planning and research for a later stage may occur early when it reduces lead
 time, but production implementation and gate approval remain sequential unless a
 documented exception is approved.
 
-## 19. Decisions required by stage
+## 20. Decisions required by stage
 
 | Deadline | Decision |
 | --- | --- |
 | Stage 2 kickoff | Generic versus uniquely identified physical QR bookmarks |
 | Stage 2 kickoff | Final native application architecture and state strategy |
 | Stage 2 kickoff | Smart-link, platform store-routing, and deferred-link approach |
+| Stage 2 kickoff | Voice transcription approach (on-device versus provider) and raw-audio retention |
 | Stage 3 | Brand, target reader, information architecture, accessibility target |
-| Stage 4 | Base/Base+/Ultimate prices, billing periods, optional trial, quotas, billing and entitlement providers |
+| Stage 4 | Companion price, billing period, trial entry threshold and length, usage quotas, billing and entitlement providers |
 | Stage 5 | Supported OS versions, native capabilities, bundle IDs, and store-routing details |
-| Stage 6 | Launch regions, age eligibility, retention, legal terms, support SLA |
+| Stage 6 | Launch regions, age-gate enforcement, retention, legal terms, support SLA |
 | Stage 7 entry | Supabase Pro activation and external-beta operating readiness |
 | Stage 7 exit | Launch thresholds and accepted residual beta risk |
 | Stage 8 | Rollout regions, manufacturing volume, staged-release percentages |
 
-## 20. Principal risks and controls
+## 21. Principal risks and controls
 
 | Risk | Planned control |
 | --- | --- |
@@ -1028,12 +1113,14 @@ documented exception is approved.
 | QR identity model chosen too late | Mandatory Stage 2 product/data/manufacturing decision |
 | Store installation creates excessive activation drop-off | Measure scan-to-store-to-activation funnel and improve store/onboarding conversion |
 | Cross-account data exposure | RLS, least privilege, automated isolation tests, security review |
-| AI hallucination or spoilers | Reading boundaries, reports, audits, evaluation sets, human review |
-| AI or infrastructure cost overrun | Authenticated quotas, entitlements, budgets, alerts, unit economics |
-| Paid AI entitlement bypass | Server-side tier/feature authorization before quota use or provider calls |
-| Simultaneous generation creates cost spikes | Atomic per-feature quota reservation, tier limits, project budgets, and batch-cost monitoring |
-| Multi-feature outputs disagree or partially fail | Shared immutable reading boundary, parent/child audit records, per-feature status, review, and idempotent retry |
-| AI-generated image safety or rights issue | Provider review, prompt/output controls, moderation, reporting, private storage, legal review |
+| Companion output drifts beyond the reader's entries | Grounding contract, provenance labels, decline-on-weak-recognition, automated grounding tests, evaluation sets, human-reviewed reports |
+| Companion or infrastructure cost overrun | Server entitlement, usage quotas, budgets, alerts, unit economics |
+| Companion entitlement bypass | Server-side subscription and quota check before any provider call |
+| Capture friction kills the habit | One-sentence entries, voice input, fastest-path UX, habit metrics in beta |
+| Voice transcription distorts the reader's words | Mandatory review step, raw transcript preserved, punctuation-only cleanup |
+| Stamina (P1) is not directly addressed | Accepted product bet recorded in the problem statement; session mechanics remain an additive post-launch candidate |
+| Dormant image-generation backend re-enabled accidentally | Server-side disabled flag, configuration test, material-decision requirement |
+| Minors use AI chat without required consent | 13+ age gate at launch, store age ratings, under-13 access deferred to a separate material decision |
 | Database backup omits images | Independent Storage-object backup/export and restore procedure |
 | App-store billing rejection | Store-policy decision before billing implementation |
 | Prototype/native behavior diverges during transition | Stage 1 acceptance baseline, parity tests, and frozen PWA scope |
@@ -1044,7 +1131,7 @@ documented exception is approved.
 | Reports collected but ignored | Secure admin queue, assigned reviewer, triage SLA, audit history |
 | Physical bookmark scan failures | Prototype, environmental tests, production quality controls |
 
-## 21. Definition of v1 launch readiness
+## 22. Definition of v1 launch readiness
 
 Bookmarkt v1 is launch-ready only when:
 
@@ -1053,22 +1140,21 @@ Bookmarkt v1 is launch-ready only when:
 - Unsupported/desktop scans receive installation information, not a web reading
   application.
 - New and returning users can authenticate and recover account data.
-- Books, progress, notes, manual character maps, and personal images work
-  consistently across supported platforms.
-- Only an active paid tier can access AI features: Base receives AI Summary;
-  Base+ receives AI Summary and AI Character Mapping; Ultimate receives all Base+
-  features plus AI Image Generation.
-- Base+ can generate Summary, Character Mapping, or both in one session; Ultimate
-  can generate any one feature, any two, or all three in one session with
-  user-controlled per-feature amount/detail.
-- Denied AI requests never reach a provider, while approved AI artifacts are
-  reviewed, saved, and synced only within the authenticated user's account.
-- Multi-feature sessions share one reading boundary, preserve successful outputs
-  on partial failure, and support idempotent retry of failed work.
+- Books, progress, reader-authored entries (typed and voice), manual character
+  maps, and personal images work consistently across supported platforms.
+- The reader's latest entry drives the boundary in every product surface.
+- Free capture is never paywalled; only an active AI Reading Companion
+  subscription reaches companion features, and denied requests never reach a
+  provider.
+- Companion responses are grounded in the reader's own entries with visible
+  provenance labels, decline on weak recognition, and no unresolved grounding
+  violation.
+- No product surface generates AI summaries, character maps, or images; the
+  image-generation backend is verified dormant.
 - Cross-account isolation and private-image access are verified.
 - Subscriptions and entitlements are accurate and restorable.
-- Privacy, account deletion/export, legal disclosures, and store declarations
-  match actual behavior.
+- The 13+ age gate is active, and privacy, account deletion/export, legal
+  disclosures, and store declarations match actual behavior.
 - Database and image recovery, incident response, support, and report review are
   operational.
 - iOS and Android release candidates meet their respective store policies.

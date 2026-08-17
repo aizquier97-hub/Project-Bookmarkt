@@ -5,13 +5,14 @@ Every future gate must conform to Decision D-008: the launch reading product is
 native iOS/Android, the QR opens the app or correct platform store, and the PWA
 remains a temporary prototype until retirement.
 
-Stage 4 and later gates must also conform to Decision D-011: Base includes AI
-Summary; Base+ may run Summary, Character Mapping, or both together; Ultimate may
-run any one feature, any two, or all three together. A verified purchase enters
-the paid stream, while no/canceled/failed purchase returns to manual entry. The
-server authorizes and reserves quota for the complete selected set before
-provider calls. All outputs share a reading boundary but retain independent
-result/retry state and are stored only under the user's security boundary.
+Stage 4 and later gates must also conform to Decision D-012: reading records are
+authored manually by the reader, typed or by voice; the only paid tier is a
+single AI Reading Companion subscription; the companion operates exclusively on
+the reader's own entries with the latest entry as the content boundary, labels
+provenance, and declines on weak recognition; the server verifies the companion
+entitlement and usage quota before any provider call; free capture is never
+paywalled; and the image-generation backend stays dormant behind a server-side
+disabled flag.
 
 ## Records
 

@@ -2,9 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Governance version | 1.4 |
+| Governance version | 1.5 |
 | Status | Active |
-| Effective date | August 16, 2026 |
+| Effective date | August 17, 2026 |
 | Final gate authority | Bookmarkt product owner |
 
 This document defines how the
@@ -82,8 +82,12 @@ flowchart LR
 11. No gate may redefine the v1 launch product as a public web/PWA reading
     application without an approved material roadmap decision superseding D-008.
 12. No gate may expose an AI provider call based only on client state,
-    authentication, or quota. An active server-authoritative paid feature
-    entitlement is mandatory under D-011.
+    authentication, or quota. An active server-authoritative AI Reading
+    Companion entitlement is mandatory under D-012, and companion responses
+    must be grounded in the requesting reader's own entries.
+13. No gate may reintroduce AI-generated summaries, character maps, or images,
+    or add friction or payment requirements to manual capture, without an
+    approved material roadmap decision superseding D-012.
 
 ### Launch-channel invariant
 
@@ -97,32 +101,35 @@ flowchart LR
 - Stage 1 PWA results remain valid prototype evidence. They do not establish the
   PWA as a launch requirement.
 
-### Paid-AI entitlement invariant
+### Companion entitlement and grounding invariant
 
-- The v1 feature ladder is fixed and cumulative: Base includes AI Summary; Base+
-  adds AI Character Mapping; Ultimate adds AI Image Generation.
-- Base+ allows Summary, Character Mapping, or both in one generation session.
-  Ultimate allows any one feature, any two, or all three in one generation
-  session.
-- The user can configure amount/detail separately for every selected feature
-  within plan limits.
-- When no paid subscription is active, the app displays Base, Base+, and Ultimate.
-- A verified purchase enters the applicable paid stream. No selection or a
-  canceled, abandoned, or failed purchase returns safely to manual entry.
-- The backend validates user identity, active paid tier, entire requested feature
-  set, and every required per-feature quota before contacting an AI provider.
-- Entitlement/quota preflight is all-or-none. Authorized selected generators run
-  concurrently where technically safe using one immutable reading boundary and
-  one parent audit/session.
-- Each selected feature has an independent result, approval, failure, and
-  idempotent retry state; a partial failure does not erase successful siblings.
-- A denied request consumes no generation quota and incurs no provider cost.
-- Free/inactive users keep manual reading features and receive an upgrade path.
-- Saved AI text/character artifacts belong to user-owned RLS rows; AI-generated
-  images belong to private user-scoped Storage.
-- Expanding the AI catalog requires a material roadmap decision.
-- Changing tier names or their feature assignments requires a material roadmap
-  decision; prices, billing periods, offers, and quotas remain Stage 4 decisions.
+- Reading records are authored by the reader - typed or by voice. No product
+  surface generates AI summaries, character maps, or images.
+- Voice capture preserves the raw transcript; cleanup touches punctuation and
+  casing, never meaning.
+- There is exactly one paid subscription: the AI Reading Companion. Free
+  capture - entries, character maps, progress/boundary, metadata, and personal
+  images - is never paywalled or degraded by subscription state.
+- The companion operates exclusively on the requesting reader's own entries.
+  Companion retrieval cannot cross account boundaries.
+- The reader's latest entry is the upper content boundary for every companion
+  feature.
+- Companion statements carry provenance: grounded in the reader's notes by
+  default, labeled model knowledge only on explicit request, and a decline on
+  weak recognition. The companion never grades a reader's answer using
+  unverifiable knowledge.
+- The backend validates user identity, the active companion entitlement, and
+  the applicable usage quota before contacting an AI provider. A denied request
+  consumes no quota and incurs no provider cost.
+- Trial activation is server-authoritative, once per account, and begins only
+  after the qualifying entries exist.
+- A verified store purchase enters the paid stream. No purchase, or a canceled,
+  abandoned, or failed purchase, returns safely to capture without losing work.
+- The image-generation backend remains dormant behind a server-side disabled
+  flag; re-enabling it requires a material roadmap decision.
+- Expanding the companion catalog or changing the subscription structure
+  requires a material roadmap decision; pricing, billing periods, the trial
+  threshold, and usage quotas remain Stage 4 decisions.
 
 ## 4. Work-item lifecycle
 
@@ -267,8 +274,12 @@ baseline for the native rebuild. It does not approve a public PWA reading produc
 for beta or launch.
 
 Stage 1 AI evidence validates authentication, quotas, and operational logging
-only. The prototype does not implement subscriptions, so it does not approve the
-launch paid-AI entitlement model required by D-011 and Stage 4.
+only. Under Decision D-012 the prototype's AI-generation features are retired
+from the launch product; the evidence remains valid for the backend controls it
+exercised. Stage 1 observation continues against the retained scope -
+authentication, storage isolation, sync, manual entry, images, and backend cost
+controls - and does not approve the launch companion entitlement model required
+by D-012 and Stage 4.
 
 ## 10. Change control
 
@@ -280,9 +291,9 @@ A change is material when it affects any of the following:
 - A stage's mandatory entry or exit criteria.
 - QR identity, app/store routing, account ownership, data model, launch channel,
   PWA retirement, supported platform, or native strategy.
-- Subscription, pricing, paid-AI feature matrix, entitlement, payment provider,
-  or app-store policy.
-- Security, privacy, retention, backup, deletion, AI catalog/safety, or legal
+- Subscription, pricing, companion scope or grounding rules, entitlement,
+  payment provider, or app-store policy.
+- Security, privacy, retention, backup, deletion, AI companion safety, or legal
   posture.
 - Launch threshold, supported region, age eligibility, or accepted risk.
 

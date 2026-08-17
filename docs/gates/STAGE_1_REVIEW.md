@@ -8,7 +8,7 @@
 | Observation start | August 16, 2026 at 10:55 MDT (16:55 UTC) |
 | Earliest review | August 23, 2026 at 10:55 MDT (16:55 UTC) |
 | Product owner | Bookmarkt product owner |
-| Roadmap version | 1.5 |
+| Roadmap version | 2.0 |
 
 ## Outcome required
 
@@ -23,9 +23,12 @@ channel. Under Decision D-008, Stage 2 builds the native app core and Stage 8
 retires the public PWA reading experience.
 
 The Stage 1 AI test proves authenticated generation, quotas, and logging in the
-prototype. It does not prove paid subscription gating. Decision D-011 and Stage 4
-require server-authoritative paid-tier and feature entitlement before launch AI
-provider calls.
+prototype. Under Decision D-012 the AI-generation features themselves are
+retired from the launch product; this evidence remains valid for the backend
+controls it exercised. Stage 1 observation continues against the retained scope:
+authentication, storage isolation, sync, manual entry, images, and backend cost
+controls. Decision D-012 and Stage 4 require a server-authoritative AI Reading
+Companion entitlement before any launch AI provider call.
 
 ## Criteria and evidence
 
