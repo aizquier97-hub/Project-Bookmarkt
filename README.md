@@ -2,13 +2,22 @@
 
 Bookmarkt modernizes the physical bookmark. A reader scans a QR code on the
 bookmark to open the installed native application or, when it is not installed,
-the correct Apple App Store or Google Play listing. In the app, readers save
-reading progress, notes, manual character maps, book details, and images to an
-account that follows them across devices. The paid subscription ladder is:
-**Base** includes AI Summary; **Base+** adds AI Character Mapping; and
-**Ultimate** adds AI Image Generation. Base+ users may generate AI Summary, AI
-Character Mapping, or both in one session; Ultimate users may generate any one,
-any two, or all three together.
+the correct Apple App Store or Google Play listing. In the app, readers capture
+their reading in their own words - typed or voice summaries, notes, and manual
+character maps - plus progress, book details, and images, all saved to an
+account that follows them across devices.
+
+Bookmarkt exists for individuals whose fragmented attention impedes their
+ability to read for long periods or to recall and understand what they're
+reading. It makes it easy to pick a book back up, stay oriented in it, and
+finish it. Bookmarkt helps people read - it never reads for them.
+
+Capture is free forever. The single paid subscription is the **AI Reading
+Companion**, which works exclusively on the reader's own entries: "Previously
+on..." recaps, Socratic dialogue, cue cards, character-map quizzes, semantic
+search, cross-book threads, book-club prep, continuity flags, and a vocabulary
+bank. The reader's latest entry is the spoiler-safe boundary, and the companion
+labels the provenance of everything it says (Decision D-012).
 
 The current PWA is a temporary prototype used to validate the product quickly.
 The launch product is a subscription-based iOS and Android application, not a

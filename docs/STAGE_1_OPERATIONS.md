@@ -19,18 +19,17 @@ Quota consumption is atomic in `consume_ai_daily_quota`, so concurrent requests 
 
 ### Prototype access versus launch entitlements
 
-Stage 1 authorizes AI using authentication and quota because subscriptions do not
-exist in the prototype. This is not the launch authorization model. Under
-Decision D-011, Stage 4 must add a server-authoritative active paid-tier and
-complete selected-feature-set check before quota consumption or provider access.
-The three fixed cumulative tiers are Base (AI Summary), Base+ (AI Summary and AI
-Character Mapping), and Ultimate (all Base+ features plus AI Image Generation).
-Approved output must remain within user-owned RLS rows or private user-scoped
-Storage.
-Base+ and Ultimate must also support one generation session containing any
-non-empty subset permitted by the tier, with per-feature settings and one common
-reading boundary. The current prototype does not implement this multi-feature
-subscription workflow.
+Stage 1 authorizes AI using authentication and quota because subscriptions do
+not exist in the prototype. Under Decision D-012 the prototype's AI-generation
+features are retired from the launch product entirely; the deployed function
+remains under these safeguards until removed by a code change. The launch
+product has exactly one paid subscription - the AI Reading Companion - which
+operates exclusively on the reader's own entries. Stage 4 must add a
+server-authoritative companion entitlement and usage-quota check before quota
+consumption or provider access. Free capture (manual entries, character maps,
+progress, metadata, and personal images) is never paywalled. All reader content
+remains within user-owned RLS rows or private user-scoped Storage, and the
+image-generation backend stays dormant behind a server-side disabled flag.
 
 ### Monitoring queries
 

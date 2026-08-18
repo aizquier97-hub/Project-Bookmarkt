@@ -20,10 +20,10 @@ State the result this gate must prove.
 - Physical QR and app/store-routing impact:
 - Temporary PWA or retirement impact:
 - Minimal web endpoint impact:
-- Base/Base+/Ultimate purchase and AI feature-entitlement impact:
-- Multi-feature selection, amount/detail, simultaneous generation, partial
-  failure, quota reservation, and retry impact:
-- Generated text/character/image storage impact:
+- AI Reading Companion subscription and entitlement impact:
+- Reader-authored capture (typed/voice), latest-entry boundary, and companion
+  grounding/provenance impact:
+- User-content storage (entries, character maps, images, transcripts) impact:
 - Governing decision references:
 
 ## Criteria and evidence

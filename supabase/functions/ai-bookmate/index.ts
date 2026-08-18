@@ -57,6 +57,9 @@ const corsHeaders = {
 };
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+// D-012: AI generation is retired. Reading records are authored by the reader.
+// The backend stays dormant behind this flag; set AI_GENERATION_ENABLED=true to revive it.
+const AI_GENERATION_ENABLED = (Deno.env.get("AI_GENERATION_ENABLED") ?? "false").toLowerCase() === "true";
 const DEFAULT_AI_DAILY_USER_LIMIT = 30;
 const DEFAULT_AI_DAILY_PROJECT_LIMIT = 500;
 
@@ -480,6 +483,17 @@ serve(async (req) => {
 
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed", method: req.method }, 405);
+  }
+
+  if (!AI_GENERATION_ENABLED) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "AI generation is disabled. Bookmarkt reading records are authored by the reader (Decision D-012).",
+        code: "AI_GENERATION_DISABLED",
+      },
+      410,
+    );
   }
 
   try {
