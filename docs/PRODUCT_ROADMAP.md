@@ -182,9 +182,11 @@ flowchart TB
     subgraph ACCOUNT["2. Access the account and book"]
         K{Authenticated?}
         K -->|No| L[Create account or sign in]
-        K -->|Yes| M[Open library]
-        L --> M
-        M --> N[Select or add book]
+        K -->|Yes| BM{Scanned bookmark<br/>linked to a book? D-015}
+        L --> BM
+        BM -->|Yes| N2[Open the linked book<br/>directly]
+        BM -->|No| M[Open library]
+        M --> N[Select or add book<br/>optionally claim/link bookmark]
     end
 
     D --> K
@@ -203,6 +205,7 @@ flowchart TB
     end
 
     N --> O
+    N2 --> O
 
     subgraph SYNC["4. Save and sync"]
         V[Store entries, maps, and images in<br/>user-owned rows and private Storage]
@@ -412,18 +415,18 @@ Supabase backend.
 
 #### Product and architecture decisions
 
-- [ ] Decide whether QR codes are generic product launchers or uniquely identify
-      a physical bookmark. Document account-linking, replacement, transfer, and
-      manufacturing implications before changing the data model.
-- [ ] Confirm the native target architecture. The recommended baseline is React
-      Native with Expo, TypeScript, and Supabase. Compare alternatives such as
-      Flutter or Capacitor against native UX, maintainability, app-store
-      requirements, and the app-only launch scope before approval.
+- [x] Decide whether QR codes are generic product launchers or uniquely identify
+      a physical bookmark. Decision D-015: unique per-bookmark IDs, one editable
+      book link per bookmark, scan opens the linked book; account-linking,
+      relink, and manufacturing implications recorded in the decision log.
+- [x] Confirm the native target architecture. Decision D-014: React Native with
+      Expo, TypeScript strict mode, and the shared Supabase backend, chosen over
+      Flutter and Capacitor.
 - [ ] Select the universal/App Link, platform store-routing, and deferred
       deep-link approach. The QR destination must remain under Bookmarkt control.
 - [ ] Define domain boundaries for authentication, library, progress, entries,
-      voice capture, companion, characters, images, reporting, analytics, and
-      subscriptions.
+      voice capture, companion, characters, images, bookmarks (D-015 claim/link
+      registry), reporting, analytics, and subscriptions.
 - [ ] Define the server-authoritative companion entitlement boundary; the native
       client can request but cannot grant access, and free capture never touches
       it.
