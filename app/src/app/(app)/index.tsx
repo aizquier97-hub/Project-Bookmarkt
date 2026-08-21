@@ -12,7 +12,7 @@ import {
 
 import { signOut } from '@/domains/auth/service';
 import { listBooks } from '@/domains/library/service';
-import { colors } from '@/lib/theme';
+import { cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
 
 export default function LibraryScreen() {
   const queryClient = useQueryClient();
@@ -61,7 +61,7 @@ export default function LibraryScreen() {
         </Text>
       ) : booksQuery.data.length === 0 ? (
         <Text style={styles.empty}>
-          No books yet. Add the book you are reading to start capturing entries.
+          Your shelf is empty. Add the book you are reading to start capturing entries.
         </Text>
       ) : (
         <FlatList
@@ -70,9 +70,18 @@ export default function LibraryScreen() {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <Link href={{ pathname: '/book/[id]', params: { id: String(item.id) } }} asChild>
-              <Pressable style={styles.bookCard}>
-                <Text style={styles.bookTitle}>{item.name}</Text>
-                {item.author ? <Text style={styles.bookAuthor}>{item.author}</Text> : null}
+              <Pressable>
+                <View style={styles.bookCard}>
+                  <View style={[styles.bookSpine, { backgroundColor: spineColorFor(item.id) }]} />
+                  <View style={styles.bookBody}>
+                    <Text style={styles.bookTitle}>{item.name}</Text>
+                    {item.author ? <Text style={styles.bookAuthor}>{item.author}</Text> : null}
+                    {item.total_pages ? (
+                      <Text style={styles.bookPages}>{item.total_pages} pages</Text>
+                    ) : null}
+                  </View>
+                </View>
+                <View style={styles.shelfEdge} />
               </Pressable>
             </Link>
           )}
@@ -120,23 +129,49 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   list: {
-    gap: 10,
+    gap: 14,
+    paddingBottom: 24,
   },
   bookCard: {
+    flexDirection: 'row',
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
+    overflow: 'hidden',
+    ...cardShadow,
+  },
+  bookSpine: {
+    width: 10,
+  },
+  bookBody: {
+    flex: 1,
     padding: 16,
   },
   bookTitle: {
     color: colors.text,
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 19,
+    fontFamily: fonts.serif,
+    fontWeight: '700',
   },
   bookAuthor: {
     color: colors.muted,
     fontSize: 14,
+    fontFamily: fonts.serif,
+    fontStyle: 'italic',
     marginTop: 4,
+  },
+  bookPages: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 6,
+  },
+  shelfEdge: {
+    height: 5,
+    backgroundColor: colors.shelf,
+    borderRadius: 3,
+    marginTop: 3,
+    marginHorizontal: 4,
+    opacity: 0.55,
   },
 });

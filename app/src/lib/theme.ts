@@ -1,11 +1,36 @@
+import { Platform } from 'react-native';
+
 // Shared visual constants. Stage 3 owns the real design system; this is a
 // warm "paper and leather" palette suited to a reading companion.
 export const colors = {
-  background: '#faf5ea',
-  card: '#fffdf7',
-  border: '#e3d5bc',
-  text: '#3d2f20',
-  muted: '#8a7860',
-  accent: '#8f4f24',
+  background: '#f6efe0',
+  card: '#fffdf6',
+  border: '#e0d2b5',
+  text: '#33291b',
+  muted: '#84735a',
+  accent: '#8a4a21',
+  accentSoft: '#f0e2cf',
   danger: '#a83c33',
+  shelf: '#a97e52',
+} as const;
+
+// System serif keeps the literary feel without bundling font assets yet.
+export const fonts = {
+  serif: Platform.select({ ios: 'Georgia', default: 'serif' }),
+} as const;
+
+// Book-spine hues cycled across the library shelf.
+const spineColors = ['#7d4032', '#4f5d43', '#3f4a63', '#a3762a', '#5d4260', '#8a4a21'] as const;
+
+export function spineColorFor(id: number): string {
+  return spineColors[Math.abs(id) % spineColors.length];
+}
+
+// Soft paper-on-wood depth; elevation covers Android, shadow* covers iOS.
+export const cardShadow = {
+  elevation: 2,
+  shadowColor: '#6d552f',
+  shadowOpacity: 0.18,
+  shadowRadius: 4,
+  shadowOffset: { width: 0, height: 2 },
 } as const;

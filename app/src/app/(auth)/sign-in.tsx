@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { signIn } from '@/domains/auth/service';
-import { colors } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -95,13 +95,16 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 34,
+    fontSize: 38,
+    fontFamily: fonts.serif,
     fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
     color: colors.muted,
     fontSize: 16,
+    fontFamily: fonts.serif,
+    fontStyle: 'italic',
     textAlign: 'center',
     marginBottom: 16,
   },

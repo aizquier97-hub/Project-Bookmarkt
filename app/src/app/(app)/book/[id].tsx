@@ -32,7 +32,7 @@ import {
   type Entry,
 } from '@/domains/entries/service';
 import { getBook } from '@/domains/library/service';
-import { colors } from '@/lib/theme';
+import { cardShadow, colors, fonts } from '@/lib/theme';
 
 // Matches the PWA rule: only flag "(edited)" when updated_at trails created_at
 // by more than a second.
@@ -645,7 +645,9 @@ const styles = StyleSheet.create({
   },
   author: {
     color: colors.muted,
-    fontSize: 15,
+    fontSize: 16,
+    fontFamily: fonts.serif,
+    fontStyle: 'italic',
   },
   meta: {
     color: colors.muted,
@@ -699,10 +701,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginBottom: 14,
+    ...cardShadow,
   },
   captureTitle: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 17,
+    fontFamily: fonts.serif,
     fontWeight: '700',
     marginBottom: 6,
   },
@@ -803,6 +807,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
+    ...cardShadow,
   },
   cardText: {
     color: colors.text,
@@ -856,7 +861,8 @@ const styles = StyleSheet.create({
   },
   characterName: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 17,
+    fontFamily: fonts.serif,
     fontWeight: '700',
   },
   characterSection: {
