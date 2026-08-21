@@ -241,9 +241,9 @@ compliance, or unavailable required recovery controls.
 | Stage | State | Entry | Exit | Gate record |
 | --- | --- | --- | --- | --- |
 | Foundation | Complete | N/A | Functional prototype deployed | Product roadmap history |
-| Stage 1 | Observation | Approved | Pending, earliest August 23, 2026 | [Stage 1 review](gates/STAGE_1_REVIEW.md) |
-| Stage 2 | Planned | Pending Stage 1 `GO` | Not started | To be created |
-| Stage 3 | Planned | Pending Stage 2 `GO` | Not started | To be created |
+| Stage 1 | Complete | Approved | `GO` August 21, 2026 (D-013 early exit) | [Stage 1 review](gates/STAGE_1_REVIEW.md) |
+| Stage 2 | Complete | Approved August 21, 2026 | `GO` August 21, 2026 (D-020; iOS deferred to Stage 5) | [Entry](gates/STAGE_2_ENTRY.md) · [Exit](gates/STAGE_2_EXIT.md) |
+| Stage 3 | Active | Entered August 21, 2026 per Stage 2 `GO` | Not started | To be created |
 | Stage 4 | Planned | Pending Stage 3 `GO` | Not started | To be created |
 | Stage 5 | Planned | Pending Stage 4 `GO` | Not started | To be created |
 | Stage 6 | Planned | Pending Stage 5 `GO` | Not started | To be created |

@@ -108,7 +108,7 @@ unresolved parity gaps.
 | Gate item | Status |
 | --- | --- |
 | Native alpha on Android internal builds | **Met** — EAS development build (d0af7ec8) installed on the owner's device and running against Metro |
-| Native alpha on iOS | **Blocked** — no Apple developer account/hardware |
+| Native alpha on iOS | **Deferred to Stage 5** (D-020) — no Apple developer account/hardware; nothing in the codebase blocks iOS (Expo builds both platforms) |
 | Retained-journey parity | **Met** (§1 above) |
 | Voice capture end-to-end on device builds | **Met** — owner-verified on the Android development build (2026-08-21): dictation → review → confirm → save, raw transcript preserved in `entries.raw_transcript`; cleanup invariant unit-tested |
 | Companion foundation passes grounding/boundary/cross-account/denied tests | **Met** — `grounding.test.ts`, `entitlement.test.ts` (48-test suite) |
@@ -119,18 +119,18 @@ unresolved parity gaps.
 | Schema/config reproducible from version control | **Met** — migrations + CI checks + generated types |
 | Distribution/rollback, version compatibility, Storage recovery documented | **Met** — [STAGE_2_OPERATIONS.md](STAGE_2_OPERATIONS.md) §§2-4 + `scripts/backup-storage.mjs` |
 | No unresolved P0/P1 | **Met** — none open as of this review |
-| Product owner records GO | **Open** — decision pending the items below |
+| Product owner records GO | **Met** — GO recorded August 21, 2026 (D-020); Stage 2 closed |
 
 ## 3. Decisions needed from the product owner
 
 1. **EAS development/preview builds** — **RESOLVED**: Android development
    build produced, installed, and verified on the owner's device (voice
    capture confirmed working end-to-end).
-2. **iOS path**: defer until an Apple developer account exists (recommended:
-   revisit at Stage 5 packaging) or acquire one now.
+2. **iOS path** — **RESOLVED (D-020)**: deferred to Stage 5 (store packaging);
+   revisit when an Apple developer account exists.
 3. **Retirement runbook approval** — **RESOLVED (D-019)**: product owner
    reviewed §7, requested hardening (execution ordering, breach checklist,
    self-destruct preview test, corrected auth framing, env audit, notice
    window), and approved the revised runbook.
-4. **Stage 2 GO/NO-GO**: with 1-3 resolved, record the exit decision in the
-   decision log.
+4. **Stage 2 GO/NO-GO** — **RESOLVED (D-020)**: GO recorded August 21, 2026.
+   Stage 2 is closed; Stage 3 (Polished UI/UX) is the current stage.

@@ -5,8 +5,8 @@
 | Roadmap version | 2.0 |
 | Status | Active |
 | Product owner | Bookmarkt product owner |
-| Current stage | Stage 2 - Architecture rebuild |
-| Current gate state | Stage 2 work plan executed; exit review open on product-owner decisions (STAGE_2_EXIT_REVIEW.md) |
+| Current stage | Stage 3 - Polished UI/UX |
+| Current gate state | Stage 2 closed with GO (D-020, August 21, 2026); iOS builds deferred to Stage 5 |
 | Observation window | Stage 1 window closed early under D-013 (August 16-21, 2026) |
 | Last updated | August 21, 2026 |
 
@@ -324,7 +324,8 @@ backend controls it exercised.
 
 ## 10. Stage 1 - Stabilization
 
-**Status:** Observation
+**Status:** Complete — GO recorded August 21, 2026 (D-013 early exit; see
+[gates/STAGE_1_REVIEW.md](gates/STAGE_1_REVIEW.md))
 
 **Purpose:** Prove that the current production baseline is reliable, private,
 secure against obvious abuse, and safe to use as the behavioral reference for
@@ -397,8 +398,10 @@ invited, or Free-plan capacity/pausing becomes material.
 
 ## 11. Stage 2 - Architecture rebuild
 
-**Status:** In progress (entered August 21, 2026 - see
-[gates/STAGE_2_ENTRY.md](gates/STAGE_2_ENTRY.md))
+**Status:** Complete — GO recorded August 21, 2026 (D-020; evidence in
+[STAGE_2_EXIT_REVIEW.md](STAGE_2_EXIT_REVIEW.md); entered via
+[gates/STAGE_2_ENTRY.md](gates/STAGE_2_ENTRY.md); iOS builds deferred to
+Stage 5)
 
 **Purpose:** Build the maintainable, typed, tested native application foundation
 for iOS and Android while preserving validated prototype behavior and the shared
@@ -601,8 +604,12 @@ Supabase backend.
 
 ### Stage 2 exit gate
 
+Closed with `GO` on August 21, 2026 (D-020). The iOS criterion is deferred to
+Stage 5; device automation, smart-link routing, and telemetry are tracked open
+items (STAGE_2_EXIT_REVIEW.md §2, STAGE_2_OPERATIONS.md §8).
+
 - The native application alpha runs on both iOS and Android development/internal
-  builds.
+  builds. (Android met; iOS deferred to Stage 5 under D-020.)
 - Every retained Stage 1 user journey has native feature parity: authentication,
   library, metadata, progress, entries, character maps, images, and reporting.
 - Voice capture works end-to-end on internal device builds, including transcript
@@ -623,7 +630,7 @@ Supabase backend.
 
 ## 12. Stage 3 - Polished UI/UX
 
-**Status:** Planned
+**Status:** Active (entered August 21, 2026 per Stage 2 `GO`, D-020)
 
 **Purpose:** Turn the reliable native application into an intuitive, distinctive,
 accessible iOS and Android reading product built around fast, judgment-free
