@@ -394,7 +394,8 @@ invited, or Free-plan capacity/pausing becomes material.
 
 ## 11. Stage 2 - Architecture rebuild
 
-**Status:** Planned
+**Status:** In progress (entered August 21, 2026 - see
+[gates/STAGE_2_ENTRY.md](gates/STAGE_2_ENTRY.md))
 
 **Purpose:** Build the maintainable, typed, tested native application foundation
 for iOS and Android while preserving validated prototype behavior and the shared
