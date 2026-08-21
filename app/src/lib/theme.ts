@@ -1,11 +1,11 @@
-// Shared visual constants for the scaffold. Stage 3 owns the real design
-// system; these mirror the PWA's slate/sky palette for continuity.
+// Shared visual constants. Stage 3 owns the real design system; this is a
+// warm "paper and leather" palette suited to a reading companion.
 export const colors = {
-  background: '#0f172a',
-  card: '#1e293b',
-  border: '#334155',
-  text: '#e2e8f0',
-  muted: '#94a3b8',
-  accent: '#38bdf8',
-  danger: '#f87171',
+  background: '#faf5ea',
+  card: '#fffdf7',
+  border: '#e3d5bc',
+  text: '#3d2f20',
+  muted: '#8a7860',
+  accent: '#8f4f24',
+  danger: '#a83c33',
 } as const;

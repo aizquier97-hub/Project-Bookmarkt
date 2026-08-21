@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Stack } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -7,32 +7,18 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import { signOut } from '@/domains/auth/service';
-import { addBook, listBooks } from '@/domains/library/service';
+import { listBooks } from '@/domains/library/service';
 import { colors } from '@/lib/theme';
 
 export default function LibraryScreen() {
   const queryClient = useQueryClient();
-  const [newTitle, setNewTitle] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
 
   const booksQuery = useQuery({ queryKey: ['books'], queryFn: listBooks });
-
-  const addBookMutation = useMutation({
-    mutationFn: addBook,
-    onSuccess: () => {
-      setNewTitle('');
-      setActionError(null);
-      void queryClient.invalidateQueries({ queryKey: ['books'] });
-    },
-    onError: (err) => {
-      setActionError(err instanceof Error ? err.message : 'Could not add the book.');
-    },
-  });
 
   const handleSignOut = async () => {
     try {
@@ -57,28 +43,11 @@ export default function LibraryScreen() {
         }}
       />
 
-      <View style={styles.addRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Add a book by title"
-          placeholderTextColor={colors.muted}
-          value={newTitle}
-          onChangeText={setNewTitle}
-          onSubmitEditing={() => addBookMutation.mutate(newTitle)}
-          returnKeyType="done"
-        />
-        <Pressable
-          style={styles.addButton}
-          onPress={() => addBookMutation.mutate(newTitle)}
-          disabled={addBookMutation.isPending}
-        >
-          {addBookMutation.isPending ? (
-            <ActivityIndicator color={colors.background} />
-          ) : (
-            <Text style={styles.addButtonText}>Add</Text>
-          )}
+      <Link href="/add-book" asChild>
+        <Pressable style={styles.addButton}>
+          <Text style={styles.addButtonText}>+ Add a book</Text>
         </Pressable>
-      </View>
+      </Link>
 
       {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
 
@@ -124,27 +93,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  addRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 10,
-    color: colors.text,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 16,
-  },
   addButton: {
     backgroundColor: colors.accent,
     borderRadius: 10,
-    paddingHorizontal: 18,
-    justifyContent: 'center',
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 16,
   },
   addButtonText: {
     color: colors.background,
