@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { passwordPolicyError, signUp } from '@/domains/auth/service';
-import { colors } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -110,6 +110,7 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: 28,
+    fontFamily: fonts.serif,
     fontWeight: '700',
     textAlign: 'center',
   },

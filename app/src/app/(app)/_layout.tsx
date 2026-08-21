@@ -1,7 +1,7 @@
 import { Redirect, Stack } from 'expo-router';
 
 import { useAuth } from '@/domains/auth/AuthProvider';
-import { colors } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 
 export default function AppLayout() {
   const { session, initializing } = useAuth();
@@ -18,7 +18,8 @@ export default function AppLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: '700' },
+        headerTitleStyle: { fontWeight: '700', fontFamily: fonts.serif },
+        headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.background },
       }}
     />
