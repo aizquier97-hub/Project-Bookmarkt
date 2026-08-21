@@ -5,7 +5,7 @@
 | Roadmap version | 2.0 |
 | Status | Active |
 | Product owner | Bookmarkt product owner |
-| Current stage | Stage 1 - Stabilization |
+| Current stage | Stage 2 - Architecture rebuild |
 | Current gate state | Seven-day production stability observation |
 | Observation window | August 16, 2026 at 10:55 MDT through August 23, 2026 at 10:55 MDT |
 | Last updated | August 17, 2026 |
@@ -279,8 +279,8 @@ flowchart LR
 | Phase | Name | Status | Initial planning duration | Exit outcome |
 | --- | --- | --- | --- | --- |
 | Foundation | Functional prototype | Complete | Completed before formal tracking | QR-accessible production PWA proved the product concept |
-| Stage 1 | Stabilization | Observation | Minimum 1-week clean observation | Reliable and secure baseline with seven clean days |
-| Stage 2 | Architecture rebuild | Planned | 12-16 weeks | Maintainable, tested native application core |
+| Stage 1 | Stabilization | Complete (GO 2026-08-21, D-013 early exit) | Minimum 1-week clean observation | Reliable and secure baseline with five clean days observed |
+| Stage 2 | Architecture rebuild | In progress | 12-16 weeks | Maintainable, tested native application core |
 | Stage 3 | Polished UI/UX | Planned | 8-12 weeks | Accessible, branded, validated native experience |
 | Stage 4 | Monetization and accounts | Planned | 10-14 weeks | Store-compliant companion subscription and entitlement system |
 | Stage 5 | Native iOS/Android packaging | Planned | 6-8 weeks | Signed internal builds on real devices |
@@ -362,12 +362,13 @@ toward backend-control reliability, not toward any launch AI feature.
 
 ### Remaining work
 
-- [ ] Complete seven consecutive days without a P0 or P1 defect.
-- [ ] Record the formal Stage 1 exit decision.
+- [x] Complete the stability window without a P0 or P1 defect (five clean days
+      observed; final two days waived under Decision D-013).
+- [x] Record the formal Stage 1 exit decision (GO, August 21, 2026).
 
-The stability window began August 16, 2026 at 10:55 MDT (16:55 UTC). Seven
-consecutive 24-hour periods complete on August 23, 2026 at 10:55 MDT (16:55 UTC);
-that is the earliest exit review. See
+The stability window began August 16, 2026 at 10:55 MDT (16:55 UTC). Stage 1
+exited early with a GO on August 21, 2026 under Decision D-013 after five
+consecutive clean days of daily product-owner use. See
 [gates/STAGE_1_REVIEW.md](gates/STAGE_1_REVIEW.md).
 
 ### Deferred, non-blocking controls
