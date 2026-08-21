@@ -422,25 +422,34 @@ Supabase backend.
 - [x] Confirm the native target architecture. Decision D-014: React Native with
       Expo, TypeScript strict mode, and the shared Supabase backend, chosen over
       Flutter and Capacitor.
-- [ ] Select the universal/App Link, platform store-routing, and deferred
-      deep-link approach. The QR destination must remain under Bookmarkt control.
-- [ ] Define domain boundaries for authentication, library, progress, entries,
+- [x] Select the universal/App Link, platform store-routing, and deferred
+      deep-link approach (STAGE_2_ARCHITECTURE.md §1, D-017). The QR destination
+      remains under Bookmarkt control.
+- [x] Define domain boundaries for authentication, library, progress, entries,
       voice capture, companion, characters, images, bookmarks (D-015 claim/link
-      registry), reporting, analytics, and subscriptions.
-- [ ] Define the server-authoritative companion entitlement boundary; the native
+      registry), reporting, analytics, and subscriptions
+      (STAGE_2_ARCHITECTURE.md §2).
+- [x] Define the server-authoritative companion entitlement boundary; the native
       client can request but cannot grant access, and free capture never touches
-      it.
-- [ ] Define the companion session contract: one user, one book (or the user's
+      it (STAGE_2_ARCHITECTURE.md §3).
+- [x] Define the companion session contract: one user, one book (or the user's
       library for cross-book features), the boundary from the latest entry,
       retrieval restricted to that user's entries, provenance labeling, decline
-      behavior on weak recognition, and an audit record.
-- [ ] Decide the voice transcription approach (on-device versus provider), raw
-      audio retention, and transcript storage.
+      behavior on weak recognition, and an audit record
+      (STAGE_2_ARCHITECTURE.md §4).
+- [x] Decide the voice transcription approach (on-device versus provider), raw
+      audio retention, and transcript storage. Decision D-016: on-device
+      platform recognizers, transient on-device audio deleted after transcript
+      confirmation, raw transcript stored verbatim beside cleaned text.
 - [ ] Remove AI-generation user flows from the native product scope. Keep the
       image-generation backend dormant behind a server-side disabled flag whose
-      state is covered by a configuration test.
-- [ ] Define environment, secret, configuration, and deployment ownership.
-- [ ] Record architecture decisions in the decision log or dedicated ADRs.
+      state is covered by a configuration test. (Scope removed by D-012 and the
+      flag is live-verified disabled; the configuration test lands with the
+      quality system.)
+- [x] Define environment, secret, configuration, and deployment ownership
+      (STAGE_2_ARCHITECTURE.md §5).
+- [x] Record architecture decisions in the decision log or dedicated ADRs
+      (D-013 through D-017; STAGE_2_ARCHITECTURE.md).
 
 #### Application foundation
 
