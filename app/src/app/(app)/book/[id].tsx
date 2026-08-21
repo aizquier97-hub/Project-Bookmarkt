@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -31,6 +33,13 @@ import {
   updateEntry,
   type Entry,
 } from '@/domains/entries/service';
+import {
+  deleteBookImage,
+  listBookImages,
+  updateBookImageCaption,
+  uploadBookImage,
+  type BookImage,
+} from '@/domains/library/images';
 import { getBook } from '@/domains/library/service';
 import { cardShadow, colors, fonts } from '@/lib/theme';
 
@@ -64,7 +73,7 @@ export default function BookScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const bookId = Number(params.id);
   const validId = Number.isInteger(bookId) && bookId > 0;
-  const [tab, setTab] = useState<'entries' | 'characters'>('entries');
+  const [tab, setTab] = useState<'entries' | 'characters' | 'photos'>('entries');
 
   const bookQuery = useQuery({
     queryKey: ['book', bookId],
@@ -129,12 +138,22 @@ export default function BookScreen() {
               Characters ({charactersQuery.data?.length ?? 0})
             </Text>
           </Pressable>
+          <Pressable
+            style={[styles.tabButton, tab === 'photos' && styles.tabButtonActive]}
+            onPress={() => setTab('photos')}
+          >
+            <Text style={[styles.tabText, tab === 'photos' && styles.tabTextActive]}>
+              Photos
+            </Text>
+          </Pressable>
         </View>
 
         {tab === 'entries' ? (
           <EntriesTab bookId={bookId} />
-        ) : (
+        ) : tab === 'characters' ? (
           <CharactersTab bookId={bookId} />
+        ) : (
+          <PhotosTab bookId={bookId} />
         )}
       </View>
     </KeyboardAvoidingView>
@@ -634,6 +653,191 @@ function CharacterCard({ character, bookId }: { character: Character; bookId: nu
   );
 }
 
+function PhotosTab({ bookId }: { bookId: number }) {
+  const queryClient = useQueryClient();
+  const [caption, setCaption] = useState('');
+  const [status, setStatus] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const imagesQuery = useQuery({
+    queryKey: ['book-images', bookId],
+    queryFn: () => listBookImages(bookId),
+  });
+
+  const pickAndUpload = async () => {
+    if (uploading) {
+      return;
+    }
+    setStatus(null);
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      quality: 1,
+    });
+    if (picked.canceled || !picked.assets.length) {
+      return;
+    }
+    setUploading(true);
+    try {
+      for (let i = 0; i < picked.assets.length; i += 1) {
+        setStatus(`Uploading image ${i + 1} of ${picked.assets.length}...`);
+        await uploadBookImage(bookId, picked.assets[i], caption);
+      }
+      setCaption('');
+      setStatus('Images uploaded.');
+      void queryClient.invalidateQueries({ queryKey: ['book-images', bookId] });
+    } catch (err) {
+      setStatus(err instanceof Error ? `Upload error: ${err.message}` : 'Upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const images = imagesQuery.data ?? [];
+
+  return (
+    <FlatList
+      data={images}
+      keyExtractor={(image) => String(image.id)}
+      contentContainerStyle={styles.list}
+      ListHeaderComponent={
+        <View style={styles.captureCard}>
+          <Text style={styles.captureTitle}>Add photos</Text>
+          <Text style={styles.captureHint}>
+            Keep covers, favorite passages, or margin notes with this book. Photos stay private
+            to your account.
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Optional caption for the next upload"
+            placeholderTextColor={colors.muted}
+            value={caption}
+            onChangeText={setCaption}
+          />
+          {status ? <Text style={styles.photoStatus}>{status}</Text> : null}
+          <Pressable style={styles.primaryButton} onPress={pickAndUpload} disabled={uploading}>
+            {uploading ? (
+              <ActivityIndicator color={colors.background} />
+            ) : (
+              <Text style={styles.primaryButtonText}>Choose photos</Text>
+            )}
+          </Pressable>
+        </View>
+      }
+      ListEmptyComponent={
+        imagesQuery.isPending ? (
+          <ActivityIndicator color={colors.accent} style={styles.loader} />
+        ) : imagesQuery.isError ? (
+          <Text style={styles.error}>Could not load photos.</Text>
+        ) : (
+          <Text style={styles.empty}>No photos yet for this book.</Text>
+        )
+      }
+      renderItem={({ item }) => <PhotoCard image={item} bookId={bookId} />}
+    />
+  );
+}
+
+function PhotoCard({ image, bookId }: { image: BookImage; bookId: number }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [caption, setCaption] = useState(image.caption ?? '');
+  const [cardError, setCardError] = useState<string | null>(null);
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['book-images', bookId] });
+  };
+
+  const captionMutation = useMutation({
+    mutationFn: () => updateBookImageCaption(image.id, bookId, caption),
+    onSuccess: () => {
+      setEditing(false);
+      setCardError(null);
+      invalidate();
+    },
+    onError: (err) => {
+      setCardError(err instanceof Error ? err.message : 'Could not save the caption.');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteBookImage(image),
+    onSuccess: invalidate,
+    onError: (err) => {
+      setCardError(err instanceof Error ? err.message : 'Could not delete the photo.');
+    },
+  });
+
+  return (
+    <View style={styles.photoCard}>
+      {image.signed_url ? (
+        <Image source={{ uri: image.signed_url }} style={styles.photoImage} resizeMode="cover" />
+      ) : (
+        <View style={[styles.photoImage, styles.photoMissing]}>
+          <Text style={styles.empty}>Image unavailable</Text>
+        </View>
+      )}
+      {editing ? (
+        <View style={styles.photoBody}>
+          <TextInput
+            style={styles.input}
+            placeholder="Caption"
+            placeholderTextColor={colors.muted}
+            value={caption}
+            onChangeText={setCaption}
+          />
+          <View style={styles.cardActions}>
+            <Pressable
+              style={styles.smallButton}
+              onPress={() => captionMutation.mutate()}
+              disabled={captionMutation.isPending}
+            >
+              <Text style={styles.smallButtonText}>
+                {captionMutation.isPending ? 'Saving...' : 'Save caption'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.smallButtonGhost}
+              onPress={() => {
+                setEditing(false);
+                setCaption(image.caption ?? '');
+              }}
+            >
+              <Text style={styles.smallButtonGhostText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.photoBody}>
+          {image.caption ? <Text style={styles.photoCaption}>{image.caption}</Text> : null}
+          <Text style={styles.cardDate}>{formatRecordTimestamp(image)}</Text>
+          <View style={styles.cardActions}>
+            <Pressable style={styles.smallButtonGhost} onPress={() => setEditing(true)}>
+              <Text style={styles.smallButtonGhostText}>
+                {image.caption ? 'Edit caption' : 'Add caption'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.smallButtonDanger}
+              onPress={() =>
+                confirmDestructive('Delete photo', 'Delete this image?', () =>
+                  deleteMutation.mutate(),
+                )
+              }
+              disabled={deleteMutation.isPending}
+            >
+              <Text style={styles.smallButtonDangerText}>
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+      {cardError ? <Text style={styles.error}>{cardError}</Text> : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
@@ -875,5 +1079,36 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
+  },
+  photoStatus: {
+    color: colors.muted,
+    fontSize: 13,
+    marginTop: 8,
+  },
+  photoCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    ...cardShadow,
+  },
+  photoImage: {
+    width: '100%',
+    height: 220,
+    backgroundColor: colors.border,
+  },
+  photoMissing: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoBody: {
+    padding: 12,
+  },
+  photoCaption: {
+    color: colors.text,
+    fontSize: 15,
+    fontFamily: fonts.serif,
+    lineHeight: 21,
   },
 });

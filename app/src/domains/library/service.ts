@@ -82,6 +82,8 @@ export async function updateBook(bookId: number, input: BookInput): Promise<Book
 
 const BOOK_IMAGES_BUCKET = 'book-images';
 
+export { BOOK_IMAGES_BUCKET };
+
 // Mirrors the PWA: stored image files are removed first because only the DB
 // rows cascade when the topic row is deleted.
 export async function deleteBook(bookId: number): Promise<void> {
@@ -109,7 +111,7 @@ export async function deleteBook(bookId: number): Promise<void> {
   }
 }
 
-function extractStoragePathFromPublicUrl(value: string | null): string | null {
+export function extractStoragePathFromPublicUrl(value: string | null): string | null {
   const raw = String(value ?? '').trim();
   if (!raw) {
     return null;
@@ -134,7 +136,11 @@ function extractStoragePathFromPublicUrl(value: string | null): string | null {
   if (/^(?:https?:|data:|blob:)/i.test(raw)) {
     return null;
   }
-  return raw.replace(/^\/+/, '');
+  const normalizedPath = raw.replace(/^\/+/, '');
+  const bucketPrefix = `${BOOK_IMAGES_BUCKET}/`;
+  return normalizedPath.startsWith(bucketPrefix)
+    ? normalizedPath.substring(bucketPrefix.length)
+    : normalizedPath;
 }
 
 export interface BookInput {
