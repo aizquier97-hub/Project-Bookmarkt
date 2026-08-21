@@ -113,7 +113,7 @@ unresolved parity gaps.
 | Voice capture end-to-end on device builds | **Met** — owner-verified on the Android development build (2026-08-21): dictation → review → confirm → save, raw transcript preserved in `entries.raw_transcript`; cleanup invariant unit-tested |
 | Companion foundation passes grounding/boundary/cross-account/denied tests | **Met** — `grounding.test.ts`, `entitlement.test.ts` (48-test suite) |
 | No AI-generation flow; backend flag verified disabled | **Met** — config test + live 410 probe in CI |
-| PWA frozen; retirement runbook approved | **Met (runbook written)** — [STAGE_2_OPERATIONS.md](STAGE_2_OPERATIONS.md) §7; needs product-owner approval mark |
+| PWA frozen; retirement runbook approved | **Met** — product owner approved the hardened runbook (D-019, 2026-08-21) after review; executes in Stage 8 |
 | Type-check, tests, native builds pass in CI | **Met** — `.github/workflows/app-ci.yml` (typecheck, lint, jest, Android export, migration checks) |
 | Auth restoration, isolation, images, book switching pass device automation | **Partial** — manual device runs + unit tests pass; automated device journeys blocked on dev builds |
 | Schema/config reproducible from version control | **Met** — migrations + CI checks + generated types |
@@ -128,8 +128,9 @@ unresolved parity gaps.
    capture confirmed working end-to-end).
 2. **iOS path**: defer until an Apple developer account exists (recommended:
    revisit at Stage 5 packaging) or acquire one now.
-3. **Retirement runbook approval**: approve
-   [STAGE_2_OPERATIONS.md](STAGE_2_OPERATIONS.md) §7 as written (executes in
-   Stage 8).
+3. **Retirement runbook approval** — **RESOLVED (D-019)**: product owner
+   reviewed §7, requested hardening (execution ordering, breach checklist,
+   self-destruct preview test, corrected auth framing, env audit, notice
+   window), and approved the revised runbook.
 4. **Stage 2 GO/NO-GO**: with 1-3 resolved, record the exit decision in the
    decision log.
