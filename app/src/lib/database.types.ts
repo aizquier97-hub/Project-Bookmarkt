@@ -454,33 +454,101 @@ export type Database = {
           },
         ]
       }
+      issue_reports: {
+        Row: {
+          assigned_to: string | null
+          context: Json
+          created_at: string
+          description: string
+          id: number
+          kind: string
+          priority: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          status: string
+          topic_id: number | null
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          context?: Json
+          created_at?: string
+          description: string
+          id?: number
+          kind?: string
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+          topic_id?: number | null
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          context?: Json
+          created_at?: string
+          description?: string
+          id?: number
+          kind?: string
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+          topic_id?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issue_reports_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spoiler_reports: {
         Row: {
+          assigned_to: string | null
           audit_id: string | null
           boundary_label: string | null
           created_at: string
           id: number
+          priority: string | null
           reason: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          status: string
           summary_excerpt: string | null
           topic_id: number | null
           user_id: string
         }
         Insert: {
+          assigned_to?: string | null
           audit_id?: string | null
           boundary_label?: string | null
           created_at?: string
           id?: number
+          priority?: string | null
           reason: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
           summary_excerpt?: string | null
           topic_id?: number | null
           user_id: string
         }
         Update: {
+          assigned_to?: string | null
           audit_id?: string | null
           boundary_label?: string | null
           created_at?: string
           id?: number
+          priority?: string | null
           reason?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
           summary_excerpt?: string | null
           topic_id?: number | null
           user_id?: string

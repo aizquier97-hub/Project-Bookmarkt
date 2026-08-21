@@ -126,6 +126,12 @@ export default function LibraryScreen() {
           )}
         />
       )}
+
+      <Link href="/report-issue" asChild>
+        <Pressable style={styles.reportLink} hitSlop={8}>
+          <Text style={styles.reportLinkText}>Something broken? Report an issue</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }
@@ -260,5 +266,14 @@ const styles = StyleSheet.create({
     backgroundColor: wood.boardFront,
     borderBottomLeftRadius: 4,
     borderBottomRightRadius: 4,
+  },
+  reportLink: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  reportLinkText: {
+    color: colors.muted,
+    fontSize: 13,
+    textDecorationLine: 'underline',
   },
 });

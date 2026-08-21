@@ -15,6 +15,7 @@ import {
 
 import { resolveBookMetadata } from '@/domains/library/metadata';
 import { addBook, type Book } from '@/domains/library/service';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { colors } from '@/lib/theme';
 
 async function addBookWithLookup(input: {
@@ -42,6 +43,20 @@ async function addBookWithLookup(input: {
     publisher: metadata.publisher,
     publicationYear: metadata.publicationYear,
     totalPages: metadata.totalPages,
+  }).then((book) => {
+    // PWA parity: same event name and property shape.
+    trackAnalyticsEvent(
+      'book_added',
+      {
+        topicId: String(book.id),
+        hasAuthor: Boolean(input.author.trim()),
+        hasMetadata: Boolean(
+          metadata.publisher || metadata.publicationYear || metadata.totalPages,
+        ),
+      },
+      book.id,
+    );
+    return book;
   });
 }
 
