@@ -41,6 +41,8 @@ import {
   type BookImage,
 } from '@/domains/library/images';
 import { getBook } from '@/domains/library/service';
+import { cleanupTranscript } from '@/domains/voice/cleanup';
+import { useDictation } from '@/domains/voice/useDictation';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
@@ -170,6 +172,8 @@ function EntriesTab({ bookId }: { bookId: number }) {
   const [progressValue, setProgressValue] = useState('');
   const [text, setText] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [rawTranscripts, setRawTranscripts] = useState<string[]>([]);
+  const dictation = useDictation();
 
   const entriesQuery = useQuery({
     queryKey: queryKeys.entries(bookId),
@@ -183,9 +187,16 @@ function EntriesTab({ bookId }: { bookId: number }) {
   );
 
   const addEntryMutation = useMutation({
-    mutationFn: () => addEntry(bookId, { text, progressType, progressValue }),
+    mutationFn: () =>
+      addEntry(bookId, {
+        text,
+        progressType,
+        progressValue,
+        rawTranscript: rawTranscripts.length > 0 ? rawTranscripts.join('\n') : null,
+      }),
     onSuccess: () => {
       setText('');
+      setRawTranscripts([]);
       setFormError(null);
       showToast('Entry saved.', 'success');
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
@@ -239,6 +250,57 @@ function EntriesTab({ bookId }: { bookId: number }) {
         onChangeText={setText}
         multiline
       />
+
+      {dictation.status === 'idle' ? (
+        <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
+          <Text style={styles.dictateButtonText}>🎤 Dictate instead</Text>
+        </Pressable>
+      ) : null}
+
+      {dictation.status === 'recording' ? (
+        <View style={styles.dictationCard}>
+          <Text style={styles.dictationLabel}>Listening… speak your entry.</Text>
+          {dictation.partial ? (
+            <Text style={styles.dictationPartial}>{dictation.partial}</Text>
+          ) : null}
+          <Pressable style={styles.stopButton} onPress={dictation.stop}>
+            <Text style={styles.stopButtonText}>■ Stop dictation</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {dictation.status === 'review' ? (
+        <View style={styles.dictationCard}>
+          <Text style={styles.dictationLabel}>Review your dictation</Text>
+          <Text style={styles.dictationPreview}>{cleanupTranscript(dictation.raw)}</Text>
+          <Text style={styles.dictationRawNote}>Raw transcript: “{dictation.raw}”</Text>
+          <Text style={styles.dictationHint}>
+            Only punctuation and capitalization were adjusted — your words are untouched. The
+            raw transcript is kept with your entry.
+          </Text>
+          <View style={styles.cardActions}>
+            <Pressable
+              style={styles.smallButton}
+              onPress={() => {
+                const raw = dictation.confirm();
+                if (!raw) {
+                  return;
+                }
+                const cleaned = cleanupTranscript(raw);
+                setText((prev) => (prev.trim() ? `${prev.trimEnd()} ${cleaned}` : cleaned));
+                setRawTranscripts((prev) => [...prev, raw]);
+              }}
+            >
+              <Text style={styles.smallButtonText}>Add to entry</Text>
+            </Pressable>
+            <Pressable style={styles.smallButtonGhost} onPress={dictation.discard}>
+              <Text style={styles.smallButtonGhostText}>Discard</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {dictation.error ? <Text style={styles.error}>{dictation.error}</Text> : null}
 
       {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
@@ -968,6 +1030,71 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
     marginTop: 10,
+  },
+  dictateButton: {
+    alignSelf: 'flex-start',
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 10,
+  },
+  dictateButtonText: {
+    color: colors.accent,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  dictationCard: {
+    backgroundColor: colors.background,
+    borderColor: colors.accent,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 10,
+  },
+  dictationLabel: {
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 13,
+    marginBottom: 6,
+  },
+  dictationPartial: {
+    color: colors.muted,
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  dictationPreview: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 21,
+    marginBottom: 8,
+  },
+  dictationRawNote: {
+    color: colors.muted,
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginBottom: 6,
+  },
+  dictationHint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 4,
+  },
+  stopButton: {
+    alignSelf: 'flex-start',
+    borderColor: colors.danger,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  stopButtonText: {
+    color: colors.danger,
+    fontWeight: '700',
+    fontSize: 13,
   },
   input: {
     backgroundColor: colors.background,

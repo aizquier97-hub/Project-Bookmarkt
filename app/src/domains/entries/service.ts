@@ -15,6 +15,8 @@ export interface NewEntryInput {
   text: string;
   progressType: ProgressType;
   progressValue: string | number;
+  /** Verbatim dictation transcript (D-016); stored beside the cleaned text. */
+  rawTranscript?: string | null;
 }
 
 export async function listEntries(bookId: number): Promise<Entry[]> {
@@ -51,22 +53,29 @@ export async function addEntry(bookId: number, input: NewEntryInput): Promise<En
       ? `${input.progressType} ${progressValue}`
       : buildProgressRangeLabel(input.progressType, lowerBoundary, progressValue);
   const userId = await requireUserId();
+  const rawTranscript = input.rawTranscript?.trim() || null;
   const { data, error } = await supabase
     .from('entries')
     .insert({
       text: `[Manual Entry - ${rangeLabel}]\n${trimmed}`,
       topic_id: bookId,
       user_id: userId,
+      raw_transcript: rawTranscript,
     })
     .select()
     .single();
   if (error) {
     throw error;
   }
-  // PWA parity: same event name and property shape.
+  // PWA parity: same event name and property shape (captureMethod is additive).
   trackAnalyticsEvent(
     'manual_entry_added',
-    { boundary: rangeLabel, progressType: input.progressType, progressValue },
+    {
+      boundary: rangeLabel,
+      progressType: input.progressType,
+      progressValue,
+      captureMethod: rawTranscript ? 'voice' : 'typed',
+    },
     bookId,
   );
   return data;
