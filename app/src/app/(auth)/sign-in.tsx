@@ -78,6 +78,9 @@ export default function SignInScreen() {
         <Link href="/sign-up" style={styles.link}>
           New here? Create an account
         </Link>
+        <Link href="/forgot-password" style={styles.link}>
+          Forgot your password?
+        </Link>
       </View>
     </KeyboardAvoidingView>
   );
