@@ -5,6 +5,7 @@ import {
   normalizeProgressNumber,
   type ProgressType,
 } from '@/domains/entries/progress';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import type { Tables } from '@/lib/database.types';
 import { supabase } from '@/lib/supabase';
 
@@ -62,6 +63,12 @@ export async function addEntry(bookId: number, input: NewEntryInput): Promise<En
   if (error) {
     throw error;
   }
+  // PWA parity: same event name and property shape.
+  trackAnalyticsEvent(
+    'manual_entry_added',
+    { boundary: rangeLabel, progressType: input.progressType, progressValue },
+    bookId,
+  );
   return data;
 }
 
