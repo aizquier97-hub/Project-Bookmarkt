@@ -2,7 +2,16 @@ project_id = "bfallxtcxxyykcnkedom"
 
 [auth]
 site_url = "https://inkmarkt-dev.netlify.app"
-additional_redirect_urls = ["https://inkmarkt-dev.netlify.app/"]
+# exp:// entries let the emailed recovery link deep-link back into Expo Go
+# during Stage 2 device testing; bookmarkt:// covers future standalone builds.
+additional_redirect_urls = [
+  "https://inkmarkt-dev.netlify.app/",
+  "exp://192.168.1.143:8081",
+  "exp://192.168.1.143:8081/--/reset-password",
+  "exp://192.168.1.143:8081/--/*",
+  "bookmarkt://reset-password",
+  "bookmarkt://*",
+]
 minimum_password_length = 12
 password_requirements = "lower_upper_letters_digits_symbols"
 # Leaked-password protection is a hosted Pro setting enabled in the Supabase Dashboard.
@@ -15,6 +24,8 @@ verify_enabled = true
 enable_confirmations = true
 max_frequency = "1m0s"
 otp_length = 8
+# NOTE: custom email templates require a paid plan or custom SMTP; the
+# recovery flow therefore uses the default link email + deep-link redirect.
 
 [storage.vector]
 enabled = false

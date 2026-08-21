@@ -13,8 +13,37 @@ import {
   View,
 } from 'react-native';
 
-import { addBook } from '@/domains/library/service';
+import { resolveBookMetadata } from '@/domains/library/metadata';
+import { addBook, type Book } from '@/domains/library/service';
 import { colors } from '@/lib/theme';
+
+async function addBookWithLookup(input: {
+  name: string;
+  author: string;
+  publisher: string;
+  publicationYear: string;
+  totalPages: string;
+}): Promise<Book> {
+  const name = input.name.trim();
+  if (!name) {
+    throw new Error('Book title is required.');
+  }
+  // PWA contract: manual fields win, Open Library fills whatever is missing.
+  const metadata = await resolveBookMetadata({
+    title: name,
+    author: input.author,
+    manualPublisher: input.publisher,
+    manualPublicationYear: input.publicationYear,
+    manualTotalPages: input.totalPages,
+  });
+  return addBook({
+    name,
+    author: input.author,
+    publisher: metadata.publisher,
+    publicationYear: metadata.publicationYear,
+    totalPages: metadata.totalPages,
+  });
+}
 
 export default function AddBookScreen() {
   const router = useRouter();
@@ -27,7 +56,7 @@ export default function AddBookScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const addBookMutation = useMutation({
-    mutationFn: addBook,
+    mutationFn: addBookWithLookup,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['books'] });
       router.back();
@@ -99,6 +128,10 @@ export default function AddBookScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
+        <Text style={styles.hint}>
+          Leave publisher, year, or pages blank and we will try to fill them from Open Library.
+        </Text>
+
         <Pressable
           style={styles.saveButton}
           onPress={handleSave}
@@ -148,6 +181,12 @@ const styles = StyleSheet.create({
   error: {
     color: colors.danger,
     marginTop: 12,
+  },
+  hint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 14,
   },
   saveButton: {
     backgroundColor: colors.accent,
