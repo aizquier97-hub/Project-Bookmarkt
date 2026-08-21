@@ -225,22 +225,24 @@ guidance, privacy, support, and account-deletion obligations.
 ## 8. Known open items (carried forward at the Stage 2 exit gate)
 
 Stage 2 closed with `GO` (D-020). These items were not silently waived — each
-is named, owned, and destination-gated in
-[gates/STAGE_2_EXIT.md](gates/STAGE_2_EXIT.md) (Deferred work):
+is named in [gates/STAGE_2_EXIT.md](gates/STAGE_2_EXIT.md) (Deferred work) and
+now sits in the receiving stage's roadmap work plan:
 
-- iOS internal builds need an Apple developer account — deferred to Stage 5
+- iOS internal builds need an Apple developer account — Stage 5 work plan
   (D-020). Android internal builds are done (dev build d0af7ec8,
   owner-verified 2026-08-21).
 - Device automation (Maestro or equivalent) and native component/integration
-  tests are now unblocked by the Android dev build; scheduled Stage 3+.
+  tests are now unblocked by the Android dev build — Stage 3 work plan.
 - The smart-link/store-routing service (D-015) is designed but not built;
-  QR codes still point at the frozen PWA URL until it exists (Stage 5, before
-  retirement).
+  QR codes still point at the frozen PWA URL until it exists — Stage 5 work
+  plan, before the retirement switch.
 - Structured client error/performance telemetry is not yet wired; budgets in
-  §5 are manually observed (Stage 3+).
+  §5 are manually observed — Stage 5 work plan (crash/performance
+  monitoring), pulled into Stage 3 early if a §5 budget is breached.
 - Supabase integration tests run against the live project boundary today;
-  a safe test project for cross-account automation is still to be provisioned
-  (Stage 3+).
+  a safe test project for cross-account automation is still to be
+  provisioned — Stage 3 work plan.
 - `eas.json` preview/production profiles still need
-  `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` before the first
-  preview build (dev builds get these from Metro; release builds embed them).
+  `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY`; the first
+  preview build is in the Stage 3 work plan (dev builds get these from
+  Metro; release builds embed them).

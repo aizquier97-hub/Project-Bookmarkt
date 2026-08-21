@@ -529,12 +529,6 @@ Supabase backend.
 - [x] Freeze the PWA to critical stabilization fixes and document its transition,
       access restriction, service-worker cleanup, and final retirement plan.
       (STAGE_2_OPERATIONS.md §7; runbook approved under D-019.)
-- [ ] Build the minimal smart-link/store-routing service separately from the
-      reading application. (Not built; QR codes still resolve to the frozen PWA
-      URL. Designed in D-015/D-017; scheduled before PWA retirement.)
-- [ ] Add structured client error and performance telemetry with privacy limits.
-      (Analytics events exist; error/performance telemetry not yet wired —
-      budgets are manually observed per STAGE_2_OPERATIONS.md §5.)
 - [x] Design and automate export/backup of actual Storage image objects; database
       backups only preserve Storage metadata. (`scripts/backup-storage.mjs` +
       cadence in STAGE_2_OPERATIONS.md §4.)
@@ -546,13 +540,6 @@ Supabase backend.
 - [x] Add unit tests for domain rules and validation. (48 jest tests across 7
       suites: progress, encoding, policy, metadata, grounding, entitlement,
       configuration.)
-- [ ] Add integration tests for Supabase service boundaries. (Deferred: needs
-      the safe test project below; services are typed against generated schema
-      types meanwhile.)
-- [ ] Add native component and integration tests for authentication, book CRUD,
-      book switching, typed and voice entries, character maps, and private
-      images. (Deferred to Stage 3+ with device automation; the Android dev
-      build now exists to run them against — exit-gate deferred work, D-020.)
 - [x] Add transcription tests proving the raw transcript is preserved and
       cleanup is limited to punctuation and casing. (`cleanup.test.ts` —
       verbatim word-sequence invariant across cleanup.)
@@ -567,23 +554,14 @@ Supabase backend.
       safe test project.)
 - [x] Add a configuration test proving the image-generation backend flag is
       disabled. (`aiGenerationFlag.test.ts` + live 410 probe in CI.)
-- [ ] Add iOS and Android device automation for critical journeys. (Deferred
-      to Stage 3+: the Android dev build (d0af7ec8) now exists to automate
-      against; iOS is deferred to Stage 5 with the Apple developer account —
-      D-020.)
-- [ ] Test smart-link platform detection and store-routing behavior. (Service
-      not built yet.)
-- [ ] Add explicit cross-account isolation tests against a safe test project.
-      (Stage 1 RLS verification stands on the live project; a dedicated test
-      project is still to be provisioned.)
 - [x] Add type-check, test, build, and migration checks to pull-request CI.
       (`.github/workflows/app-ci.yml`: tsc, eslint, jest, Android export,
       migration filename/order checks, 410 probe on main.)
-- [ ] Add internal native preview builds and a release checklist; retain Netlify
-      only for the temporary prototype and minimal web endpoints. (Checklist
-      done — STAGE_2_OPERATIONS.md §6; internal dev build shipped and
-      owner-verified (d0af7ec8). First preview build still needs eas.json
-      env vars; carried into Stage 3.)
+- [x] Add internal native preview builds and a release checklist; retain Netlify
+      only for the temporary prototype and minimal web endpoints. (Release
+      checklist done — STAGE_2_OPERATIONS.md §6 — and internal-distribution
+      dev build d0af7ec8 owner-verified; the first preview-profile build
+      transferred to Stage 3, see "Transferred at the exit gate" below.)
 - [x] Define native cold-start, QR-to-app, screen-load, and interaction budgets.
       (STAGE_2_OPERATIONS.md §5.)
 
@@ -607,11 +585,30 @@ Supabase backend.
       (Approved — D-019, 2026-08-21; hardened runbook in
       STAGE_2_OPERATIONS.md §7.)
 
+#### Transferred at the exit gate (D-020)
+
+These work-plan items closed Stage 2 unfinished and were moved into the
+receiving stage's work plan; none were waived
+([gates/STAGE_2_EXIT.md](gates/STAGE_2_EXIT.md), "Deferred work"):
+
+- Smart-link/store-routing service and its platform-detection/store-routing
+  tests → **Stage 5** (build before the PWA retirement switch; D-015/D-017).
+- iOS internal builds → **Stage 5** (needs the Apple developer account).
+- Structured client error/performance telemetry → **Stage 5** crash and
+  performance monitoring (pull into Stage 3 early if the manual budgets in
+  STAGE_2_OPERATIONS.md §5 are breached).
+- Native component/integration tests and Android device automation →
+  **Stage 3** (iOS automation follows in Stage 5).
+- Supabase service-boundary integration tests, explicit cross-account
+  isolation tests, and the safe test project → **Stage 3**.
+- First EAS preview build (needs eas.json env vars) → **Stage 3**.
+
 ### Stage 2 exit gate
 
 Closed with `GO` on August 21, 2026 (D-020). The iOS criterion is deferred to
-Stage 5; device automation, smart-link routing, and telemetry are tracked open
-items (STAGE_2_EXIT_REVIEW.md §2, STAGE_2_OPERATIONS.md §8).
+Stage 5; every other unfinished work-plan item was transferred into the
+Stage 3 or Stage 5 work plan ("Transferred at the exit gate" above;
+STAGE_2_EXIT_REVIEW.md §2, STAGE_2_OPERATIONS.md §8).
 
 - The native application alpha runs on both iOS and Android development/internal
   builds. (Android met; iOS deferred to Stage 5 under D-020.)
@@ -701,6 +698,19 @@ capture.
 - [ ] Resolve all high-severity usability findings and verify analytics funnels.
 - [ ] Prototype the physical bookmark, QR placement, scan distance, contrast, and
       instructions without committing to mass production.
+
+Carried from Stage 2 (D-020):
+
+- [ ] Add native component and integration tests for authentication, book CRUD,
+      book switching, typed and voice entries, character maps, and private
+      images.
+- [ ] Add Android device automation for critical journeys against the internal
+      dev build (iOS automation joins in Stage 5 with the Apple account).
+- [ ] Provision a safe Supabase test project; add integration tests for the
+      Supabase service boundaries and explicit cross-account isolation tests.
+- [ ] Configure eas.json preview environment variables and ship the first
+      internal preview build (also the distribution vehicle for usability
+      testing).
 
 ### Stage 3 exit gate
 
@@ -830,6 +840,10 @@ QR app-or-store routing for the native iOS and Android applications.
 - [ ] Implement Bookmarkt-controlled universal links and Android App Links.
 - [ ] Route an uninstalled iOS user to the Apple App Store and an uninstalled
       Android user to Google Play.
+- [ ] Build the minimal smart-link/store-routing service separately from the
+      reading application and test its platform detection and store routing.
+      (Carried from Stage 2, D-020; designed in D-015/D-017; prerequisite for
+      the PWA retirement switch below.)
 - [ ] Show only installation/support information for unsupported or desktop
       devices; do not expose the reading application on the web.
 - [ ] Preserve deferred QR context through installation when the approved QR
@@ -843,12 +857,15 @@ QR app-or-store routing for the native iOS and Android applications.
       capture.
 - [ ] Prepare Apple privacy manifests and Android permission declarations,
       including microphone and speech-recognition usage descriptions.
-- [ ] Add privacy-conscious crash and performance monitoring.
+- [ ] Add privacy-conscious crash and performance monitoring. (Carries the
+      Stage 2 structured error/performance telemetry item, D-020; pull into
+      Stage 3 early if the manual performance budgets are breached.)
 - [ ] Test file/image selection, keyboards, safe areas, orientation, text scaling,
       back navigation, and assistive technologies.
 - [ ] Configure reproducible signed release builds and protected signing assets.
 - [ ] Distribute builds through TestFlight internal testing and Google Play
-      internal testing.
+      internal testing. (Carries the Stage 2 iOS internal-build criterion,
+      D-020.)
 - [ ] Run the device/OS compatibility matrix on physical devices.
 - [ ] Prepare and safely test the PWA retirement switch, including service-worker
       unregistering, cached installations, routing, and user communication.
