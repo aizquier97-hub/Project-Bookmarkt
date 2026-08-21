@@ -491,11 +491,12 @@ Supabase backend.
       device-verified.)
 - [x] Migrate manual character maps and character-detail controls.
       (Device-verified; detail encoding unit-tested.)
-- [ ] Build voice capture: record, transcribe, punctuation-only cleanup, reader
+- [x] Build voice capture: record, transcribe, punctuation-only cleanup, reader
       review and confirmation, and storage of the raw transcript alongside the
-      cleaned text. (BLOCKED: the on-device recognizer module (D-016) cannot
-      load in Expo Go; requires an EAS development build — product-owner GO
-      pending, STAGE_2_EXIT_REVIEW.md §3.)
+      cleaned text. (On-device recognizer via expo-speech-recognition; guarded
+      require degrades Expo Go to typed entry; raw transcript stored in
+      `entries.raw_transcript`; device verification pending the first EAS
+      development build install.)
 - [x] Build the companion retrieval foundation behind an entitlement-ready
       service: assemble context exclusively from the requesting user's entries,
       apply the latest-entry boundary, and attach provenance metadata.
@@ -548,9 +549,9 @@ Supabase backend.
 - [ ] Add native component and integration tests for authentication, book CRUD,
       book switching, typed and voice entries, character maps, and private
       images. (Deferred with device automation — needs dev builds.)
-- [ ] Add transcription tests proving the raw transcript is preserved and
-      cleanup is limited to punctuation and casing. (Blocked with voice capture
-      — needs an EAS development build.)
+- [x] Add transcription tests proving the raw transcript is preserved and
+      cleanup is limited to punctuation and casing. (`cleanup.test.ts` —
+      verbatim word-sequence invariant across cleanup.)
 - [x] Add grounding tests proving companion context contains only the requesting
       user's entries, respects the latest-entry boundary, and carries provenance
       metadata. (`grounding.test.ts`.)
