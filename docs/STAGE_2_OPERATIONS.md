@@ -222,20 +222,25 @@ any step.
 Minimal web endpoints that outlive the PWA (per D-008): smart links, install
 guidance, privacy, support, and account-deletion obligations.
 
-## 8. Known open items (exit-gate blockers)
+## 8. Known open items (carried forward at the Stage 2 exit gate)
 
-Tracked in the Stage 2 exit review; none are silently waived:
+Stage 2 closed with `GO` (D-020). These items were not silently waived — each
+is named, owned, and destination-gated in
+[gates/STAGE_2_EXIT.md](gates/STAGE_2_EXIT.md) (Deferred work):
 
-- Voice capture (D-016) is done: implemented and owner-verified on the Android
-  development build (dictation → review → confirm → save; raw transcript in
-  `entries.raw_transcript`).
-- iOS internal builds need an Apple developer account and build hardware;
-  Android preview builds need only the existing Expo account.
+- iOS internal builds need an Apple developer account — deferred to Stage 5
+  (D-020). Android internal builds are done (dev build d0af7ec8,
+  owner-verified 2026-08-21).
 - Device automation (Maestro or equivalent) and native component/integration
-  tests are deferred until dev builds exist to run them against.
+  tests are now unblocked by the Android dev build; scheduled Stage 3+.
 - The smart-link/store-routing service (D-015) is designed but not built;
-  QR codes still point at the frozen PWA URL until it exists.
+  QR codes still point at the frozen PWA URL until it exists (Stage 5, before
+  retirement).
 - Structured client error/performance telemetry is not yet wired; budgets in
-  §5 are manually observed.
+  §5 are manually observed (Stage 3+).
 - Supabase integration tests run against the live project boundary today;
-  a safe test project for cross-account automation is still to be provisioned.
+  a safe test project for cross-account automation is still to be provisioned
+  (Stage 3+).
+- `eas.json` preview/production profiles still need
+  `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` before the first
+  preview build (dev builds get these from Metro; release builds embed them).
