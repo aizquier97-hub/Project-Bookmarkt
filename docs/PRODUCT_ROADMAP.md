@@ -610,6 +610,11 @@ capture.
       trial rule; a canceled or dismissed purchase returns to capture.
 - [ ] Establish Bookmarkt brand direction, typography, color, iconography,
       spacing, motion, and voice.
+      - Direction locked during Stage 2 device testing (2026-08-21, user-approved):
+        warm "paper and leather" palette, serif literary typography, and a
+        bookshelf-metaphor library (upright covers on wooden shelves). Stage 3
+        refines this direction - custom fonts, motion, cover art, accessibility
+        contrast passes - rather than restarting exploration.
 - [ ] Create a reusable design system with documented component states.
 - [ ] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target.
