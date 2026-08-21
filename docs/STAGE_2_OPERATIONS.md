@@ -167,35 +167,57 @@ with **no data migration**.
 
 - Scope: critical stabilization fixes only — security, data loss, or a P0/P1
   blocking the product owner's daily use. No features, no styling, no scope.
-- Any PWA change requires a decision-log note stating why the freeze was
-  breached.
-- The service-worker cache name (`bookmarkt-v3`) bumps only when a critical
-  fix ships, so installed clients pick it up on next visit.
+- Any PWA change requires product-owner approval and a decision-log note
+  stating why the freeze was breached.
+- Freeze-breach deploy checklist (all steps required):
+  1. Product-owner approval recorded in the decision log.
+  2. Bump the service-worker cache name (`bookmarkt-v3` → `-v4`, …) so
+     installed clients fetch the fix instead of serving stale caches.
+  3. Verify the fix on the live URL after deploy.
 
 ### Retirement (executes in Stage 8; approved here so it is ready)
 
-1. **Routing:** repoint the QR/smart-link destination from the Netlify PWA to
-   the smart-link service (D-015/D-017); installed-app deep links open the
-   book, uninstalled mobile users route to the store per D-008.
-2. **Access restriction:** replace the PWA at the Netlify URL with a static
-   sunset page (install links + support contact); no login form remains.
-3. **Service-worker cleanup:** ship a final deploy whose service worker
-   installs, deletes all `bookmarkt-*` caches, and unregisters itself
-   (`registration.unregister()` in `activate`), so cached installations
-   self-destruct on their next visit instead of serving the dead app shell
-   forever.
-4. **Cached installations:** the sunset page carries the same cleanup script;
-   home-screen installs open it after cache cleanup, and abandoned offline
-   clients can no longer mutate data once step 5 lands.
-5. **User communication:** in-product notice inside the PWA at native beta
-   (Stage 7) with install links, repeated on the sunset page. Single-digit
-   user count keeps this lightweight.
-6. **Backend/data continuity:** accounts, books, entries, characters, images,
-   and reports are untouched — the native app reads the same rows under the
-   same RLS. Nothing in the backend is PWA-specific except Auth redirect URLs,
-   which drop the Netlify origin once the PWA is offline.
-7. **Rollback:** Netlify keeps prior deploys; restoring the frozen PWA is a
-   one-click rollback of the sunset deploy if retirement uncovers a gap.
+Steps run in this order — later steps depend on earlier ones:
+
+1. **Notice period:** the in-product notice ships inside the PWA at native
+   beta (Stage 7) with install links; the sunset deploy waits at least
+   14 days after the notice is live. The sunset page repeats the notice.
+2. **Test the self-destructing service worker** on a Netlify deploy preview
+   before production: confirm it installs, deletes all `bookmarkt-*` caches,
+   and completes `registration.unregister()`. A broken self-destruct can only
+   be fixed by shipping another worker, so it is proven before the final
+   deploy.
+3. **Ship the final cleanup deploy to the live PWA URL** while QR codes still
+   point at it: the worker self-destructs on each client's next visit —
+   including QR scanners in the transition window, who would never receive it
+   after repointing.
+4. **Stand up and verify the smart-link service** (D-015/D-017): confirm
+   installed-app deep links open the book and uninstalled mobile users route
+   to the store per D-008.
+5. **Repoint the QR/smart-link destination** from the Netlify URL to the
+   verified smart-link service.
+6. **Replace the PWA at the Netlify URL with the static sunset page**
+   (install links + support contact, no login form), carrying the same
+   cache-cleanup script for home-screen installs. Verify it renders on a
+   clean device before proceeding.
+7. **Drop the Netlify origin from Supabase Auth redirect URLs** — only after
+   the sunset page is confirmed live, so no one hits an unexplained auth
+   error mid-transition. This blocks link-based flows (recovery, OAuth) from
+   the old origin; new sign-ins stop because the sunset page has no login
+   form. Existing tokens expire naturally (access-token TTL, ~1 hour) and RLS
+   enforces correct data access throughout; a hard stop, if ever needed, is
+   revoking sessions in the Supabase dashboard.
+8. **Audit Netlify environment variables** and remove any not needed by the
+   sunset page. (The PWA ships only the public anon key — safe by design
+   under RLS — but the audit keeps the retired site a zero-secret surface.)
+9. **Confirm rollback:** note the last frozen-PWA deploy ID; Netlify keeps
+   prior deploys, so restoring it is a one-click rollback if retirement
+   uncovers a gap.
+
+**Backend/data continuity (throughout):** accounts, books, entries,
+characters, images, and reports are untouched — the native app reads the same
+rows under the same RLS. Retirement is a client shutdown; no data migrates at
+any step.
 
 Minimal web endpoints that outlive the PWA (per D-008): smart links, install
 guidance, privacy, support, and account-deletion obligations.
