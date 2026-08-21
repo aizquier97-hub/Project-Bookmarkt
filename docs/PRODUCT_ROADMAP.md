@@ -646,6 +646,11 @@ capture.
 
 ### Work plan
 
+- [ ] Run a continuous owner dogfooding period: use the Android dev build as
+      the daily real reading companion throughout Stage 3, log every friction
+      point and defect as it happens, and triage the log weekly (P0/P1 fixed
+      immediately per STAGE_GATES.md). Runs alongside design work; blocks
+      nothing.
 - [ ] Define target readers - individuals whose fragmented attention impedes
       long-form reading, recall, or comprehension - and their priority
       jobs-to-be-done: pick the book back up, stay oriented, finish it.
