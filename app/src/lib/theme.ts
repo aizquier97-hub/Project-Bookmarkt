@@ -11,7 +11,14 @@ export const colors = {
   accent: '#8a4a21',
   accentSoft: '#f0e2cf',
   danger: '#a83c33',
-  shelf: '#a97e52',
+} as const;
+
+// Wood tones for the bookcase chrome on the library screen.
+export const wood = {
+  back: '#e6d3ae',
+  rail: '#9a7040',
+  boardTop: '#b98a5a',
+  boardFront: '#7c5a33',
 } as const;
 
 // System serif keeps the literary feel without bundling font assets yet.
