@@ -54,11 +54,18 @@ export default function LibraryScreen() {
         }}
       />
 
-      <Link href="/add-book" asChild>
-        <Pressable style={styles.addButton}>
-          <Text style={styles.addButtonText}>+ Add a book</Text>
-        </Pressable>
-      </Link>
+      <View style={styles.actionsRow}>
+        <Link href="/add-book" asChild>
+          <Pressable style={[styles.addButton, styles.actionFlex]}>
+            <Text style={styles.addButtonText}>+ Add a book</Text>
+          </Pressable>
+        </Link>
+        <Link href="/bookmarks" asChild>
+          <Pressable style={[styles.bookmarksButton, styles.actionFlex]}>
+            <Text style={styles.bookmarksButtonText}>My bookmarks</Text>
+          </Pressable>
+        </Link>
+      </View>
 
       {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
 
@@ -134,15 +141,35 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  actionFlex: {
+    flex: 1,
+  },
   addButton: {
     backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
-    marginBottom: 16,
   },
   addButtonText: {
     color: colors.background,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  bookmarksButton: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  bookmarksButtonText: {
+    color: colors.text,
     fontWeight: '700',
     fontSize: 16,
   },
