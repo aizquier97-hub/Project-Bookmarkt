@@ -528,7 +528,7 @@ Supabase backend.
       (STAGE_2_OPERATIONS.md §2, accepted as D-018.)
 - [x] Freeze the PWA to critical stabilization fixes and document its transition,
       access restriction, service-worker cleanup, and final retirement plan.
-      (STAGE_2_OPERATIONS.md §7; approval mark pending at the exit gate.)
+      (STAGE_2_OPERATIONS.md §7; runbook approved under D-019.)
 - [ ] Build the minimal smart-link/store-routing service separately from the
       reading application. (Not built; QR codes still resolve to the frozen PWA
       URL. Designed in D-015/D-017; scheduled before PWA retirement.)
@@ -551,7 +551,8 @@ Supabase backend.
       types meanwhile.)
 - [ ] Add native component and integration tests for authentication, book CRUD,
       book switching, typed and voice entries, character maps, and private
-      images. (Deferred with device automation — needs dev builds.)
+      images. (Deferred to Stage 3+ with device automation; the Android dev
+      build now exists to run them against — exit-gate deferred work, D-020.)
 - [x] Add transcription tests proving the raw transcript is preserved and
       cleanup is limited to punctuation and casing. (`cleanup.test.ts` —
       verbatim word-sequence invariant across cleanup.)
@@ -566,8 +567,10 @@ Supabase backend.
       safe test project.)
 - [x] Add a configuration test proving the image-generation backend flag is
       disabled. (`aiGenerationFlag.test.ts` + live 410 probe in CI.)
-- [ ] Add iOS and Android device automation for critical journeys. (Blocked:
-      needs dev builds; iOS additionally needs an Apple developer account.)
+- [ ] Add iOS and Android device automation for critical journeys. (Deferred
+      to Stage 3+: the Android dev build (d0af7ec8) now exists to automate
+      against; iOS is deferred to Stage 5 with the Apple developer account —
+      D-020.)
 - [ ] Test smart-link platform detection and store-routing behavior. (Service
       not built yet.)
 - [ ] Add explicit cross-account isolation tests against a safe test project.
@@ -578,8 +581,9 @@ Supabase backend.
       migration filename/order checks, 410 probe on main.)
 - [ ] Add internal native preview builds and a release checklist; retain Netlify
       only for the temporary prototype and minimal web endpoints. (Checklist
-      done — STAGE_2_OPERATIONS.md §6; first EAS preview build awaits the
-      product-owner GO.)
+      done — STAGE_2_OPERATIONS.md §6; internal dev build shipped and
+      owner-verified (d0af7ec8). First preview build still needs eas.json
+      env vars; carried into Stage 3.)
 - [x] Define native cold-start, QR-to-app, screen-load, and interaction budgets.
       (STAGE_2_OPERATIONS.md §5.)
 
@@ -591,16 +595,17 @@ Supabase backend.
 - [x] Resolve all parity gaps and migration risks. (Zero unresolved gaps; two
       accepted deviations recorded — structural no-book state, in-memory
       drafts.)
-- [ ] Prove the native alpha through controlled internal builds with rollback.
-      (Runs via Expo Go today; first EAS internal build awaits the
-      product-owner GO.)
+- [x] Prove the native alpha through controlled internal builds with rollback.
+      (EAS internal-distribution build d0af7ec8 installed and owner-verified
+      2026-08-21; prior builds stay installable from the EAS dashboard and the
+      frozen PWA remains the validated Stage 1 fallback.)
 - [x] Keep the legacy PWA available only as the temporary validated prototype
       until native beta/launch readiness; do not expand it into the final product.
       (Freeze policy in force — STAGE_2_OPERATIONS.md §7.)
-- [ ] Approve a retirement runbook covering routing, service-worker cleanup,
+- [x] Approve a retirement runbook covering routing, service-worker cleanup,
       cached installations, user communication, and backend/data continuity.
-      (Runbook written — STAGE_2_OPERATIONS.md §7; awaiting the product-owner
-      approval mark.)
+      (Approved — D-019, 2026-08-21; hardened runbook in
+      STAGE_2_OPERATIONS.md §7.)
 
 ### Stage 2 exit gate
 
