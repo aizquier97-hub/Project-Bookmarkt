@@ -204,9 +204,10 @@ guidance, privacy, support, and account-deletion obligations.
 
 Tracked in the Stage 2 exit review; none are silently waived:
 
-- Voice capture (D-016) needs an EAS development build — Expo Go cannot load
-  the native speech-recognition module. Needs a product-owner GO to run
-  `eas build`.
+- Voice capture (D-016) is implemented (on-device recognizer, raw transcript
+  in `entries.raw_transcript`, review/confirm flow); on-device verification
+  rides on the first EAS development build install (build in progress on
+  `@inkmarkt/bookmarkt`).
 - iOS internal builds need an Apple developer account and build hardware;
   Android preview builds need only the existing Expo account.
 - Device automation (Maestro or equivalent) and native component/integration
