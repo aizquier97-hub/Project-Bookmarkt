@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Stack } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,14 +11,25 @@ import {
 } from 'react-native';
 
 import { signOut } from '@/domains/auth/service';
-import { listBooks } from '@/domains/library/service';
-import { cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
+import { listBooks, type Book } from '@/domains/library/service';
+import { cardShadow, colors, fonts, spineColorFor, wood } from '@/lib/theme';
+
+const BOOKS_PER_SHELF = 2;
+
+function chunkIntoShelves(books: Book[]): Book[][] {
+  const shelves: Book[][] = [];
+  for (let i = 0; i < books.length; i += BOOKS_PER_SHELF) {
+    shelves.push(books.slice(i, i + BOOKS_PER_SHELF));
+  }
+  return shelves;
+}
 
 export default function LibraryScreen() {
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
 
   const booksQuery = useQuery({ queryKey: ['books'], queryFn: listBooks });
+  const shelves = useMemo(() => chunkIntoShelves(booksQuery.data ?? []), [booksQuery.data]);
 
   const handleSignOut = async () => {
     try {
@@ -34,7 +45,7 @@ export default function LibraryScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Your library',
+          title: 'Your bookshelf',
           headerRight: () => (
             <Pressable onPress={handleSignOut} hitSlop={8}>
               <Text style={styles.signOut}>Sign out</Text>
@@ -65,25 +76,46 @@ export default function LibraryScreen() {
         </Text>
       ) : (
         <FlatList
-          data={booksQuery.data}
-          keyExtractor={(book) => String(book.id)}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <Link href={{ pathname: '/book/[id]', params: { id: String(item.id) } }} asChild>
-              <Pressable>
-                <View style={styles.bookCard}>
-                  <View style={[styles.bookSpine, { backgroundColor: spineColorFor(item.id) }]} />
-                  <View style={styles.bookBody}>
-                    <Text style={styles.bookTitle}>{item.name}</Text>
-                    {item.author ? <Text style={styles.bookAuthor}>{item.author}</Text> : null}
-                    {item.total_pages ? (
-                      <Text style={styles.bookPages}>{item.total_pages} pages</Text>
-                    ) : null}
-                  </View>
-                </View>
-                <View style={styles.shelfEdge} />
-              </Pressable>
-            </Link>
+          data={shelves}
+          keyExtractor={(shelf) => shelf.map((book) => book.id).join('-')}
+          style={styles.bookcase}
+          contentContainerStyle={styles.bookcaseContent}
+          renderItem={({ item: shelf }) => (
+            <View style={styles.shelfUnit}>
+              <View style={styles.shelfRow}>
+                {shelf.map((book) => (
+                  <Link
+                    key={book.id}
+                    href={{ pathname: '/book/[id]', params: { id: String(book.id) } }}
+                    asChild
+                  >
+                    <Pressable style={styles.bookCover}>
+                      <View
+                        style={[styles.coverSpine, { backgroundColor: spineColorFor(book.id) }]}
+                      />
+                      <View style={styles.coverBody}>
+                        <Text style={styles.coverTitle} numberOfLines={4}>
+                          {book.name}
+                        </Text>
+                        <View>
+                          {book.author ? (
+                            <Text style={styles.coverAuthor} numberOfLines={1}>
+                              {book.author}
+                            </Text>
+                          ) : null}
+                          {book.total_pages ? (
+                            <Text style={styles.coverPages}>{book.total_pages} pages</Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    </Pressable>
+                  </Link>
+                ))}
+                {shelf.length < BOOKS_PER_SHELF ? <View style={styles.coverSpacer} /> : null}
+              </View>
+              <View style={styles.shelfBoardTop} />
+              <View style={styles.shelfBoardFront} />
+            </View>
           )}
         />
       )}
@@ -128,50 +160,78 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: 40,
   },
-  list: {
-    gap: 14,
-    paddingBottom: 24,
+  bookcase: {
+    backgroundColor: wood.back,
+    borderColor: wood.rail,
+    borderWidth: 8,
+    borderRadius: 14,
   },
-  bookCard: {
+  bookcaseContent: {
+    padding: 12,
+    paddingBottom: 4,
+  },
+  shelfUnit: {
+    marginBottom: 14,
+  },
+  shelfRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    paddingHorizontal: 2,
+  },
+  bookCover: {
+    flex: 1,
+    minHeight: 165,
     flexDirection: 'row',
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderTopLeftRadius: 3,
+    borderBottomLeftRadius: 3,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
     overflow: 'hidden',
     ...cardShadow,
   },
-  bookSpine: {
-    width: 10,
+  coverSpine: {
+    width: 9,
   },
-  bookBody: {
+  coverBody: {
     flex: 1,
-    padding: 16,
+    padding: 12,
+    justifyContent: 'space-between',
   },
-  bookTitle: {
+  coverTitle: {
     color: colors.text,
-    fontSize: 19,
+    fontSize: 16,
+    lineHeight: 22,
     fontFamily: fonts.serif,
     fontWeight: '700',
   },
-  bookAuthor: {
-    color: colors.muted,
-    fontSize: 14,
-    fontFamily: fonts.serif,
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  bookPages: {
+  coverAuthor: {
     color: colors.muted,
     fontSize: 12,
-    marginTop: 6,
+    fontFamily: fonts.serif,
+    fontStyle: 'italic',
+    marginTop: 8,
   },
-  shelfEdge: {
-    height: 5,
-    backgroundColor: colors.shelf,
-    borderRadius: 3,
-    marginTop: 3,
-    marginHorizontal: 4,
-    opacity: 0.55,
+  coverPages: {
+    color: colors.muted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  coverSpacer: {
+    flex: 1,
+  },
+  shelfBoardTop: {
+    height: 7,
+    backgroundColor: wood.boardTop,
+    borderRadius: 2,
+  },
+  shelfBoardFront: {
+    height: 7,
+    backgroundColor: wood.boardFront,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
   },
 });
