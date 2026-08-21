@@ -1,2 +1,5 @@
 
 supabase/.temp/
+
+# Storage backup output (never commit user images)
+backups/

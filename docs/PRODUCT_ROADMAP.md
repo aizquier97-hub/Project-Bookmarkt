@@ -6,9 +6,9 @@
 | Status | Active |
 | Product owner | Bookmarkt product owner |
 | Current stage | Stage 2 - Architecture rebuild |
-| Current gate state | Seven-day production stability observation |
-| Observation window | August 16, 2026 at 10:55 MDT through August 23, 2026 at 10:55 MDT |
-| Last updated | August 17, 2026 |
+| Current gate state | Stage 2 work plan executed; exit review open on product-owner decisions (STAGE_2_EXIT_REVIEW.md) |
+| Observation window | Stage 1 window closed early under D-013 (August 16-21, 2026) |
+| Last updated | August 21, 2026 |
 
 This document is the authoritative product roadmap for Bookmarkt. Execution and
 approval rules are defined in [STAGE_GATES.md](STAGE_GATES.md), and material
@@ -441,11 +441,11 @@ Supabase backend.
       audio retention, and transcript storage. Decision D-016: on-device
       platform recognizers, transient on-device audio deleted after transcript
       confirmation, raw transcript stored verbatim beside cleaned text.
-- [ ] Remove AI-generation user flows from the native product scope. Keep the
+- [x] Remove AI-generation user flows from the native product scope. Keep the
       image-generation backend dormant behind a server-side disabled flag whose
-      state is covered by a configuration test. (Scope removed by D-012 and the
-      flag is live-verified disabled; the configuration test lands with the
-      quality system.)
+      state is covered by a configuration test. (Scope removed by D-012; no
+      generation call site exists in `app/src`; `aiGenerationFlag.test.ts`
+      proves the disabled default and CI live-probes the 410 on `main`.)
 - [x] Define environment, secret, configuration, and deployment ownership
       (STAGE_2_ARCHITECTURE.md §5).
 - [x] Record architecture decisions in the decision log or dedicated ADRs
@@ -464,8 +464,9 @@ Supabase backend.
 - [x] Isolate Supabase behind typed service/repository modules. (Auth, library,
       entries, and characters domains; screens never touch Supabase directly.
       Remaining domains land with feature migration.)
-- [ ] Add validated environment and build-profile configuration for local,
-      preview/internal, and production applications.
+- [x] Add validated environment and build-profile configuration for local,
+      preview/internal, and production applications. (`app/src/lib/env.ts`
+      validates at import; `app/eas.json` defines the three profiles/channels.)
 - [x] Add protected native navigation and deterministic session restoration.
       (Route groups gate on the restored session; session persists via
       encrypted storage.)
@@ -474,78 +475,128 @@ Supabase backend.
 - [x] Preserve the rule that database work is deferred outside Auth callbacks.
       (Auth provider performs synchronous state updates only; data loads react
       through React Query.)
-- [ ] Make selected-book state and request cancellation/versioning explicit so
-      stale responses cannot cross book boundaries.
+- [x] Make selected-book state and request cancellation/versioning explicit so
+      stale responses cannot cross book boundaries. (Book-scoped React Query
+      cache keys via `app/src/lib/queryKeys.ts`; stale responses resolve into
+      the old book's key, never the visible book.)
 
 #### Feature migration and new capture foundations
 
-- [ ] Migrate signup, login, logout, recovery, session expiry, and re-login.
-- [ ] Migrate library, book metadata, and Open Library lookup.
-- [ ] Migrate reading progress and manual entries; the latest entry drives the
-      boundary everywhere.
-- [ ] Migrate manual character maps and character-detail controls.
+- [x] Migrate signup, login, logout, recovery, session expiry, and re-login.
+      (Device-verified 2026-08-21; STAGE_2_EXIT_REVIEW.md §1.)
+- [x] Migrate library, book metadata, and Open Library lookup. (Device-verified;
+      manual-wins resolution unit-tested.)
+- [x] Migrate reading progress and manual entries; the latest entry drives the
+      boundary everywhere. (Byte-compatible headers; boundary rules unit-tested;
+      device-verified.)
+- [x] Migrate manual character maps and character-detail controls.
+      (Device-verified; detail encoding unit-tested.)
 - [ ] Build voice capture: record, transcribe, punctuation-only cleanup, reader
       review and confirmation, and storage of the raw transcript alongside the
-      cleaned text.
-- [ ] Build the companion retrieval foundation behind an entitlement-ready
+      cleaned text. (BLOCKED: the on-device recognizer module (D-016) cannot
+      load in Expo Go; requires an EAS development build — product-owner GO
+      pending, STAGE_2_EXIT_REVIEW.md §3.)
+- [x] Build the companion retrieval foundation behind an entitlement-ready
       service: assemble context exclusively from the requesting user's entries,
       apply the latest-entry boundary, and attach provenance metadata.
-- [ ] Migrate private image upload, signing, display, edit, and deletion.
-- [ ] Migrate analytics, spoiler reporting, and issue reporting.
-- [ ] Add report lifecycle fields and typed services for status, priority,
-      assignment, resolution notes, and resolution timestamps.
-- [ ] Preserve legacy image-path compatibility until every row is migrated.
+      (`app/src/domains/companion/`; gate-first service; assembly refuses
+      cross-account/cross-book/unowned rows; unit-tested.)
+- [x] Migrate private image upload, signing, display, edit, and deletion.
+      (Device-verified; private bucket + signed URLs.)
+- [x] Migrate analytics, spoiler reporting, and issue reporting. (PWA-parity
+      events; issue-report UI; spoiler reporting is a typed service without UI
+      because capture-only builds have no AI content to report against.)
+- [x] Add report lifecycle fields and typed services for status, priority,
+      assignment, resolution notes, and resolution timestamps. (Migration
+      `20260821210000`; typed statuses in the reporting service.)
+- [x] Preserve legacy image-path compatibility until every row is migrated.
+      (Signed-URL attachment extracts storage paths from legacy full-URL rows.)
 
 #### Reliability and operations
 
-- [ ] Standardize loading, empty, success, timeout, offline, and error states.
-- [ ] Replace developer-facing alerts with a shared notification system.
-- [ ] Define native installation, app-version compatibility, over-the-air update
+- [x] Standardize loading, empty, success, timeout, offline, and error states.
+      (`app/src/components/states.tsx` + query defaults; used on every screen.)
+- [x] Replace developer-facing alerts with a shared notification system.
+      (`app/src/components/toast.tsx`; destructive confirms remain native
+      dialogs by design.)
+- [x] Define native installation, app-version compatibility, over-the-air update
       boundaries, store update, offline, and stale-client behavior.
-- [ ] Freeze the PWA to critical stabilization fixes and document its transition,
+      (STAGE_2_OPERATIONS.md §2, accepted as D-018.)
+- [x] Freeze the PWA to critical stabilization fixes and document its transition,
       access restriction, service-worker cleanup, and final retirement plan.
+      (STAGE_2_OPERATIONS.md §7; approval mark pending at the exit gate.)
 - [ ] Build the minimal smart-link/store-routing service separately from the
-      reading application.
+      reading application. (Not built; QR codes still resolve to the frozen PWA
+      URL. Designed in D-015/D-017; scheduled before PWA retirement.)
 - [ ] Add structured client error and performance telemetry with privacy limits.
-- [ ] Design and automate export/backup of actual Storage image objects; database
-      backups only preserve Storage metadata.
-- [ ] Add migration, deployment, feature-flag, rollback, and data-reconciliation
-      procedures.
+      (Analytics events exist; error/performance telemetry not yet wired —
+      budgets are manually observed per STAGE_2_OPERATIONS.md §5.)
+- [x] Design and automate export/backup of actual Storage image objects; database
+      backups only preserve Storage metadata. (`scripts/backup-storage.mjs` +
+      cadence in STAGE_2_OPERATIONS.md §4.)
+- [x] Add migration, deployment, feature-flag, rollback, and data-reconciliation
+      procedures. (STAGE_2_OPERATIONS.md §3; migration checks enforced in CI.)
 
 #### Quality system
 
-- [ ] Add unit tests for domain rules and validation.
-- [ ] Add integration tests for Supabase service boundaries.
+- [x] Add unit tests for domain rules and validation. (48 jest tests across 7
+      suites: progress, encoding, policy, metadata, grounding, entitlement,
+      configuration.)
+- [ ] Add integration tests for Supabase service boundaries. (Deferred: needs
+      the safe test project below; services are typed against generated schema
+      types meanwhile.)
 - [ ] Add native component and integration tests for authentication, book CRUD,
       book switching, typed and voice entries, character maps, and private
-      images.
+      images. (Deferred with device automation — needs dev builds.)
 - [ ] Add transcription tests proving the raw transcript is preserved and
-      cleanup is limited to punctuation and casing.
-- [ ] Add grounding tests proving companion context contains only the requesting
+      cleanup is limited to punctuation and casing. (Blocked with voice capture
+      — needs an EAS development build.)
+- [x] Add grounding tests proving companion context contains only the requesting
       user's entries, respects the latest-entry boundary, and carries provenance
-      metadata.
-- [ ] Add service tests proving denied companion requests do not reach any AI
+      metadata. (`grounding.test.ts`.)
+- [x] Add service tests proving denied companion requests do not reach any AI
       provider and companion retrieval cannot cross account boundaries.
-- [ ] Add a configuration test proving the image-generation backend flag is
-      disabled.
-- [ ] Add iOS and Android device automation for critical journeys.
-- [ ] Test smart-link platform detection and store-routing behavior.
+      (`entitlement.test.ts` + grounding refusal tests at the domain layer; the
+      gate is the service's first statement and no AI provider dependency
+      exists in the codebase. Live-project integration re-run lands with the
+      safe test project.)
+- [x] Add a configuration test proving the image-generation backend flag is
+      disabled. (`aiGenerationFlag.test.ts` + live 410 probe in CI.)
+- [ ] Add iOS and Android device automation for critical journeys. (Blocked:
+      needs dev builds; iOS additionally needs an Apple developer account.)
+- [ ] Test smart-link platform detection and store-routing behavior. (Service
+      not built yet.)
 - [ ] Add explicit cross-account isolation tests against a safe test project.
-- [ ] Add type-check, test, build, and migration checks to pull-request CI.
+      (Stage 1 RLS verification stands on the live project; a dedicated test
+      project is still to be provisioned.)
+- [x] Add type-check, test, build, and migration checks to pull-request CI.
+      (`.github/workflows/app-ci.yml`: tsc, eslint, jest, Android export,
+      migration filename/order checks, 410 probe on main.)
 - [ ] Add internal native preview builds and a release checklist; retain Netlify
-      only for the temporary prototype and minimal web endpoints.
-- [ ] Define native cold-start, QR-to-app, screen-load, and interaction budgets.
+      only for the temporary prototype and minimal web endpoints. (Checklist
+      done — STAGE_2_OPERATIONS.md §6; first EAS preview build awaits the
+      product-owner GO.)
+- [x] Define native cold-start, QR-to-app, screen-load, and interaction budgets.
+      (STAGE_2_OPERATIONS.md §5.)
 
 #### Cutover
 
-- [ ] Run old and new implementations against the same acceptance checklist for
-      the retained scope.
-- [ ] Resolve all parity gaps and migration risks.
+- [x] Run old and new implementations against the same acceptance checklist for
+      the retained scope. (2026-08-21 cutover run recorded in
+      STAGE_2_EXIT_REVIEW.md §1.)
+- [x] Resolve all parity gaps and migration risks. (Zero unresolved gaps; two
+      accepted deviations recorded — structural no-book state, in-memory
+      drafts.)
 - [ ] Prove the native alpha through controlled internal builds with rollback.
-- [ ] Keep the legacy PWA available only as the temporary validated prototype
+      (Runs via Expo Go today; first EAS internal build awaits the
+      product-owner GO.)
+- [x] Keep the legacy PWA available only as the temporary validated prototype
       until native beta/launch readiness; do not expand it into the final product.
+      (Freeze policy in force — STAGE_2_OPERATIONS.md §7.)
 - [ ] Approve a retirement runbook covering routing, service-worker cleanup,
       cached installations, user communication, and backend/data continuity.
+      (Runbook written — STAGE_2_OPERATIONS.md §7; awaiting the product-owner
+      approval mark.)
 
 ### Stage 2 exit gate
 
