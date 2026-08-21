@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       ai_feedback_reports: {
@@ -273,6 +298,82 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "book_images_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bookmark_events: {
+        Row: {
+          bookmark_id: string
+          created_at: string
+          event: string
+          id: number
+          topic_id: number | null
+          user_id: string | null
+        }
+        Insert: {
+          bookmark_id: string
+          created_at?: string
+          event: string
+          id?: never
+          topic_id?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          bookmark_id?: string
+          created_at?: string
+          event?: string
+          id?: never
+          topic_id?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookmark_events_bookmark_id_fkey"
+            columns: ["bookmark_id"]
+            isOneToOne: false
+            referencedRelation: "bookmarks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bookmarks: {
+        Row: {
+          claimed_at: string | null
+          code: string
+          created_at: string
+          id: string
+          linked_at: string | null
+          topic_id: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          claimed_at?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          linked_at?: string | null
+          topic_id?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          claimed_at?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          linked_at?: string | null
+          topic_id?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookmarks_topic_id_fkey"
             columns: ["topic_id"]
             isOneToOne: false
             referencedRelation: "topics"
@@ -606,6 +707,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
