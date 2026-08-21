@@ -15,6 +15,9 @@ import {
 } from 'react-native';
 
 import { deleteBook, getBook, updateBook, type Book } from '@/domains/library/service';
+import { ErrorState, LoadingState } from '@/components/states';
+import { useToast } from '@/components/toast';
+import { queryKeys } from '@/lib/queryKeys';
 import { colors } from '@/lib/theme';
 
 export default function EditBookScreen() {
@@ -23,7 +26,7 @@ export default function EditBookScreen() {
   const validId = Number.isInteger(bookId) && bookId > 0;
 
   const bookQuery = useQuery({
-    queryKey: ['book', bookId],
+    queryKey: queryKeys.book(bookId),
     queryFn: () => getBook(bookId),
     enabled: validId,
   });
@@ -39,7 +42,7 @@ export default function EditBookScreen() {
     return (
       <View style={styles.stateContainer}>
         <Stack.Screen options={{ title: 'Edit book details' }} />
-        <ActivityIndicator color={colors.accent} />
+        <LoadingState label="Loading book…" />
       </View>
     );
   }
@@ -47,9 +50,11 @@ export default function EditBookScreen() {
     return (
       <View style={styles.stateContainer}>
         <Stack.Screen options={{ title: 'Edit book details' }} />
-        <Text style={styles.error}>
-          {bookQuery.error instanceof Error ? bookQuery.error.message : 'Could not load the book.'}
-        </Text>
+        <ErrorState
+          error={bookQuery.error}
+          fallback="Could not load the book."
+          onRetry={() => void bookQuery.refetch()}
+        />
       </View>
     );
   }
@@ -59,6 +64,7 @@ export default function EditBookScreen() {
 function EditBookForm({ book }: { book: Book }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [name, setName] = useState(book.name ?? '');
   const [author, setAuthor] = useState(book.author ?? '');
   const [publisher, setPublisher] = useState(book.publisher ?? '');
@@ -72,8 +78,9 @@ function EditBookForm({ book }: { book: Book }) {
     mutationFn: () =>
       updateBook(book.id, { name, author, publisher, publicationYear, totalPages }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['books'] });
-      void queryClient.invalidateQueries({ queryKey: ['book', book.id] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.books });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.book(book.id) });
+      showToast('Book details saved.', 'success');
       router.back();
     },
     onError: (err) => {
@@ -84,7 +91,8 @@ function EditBookForm({ book }: { book: Book }) {
   const deleteMutation = useMutation({
     mutationFn: () => deleteBook(book.id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['books'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.books });
+      showToast('Book deleted.', 'success');
       router.dismissTo('/');
     },
     onError: (err) => {

@@ -41,6 +41,9 @@ import {
   type BookImage,
 } from '@/domains/library/images';
 import { getBook } from '@/domains/library/service';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { useToast } from '@/components/toast';
+import { queryKeys } from '@/lib/queryKeys';
 import { cardShadow, colors, fonts } from '@/lib/theme';
 
 // Matches the PWA rule: only flag "(edited)" when updated_at trails created_at
@@ -76,12 +79,12 @@ export default function BookScreen() {
   const [tab, setTab] = useState<'entries' | 'characters' | 'photos'>('entries');
 
   const bookQuery = useQuery({
-    queryKey: ['book', bookId],
+    queryKey: queryKeys.book(bookId),
     queryFn: () => getBook(bookId),
     enabled: validId,
   });
   const charactersQuery = useQuery({
-    queryKey: ['characters', bookId],
+    queryKey: queryKeys.characters(bookId),
     queryFn: () => listCharacters(bookId),
     enabled: validId,
   });
@@ -162,13 +165,14 @@ export default function BookScreen() {
 
 function EntriesTab({ bookId }: { bookId: number }) {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [progressType, setProgressType] = useState<ProgressType>('page');
   const [progressValue, setProgressValue] = useState('');
   const [text, setText] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   const entriesQuery = useQuery({
-    queryKey: ['entries', bookId],
+    queryKey: queryKeys.entries(bookId),
     queryFn: () => listEntries(bookId),
   });
 
@@ -183,7 +187,8 @@ function EntriesTab({ bookId }: { bookId: number }) {
     onSuccess: () => {
       setText('');
       setFormError(null);
-      void queryClient.invalidateQueries({ queryKey: ['entries', bookId] });
+      showToast('Entry saved.', 'success');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
     },
     onError: (err) => {
       setFormError(err instanceof Error ? err.message : 'Could not save the entry.');
@@ -261,15 +266,15 @@ function EntriesTab({ bookId }: { bookId: number }) {
         <View>
           {captureForm}
           {entriesQuery.isPending ? (
-            <ActivityIndicator color={colors.accent} style={styles.loader} />
+            <LoadingState label="Loading entries…" />
           ) : entriesQuery.isError ? (
-            <Text style={styles.error}>
-              {entriesQuery.error instanceof Error
-                ? entriesQuery.error.message
-                : 'Could not load entries.'}
-            </Text>
+            <ErrorState
+              error={entriesQuery.error}
+              fallback="Could not load entries."
+              onRetry={() => void entriesQuery.refetch()}
+            />
           ) : entries.length === 0 ? (
-            <Text style={styles.empty}>No entries yet for this book.</Text>
+            <EmptyState message="No entries yet for this book." />
           ) : null}
         </View>
       }
@@ -289,7 +294,7 @@ function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
     onSuccess: () => {
       setEditing(false);
       setError(null);
-      void queryClient.invalidateQueries({ queryKey: ['entries', bookId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Could not save the entry.');
@@ -299,7 +304,7 @@ function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
   const deleteMutation = useMutation({
     mutationFn: () => deleteEntry(entry.id, bookId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['entries', bookId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Could not delete the entry.');
@@ -371,6 +376,7 @@ function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
 
 function CharactersTab({ bookId }: { bookId: number }) {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [description, setDescription] = useState('');
@@ -379,7 +385,7 @@ function CharactersTab({ bookId }: { bookId: number }) {
   const [formError, setFormError] = useState<string | null>(null);
 
   const charactersQuery = useQuery({
-    queryKey: ['characters', bookId],
+    queryKey: queryKeys.characters(bookId),
     queryFn: () => listCharacters(bookId),
   });
 
@@ -405,7 +411,8 @@ function CharactersTab({ bookId }: { bookId: number }) {
       setDescription('');
       setRelationships('');
       setFormError(null);
-      void queryClient.invalidateQueries({ queryKey: ['characters', bookId] });
+      showToast('Character added.', 'success');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.characters(bookId) });
     },
     onError: (err) => {
       setFormError(err instanceof Error ? err.message : 'Could not add the character.');
@@ -478,19 +485,21 @@ function CharactersTab({ bookId }: { bookId: number }) {
         <View>
           {addForm}
           {charactersQuery.isPending ? (
-            <ActivityIndicator color={colors.accent} style={styles.loader} />
+            <LoadingState label="Loading characters…" />
           ) : charactersQuery.isError ? (
-            <Text style={styles.error}>
-              {charactersQuery.error instanceof Error
-                ? charactersQuery.error.message
-                : 'Could not load characters.'}
-            </Text>
+            <ErrorState
+              error={charactersQuery.error}
+              fallback="Could not load characters."
+              onRetry={() => void charactersQuery.refetch()}
+            />
           ) : filtered.length === 0 ? (
-            <Text style={styles.empty}>
-              {characters.length === 0
-                ? 'No characters mapped yet for this book.'
-                : 'No characters match your search.'}
-            </Text>
+            <EmptyState
+              message={
+                characters.length === 0
+                  ? 'No characters mapped yet for this book.'
+                  : 'No characters match your search.'
+              }
+            />
           ) : null}
         </View>
       }
@@ -519,7 +528,7 @@ function CharacterCard({ character, bookId }: { character: Character; bookId: nu
     onSuccess: () => {
       setEditing(false);
       setError(null);
-      void queryClient.invalidateQueries({ queryKey: ['characters', bookId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.characters(bookId) });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Could not save the character.');
@@ -529,7 +538,7 @@ function CharacterCard({ character, bookId }: { character: Character; bookId: nu
   const deleteMutation = useMutation({
     mutationFn: () => deleteCharacter(character.id, bookId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['characters', bookId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.characters(bookId) });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Could not delete the character.');
@@ -655,12 +664,13 @@ function CharacterCard({ character, bookId }: { character: Character; bookId: nu
 
 function PhotosTab({ bookId }: { bookId: number }) {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [caption, setCaption] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const imagesQuery = useQuery({
-    queryKey: ['book-images', bookId],
+    queryKey: queryKeys.bookImages(bookId),
     queryFn: () => listBookImages(bookId),
   });
 
@@ -684,8 +694,12 @@ function PhotosTab({ bookId }: { bookId: number }) {
         await uploadBookImage(bookId, picked.assets[i], caption);
       }
       setCaption('');
-      setStatus('Images uploaded.');
-      void queryClient.invalidateQueries({ queryKey: ['book-images', bookId] });
+      setStatus(null);
+      showToast(
+        picked.assets.length === 1 ? 'Photo uploaded.' : 'Photos uploaded.',
+        'success',
+      );
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookImages(bookId) });
     } catch (err) {
       setStatus(err instanceof Error ? `Upload error: ${err.message}` : 'Upload failed.');
     } finally {
@@ -726,11 +740,15 @@ function PhotosTab({ bookId }: { bookId: number }) {
       }
       ListEmptyComponent={
         imagesQuery.isPending ? (
-          <ActivityIndicator color={colors.accent} style={styles.loader} />
+          <LoadingState label="Loading photos…" />
         ) : imagesQuery.isError ? (
-          <Text style={styles.error}>Could not load photos.</Text>
+          <ErrorState
+            error={imagesQuery.error}
+            fallback="Could not load photos."
+            onRetry={() => void imagesQuery.refetch()}
+          />
         ) : (
-          <Text style={styles.empty}>No photos yet for this book.</Text>
+          <EmptyState message="No photos yet for this book." />
         )
       }
       renderItem={({ item }) => <PhotoCard image={item} bookId={bookId} />}
@@ -745,7 +763,7 @@ function PhotoCard({ image, bookId }: { image: BookImage; bookId: number }) {
   const [cardError, setCardError] = useState<string | null>(null);
 
   const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['book-images', bookId] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.bookImages(bookId) });
   };
 
   const captionMutation = useMutation({

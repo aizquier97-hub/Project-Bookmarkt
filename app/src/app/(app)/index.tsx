@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -12,6 +11,8 @@ import {
 
 import { signOut } from '@/domains/auth/service';
 import { listBooks, type Book } from '@/domains/library/service';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { queryKeys } from '@/lib/queryKeys';
 import { cardShadow, colors, fonts, spineColorFor, wood } from '@/lib/theme';
 
 const BOOKS_PER_SHELF = 2;
@@ -28,7 +29,7 @@ export default function LibraryScreen() {
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const booksQuery = useQuery({ queryKey: ['books'], queryFn: listBooks });
+  const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
   const shelves = useMemo(() => chunkIntoShelves(booksQuery.data ?? []), [booksQuery.data]);
 
   const handleSignOut = async () => {
@@ -70,17 +71,15 @@ export default function LibraryScreen() {
       {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
 
       {booksQuery.isPending ? (
-        <ActivityIndicator color={colors.accent} style={styles.loader} />
+        <LoadingState label="Loading your shelf…" />
       ) : booksQuery.isError ? (
-        <Text style={styles.error}>
-          {booksQuery.error instanceof Error
-            ? booksQuery.error.message
-            : 'Could not load your library.'}
-        </Text>
+        <ErrorState
+          error={booksQuery.error}
+          fallback="Could not load your library."
+          onRetry={() => void booksQuery.refetch()}
+        />
       ) : booksQuery.data.length === 0 ? (
-        <Text style={styles.empty}>
-          Your shelf is empty. Add the book you are reading to start capturing entries.
-        </Text>
+        <EmptyState message="Your shelf is empty. Add the book you are reading to start capturing entries." />
       ) : (
         <FlatList
           data={shelves}
@@ -182,16 +181,6 @@ const styles = StyleSheet.create({
   error: {
     color: colors.danger,
     marginBottom: 8,
-  },
-  empty: {
-    color: colors.muted,
-    fontSize: 15,
-    textAlign: 'center',
-    marginTop: 40,
-    lineHeight: 22,
-  },
-  loader: {
-    marginTop: 40,
   },
   bookcase: {
     backgroundColor: wood.back,
