@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +19,8 @@ import {
   type IssueKind,
   type IssueReport,
 } from '@/domains/reporting/service';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { queryKeys } from '@/lib/queryKeys';
 import { colors } from '@/lib/theme';
 
 const KIND_OPTIONS: { value: IssueKind; label: string }[] = [
@@ -40,7 +41,7 @@ export default function ReportIssueScreen() {
   const [description, setDescription] = useState('');
   const [confirmation, setConfirmation] = useState<string | null>(null);
 
-  const reportsQuery = useQuery({ queryKey: ['issue-reports'], queryFn: listMyIssueReports });
+  const reportsQuery = useQuery({ queryKey: queryKeys.issueReports, queryFn: listMyIssueReports });
 
   const submitMutation = useMutation({
     mutationFn: () =>
@@ -52,7 +53,7 @@ export default function ReportIssueScreen() {
     onSuccess: () => {
       setDescription('');
       setConfirmation('Thanks — your report is in. You can track its status below.');
-      void queryClient.invalidateQueries({ queryKey: ['issue-reports'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.issueReports });
     },
   });
 
@@ -116,15 +117,15 @@ export default function ReportIssueScreen() {
 
       <Text style={styles.sectionTitle}>Your reports</Text>
       {reportsQuery.isPending ? (
-        <ActivityIndicator color={colors.accent} style={styles.loader} />
+        <LoadingState label="Loading your reports…" />
       ) : reportsQuery.isError ? (
-        <Text style={styles.error}>
-          {reportsQuery.error instanceof Error
-            ? reportsQuery.error.message
-            : 'Could not load your reports.'}
-        </Text>
+        <ErrorState
+          error={reportsQuery.error}
+          fallback="Could not load your reports."
+          onRetry={() => void reportsQuery.refetch()}
+        />
       ) : reportsQuery.data.length === 0 ? (
-        <Text style={styles.empty}>No reports yet.</Text>
+        <EmptyState message="No reports yet." />
       ) : (
         <FlatList
           data={reportsQuery.data}

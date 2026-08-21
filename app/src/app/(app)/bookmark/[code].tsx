@@ -20,6 +20,7 @@ import {
   type Bookmark,
 } from '@/domains/bookmarks/service';
 import { listBooks } from '@/domains/library/service';
+import { queryKeys } from '@/lib/queryKeys';
 import { cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
 
 export default function BookmarkScanScreen() {
@@ -29,7 +30,7 @@ export default function BookmarkScanScreen() {
   const router = useRouter();
 
   const bookmarkQuery = useQuery({
-    queryKey: ['bookmark', code],
+    queryKey: queryKeys.bookmark(code),
     queryFn: () => getBookmarkByCode(code),
     enabled: code.length > 0,
   });
@@ -49,16 +50,16 @@ export default function BookmarkScanScreen() {
   const claimMutation = useMutation({
     mutationFn: (id: string) => claimBookmark(id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['bookmark', code] });
-      void queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookmark(code) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks });
     },
   });
 
   const registerMutation = useMutation({
     mutationFn: () => registerBookmark(code),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['bookmark', code] });
-      void queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookmark(code) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks });
     },
   });
 
@@ -163,13 +164,13 @@ export default function BookmarkScanScreen() {
 function LinkBookmarkFlow({ bookmark }: { bookmark: Bookmark }) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const booksQuery = useQuery({ queryKey: ['books'], queryFn: listBooks });
+  const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
 
   const linkMutation = useMutation({
     mutationFn: (topicId: number) => linkBookmark(bookmark.id, topicId),
     onSuccess: (updated) => {
-      void queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-      void queryClient.invalidateQueries({ queryKey: ['bookmark', bookmark.code] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookmark(bookmark.code) });
       if (updated.topic_id !== null) {
         router.replace({ pathname: '/book/[id]', params: { id: String(updated.topic_id) } });
       }

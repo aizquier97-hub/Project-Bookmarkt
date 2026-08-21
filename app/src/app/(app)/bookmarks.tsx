@@ -22,16 +22,21 @@ import {
   type BookmarkWithBook,
 } from '@/domains/bookmarks/service';
 import { listBooks } from '@/domains/library/service';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { useToast } from '@/components/toast';
+import { queryKeys } from '@/lib/queryKeys';
 import { cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
 
 export default function BookmarksScreen() {
   const queryClient = useQueryClient();
-  const bookmarksQuery = useQuery({ queryKey: ['bookmarks'], queryFn: listBookmarks });
+  const { showToast } = useToast();
+  const bookmarksQuery = useQuery({ queryKey: queryKeys.bookmarks, queryFn: listBookmarks });
 
   const registerMutation = useMutation({
     mutationFn: () => registerBookmark(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+      showToast('Bookmark registered. Show its QR code to print or share it.', 'success');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks });
     },
   });
 
@@ -61,13 +66,15 @@ export default function BookmarksScreen() {
         )}
       </Pressable>
       {bookmarksQuery.isPending ? (
-        <ActivityIndicator color={colors.accent} style={styles.loader} />
+        <LoadingState label="Loading bookmarks…" />
       ) : bookmarksQuery.isError ? (
-        <Text style={styles.error}>Could not load your bookmarks.</Text>
+        <ErrorState
+          error={bookmarksQuery.error}
+          fallback="Could not load your bookmarks."
+          onRetry={() => void bookmarksQuery.refetch()}
+        />
       ) : bookmarksQuery.data.length === 0 ? (
-        <Text style={styles.empty}>
-          No bookmarks yet. Register one to get its QR code, then print it or keep it on screen.
-        </Text>
+        <EmptyState message="No bookmarks yet. Register one to get its QR code, then print it or keep it on screen." />
       ) : (
         <FlatList
           data={bookmarksQuery.data}
@@ -83,35 +90,43 @@ export default function BookmarksScreen() {
 function BookmarkCard({ bookmark }: { bookmark: BookmarkWithBook }) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { showToast } = useToast();
   const [showQr, setShowQr] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
 
   const booksQuery = useQuery({
-    queryKey: ['books'],
+    queryKey: queryKeys.books,
     queryFn: listBooks,
     enabled: showPicker,
   });
 
   const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks });
   };
 
   const linkMutation = useMutation({
     mutationFn: (topicId: number) => linkBookmark(bookmark.id, topicId),
     onSuccess: () => {
       setShowPicker(false);
+      showToast('Bookmark linked.', 'success');
       invalidate();
     },
   });
 
   const unlinkMutation = useMutation({
     mutationFn: () => unlinkBookmark(bookmark.id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      showToast('Bookmark unlinked.', 'success');
+      invalidate();
+    },
   });
 
   const removeMutation = useMutation({
     mutationFn: () => removeBookmark(bookmark.id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      showToast('Bookmark removed.', 'success');
+      invalidate();
+    },
   });
 
   const scanUrl = Linking.createURL(`/bookmark/${bookmark.code}`);

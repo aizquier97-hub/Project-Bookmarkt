@@ -16,6 +16,8 @@ import {
 import { resolveBookMetadata } from '@/domains/library/metadata';
 import { addBook, type Book } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
+import { useToast } from '@/components/toast';
+import { queryKeys } from '@/lib/queryKeys';
 import { colors } from '@/lib/theme';
 
 async function addBookWithLookup(input: {
@@ -63,6 +65,7 @@ async function addBookWithLookup(input: {
 export default function AddBookScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [name, setName] = useState('');
   const [author, setAuthor] = useState('');
   const [publisher, setPublisher] = useState('');
@@ -73,7 +76,8 @@ export default function AddBookScreen() {
   const addBookMutation = useMutation({
     mutationFn: addBookWithLookup,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['books'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.books });
+      showToast('Book added to your shelf.', 'success');
       router.back();
     },
     onError: (err) => {
