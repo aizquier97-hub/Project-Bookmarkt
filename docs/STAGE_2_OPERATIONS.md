@@ -204,10 +204,9 @@ guidance, privacy, support, and account-deletion obligations.
 
 Tracked in the Stage 2 exit review; none are silently waived:
 
-- Voice capture (D-016) is implemented (on-device recognizer, raw transcript
-  in `entries.raw_transcript`, review/confirm flow); on-device verification
-  rides on the first EAS development build install (build in progress on
-  `@inkmarkt/bookmarkt`).
+- Voice capture (D-016) is done: implemented and owner-verified on the Android
+  development build (dictation → review → confirm → save; raw transcript in
+  `entries.raw_transcript`).
 - iOS internal builds need an Apple developer account and build hardware;
   Android preview builds need only the existing Expo account.
 - Device automation (Maestro or equivalent) and native component/integration

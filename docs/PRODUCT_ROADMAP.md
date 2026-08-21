@@ -495,8 +495,8 @@ Supabase backend.
       review and confirmation, and storage of the raw transcript alongside the
       cleaned text. (On-device recognizer via expo-speech-recognition; guarded
       require degrades Expo Go to typed entry; raw transcript stored in
-      `entries.raw_transcript`; device verification pending the first EAS
-      development build install.)
+      `entries.raw_transcript`; owner-verified on the Android development
+      build, 2026-08-21.)
 - [x] Build the companion retrieval foundation behind an entitlement-ready
       service: assemble context exclusively from the requesting user's entries,
       apply the latest-entry boundary, and attach provenance metadata.
