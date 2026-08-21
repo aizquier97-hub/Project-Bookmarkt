@@ -453,17 +453,27 @@ Supabase backend.
 
 #### Application foundation
 
-- [ ] Create the approved native iOS/Android application workspace with strict
-      type-checking.
-- [ ] Establish native navigation, authenticated screens, reusable components,
+- [x] Create the approved native iOS/Android application workspace with strict
+      type-checking. (Expo SDK 57 workspace under `app/`, TypeScript strict.)
+- [x] Establish native navigation, authenticated screens, reusable components,
       services, state/query management, types, utilities, and themes.
-- [ ] Generate and use Supabase database types.
-- [ ] Isolate Supabase behind typed service/repository modules.
+      (expo-router groups, sign-in/sign-up/library/book screens, React Query,
+      domain services, shared theme.)
+- [x] Generate and use Supabase database types. (`app/src/lib/database.types.ts`
+      generated from the live schema.)
+- [x] Isolate Supabase behind typed service/repository modules. (Auth, library,
+      entries, and characters domains; screens never touch Supabase directly.
+      Remaining domains land with feature migration.)
 - [ ] Add validated environment and build-profile configuration for local,
       preview/internal, and production applications.
-- [ ] Add protected native navigation and deterministic session restoration.
-- [ ] Use platform-appropriate secure storage for native session material.
-- [ ] Preserve the rule that database work is deferred outside Auth callbacks.
+- [x] Add protected native navigation and deterministic session restoration.
+      (Route groups gate on the restored session; session persists via
+      encrypted storage.)
+- [x] Use platform-appropriate secure storage for native session material.
+      (AES-encrypted AsyncStorage payload with the key in Keychain/Keystore.)
+- [x] Preserve the rule that database work is deferred outside Auth callbacks.
+      (Auth provider performs synchronous state updates only; data loads react
+      through React Query.)
 - [ ] Make selected-book state and request cancellation/versioning explicit so
       stale responses cannot cross book boundaries.
 
