@@ -4,9 +4,10 @@
 | --- | --- |
 | Stage | Stage 1 - Stabilization |
 | Review type | Exit |
-| Status | Observation window active |
+| Status | Closed - GO |
 | Observation start | August 16, 2026 at 10:55 MDT (16:55 UTC) |
 | Earliest review | August 23, 2026 at 10:55 MDT (16:55 UTC) |
+| Actual review | August 21, 2026 (early exit under Decision D-013) |
 | Product owner | Bookmarkt product owner |
 | Roadmap version | 2.0 |
 
@@ -47,8 +48,8 @@ Companion entitlement before any launch AI provider call.
 | Production migrations reconciled | Pass | Migration history and production probes |
 | AI authentication and daily quotas | Pass | JWT required; atomic per-user/project limits deployed |
 | AI operational logging | Pass | Usage, outcome, error, and latency records/views deployed |
-| Seven consecutive 24-hour periods without P0/P1 | Pending | Observation ends no earlier than 2026-08-23 10:55 MDT (16:55 UTC) |
-| Product-owner exit approval | Pending | Complete at gate review |
+| Seven consecutive 24-hour periods without P0/P1 | Waived (D-013) | Five clean days observed (2026-08-16 to 2026-08-21) with daily product-owner use, including the 2026-08-17 D-012 capture-first deploy. Owner waived the final two days. |
+| Product-owner exit approval | Pass | Product-owner approval recorded 2026-08-21 |
 
 ## Accepted deferrals
 
@@ -63,15 +64,24 @@ operational before Stage 7.
 
 ## Defects and unresolved risks
 
-No P0/P1 defect is currently recorded. Any P0/P1 discovered during the
-observation window resets the seven-day window after deployment and verification
-of its fix.
+No P0/P1 defect was recorded during the observed window (2026-08-16 through
+2026-08-21), which included the 2026-08-17 production deploy of the D-012
+capture-first prototype and the gated ai-bookmate edge function (verified live
+410 response).
+
+## Governance deviation
+
+The seven-day window defined in D-006 was closed after five clean days on
+explicit product-owner instruction to accelerate development (Decision D-013).
+Accepted risk: a latent defect that would have surfaced on days 6-7 is
+undetected at exit. Mitigation: any P0/P1 found in production after exit is
+fixed with Stage 1 priority and does not silently pass into Stage 2 evidence.
 
 ## Decision
 
-- Decision: Pending
-- Decision date: Pending
+- Decision: GO
+- Decision date: August 21, 2026
 - Approver: Bookmarkt product owner
-- Conditions: Complete the observation period without a P0/P1 defect
+- Conditions: None outstanding; seven-day criterion waived per D-013
 - Next stage: Stage 2 - Architecture rebuild
-- Approval tag: `stage-1-approved` after `GO`
+- Approval tag: `stage-1-approved`
