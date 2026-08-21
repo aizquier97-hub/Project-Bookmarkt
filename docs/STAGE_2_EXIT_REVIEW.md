@@ -107,10 +107,10 @@ unresolved parity gaps.
 
 | Gate item | Status |
 | --- | --- |
-| Native alpha on Android internal builds | **In progress** — owner GO given; first EAS development build of `@inkmarkt/bookmarkt` (Android, dev profile) is building in the cloud |
+| Native alpha on Android internal builds | **Met** — EAS development build (d0af7ec8) installed on the owner's device and running against Metro |
 | Native alpha on iOS | **Blocked** — no Apple developer account/hardware |
 | Retained-journey parity | **Met** (§1 above) |
-| Voice capture end-to-end on device builds | **Implemented, device verification pending** — on-device recognizer + review/confirm + raw transcript stored (`entries.raw_transcript`); cleanup invariant unit-tested; awaiting first dev-build install to verify on device |
+| Voice capture end-to-end on device builds | **Met** — owner-verified on the Android development build (2026-08-21): dictation → review → confirm → save, raw transcript preserved in `entries.raw_transcript`; cleanup invariant unit-tested |
 | Companion foundation passes grounding/boundary/cross-account/denied tests | **Met** — `grounding.test.ts`, `entitlement.test.ts` (48-test suite) |
 | No AI-generation flow; backend flag verified disabled | **Met** — config test + live 410 probe in CI |
 | PWA frozen; retirement runbook approved | **Met (runbook written)** — [STAGE_2_OPERATIONS.md](STAGE_2_OPERATIONS.md) §7; needs product-owner approval mark |
@@ -123,9 +123,9 @@ unresolved parity gaps.
 
 ## 3. Decisions needed from the product owner
 
-1. **EAS development/preview builds** — **RESOLVED (GO given)**: project linked
-   to `@inkmarkt/bookmarkt` (org account), Android development build started;
-   voice capture and device automation unblock when it installs.
+1. **EAS development/preview builds** — **RESOLVED**: Android development
+   build produced, installed, and verified on the owner's device (voice
+   capture confirmed working end-to-end).
 2. **iOS path**: defer until an Apple developer account exists (recommended:
    revisit at Stage 5 packaging) or acquire one now.
 3. **Retirement runbook approval**: approve
