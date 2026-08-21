@@ -1,0 +1,95 @@
+name: App CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: app-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Public client configuration (same values as app/.env.example — safe to expose).
+  EXPO_PUBLIC_SUPABASE_URL: https://bfallxtcxxyykcnkedom.supabase.co
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_NzMdHQACfZknql5bcdcExQ_ZI2KllTq
+
+jobs:
+  quality:
+    name: Typecheck, lint, test, export
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint src --max-warnings=0
+      - name: Unit tests
+        run: npx jest --ci
+      - name: Export production bundle (build sanity)
+        run: npx expo export --platform android --output-dir dist-ci
+      - name: Confirm bundle artifacts
+        run: test -f dist-ci/metadata.json
+
+  migrations:
+    name: Migration checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate migration filenames and ordering
+        run: |
+          cd supabase/migrations
+          status=0
+          for f in *.sql; do
+            if ! echo "$f" | grep -Eq '^[0-9]{14}_[a-z0-9_]+\.sql$'; then
+              echo "::error::Bad migration filename: $f (want <14-digit timestamp>_<snake_case>.sql)"
+              status=1
+            fi
+          done
+          dupes=$(ls *.sql | cut -c1-14 | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "::error::Duplicate migration timestamps: $dupes"
+            status=1
+          fi
+          ls *.sql | sort -c || { echo "::error::Migrations are not in apply order"; status=1; }
+          echo "Checked $(ls *.sql | wc -l) migrations."
+          exit $status
+
+  ai-flag-live:
+    name: Image-generation flag disabled (live)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Live probes can flake on network, so only guard main.
+    if: github.event_name == 'push'
+    steps:
+      - name: Probe ai-bookmate returns 410 Gone
+        run: |
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /tmp/body.json -w '%{http_code}' -X POST \
+              "$EXPO_PUBLIC_SUPABASE_URL/functions/v1/ai-bookmate" \
+              -H "Authorization: Bearer $EXPO_PUBLIC_SUPABASE_ANON_KEY" \
+              -H "apikey: $EXPO_PUBLIC_SUPABASE_ANON_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{}' || echo 000)
+            echo "Attempt $attempt: HTTP $code"
+            if [ "$code" = "410" ]; then
+              echo "Image generation is disabled as required."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Expected HTTP 410 from ai-bookmate, got $code — the retirement flag may have been flipped."
+          cat /tmp/body.json || true
+          exit 1
