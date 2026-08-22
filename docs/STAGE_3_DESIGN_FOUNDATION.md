@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Draft - awaiting product-owner approval |
+| Status | Approved |
 | Date | August 22, 2026 |
 | Owner | Bookmarkt product owner |
 | Sources | PRODUCT_ROADMAP.md §1-4, §12 (incl. D-021 problem-statement expansion); Stage 2 acceptance baseline; current app screens |
@@ -219,4 +219,6 @@ Stage 3 design effort, in order:
 
 ## 4. Approval
 
-- Product-owner approval of reader definitions and priorities: **pending**.
+- Product-owner approval of reader definitions and priorities: **Approved,
+  2026-08-22** (recorded in session; readers R1/R2/R3, exclusions, journey
+  priorities as written above).
