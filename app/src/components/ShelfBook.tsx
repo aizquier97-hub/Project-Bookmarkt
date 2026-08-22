@@ -100,7 +100,7 @@ export function ShelfBook({
         : null;
 
   return (
-    <View style={[styles.slot, spotlight && styles.slotSpotlight]}>
+    <View style={styles.slot}>
       {spotlight ? (
         <>
           <View style={styles.haloOuter} pointerEvents="none" />
@@ -119,7 +119,6 @@ export function ShelfBook({
           style={[
             styles.cloth,
             { backgroundColor: cloth },
-            spotlight && styles.clothSpotlight,
             finished && styles.clothFinished,
           ]}
           onPress={handlePress}
@@ -205,14 +204,13 @@ export function ShelfBook({
 }
 
 const styles = StyleSheet.create({
+  // All books share one size - reading trackers (Bookly, StoryGraph, Kindle
+  // home) keep covers uniform and signal the current read with placement,
+  // badges, and motion instead. Our spotlight book leads the shelf and gets
+  // the halo, bubble, and peek nudge.
   slot: {
     flex: 1,
     position: 'relative',
-  },
-  // The freshest book is the hero: it takes more shelf width and stands
-  // taller than its neighbors - size is the strongest prominence cue.
-  slotSpotlight: {
-    flexGrow: 1.18,
   },
   animatedWrap: {
     flex: 1,
@@ -265,9 +263,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 5,
     shadowOffset: { width: 2, height: 4 },
-  },
-  clothSpotlight: {
-    minHeight: 200,
   },
   clothFinished: {
     borderWidth: 1.5,

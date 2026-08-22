@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -31,6 +31,7 @@ import {
   splitEntryText,
 } from '@/domains/entries/display';
 import { getLatestProgressBoundary, type ProgressType } from '@/domains/entries/progress';
+import { groupEntriesByDay } from '@/domains/entries/timeline';
 import {
   addEntry,
   deleteEntry,
@@ -58,6 +59,12 @@ import { cardShadow, colors, fonts, gold } from '@/lib/theme';
 // Capture composer states: closed (bar only), opened for typing, or opened
 // with dictation auto-started (J6: voice as prominent as typing).
 type ComposerMode = 'write' | 'speak' | null;
+
+// The entries list renders day headings between cards (Day One-style
+// timeline): a flattened FlatList keeps scroll behavior simple.
+type EntryListItem =
+  | { kind: 'heading'; key: string; heading: string }
+  | { kind: 'entry'; entry: Entry };
 
 // Matches the PWA rule: only flag "(edited)" when updated_at trails created_at
 // by more than a second.
@@ -91,6 +98,8 @@ export default function BookScreen() {
   const validId = Number.isInteger(bookId) && bookId > 0;
   const [tab, setTab] = useState<'entries' | 'characters' | 'photos'>('entries');
   const [composerMode, setComposerMode] = useState<ComposerMode>(null);
+  const [characterMode, setCharacterMode] = useState<ComposerMode>(null);
+  const addPhotosRef = useRef<(() => void) | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -155,7 +164,14 @@ export default function BookScreen() {
     setTab('entries');
     setComposerMode(mode);
   };
-  const captureBarVisible = !(tab === 'entries' && composerMode !== null);
+  // The bar hides while the active tab's composer is open; on Photos it
+  // stays (the picker is a modal, not an inline form).
+  const captureBarVisible =
+    tab === 'photos'
+      ? true
+      : tab === 'entries'
+        ? composerMode === null
+        : characterMode === null;
 
   return (
     <KeyboardAvoidingView
@@ -163,7 +179,28 @@ export default function BookScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.container}>
-        <Stack.Screen options={{ title: book?.name ?? 'Book' }} />
+        {/* Edit lives in the nav bar (platform convention); the status
+            control below follows Goodreads/StoryGraph/Bookly: one prominent
+            reading-status button right under the title block. */}
+        <Stack.Screen
+          options={{
+            title: book?.name ?? 'Book',
+            headerRight: () => (
+              <Link
+                href={{ pathname: '/edit-book', params: { id: String(bookId) } }}
+                asChild
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit book details"
+                  hitSlop={10}
+                >
+                  <Text style={styles.headerEditText}>Edit</Text>
+                </Pressable>
+              </Link>
+            ),
+          }}
+        />
 
         {book?.author ? <Text style={styles.author}>by {book.author}</Text> : null}
         {metaParts.length ? <Text style={styles.meta}>{metaParts.join(' · ')}</Text> : null}
@@ -182,14 +219,6 @@ export default function BookScreen() {
         ) : null}
 
         <View style={styles.detailsRow}>
-          <Link
-            href={{ pathname: '/edit-book', params: { id: String(bookId) } }}
-            asChild
-          >
-            <Pressable style={styles.editDetailsButton}>
-              <Text style={styles.editDetailsText}>Edit book details</Text>
-            </Pressable>
-          </Link>
           {book ? (
             book.finished_at ? (
               <Pressable
@@ -211,7 +240,7 @@ export default function BookScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Mark this book as finished"
               >
-                <Text style={styles.finishText}>🏁 I finished this book</Text>
+                <Text style={styles.finishText}>🏁 Mark as finished</Text>
               </Pressable>
             )
           ) : null}
@@ -261,32 +290,63 @@ export default function BookScreen() {
           />
         </View>
         <View style={[styles.tabPane, tab !== 'characters' && styles.tabPaneHidden]}>
-          <CharactersTab bookId={bookId} />
+          <CharactersTab
+            bookId={bookId}
+            composerMode={characterMode}
+            onComposerModeChange={setCharacterMode}
+          />
         </View>
         <View style={[styles.tabPane, tab !== 'photos' && styles.tabPaneHidden]}>
-          <PhotosTab bookId={bookId} />
+          <PhotosTab bookId={bookId} addPhotosRef={addPhotosRef} />
         </View>
 
         {/* One-tap capture from anywhere in the book; voice and typing carry
-            equal weight (J6). */}
+            equal weight (J6). The actions follow the active tab (Material
+            FAB-per-context): Entries saves an entry, Characters adds a
+            character, Photos opens the picker. */}
         {captureBarVisible ? (
           <View style={styles.captureBar}>
-            <Pressable
-              style={styles.captureAction}
-              onPress={() => openComposer('write')}
-              accessibilityRole="button"
-              accessibilityLabel="Write an entry"
-            >
-              <Text style={styles.captureActionText}>✏️ Write</Text>
-            </Pressable>
-            <Pressable
-              style={styles.captureAction}
-              onPress={() => openComposer('speak')}
-              accessibilityRole="button"
-              accessibilityLabel="Speak an entry"
-            >
-              <Text style={styles.captureActionText}>🎤 Speak</Text>
-            </Pressable>
+            {tab === 'photos' ? (
+              <Pressable
+                style={styles.captureAction}
+                onPress={() => addPhotosRef.current?.()}
+                accessibilityRole="button"
+                accessibilityLabel="Add photos"
+              >
+                <Text style={styles.captureActionText}>📷 Add photos</Text>
+              </Pressable>
+            ) : (
+              <>
+                <Pressable
+                  style={styles.captureAction}
+                  onPress={() =>
+                    tab === 'characters' ? setCharacterMode('write') : openComposer('write')
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    tab === 'characters' ? 'Add a character' : 'Write an entry'
+                  }
+                >
+                  <Text style={styles.captureActionText}>
+                    {tab === 'characters' ? '✏️ Add character' : '✏️ Write'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={styles.captureAction}
+                  onPress={() =>
+                    tab === 'characters' ? setCharacterMode('speak') : openComposer('speak')
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    tab === 'characters' ? 'Speak a character' : 'Speak an entry'
+                  }
+                >
+                  <Text style={styles.captureActionText}>
+                    {tab === 'characters' ? '🎤 Speak character' : '🎤 Speak'}
+                  </Text>
+                </Pressable>
+              </>
+            )}
           </View>
         ) : null}
       </View>
@@ -335,6 +395,30 @@ function EntriesTab({
     () => getLatestProgressBoundary(entries, progressType),
     [entries, progressType],
   );
+
+  // Search plus day-grouped timeline keep a long journal scannable
+  // (Day One / Journey / Apple Journal pattern).
+  const [entrySearch, setEntrySearch] = useState('');
+  const visibleEntries = useMemo(() => {
+    const query = entrySearch.trim().toLowerCase();
+    if (!query) {
+      return entries;
+    }
+    return entries.filter((entry) => {
+      const parts = splitEntryText(entry.text);
+      return `${parts.boundaryLabel ?? ''} ${parts.body}`.toLowerCase().includes(query);
+    });
+  }, [entries, entrySearch]);
+  const listItems = useMemo(() => {
+    const items: EntryListItem[] = [];
+    for (const group of groupEntriesByDay(visibleEntries)) {
+      items.push({ kind: 'heading', key: group.key, heading: group.heading });
+      for (const entry of group.entries) {
+        items.push({ kind: 'entry', entry });
+      }
+    }
+    return items;
+  }, [visibleEntries]);
 
   const addEntryMutation = useMutation({
     mutationFn: () =>
@@ -524,14 +608,23 @@ function EntriesTab({
 
   return (
     <FlatList
-      data={entries}
-      keyExtractor={(entry) => String(entry.id)}
+      data={listItems}
+      keyExtractor={(item) => (item.kind === 'heading' ? `day-${item.key}` : String(item.entry.id))}
       contentContainerStyle={styles.list}
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <View>
           {composer}
           {recapTeaser}
+          {entries.length >= 6 ? (
+            <TextInput
+              style={[styles.input, styles.searchInput]}
+              placeholder="Search your entries..."
+              placeholderTextColor={colors.muted}
+              value={entrySearch}
+              onChangeText={setEntrySearch}
+            />
+          ) : null}
           {entriesQuery.isPending ? (
             <LoadingState label="Loading entries…" />
           ) : entriesQuery.isError ? (
@@ -542,10 +635,18 @@ function EntriesTab({
             />
           ) : entries.length === 0 ? (
             <EmptyState message="No entries yet. One line about where you are is a perfect start." />
+          ) : visibleEntries.length === 0 ? (
+            <EmptyState message="No entries match your search." />
           ) : null}
         </View>
       }
-      renderItem={({ item }) => <EntryCard entry={item} bookId={bookId} />}
+      renderItem={({ item }) =>
+        item.kind === 'heading' ? (
+          <Text style={styles.dayHeading}>{item.heading}</Text>
+        ) : (
+          <EntryCard entry={item.entry} bookId={bookId} />
+        )
+      }
     />
   );
 }
@@ -649,7 +750,15 @@ function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
   );
 }
 
-function CharactersTab({ bookId }: { bookId: number }) {
+function CharactersTab({
+  bookId,
+  composerMode,
+  onComposerModeChange,
+}: {
+  bookId: number;
+  composerMode: ComposerMode;
+  onComposerModeChange: (mode: ComposerMode) => void;
+}) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [name, setName] = useState('');
@@ -658,6 +767,20 @@ function CharactersTab({ bookId }: { bookId: number }) {
   const [relationships, setRelationships] = useState('');
   const [search, setSearch] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const dictation = useDictation();
+
+  // "Speak character" opens the form with dictation already running -
+  // the spoken notes land in the description field for review.
+  const speakStartedRef = useRef(false);
+  useEffect(() => {
+    if (composerMode === 'speak' && dictation.status === 'idle' && !speakStartedRef.current) {
+      speakStartedRef.current = true;
+      void dictation.start();
+    }
+    if (composerMode !== 'speak') {
+      speakStartedRef.current = false;
+    }
+  }, [composerMode, dictation.status, dictation]);
 
   const charactersQuery = useQuery({
     queryKey: queryKeys.characters(bookId),
@@ -686,6 +809,7 @@ function CharactersTab({ bookId }: { bookId: number }) {
       setDescription('');
       setRelationships('');
       setFormError(null);
+      onComposerModeChange(null);
       showToast('Character added.', 'success');
       void queryClient.invalidateQueries({ queryKey: queryKeys.characters(bookId) });
     },
@@ -694,61 +818,117 @@ function CharactersTab({ bookId }: { bookId: number }) {
     },
   });
 
-  const addForm = (
-    <View style={styles.captureCard}>
-      <Text style={styles.captureTitle}>Add a character</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Name, e.g., Frodo Baggins"
-        placeholderTextColor={colors.muted}
-        value={name}
-        onChangeText={setName}
-      />
-      <TextInput
-        style={[styles.input, styles.stackedInput]}
-        placeholder="Role, e.g., Main protagonist"
-        placeholderTextColor={colors.muted}
-        value={role}
-        onChangeText={setRole}
-      />
-      <TextInput
-        style={[styles.input, styles.stackedInput, styles.textAreaSmall]}
-        placeholder="Traits and notes..."
-        placeholderTextColor={colors.muted}
-        value={description}
-        onChangeText={setDescription}
-        multiline
-      />
-      <TextInput
-        style={[styles.input, styles.stackedInput, styles.textAreaSmall]}
-        placeholder="Relationships, e.g., Sam (best friend)"
-        placeholderTextColor={colors.muted}
-        value={relationships}
-        onChangeText={setRelationships}
-        multiline
-      />
-      {formError ? <Text style={styles.error}>{formError}</Text> : null}
-      <Pressable
-        style={styles.primaryButton}
-        onPress={() => addMutation.mutate()}
-        disabled={addMutation.isPending}
-      >
-        {addMutation.isPending ? (
-          <ActivityIndicator color={colors.background} />
-        ) : (
-          <Text style={styles.primaryButtonText}>Add character</Text>
-        )}
-      </Pressable>
+  // Progressive disclosure: the four-field form only appears when the
+  // capture bar asks for it, so the tab stays a readable character list.
+  const addForm =
+    composerMode !== null ? (
+      <View style={styles.captureCard}>
+        <View style={styles.composerHeader}>
+          <Text style={styles.captureTitle}>Add a character</Text>
+          <Pressable
+            style={styles.composerClose}
+            onPress={() => onComposerModeChange(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Close the character form"
+          >
+            <Text style={styles.composerCloseText}>✕</Text>
+          </Pressable>
+        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Name, e.g., Frodo Baggins"
+          placeholderTextColor={colors.muted}
+          value={name}
+          onChangeText={setName}
+          autoFocus={composerMode === 'write'}
+        />
+        <TextInput
+          style={[styles.input, styles.stackedInput]}
+          placeholder="Role, e.g., Main protagonist"
+          placeholderTextColor={colors.muted}
+          value={role}
+          onChangeText={setRole}
+        />
+        <TextInput
+          style={[styles.input, styles.stackedInput, styles.textAreaSmall]}
+          placeholder="Traits and notes..."
+          placeholderTextColor={colors.muted}
+          value={description}
+          onChangeText={setDescription}
+          multiline
+        />
+        <TextInput
+          style={[styles.input, styles.stackedInput, styles.textAreaSmall]}
+          placeholder="Relationships, e.g., Sam (best friend)"
+          placeholderTextColor={colors.muted}
+          value={relationships}
+          onChangeText={setRelationships}
+          multiline
+        />
 
-      <TextInput
-        style={[styles.input, styles.searchInput]}
-        placeholder="Search by name, role, or relationship..."
-        placeholderTextColor={colors.muted}
-        value={search}
-        onChangeText={setSearch}
-      />
-    </View>
-  );
+        {dictation.status === 'idle' ? (
+          <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
+            <Text style={styles.dictateButtonText}>🎤 Describe by voice</Text>
+          </Pressable>
+        ) : null}
+
+        {dictation.status === 'recording' ? (
+          <View style={styles.dictationCard}>
+            <Text style={styles.dictationLabel}>Listening… describe the character.</Text>
+            {dictation.partial ? (
+              <Text style={styles.dictationPartial}>{dictation.partial}</Text>
+            ) : null}
+            <Pressable style={styles.stopButton} onPress={dictation.stop}>
+              <Text style={styles.stopButtonText}>■ Stop dictation</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {dictation.status === 'review' ? (
+          <View style={styles.dictationCard}>
+            <Text style={styles.dictationLabel}>Review your dictation</Text>
+            <Text style={styles.dictationPreview}>{cleanupTranscript(dictation.raw)}</Text>
+            <Text style={styles.dictationHint}>
+              Only punctuation and capitalization were adjusted — your words are untouched.
+            </Text>
+            <View style={styles.cardActions}>
+              <Pressable
+                style={styles.smallButton}
+                onPress={() => {
+                  const raw = dictation.confirm();
+                  if (!raw) {
+                    return;
+                  }
+                  const cleaned = cleanupTranscript(raw);
+                  setDescription((prev) =>
+                    prev.trim() ? `${prev.trimEnd()} ${cleaned}` : cleaned,
+                  );
+                }}
+              >
+                <Text style={styles.smallButtonText}>Add to notes</Text>
+              </Pressable>
+              <Pressable style={styles.smallButtonGhost} onPress={dictation.discard}>
+                <Text style={styles.smallButtonGhostText}>Discard</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {dictation.error ? <Text style={styles.error}>{dictation.error}</Text> : null}
+        {formError ? <Text style={styles.error}>{formError}</Text> : null}
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => addMutation.mutate()}
+          disabled={addMutation.isPending}
+        >
+          {addMutation.isPending ? (
+            <ActivityIndicator color={colors.background} />
+          ) : (
+            <Text style={styles.primaryButtonText}>Add character</Text>
+          )}
+        </Pressable>
+      </View>
+    ) : null;
 
   return (
     <FlatList
@@ -759,6 +939,15 @@ function CharactersTab({ bookId }: { bookId: number }) {
       ListHeaderComponent={
         <View>
           {addForm}
+          {characters.length > 0 ? (
+            <TextInput
+              style={[styles.input, styles.searchInput]}
+              placeholder="Search by name, role, or relationship..."
+              placeholderTextColor={colors.muted}
+              value={search}
+              onChangeText={setSearch}
+            />
+          ) : null}
           {charactersQuery.isPending ? (
             <LoadingState label="Loading characters…" />
           ) : charactersQuery.isError ? (
@@ -771,7 +960,7 @@ function CharactersTab({ bookId }: { bookId: number }) {
             <EmptyState
               message={
                 characters.length === 0
-                  ? 'No characters mapped yet for this book.'
+                  ? 'No characters mapped yet. Tap "Add character" below to start your map.'
                   : 'No characters match your search.'
               }
             />
@@ -937,7 +1126,13 @@ function CharacterCard({ character, bookId }: { character: Character; bookId: nu
   );
 }
 
-function PhotosTab({ bookId }: { bookId: number }) {
+function PhotosTab({
+  bookId,
+  addPhotosRef,
+}: {
+  bookId: number;
+  addPhotosRef: MutableRefObject<(() => void) | null>;
+}) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [caption, setCaption] = useState('');
@@ -983,6 +1178,15 @@ function PhotosTab({ bookId }: { bookId: number }) {
   };
 
   const images = imagesQuery.data ?? [];
+
+  // The capture bar's "Add photos" triggers the same picker as this tab's
+  // own button (one action, two thumb-reachable entry points).
+  useEffect(() => {
+    addPhotosRef.current = () => void pickAndUpload();
+    return () => {
+      addPhotosRef.current = null;
+    };
+  });
 
   return (
     <FlatList
@@ -1158,37 +1362,34 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
   },
-  editDetailsButton: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  editDetailsText: {
+  headerEditText: {
     color: colors.accent,
-    fontWeight: '600',
-    fontSize: 13,
+    fontWeight: '700',
+    fontSize: 15,
   },
+  // Status pill styled like Bookly's bold finish control: soft gold fill
+  // with a firm gold border so it reads as a milestone, not body text.
   finishButton: {
+    backgroundColor: gold.glowSoft,
     borderColor: gold.base,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   finishButtonDone: {
     backgroundColor: gold.base,
+    borderColor: gold.base,
   },
   finishText: {
     color: gold.deep,
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 14,
   },
   finishTextDone: {
     color: '#fffdf6',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 14,
   },
   tabRow: {
     flexDirection: 'row',
@@ -1223,6 +1424,15 @@ const styles = StyleSheet.create({
   },
   tabPaneHidden: {
     display: 'none',
+  },
+  dayHeading: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginTop: 14,
+    marginBottom: 6,
   },
   positionRow: {
     flexDirection: 'row',
