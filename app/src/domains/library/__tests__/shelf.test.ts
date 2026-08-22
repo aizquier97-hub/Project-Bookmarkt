@@ -1,6 +1,10 @@
 import type { BookPositionSummary } from '@/domains/entries/display';
 import type { Book } from '@/domains/library/service';
-import { computeCompletionPercent, sortBooksForShelf } from '@/domains/library/shelf';
+import {
+  computeCompletionPercent,
+  shelfTitleTypography,
+  sortBooksForShelf,
+} from '@/domains/library/shelf';
 
 function book(partial: Partial<Book>): Book {
   return partial as Book;
@@ -92,5 +96,37 @@ describe('sortBooksForShelf', () => {
     ];
     sortBooksForShelf(books, new Map());
     expect(books.map((b) => b.id)).toEqual([1, 2]);
+  });
+});
+
+describe('shelfTitleTypography', () => {
+  it('keeps titles with normal words at full size', () => {
+    expect(shelfTitleTypography('Don Quixote')).toEqual({
+      fontSize: 15,
+      lineHeight: 20,
+      maxLines: 3,
+    });
+  });
+
+  it('steps down for longer words so they never break mid-word', () => {
+    expect(shelfTitleTypography('Metamorphosis').fontSize).toBe(13);
+    expect(shelfTitleTypography('Uncharacteristic').fontSize).toBe(11);
+  });
+
+  it('sizes by the longest word, not the title length', () => {
+    expect(shelfTitleTypography('The Brothers Karamazov').fontSize).toBe(15);
+    expect(shelfTitleTypography('A Counterrevolutionary Tale').fontSize).toBe(11);
+  });
+
+  it('ellipsizes a single extreme word on one line instead of splitting it', () => {
+    expect(shelfTitleTypography('Supercalifragilisticexpialidocious')).toEqual({
+      fontSize: 11,
+      lineHeight: 15,
+      maxLines: 1,
+    });
+  });
+
+  it('keeps multiple lines when an extreme word has company', () => {
+    expect(shelfTitleTypography('The Supercalifragilisticexpialidocious Story').maxLines).toBe(3);
   });
 });

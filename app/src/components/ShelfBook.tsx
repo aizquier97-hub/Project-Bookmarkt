@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatBoundaryPosition, type BookPositionSummary } from '@/domains/entries/display';
 import type { Book } from '@/domains/library/service';
-import { computeCompletionPercent } from '@/domains/library/shelf';
+import { computeCompletionPercent, shelfTitleTypography } from '@/domains/library/shelf';
 import { formatRelativeTime } from '@/lib/relativeTime';
-import { colors, fonts, gold, paper, spineColorFor } from '@/lib/theme';
+import { colors, fonts, gold, leather, paper, spineColorFor } from '@/lib/theme';
 
 /**
  * One 2.5D book standing on the shelf: cloth cover in the book's own color,
@@ -26,10 +26,40 @@ export function ShelfBook({
 }) {
   const router = useRouter();
   const pull = useRef(new Animated.Value(0)).current;
+  const nudge = useRef(new Animated.Value(0)).current;
   const finished = Boolean(book.finished_at);
-  const cloth = spineColorFor(book.id);
+  // Finished books join the leather-bound collector set: one shared deep
+  // leather, gold stamping, gilt page edges (Gestalt similarity groups the
+  // trophy row; celebration, never dimmed-as-disabled).
+  const cloth = finished ? leather.cover : spineColorFor(book.id);
   const percent = computeCompletionPercent(summary?.position ?? null, book.total_pages, finished);
+  const titleType = shelfTitleTypography(book.name);
   const lastEntryRelative = spotlight ? formatRelativeTime(summary?.lastEntryAt) : null;
+
+  // The hero book peeks off the shelf twice when the library appears -
+  // one-time motion draws the eye without nagging (never loops).
+  useEffect(() => {
+    if (!spotlight) {
+      return;
+    }
+    const timing = (toValue: number) =>
+      Animated.timing(nudge, {
+        toValue,
+        duration: 230,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      });
+    const sequence = Animated.sequence([
+      Animated.delay(450),
+      timing(1),
+      timing(0),
+      Animated.delay(180),
+      timing(1),
+      timing(0),
+    ]);
+    sequence.start();
+    return () => sequence.stop();
+  }, [spotlight, nudge]);
 
   const handlePress = () => {
     Animated.timing(pull, {
@@ -50,6 +80,9 @@ export function ShelfBook({
         translateY: pull.interpolate({ inputRange: [0, 1], outputRange: [0, -16] }),
       },
       {
+        translateY: nudge.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }),
+      },
+      {
         rotate: pull.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-4deg'] }),
       },
       {
@@ -67,7 +100,7 @@ export function ShelfBook({
         : null;
 
   return (
-    <View style={styles.slot}>
+    <View style={[styles.slot, spotlight && styles.slotSpotlight]}>
       {spotlight ? (
         <>
           <View style={styles.haloOuter} pointerEvents="none" />
@@ -83,7 +116,12 @@ export function ShelfBook({
         ) : null}
 
         <Pressable
-          style={[styles.cloth, { backgroundColor: cloth }, finished && styles.clothFinished]}
+          style={[
+            styles.cloth,
+            { backgroundColor: cloth },
+            spotlight && styles.clothSpotlight,
+            finished && styles.clothFinished,
+          ]}
           onPress={handlePress}
           accessibilityRole="button"
           accessibilityLabel={
@@ -98,13 +136,20 @@ export function ShelfBook({
           <View style={styles.spineRidge} />
           <View style={styles.hinge} />
 
-          <View style={styles.paperLabel}>
-            <Text style={styles.title} numberOfLines={3}>
+          <View style={[styles.paperLabel, finished && styles.paperLabelFinished]}>
+            <Text
+              style={[
+                styles.title,
+                { fontSize: titleType.fontSize, lineHeight: titleType.lineHeight },
+                finished && styles.titleFinished,
+              ]}
+              numberOfLines={titleType.maxLines}
+            >
               {book.name}
             </Text>
             <View>
               {book.author ? (
-                <Text style={styles.author} numberOfLines={1}>
+                <Text style={[styles.author, finished && styles.authorFinished]} numberOfLines={1}>
                   {book.author}
                 </Text>
               ) : null}
@@ -120,7 +165,7 @@ export function ShelfBook({
               ) : null}
               {percent !== null ? (
                 <View style={styles.progressRow}>
-                  <View style={styles.progressTrack}>
+                  <View style={[styles.progressTrack, finished && styles.progressTrackFinished]}>
                     <View
                       style={[
                         styles.progressFill,
@@ -129,23 +174,29 @@ export function ShelfBook({
                       ]}
                     />
                   </View>
-                  <Text style={styles.progressText}>{percent}%</Text>
+                  <Text style={[styles.progressText, finished && styles.progressTextFinished]}>
+                    {percent}%
+                  </Text>
                 </View>
               ) : null}
             </View>
           </View>
 
           {/* Fore-edge page block: the stack of pages at the book's right. */}
-          <View style={styles.pages}>
-            <View style={styles.pageLine} />
-            <View style={styles.pageLine} />
-            <View style={styles.pageLine} />
+          <View style={[styles.pages, finished && styles.pagesFinished]}>
+            <View style={[styles.pageLine, finished && styles.pageLineFinished]} />
+            <View style={[styles.pageLine, finished && styles.pageLineFinished]} />
+            <View style={[styles.pageLine, finished && styles.pageLineFinished]} />
           </View>
 
           {finished ? (
-            <View style={styles.finishedBand} pointerEvents="none">
-              <Text style={styles.finishedBandText}>FINISHED</Text>
-            </View>
+            <>
+              {/* Gold tooling frame, stamped like a collector's edition. */}
+              <View style={styles.tooling} pointerEvents="none" />
+              <View style={styles.finishedBand} pointerEvents="none">
+                <Text style={styles.finishedBandText}>FINISHED</Text>
+              </View>
+            </>
           ) : null}
         </Pressable>
       </Animated.View>
@@ -157,6 +208,11 @@ const styles = StyleSheet.create({
   slot: {
     flex: 1,
     position: 'relative',
+  },
+  // The freshest book is the hero: it takes more shelf width and stands
+  // taller than its neighbors - size is the strongest prominence cue.
+  slotSpotlight: {
+    flexGrow: 1.18,
   },
   animatedWrap: {
     flex: 1,
@@ -181,7 +237,9 @@ const styles = StyleSheet.create({
   },
   bubble: {
     alignSelf: 'center',
-    backgroundColor: gold.base,
+    backgroundColor: colors.text,
+    borderWidth: 1,
+    borderColor: gold.base,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -189,7 +247,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   bubbleText: {
-    color: '#fffdf6',
+    color: '#f2c75c',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -207,6 +265,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 5,
     shadowOffset: { width: 2, height: 4 },
+  },
+  clothSpotlight: {
+    minHeight: 200,
   },
   clothFinished: {
     borderWidth: 1.5,
@@ -230,6 +291,10 @@ const styles = StyleSheet.create({
     padding: 10,
     justifyContent: 'space-between',
   },
+  // Collector's editions are gold-stamped straight onto the leather.
+  paperLabelFinished: {
+    backgroundColor: 'transparent',
+  },
   title: {
     color: colors.text,
     fontSize: 15,
@@ -237,11 +302,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     fontWeight: '700',
   },
+  titleFinished: {
+    color: leather.stamp,
+  },
   author: {
     color: colors.muted,
     fontSize: 11,
     fontFamily: fonts.serif,
     fontStyle: 'italic',
+  },
+  authorFinished: {
+    color: 'rgba(232, 201, 121, 0.75)',
   },
   position: {
     color: colors.accent,
@@ -250,7 +321,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   positionFinished: {
-    color: gold.deep,
+    color: leather.stamp,
   },
   progressRow: {
     flexDirection: 'row',
@@ -265,6 +336,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.10)',
     overflow: 'hidden',
   },
+  progressTrackFinished: {
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  },
   progressFill: {
     height: '100%',
     borderRadius: 3,
@@ -278,6 +352,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
+  progressTextFinished: {
+    color: leather.stamp,
+  },
   pages: {
     width: 7,
     backgroundColor: paper.edge,
@@ -286,10 +363,27 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 1,
     justifyContent: 'space-evenly',
   },
+  // Gilt page edges, the collector-set finishing touch.
+  pagesFinished: {
+    backgroundColor: leather.gilt,
+  },
   pageLine: {
     height: 1,
     backgroundColor: paper.edgeLine,
     marginHorizontal: 1,
+  },
+  pageLineFinished: {
+    backgroundColor: 'rgba(109, 76, 21, 0.4)',
+  },
+  tooling: {
+    position: 'absolute',
+    top: 5,
+    left: 12,
+    right: 10,
+    bottom: 5,
+    borderWidth: 1,
+    borderColor: leather.tooling,
+    borderRadius: 3,
   },
   finishedBand: {
     position: 'absolute',
@@ -302,7 +396,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   finishedBandText: {
-    color: '#fffdf6',
+    color: '#33291b',
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.5,

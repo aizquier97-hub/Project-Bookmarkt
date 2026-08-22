@@ -53,3 +53,32 @@ export function sortBooksForShelf(
     return String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''));
   });
 }
+
+export interface ShelfTitleTypography {
+  fontSize: number;
+  lineHeight: number;
+  maxLines: number;
+}
+
+/**
+ * Book-cover typography, matching what Kindle/Apple Books do on generated
+ * covers: titles wrap at spaces, never mid-word. The longest word sets the
+ * type size, stepping down only within readable bounds (NN/g: don't shrink
+ * below glanceable sizes). A single word too long even at the smallest step
+ * stays on one line and ellipsizes - truncation is the last resort, not the
+ * default, because it hides the book's identity.
+ */
+export function shelfTitleTypography(title: string): ShelfTitleTypography {
+  const words = title.trim().split(/\s+/).filter(Boolean);
+  const longest = words.reduce((max, word) => Math.max(max, word.length), 0);
+  if (longest <= 12) {
+    return { fontSize: 15, lineHeight: 20, maxLines: 3 };
+  }
+  if (longest <= 15) {
+    return { fontSize: 13, lineHeight: 17, maxLines: 3 };
+  }
+  if (longest <= 18) {
+    return { fontSize: 11, lineHeight: 15, maxLines: 3 };
+  }
+  return { fontSize: 11, lineHeight: 15, maxLines: words.length === 1 ? 1 : 3 };
+}

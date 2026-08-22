@@ -9,7 +9,9 @@
 
 Every Stage 3 design decision should trace back to this document. If a design
 choice doesn't serve one of the readers below on one of the journeys below, it
-doesn't ship.
+doesn't ship. The running list of concrete look-and-feel requirements (what
+shipped, what's proposed, and the research behind each) lives in
+DESIGN_REQUIREMENTS.md.
 
 ## 1. Target readers
 
@@ -124,6 +126,16 @@ for the design-system and screen-polish work items.
   screen (`topics.finished_at`, `book_finished` analytics - the primary
   metric measured directly); QR-bookmark management now lives behind a
   ribbon bookmark on the bookcase frame. Sign-out is a header link.
+  Refined same day (D-024): add-a-book is a bottom-right floating +
+  (thumb-zone research); the ribbon is burgundy leather over a crown
+  molding; titles wrap at spaces with cover-style type scaling (mid-word
+  breaks eliminated, extreme single words ellipsize); the case has plank
+  and shading depth with a resting book pile in odd slots; the spotlight
+  book is the largest on the shelf with an ink-and-gold "last entry"
+  bubble and a one-time peek nudge. Finished books render as a matched
+  leather-bound collector set - deep leather, gold stamping and tooling,
+  gilt page edges (D-025). Look-and-feel requirements are logged in
+  DESIGN_REQUIREMENTS.md.
 - **Design gap:** cover art treatment (real covers or richer generated
   covers - no schema field yet); move sign-out into settings (J9).
 

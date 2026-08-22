@@ -29,6 +29,19 @@ export const gold = {
   glowSoft: 'rgba(212, 165, 50, 0.14)',
 } as const;
 
+// Burgundy leather with a gold thread for the QR-bookmark ribbon - it must
+// read as a ribbon, not blend into the wood or the accent buttons. The cover
+// and gilt tones dress finished books as a matched leather-bound collector
+// set: darker AND celebratory, never dimmed-as-disabled.
+export const leather = {
+  ribbon: '#a03b3b',
+  thread: 'rgba(214, 178, 92, 0.9)',
+  cover: '#462c1d',
+  tooling: 'rgba(232, 201, 121, 0.65)',
+  stamp: '#e8c979',
+  gilt: '#dfc06c',
+} as const;
+
 // Page-block tones for the 2.5D book covers.
 export const paper = {
   edge: '#f7efdc',
