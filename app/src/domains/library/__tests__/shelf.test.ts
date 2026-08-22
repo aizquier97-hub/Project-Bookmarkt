@@ -102,43 +102,43 @@ describe('sortBooksForShelf', () => {
 describe('shelfTitleTypography', () => {
   it('keeps titles with normal words at full size', () => {
     expect(shelfTitleTypography('Don Quixote')).toEqual({
-      fontSize: 15,
-      lineHeight: 20,
+      fontSize: 13,
+      lineHeight: 17,
       maxLines: 3,
     });
   });
 
   it('steps down for longer words so they never break mid-word', () => {
-    expect(shelfTitleTypography('Metamorphosis').fontSize).toBe(13);
-    expect(shelfTitleTypography('Uncharacteristic').fontSize).toBe(11);
+    expect(shelfTitleTypography('Wuthering Heights').fontSize).toBe(11);
+    expect(shelfTitleTypography('Uncharacteristic').fontSize).toBe(10);
   });
 
   it('renders every single-word title on one line, shrinking before ellipsizing', () => {
     // The owner's exact bug: "Monsterholic" split as "Monsterhol / ic".
     expect(shelfTitleTypography('Monsterholic')).toEqual({
-      fontSize: 13,
-      lineHeight: 17,
+      fontSize: 10,
+      lineHeight: 13,
       maxLines: 1,
     });
-    expect(shelfTitleTypography('Emma')).toEqual({ fontSize: 15, lineHeight: 20, maxLines: 1 });
+    expect(shelfTitleTypography('Emma')).toEqual({ fontSize: 13, lineHeight: 17, maxLines: 1 });
     expect(shelfTitleTypography('Middlemarch').maxLines).toBe(1);
   });
 
   it('steps down for long overall titles even when every word is short', () => {
-    expect(shelfTitleTypography('The Name of the Wind').fontSize).toBe(13);
-    expect(shelfTitleTypography('The Brothers Karamazov').fontSize).toBe(13);
+    expect(shelfTitleTypography('The Name of the Wind').fontSize).toBe(11);
+    expect(shelfTitleTypography('The Brothers Karamazov').fontSize).toBe(11);
     expect(shelfTitleTypography('One Hundred Years of Solitude')).toEqual({
-      fontSize: 11,
-      lineHeight: 15,
+      fontSize: 10,
+      lineHeight: 13,
       maxLines: 3,
     });
-    expect(shelfTitleTypography('A Counterrevolutionary Tale').fontSize).toBe(11);
+    expect(shelfTitleTypography('A Counterrevolutionary Tale').fontSize).toBe(10);
   });
 
   it('ellipsizes a single extreme word on one line instead of splitting it', () => {
     expect(shelfTitleTypography('Supercalifragilisticexpialidocious')).toEqual({
-      fontSize: 11,
-      lineHeight: 15,
+      fontSize: 10,
+      lineHeight: 13,
       maxLines: 1,
     });
   });

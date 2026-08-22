@@ -74,12 +74,12 @@ export function shelfTitleTypography(title: string): ShelfTitleTypography {
   const words = trimmed.split(/\s+/).filter(Boolean);
   const longest = words.reduce((max, word) => Math.max(max, word.length), 0);
 
-  // Word thresholds are sized to the cover label's real width: ~10 chars
-  // fit at 15pt serif, ~14 at 13pt ("Monsterholic" at 15pt broke mid-word).
-  const sizeForWord = longest <= 9 ? 15 : longest <= 13 ? 13 : 11;
-  const sizeForLength = trimmed.length <= 16 ? 15 : trimmed.length <= 26 ? 13 : 11;
+  // Word thresholds are sized to the 3-across cover label (~60dp of text):
+  // ~9 chars fit at 13pt serif, ~11 at 11pt, ~12 at 10pt.
+  const sizeForWord = longest <= 8 ? 13 : longest <= 11 ? 11 : 10;
+  const sizeForLength = trimmed.length <= 14 ? 13 : trimmed.length <= 24 ? 11 : 10;
   const fontSize = Math.min(sizeForWord, sizeForLength);
-  const lineHeight = fontSize === 15 ? 20 : fontSize === 13 ? 17 : 15;
+  const lineHeight = fontSize === 13 ? 17 : fontSize === 11 ? 15 : 13;
 
   const maxLines = words.length === 1 ? 1 : 3;
   return { fontSize, lineHeight, maxLines };

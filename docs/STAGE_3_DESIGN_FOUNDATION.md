@@ -151,6 +151,13 @@ for the design-system and screen-polish work items.
   and the add-book screen leads with a barcode scan card (typed-ISBN
   lookup everywhere; scanning arrives with the next native build).
   Look-and-feel requirements are logged in DESIGN\_REQUIREMENTS.md.
+  The D-031 professional pass (2026-08-22) reshaped the screen to match
+  shipped trackers: three covers per shelf, real art full-bleed (painted
+  strips retired over photographs), a Continue Reading hero card above
+  the case replacing the spotlight halo/bubble/nudge, dark-walnut wood,
+  scrim progress bars and a gold corner medal on finished covers, the
+  resting pile retired, a reading/finished stat line, and scan-first
+  add-book (typed-ISBN row removed per owner).
 - **Design gap:** move sign-out into settings (J9); empty/error/loading
   polish (J10). Uniform cover sizing was hardened 2026-08-22 (D-027):
   fixed cover heights and a reserved bubble band in every slot, and all
@@ -262,6 +269,19 @@ Stage 3 design effort, in order:
 5. **J8 + J11 (companion + subscription states)** - design-complete for
    Stage 4 to build against.
 6. **J3 (QR transition states)** - designed now, fully exercised in Stage 5.
+
+### Postponed from the D-031 redesign round (logged 2026-08-22)
+
+To keep the shelf redesign shippable in one OTA round, these were
+deliberately deferred and stay on this stage's list:
+
+- **J9 - settings screen and sign-out relocation.** Sign-out remains a
+  header link on the library screen; competitors put account actions
+  behind a settings/profile surface. Next J-round candidate.
+- **J2 - first-run onboarding.** The empty-shelf state carries first-run
+  weight today; a warm two-or-three-screen welcome remains undesigned.
+- **J10 - empty/error/loading illustration polish** continues to wait on
+  the brand illustration pass.
 
 ## 4. Approval
 
