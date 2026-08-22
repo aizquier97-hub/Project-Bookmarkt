@@ -152,12 +152,16 @@ for the design-system and screen-polish work items.
   lookup everywhere; scanning arrives with the next native build).
   Look-and-feel requirements are logged in DESIGN\_REQUIREMENTS.md.
   The D-031 professional pass (2026-08-22) reshaped the screen to match
-  shipped trackers: three covers per shelf, real art full-bleed (painted
-  strips retired over photographs), a Continue Reading hero card above
-  the case replacing the spotlight halo/bubble/nudge, dark-walnut wood,
-  scrim progress bars and a gold corner medal on finished covers, the
-  resting pile retired, a reading/finished stat line, and scan-first
-  add-book (typed-ISBN row removed per owner).
+  shipped trackers: real art full-bleed (painted strips retired over
+  photographs), a Continue Reading hero card above the case replacing
+  the spotlight halo/bubble/nudge, dark-walnut wood, scrim progress bars
+  and a gold corner medal on finished covers, the resting pile retired,
+  a reading/finished stat line, and scan-first add-book (typed-ISBN row
+  removed per owner). Owner review (D-032, same day) settled the grid at
+  two covers per shelf, removed the cloth-tint halo around real art,
+  quieted the painted fallback under a soft ink veil, and cut book
+  details to title + author + pages (publisher/year retired from forms
+  and header; a scan records title, author, pages, cover).
 - **Design gap:** move sign-out into settings (J9); empty/error/loading
   polish (J10). Uniform cover sizing was hardened 2026-08-22 (D-027):
   fixed cover heights and a reserved bubble band in every slot, and all

@@ -85,7 +85,7 @@ export function ShelfBook({
             styles.cloth,
             { backgroundColor: cloth },
             showCover && styles.clothCover,
-            finished && styles.clothFinished,
+            finished && !showCover && styles.clothFinished,
           ]}
           onPress={handlePress}
           accessibilityRole="button"
@@ -191,7 +191,11 @@ export function ShelfBook({
                     <Text style={styles.finishedBandText}>FINISHED</Text>
                   </View>
                 </>
-              ) : null}
+              ) : (
+                /* A soft shadow veil keeps painted covers quieter than real
+                   art, so a fallback never outshines its neighbors. */
+                <View style={styles.veil} pointerEvents="none" />
+              )}
             </>
           )}
         </Pressable>
@@ -201,9 +205,9 @@ export function ShelfBook({
 }
 
 const styles = StyleSheet.create({
-  // All books share one size in a 3-across grid - the cover density Kindle,
-  // Apple Books, and Bookly ship. The current read is promoted by the hero
-  // card above the shelf, not by resizing books.
+  // All books share one size in a 2-across grid (owner: three felt small);
+  // full-bleed 2:3 keeps two-across from going toy-like. The current read
+  // is promoted by the hero card above the shelf, not by resizing books.
   slot: {
     flex: 1,
   },
@@ -231,7 +235,9 @@ const styles = StyleSheet.create({
   },
   clothCover: {
     // Real artwork has its own corners; keep the silhouette bookish but
-    // don't paint spine strips over someone else's cover design.
+    // don't paint spine strips over someone else's cover design. The
+    // background goes transparent so no cloth color halos the art's edge.
+    backgroundColor: 'transparent',
     borderTopLeftRadius: 2,
     borderBottomLeftRadius: 2,
   },
@@ -299,21 +305,21 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
   },
   spineRidge: {
-    width: 5,
+    width: 7,
     backgroundColor: 'rgba(0, 0, 0, 0.28)',
   },
   hinge: {
-    width: 2,
+    width: 3,
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
   paperLabel: {
     flex: 1,
     backgroundColor: colors.card,
-    marginVertical: 9,
-    marginLeft: 5,
-    marginRight: 4,
+    marginVertical: 10,
+    marginLeft: 6,
+    marginRight: 5,
     borderRadius: 2,
-    padding: 7,
+    padding: 9,
     justifyContent: 'space-between',
   },
   // Collector's editions are gold-stamped straight onto the leather.
@@ -388,7 +394,7 @@ const styles = StyleSheet.create({
     color: leather.stamp,
   },
   pages: {
-    width: 5,
+    width: 7,
     backgroundColor: paper.edge,
     marginVertical: 6,
     borderTopLeftRadius: 1,
@@ -432,5 +438,11 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: '800',
     letterSpacing: 1.3,
+  },
+  // Mutes the painted fallback (~14% ink) so it sits back beside real art;
+  // finished painted books skip it - celebration is never dimmed.
+  veil: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(43, 28, 16, 0.14)',
   },
 });
