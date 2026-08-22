@@ -13,12 +13,15 @@ export const colors = {
   danger: '#a83c33',
 } as const;
 
-// Wood tones for the bookcase chrome on the library screen.
+// Wood tones for the bookcase chrome on the library screen: a deep, slightly
+// desaturated walnut (the pale orange-beige case read as clip-art). Dark
+// interiors are how physical cases and StoryGraph/Kindle shelf themes make
+// cover colors pop forward.
 export const wood = {
-  back: '#e6d3ae',
-  rail: '#9a7040',
-  boardTop: '#b98a5a',
-  boardFront: '#7c5a33',
+  back: '#7a573a',
+  rail: '#5d4126',
+  boardTop: '#8a6642',
+  boardFront: '#4e3620',
 } as const;
 
 // Gold celebrates: the spotlight on the freshest book and finished books.

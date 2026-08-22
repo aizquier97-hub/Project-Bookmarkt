@@ -16,12 +16,15 @@ import { summarizeEntriesByBook } from '@/domains/entries/display';
 import { listEntrySummaryRows } from '@/domains/entries/service';
 import { listBooks, type Book } from '@/domains/library/service';
 import { sortBooksForShelf } from '@/domains/library/shelf';
+import { ContinueReadingCard } from '@/components/ContinueReadingCard';
 import { ShelfBook } from '@/components/ShelfBook';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, leather, spineColorFor, wood } from '@/lib/theme';
+import { colors, leather, wood } from '@/lib/theme';
 
-const BOOKS_PER_SHELF = 2;
+// Three covers per shelf: the grid density Kindle, Apple Books, and Bookly
+// ship. Two-across rendered giant, toy-like books; three reads as a library.
+const BOOKS_PER_SHELF = 3;
 
 function chunkIntoShelves(books: Book[]): Book[][] {
   const shelves: Book[][] = [];
@@ -105,12 +108,22 @@ export default function LibraryScreen() {
     [booksQuery.data, summaries],
   );
   const shelves = useMemo(() => chunkIntoShelves(sortedBooks), [sortedBooks]);
-  const spotlightId =
+  // The freshest active book with at least one entry earns the hero card -
+  // the "pick up where you left off" promotion, Kindle/Bookly style.
+  const heroBook =
     sortedBooks.length > 0 &&
     !sortedBooks[0].finished_at &&
     summaries.get(sortedBooks[0].id)?.lastEntryAt
-      ? sortedBooks[0].id
+      ? sortedBooks[0]
       : null;
+  const readingCount = sortedBooks.filter((b) => !b.finished_at).length;
+  const finishedCount = sortedBooks.length - readingCount;
+  const statLine = [
+    readingCount > 0 ? `${readingCount} reading` : null,
+    finishedCount > 0 ? `${finishedCount} finished` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const handleSignOut = async () => {
     try {
@@ -148,7 +161,12 @@ export default function LibraryScreen() {
       ) : booksQuery.data.length === 0 ? (
         <EmptyState message="Your shelf is empty. Add the book you are reading to start capturing entries." />
       ) : (
-        <View style={styles.bookcaseWrap}>
+        <>
+          {statLine ? <Text style={styles.statLine}>{statLine}</Text> : null}
+          {heroBook ? (
+            <ContinueReadingCard book={heroBook} summary={summaries.get(heroBook.id)} />
+          ) : null}
+          <View style={styles.bookcaseWrap}>
           {/* Back panel: plank seams and shaded sides give the case depth. */}
           <View style={styles.caseBackdrop} pointerEvents="none">
             <View style={styles.plankRow}>
@@ -168,39 +186,14 @@ export default function LibraryScreen() {
               <View style={styles.shelfUnit}>
                 <View style={styles.shelfRow}>
                   {shelf.map((book) => (
-                    <ShelfBook
-                      key={book.id}
-                      book={book}
-                      summary={summaries.get(book.id)}
-                      spotlight={book.id === spotlightId}
-                    />
+                    <ShelfBook key={book.id} book={book} summary={summaries.get(book.id)} />
                   ))}
-                  {shelf.length < BOOKS_PER_SHELF ? (
-                    <View style={styles.restingStack} pointerEvents="none">
-                      <View
-                        style={[
-                          styles.restingBook,
-                          {
-                            backgroundColor: spineColorFor(5),
-                            width: '58%',
-                            transform: [{ rotate: '-2deg' }],
-                          },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.restingBook,
-                          { backgroundColor: spineColorFor(2), width: '72%' },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.restingBook,
-                          { backgroundColor: spineColorFor(8), width: '84%' },
-                        ]}
-                      />
-                    </View>
-                  ) : null}
+                  {/* Empty slots keep the grid geometry without filler chrome. */}
+                  {shelf.length < BOOKS_PER_SHELF
+                    ? Array.from({ length: BOOKS_PER_SHELF - shelf.length }).map((_, i) => (
+                        <View key={`empty-${i}`} style={styles.emptySlot} pointerEvents="none" />
+                      ))
+                    : null}
                 </View>
                 <View style={styles.shelfBoardTop} />
                 <View style={styles.shelfBoardFront} />
@@ -215,7 +208,8 @@ export default function LibraryScreen() {
             <View style={styles.crownShade} />
           </View>
           <BookmarkRibbon />
-        </View>
+          </View>
+        </>
       )}
 
       <Link href="/report-issue" asChild>
@@ -254,6 +248,13 @@ const styles = StyleSheet.create({
     color: colors.danger,
     marginBottom: 8,
   },
+  statLine: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    marginBottom: 8,
+  },
   bookcaseWrap: {
     flex: 1,
     position: 'relative',
@@ -279,14 +280,14 @@ const styles = StyleSheet.create({
   },
   plank: {
     width: 2,
-    backgroundColor: 'rgba(122, 89, 45, 0.16)',
+    backgroundColor: 'rgba(255, 236, 200, 0.07)',
   },
   caseSideShade: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     width: 14,
-    backgroundColor: 'rgba(63, 47, 22, 0.08)',
+    backgroundColor: 'rgba(0, 0, 0, 0.16)',
   },
   caseSideLeft: {
     left: 0,
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
   },
   crownShade: {
     height: 5,
-    backgroundColor: 'rgba(63, 47, 22, 0.22)',
+    backgroundColor: 'rgba(0, 0, 0, 0.28)',
   },
   shelfUnit: {
     marginBottom: 14,
@@ -328,20 +329,11 @@ const styles = StyleSheet.create({
   shelfRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 12,
+    gap: 10,
     paddingHorizontal: 2,
   },
-  // A casual pile of books fills an odd shelf slot - lived-in, not empty.
-  restingStack: {
+  emptySlot: {
     flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 2,
-  },
-  restingBook: {
-    height: 12,
-    borderRadius: 3,
-    marginTop: 3,
   },
   // Leather ribbon draped over the crown - QR bookmarks live behind it.
   ribbonWrap: {
@@ -390,7 +382,7 @@ const styles = StyleSheet.create({
   },
   shelfShade: {
     height: 6,
-    backgroundColor: 'rgba(63, 47, 22, 0.14)',
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
     marginHorizontal: -12,
   },
   fab: {

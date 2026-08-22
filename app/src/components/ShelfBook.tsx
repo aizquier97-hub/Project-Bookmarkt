@@ -7,28 +7,26 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import { formatBoundaryPosition, type BookPositionSummary } from '@/domains/entries/display';
 import type { Book } from '@/domains/library/service';
 import { computeCompletionPercent, shelfTitleTypography } from '@/domains/library/shelf';
-import { formatRelativeTime } from '@/lib/relativeTime';
 import { colors, fonts, gold, leather, paper, spineColorFor } from '@/lib/theme';
 
 /**
- * One 2.5D book standing on the shelf: cloth cover in the book's own color,
- * paper title label, page block on the fore-edge, and a pull-out animation
- * when tapped (the book tips off the shelf, then opens). The freshest book
- * gets a gold spotlight halo and a "last entry" bubble; finished books wear
- * a gold FINISHED band. Uses core Animated (OTA-safe, no worklets).
+ * One book standing on the shelf. Real cover art renders full-bleed at true
+ * 2:3 proportions with a bottom scrim progress bar while reading (white on
+ * dark passes WCAG contrast over any artwork) and a gold corner medal once
+ * finished - the badge-over-art treatments Kindle and Bookly use. Books
+ * without art keep the painted 2.5D cover: cloth color, paper label, page
+ * block, and the leather-and-gold collector set when finished. Tapping
+ * pulls the book off the shelf, then opens it (core Animated, OTA-safe).
  */
 export function ShelfBook({
   book,
   summary,
-  spotlight,
 }: {
   book: Book;
   summary: BookPositionSummary | undefined;
-  spotlight: boolean;
 }) {
   const router = useRouter();
   const pull = useRef(new Animated.Value(0)).current;
-  const nudge = useRef(new Animated.Value(0)).current;
   const finished = Boolean(book.finished_at);
   // Finished books join the leather-bound collector set: one shared deep
   // leather, gold stamping, gilt page edges (Gestalt similarity groups the
@@ -36,7 +34,6 @@ export function ShelfBook({
   const cloth = finished ? leather.cover : spineColorFor(book.id);
   const percent = computeCompletionPercent(summary?.position ?? null, book.total_pages, finished);
   const titleType = shelfTitleTypography(book.name);
-  const lastEntryRelative = spotlight ? formatRelativeTime(summary?.lastEntryAt) : null;
   // Real cover art when the reader picked one; broken images fall back to
   // the painted cloth cover so the shelf never shows a hole.
   const [coverFailed, setCoverFailed] = useState(false);
@@ -44,31 +41,6 @@ export function ShelfBook({
     setCoverFailed(false);
   }, [book.cover_url]);
   const showCover = Boolean(book.cover_url) && !coverFailed;
-
-  // The hero book peeks off the shelf twice when the library appears -
-  // one-time motion draws the eye without nagging (never loops).
-  useEffect(() => {
-    if (!spotlight) {
-      return;
-    }
-    const timing = (toValue: number) =>
-      Animated.timing(nudge, {
-        toValue,
-        duration: 230,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      });
-    const sequence = Animated.sequence([
-      Animated.delay(450),
-      timing(1),
-      timing(0),
-      Animated.delay(180),
-      timing(1),
-      timing(0),
-    ]);
-    sequence.start();
-    return () => sequence.stop();
-  }, [spotlight, nudge]);
 
   const handlePress = () => {
     Animated.timing(pull, {
@@ -89,9 +61,6 @@ export function ShelfBook({
         translateY: pull.interpolate({ inputRange: [0, 1], outputRange: [0, -16] }),
       },
       {
-        translateY: nudge.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }),
-      },
-      {
         rotate: pull.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-4deg'] }),
       },
       {
@@ -110,47 +79,22 @@ export function ShelfBook({
 
   return (
     <View style={styles.slot}>
-      {spotlight ? (
-        <>
-          <View style={styles.haloOuter} pointerEvents="none" />
-          <View style={styles.haloInner} pointerEvents="none" />
-        </>
-      ) : null}
-
-      <Animated.View style={[styles.animatedWrap, pullStyle]}>
-        {/* Every slot reserves the same bubble band so covers start at one
-            baseline and stay truly uniform (the in-flow bubble used to make
-            the spotlight cover shorter than its neighbor). */}
-        <View style={styles.bubbleZone}>
-          {spotlight && lastEntryRelative ? (
-            <View style={styles.bubble}>
-              <Ionicons name="sparkles" size={11} color="#f2c75c" />
-              <Text style={styles.bubbleText}>Last entry {lastEntryRelative}</Text>
-            </View>
-          ) : null}
-        </View>
-
+      <Animated.View style={pullStyle}>
         <Pressable
           style={[
             styles.cloth,
             { backgroundColor: cloth },
+            showCover && styles.clothCover,
             finished && styles.clothFinished,
           ]}
           onPress={handlePress}
           accessibilityRole="button"
-          accessibilityLabel={
-            finished
-              ? `${book.name}, finished`
-              : spotlight
-                ? `Continue reading ${book.name}`
-                : book.name
-          }
+          accessibilityLabel={finished ? `${book.name}, finished` : book.name}
         >
-          {/* Spine ridge and hinge highlight give the cover its depth. */}
-          <View style={styles.spineRidge} />
-
           {showCover ? (
             <View style={styles.coverWrap}>
+              {/* Full-bleed artwork: the image IS the book face, so it keeps
+                  its true 2:3 shape (no painted strips squeezing it). */}
               <Image
                 source={{ uri: book.cover_url ?? undefined }}
                 style={styles.coverImage}
@@ -160,94 +104,96 @@ export function ShelfBook({
                 accessibilityLabel={`Cover of ${book.name}`}
               />
               {percent !== null && !finished ? (
-                <View style={styles.coverPercentPill} pointerEvents="none">
-                  <Text style={styles.coverPercentText}>{percent}%</Text>
+                <View style={styles.scrim} pointerEvents="none">
+                  <View style={styles.scrimTrack}>
+                    <View style={[styles.scrimFill, { width: `${percent}%` }]} />
+                  </View>
+                  <Text style={styles.scrimText}>{percent}%</Text>
+                </View>
+              ) : null}
+              {finished ? (
+                <View style={styles.medal} pointerEvents="none">
+                  <Ionicons name="trophy" size={12} color="#3a2b12" />
                 </View>
               ) : null}
             </View>
           ) : (
             <>
+              {/* Spine ridge and hinge highlight give the cover its depth. */}
+              <View style={styles.spineRidge} />
               <View style={styles.hinge} />
 
               <View style={[styles.paperLabel, finished && styles.paperLabelFinished]}>
-            <Text
-              style={[
-                styles.title,
-                { fontSize: titleType.fontSize, lineHeight: titleType.lineHeight },
-                finished && styles.titleFinished,
-              ]}
-              numberOfLines={titleType.maxLines}
-            >
-              {book.name}
-            </Text>
-            <View>
-              {book.author ? (
-                <Text style={[styles.author, finished && styles.authorFinished]} numberOfLines={1}>
-                  {book.author}
+                <Text
+                  style={[
+                    styles.title,
+                    { fontSize: titleType.fontSize, lineHeight: titleType.lineHeight },
+                    finished && styles.titleFinished,
+                  ]}
+                  numberOfLines={titleType.maxLines}
+                >
+                  {book.name}
                 </Text>
-              ) : null}
+                <View>
+                  {book.author ? (
+                    <Text
+                      style={[styles.author, finished && styles.authorFinished]}
+                      numberOfLines={1}
+                    >
+                      {book.author}
+                    </Text>
+                  ) : null}
+                  {finished ? (
+                    <View style={styles.positionRow}>
+                      <Ionicons name="trophy" size={10} color={leather.stamp} />
+                      <Text style={[styles.position, styles.positionFinished, styles.positionInRow]}>
+                        Finished
+                      </Text>
+                    </View>
+                  ) : positionLine ? (
+                    <Text style={styles.position} numberOfLines={1}>
+                      {positionLine}
+                    </Text>
+                  ) : null}
+                  {percent !== null ? (
+                    <View style={styles.progressRow}>
+                      <View
+                        style={[styles.progressTrack, finished && styles.progressTrackFinished]}
+                      >
+                        <View
+                          style={[
+                            styles.progressFill,
+                            { width: `${percent}%` },
+                            finished && styles.progressFillFinished,
+                          ]}
+                        />
+                      </View>
+                      <Text style={[styles.progressText, finished && styles.progressTextFinished]}>
+                        {percent}%
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+
+              {/* Fore-edge page block: the stack of pages at the book's right. */}
+              <View style={[styles.pages, finished && styles.pagesFinished]}>
+                <View style={[styles.pageLine, finished && styles.pageLineFinished]} />
+                <View style={[styles.pageLine, finished && styles.pageLineFinished]} />
+                <View style={[styles.pageLine, finished && styles.pageLineFinished]} />
+              </View>
+
               {finished ? (
-                <View style={styles.positionRow}>
-                  <Ionicons name="trophy" size={11} color={leather.stamp} />
-                  <Text style={[styles.position, styles.positionFinished, styles.positionInRow]}>
-                    Finished
-                  </Text>
-                </View>
-              ) : positionLine ? (
-                <Text style={styles.position} numberOfLines={1}>
-                  {positionLine}
-                </Text>
-              ) : null}
-              {percent !== null ? (
-                <View style={styles.progressRow}>
-                  <View style={[styles.progressTrack, finished && styles.progressTrackFinished]}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        { width: `${percent}%` },
-                        finished && styles.progressFillFinished,
-                      ]}
-                    />
+                <>
+                  {/* Gold tooling frame, stamped like a collector's edition. */}
+                  <View style={styles.tooling} pointerEvents="none" />
+                  <View style={styles.finishedBand} pointerEvents="none">
+                    <Text style={styles.finishedBandText}>FINISHED</Text>
                   </View>
-                  <Text style={[styles.progressText, finished && styles.progressTextFinished]}>
-                    {percent}%
-                  </Text>
-                </View>
+                </>
               ) : null}
-            </View>
-          </View>
             </>
           )}
-
-          {/* Fore-edge page block: the stack of pages at the book's right. */}
-          <View style={[styles.pages, finished && styles.pagesFinished]}>
-            <View style={[styles.pageLine, finished && styles.pageLineFinished]} />
-            <View style={[styles.pageLine, finished && styles.pageLineFinished]} />
-            <View style={[styles.pageLine, finished && styles.pageLineFinished]} />
-          </View>
-
-          {finished ? (
-            showCover ? (
-              <>
-                {/* Real cover art: a stamped gilt frame plus a gold trophy
-                    plaque along the base - celebrates the finish without
-                    covering the artwork's title. */}
-                <View style={styles.coverGiltFrame} pointerEvents="none" />
-                <View style={styles.coverFinishedPlaque} pointerEvents="none">
-                  <Ionicons name="trophy" size={11} color="#3a2b12" />
-                  <Text style={styles.coverFinishedPlaqueText}>FINISHED</Text>
-                </View>
-              </>
-            ) : (
-              <>
-                {/* Gold tooling frame, stamped like a collector's edition. */}
-                <View style={styles.tooling} pointerEvents="none" />
-                <View style={styles.finishedBand} pointerEvents="none">
-                  <Text style={styles.finishedBandText}>FINISHED</Text>
-                </View>
-              </>
-            )
-          ) : null}
         </Pressable>
       </Animated.View>
     </View>
@@ -255,68 +201,22 @@ export function ShelfBook({
 }
 
 const styles = StyleSheet.create({
-  // All books share one size - reading trackers (Bookly, StoryGraph, Kindle
-  // home) keep covers uniform and signal the current read with placement,
-  // badges, and motion instead. Our spotlight book leads the shelf and gets
-  // the halo, bubble, and peek nudge.
+  // All books share one size in a 3-across grid - the cover density Kindle,
+  // Apple Books, and Bookly ship. The current read is promoted by the hero
+  // card above the shelf, not by resizing books.
   slot: {
     flex: 1,
-    position: 'relative',
-  },
-  animatedWrap: {
-    flex: 1,
-  },
-  haloOuter: {
-    position: 'absolute',
-    top: 20,
-    left: -10,
-    right: -10,
-    bottom: -6,
-    borderRadius: 22,
-    backgroundColor: gold.glowSoft,
-  },
-  haloInner: {
-    position: 'absolute',
-    top: 26,
-    left: -4,
-    right: -4,
-    bottom: -2,
-    borderRadius: 16,
-    backgroundColor: gold.glow,
-  },
-  bubbleZone: {
-    height: 30,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  bubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.text,
-    borderWidth: 1,
-    borderColor: gold.base,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    zIndex: 2,
-  },
-  bubbleText: {
-    color: '#f2c75c',
-    fontSize: 11,
-    fontWeight: '700',
   },
   cloth: {
     // True book proportions (2:3, the ratio Goodreads/Bookly/StoryGraph
     // render covers at): height derives from the shared slot width, so
-    // every cover stays identical AND real cover art crops minimally.
-    aspectRatio: 0.66,
+    // every cover stays identical AND real cover art keeps its shape.
+    aspectRatio: 2 / 3,
     flexDirection: 'row',
-    borderTopLeftRadius: 3,
-    borderBottomLeftRadius: 3,
-    borderTopRightRadius: 7,
-    borderBottomRightRadius: 7,
+    borderTopLeftRadius: 2,
+    borderBottomLeftRadius: 2,
+    borderTopRightRadius: 5,
+    borderBottomRightRadius: 5,
     overflow: 'hidden',
     // The border exists in BOTH states (transparent when unfinished):
     // toggling borderWidth on an elevated, clipped Android view hits a
@@ -324,10 +224,16 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'transparent',
     elevation: 4,
-    shadowColor: '#3f2f16',
+    shadowColor: '#2b1c10',
     shadowOpacity: 0.35,
     shadowRadius: 5,
     shadowOffset: { width: 2, height: 4 },
+  },
+  clothCover: {
+    // Real artwork has its own corners; keep the silhouette bookish but
+    // don't paint spine strips over someone else's cover design.
+    borderTopLeftRadius: 2,
+    borderBottomLeftRadius: 2,
   },
   clothFinished: {
     borderColor: gold.base,
@@ -340,62 +246,74 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.18)',
   },
-  coverPercentPill: {
-    position: 'absolute',
-    left: 8,
-    bottom: 8,
-    backgroundColor: 'rgba(20, 14, 6, 0.72)',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  coverPercentText: {
-    color: '#fffdf6',
-    fontSize: 10,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  coverGiltFrame: {
-    ...StyleSheet.absoluteFillObject,
-    borderWidth: 2.5,
-    borderColor: leather.stamp,
-  },
-  coverFinishedPlaque: {
+  // Bottom scrim progress: white-on-dark stays readable over ANY artwork
+  // (WCAG-safe), the pattern streaming and reading apps use over covers.
+  scrim: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    backgroundColor: gold.base,
+    gap: 6,
+    backgroundColor: 'rgba(20, 13, 6, 0.62)',
+    paddingHorizontal: 7,
     paddingVertical: 5,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(58, 43, 18, 0.35)',
   },
-  coverFinishedPlaqueText: {
-    color: '#3a2b12',
+  scrimTrack: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 253, 246, 0.28)',
+    overflow: 'hidden',
+  },
+  scrimFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: gold.base,
+  },
+  scrimText: {
+    color: '#fffdf6',
     fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.6,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  // Finished cover art keeps every inch of the artwork visible; the gold
+  // corner medal is the Kindle finished-checkmark pattern, gilt-edged.
+  medal: {
+    position: 'absolute',
+    right: 5,
+    bottom: 5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: gold.base,
+    borderWidth: 1,
+    borderColor: 'rgba(58, 43, 18, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#2b1c10',
+    shadowOpacity: 0.4,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
   },
   spineRidge: {
-    width: 7,
+    width: 5,
     backgroundColor: 'rgba(0, 0, 0, 0.28)',
   },
   hinge: {
-    width: 3,
+    width: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
   paperLabel: {
     flex: 1,
     backgroundColor: colors.card,
-    marginVertical: 12,
-    marginLeft: 8,
-    marginRight: 6,
-    borderRadius: 3,
-    padding: 10,
+    marginVertical: 9,
+    marginLeft: 5,
+    marginRight: 4,
+    borderRadius: 2,
+    padding: 7,
     justifyContent: 'space-between',
   },
   // Collector's editions are gold-stamped straight onto the leather.
@@ -404,8 +322,6 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 15,
-    lineHeight: 20,
     fontFamily: fonts.serif,
     fontWeight: '700',
   },
@@ -414,7 +330,7 @@ const styles = StyleSheet.create({
   },
   author: {
     color: colors.muted,
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.serif,
     fontStyle: 'italic',
   },
@@ -424,7 +340,7 @@ const styles = StyleSheet.create({
   positionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     marginTop: 3,
   },
   positionInRow: {
@@ -432,7 +348,7 @@ const styles = StyleSheet.create({
   },
   position: {
     color: colors.accent,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     marginTop: 3,
   },
@@ -442,13 +358,13 @@ const styles = StyleSheet.create({
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginTop: 5,
+    gap: 4,
+    marginTop: 4,
   },
   progressTrack: {
     flex: 1,
-    height: 5,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: 'rgba(0, 0, 0, 0.10)',
     overflow: 'hidden',
   },
@@ -457,7 +373,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
     backgroundColor: colors.accent,
   },
   progressFillFinished: {
@@ -465,16 +381,16 @@ const styles = StyleSheet.create({
   },
   progressText: {
     color: colors.muted,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
   },
   progressTextFinished: {
     color: leather.stamp,
   },
   pages: {
-    width: 7,
+    width: 5,
     backgroundColor: paper.edge,
-    marginVertical: 8,
+    marginVertical: 6,
     borderTopLeftRadius: 1,
     borderBottomLeftRadius: 1,
     justifyContent: 'space-evenly',
@@ -493,28 +409,28 @@ const styles = StyleSheet.create({
   },
   tooling: {
     position: 'absolute',
-    top: 5,
-    left: 12,
-    right: 10,
-    bottom: 5,
+    top: 4,
+    left: 9,
+    right: 7,
+    bottom: 4,
     borderWidth: 1,
     borderColor: leather.tooling,
-    borderRadius: 3,
+    borderRadius: 2,
   },
   finishedBand: {
     position: 'absolute',
-    top: 14,
-    right: -26,
-    width: 104,
+    top: 10,
+    right: -24,
+    width: 88,
     transform: [{ rotate: '38deg' }],
     backgroundColor: gold.base,
-    paddingVertical: 3,
+    paddingVertical: 2,
     alignItems: 'center',
   },
   finishedBandText: {
     color: '#33291b',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '800',
-    letterSpacing: 1.5,
+    letterSpacing: 1.3,
   },
 });

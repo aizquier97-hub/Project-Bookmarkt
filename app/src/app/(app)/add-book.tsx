@@ -81,7 +81,6 @@ export default function AddBookScreen() {
   const [publisher, setPublisher] = useState('');
   const [publicationYear, setPublicationYear] = useState('');
   const [totalPages, setTotalPages] = useState('');
-  const [isbnField, setIsbnField] = useState('');
   const [storedIsbn, setStoredIsbn] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -111,7 +110,6 @@ export default function AddBookScreen() {
       return;
     }
     setError(null);
-    setIsbnField(normalized);
     setStoredIsbn(normalized);
     setLookupBusy(true);
     try {
@@ -163,47 +161,31 @@ export default function AddBookScreen() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Stack.Screen options={{ title: 'Add a book' }} />
 
+        {/* Scan-first, no typed-ISBN field (owner call, D-031): one scan
+            fills everything; the manual fields below are the fallback. */}
         {scannerAvailable ? (
           <Pressable
             style={styles.scanCard}
             onPress={() => setScannerOpen(true)}
+            disabled={lookupBusy}
             accessibilityRole="button"
             accessibilityLabel="Scan the book's barcode"
           >
-            <Ionicons name="barcode-outline" size={30} color={colors.accent} />
+            {lookupBusy ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : (
+              <Ionicons name="barcode-outline" size={30} color={colors.accent} />
+            )}
             <View style={styles.scanCardTextWrap}>
-              <Text style={styles.scanCardTitle}>Scan the barcode</Text>
+              <Text style={styles.scanCardTitle}>
+                {lookupBusy ? 'Looking up your book…' : 'Scan the barcode'}
+              </Text>
               <Text style={styles.scanCardSub}>
                 Point at the back cover - title, author, and cover fill in for you.
               </Text>
             </View>
           </Pressable>
         ) : null}
-
-        <Text style={styles.label}>ISBN{scannerAvailable ? ' (or scan above)' : ''}</Text>
-        <View style={styles.isbnRow}>
-          <TextInput
-            style={[styles.input, styles.isbnInput]}
-            placeholder="e.g., 9780143039433"
-            placeholderTextColor={colors.muted}
-            value={isbnField}
-            onChangeText={setIsbnField}
-            keyboardType="number-pad"
-          />
-          <Pressable
-            style={styles.lookupButton}
-            onPress={() => void applyIsbn(isbnField)}
-            disabled={lookupBusy || !isbnField.trim()}
-            accessibilityRole="button"
-            accessibilityLabel="Look up this ISBN"
-          >
-            {lookupBusy ? (
-              <ActivityIndicator color={colors.background} />
-            ) : (
-              <Text style={styles.lookupButtonText}>Look up</Text>
-            )}
-          </Pressable>
-        </View>
 
         <Text style={styles.label}>Book title *</Text>
         <TextInput
@@ -320,24 +302,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     marginTop: 2,
-  },
-  isbnRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  isbnInput: {
-    flex: 1,
-  },
-  lookupButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
-  lookupButtonText: {
-    color: colors.background,
-    fontWeight: '700',
-    fontSize: 14,
   },
   label: {
     color: colors.muted,
