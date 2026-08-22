@@ -2,8 +2,45 @@ import {
   formatBoundaryPosition,
   getCurrentPosition,
   splitEntryText,
+  splitTextForHighlight,
   summarizeEntriesByBook,
 } from '@/domains/entries/display';
+
+describe('splitTextForHighlight', () => {
+  it('marks every case-insensitive match', () => {
+    expect(splitTextForHighlight('The Monk met a monk.', 'monk')).toEqual([
+      { text: 'The ', match: false },
+      { text: 'Monk', match: true },
+      { text: ' met a ', match: false },
+      { text: 'monk', match: true },
+      { text: '.', match: false },
+    ]);
+  });
+
+  it('handles matches at the start and end', () => {
+    expect(splitTextForHighlight('monk to monk', 'monk')).toEqual([
+      { text: 'monk', match: true },
+      { text: ' to ', match: false },
+      { text: 'monk', match: true },
+    ]);
+  });
+
+  it('returns one plain segment when the query is empty or has no hits', () => {
+    expect(splitTextForHighlight('Some text', '')).toEqual([{ text: 'Some text', match: false }]);
+    expect(splitTextForHighlight('Some text', '  ')).toEqual([{ text: 'Some text', match: false }]);
+    expect(splitTextForHighlight('Some text', 'zebra')).toEqual([
+      { text: 'Some text', match: false },
+    ]);
+  });
+
+  it('treats regex special characters as plain text', () => {
+    expect(splitTextForHighlight('cost (a+b) dollars', '(a+b)')).toEqual([
+      { text: 'cost ', match: false },
+      { text: '(a+b)', match: true },
+      { text: ' dollars', match: false },
+    ]);
+  });
+});
 
 describe('splitEntryText', () => {
   it('splits the machine header from the body', () => {

@@ -162,10 +162,11 @@ for the design-system and screen-polish work items.
   quieted the painted fallback under a soft ink veil, and cut book
   details to title + author + pages (publisher/year retired from forms
   and header; a scan records title, author, pages, cover).
-- **Design gap:** move sign-out into settings (J9); empty/error/loading
-  polish (J10). Uniform cover sizing was hardened 2026-08-22 (D-027):
-  fixed cover heights and a reserved bubble band in every slot, and all
-  UI chrome now uses vector icons.
+- **Design gap:** empty/error/loading polish (J10). Sign-out left the
+  header for the settings screen 2026-08-22 (J9, D-035) - the shelf's
+  header now carries only the settings gear. Uniform cover sizing was
+  hardened 2026-08-22 (D-027): fixed cover heights and a reserved bubble
+  band in every slot, and all UI chrome now uses vector icons.
 
 ### J5. Book home and progress
 
@@ -174,7 +175,9 @@ for the design-system and screen-polish work items.
 - **Today:** `book/[id]` with entries/characters/photos tabs; latest-entry
   boundary drives ordering; progress types (page/percent/chapter/finished).
   Entries render in a day-grouped timeline (Today / Yesterday / dated
-  headings) with search from six entries; finishing is a gold status pill
+  headings) with search from six entries; search hits are highlighted
+  inside the entry text (gold marker, D-034) so the reader sees where
+  the word appears; finishing is a gold status pill
   under the title and Edit lives in the nav bar (D-026).
 - **Design gap:** the "re-entry moment" is the paid recap - "Where you left
   off" (working name, D-022): an AI-written story-so-far from the reader's
@@ -234,22 +237,25 @@ for the design-system and screen-polish work items.
 
 - **Reader moment:** infrequent but trust-defining - password, privacy,
   sign-out, subscription management (Stage 4).
-- **Today:** no settings screen; sign-out is a library header link;
-  password reset exists via auth flow.
-- **Design gap (build in Stage 3):** a simple settings screen - account,
-  sign-out, app version, support link, privacy/data links - giving
-  subscription management (Stage 4) and data export/deletion (Stage 4) a
-  home to land in.
+- **Today:** settings screen shipped 2026-08-22 (D-035): gear icon in the
+  library header opens grouped sections - account (signed-in email), Your
+  QR bookmarks, Report an issue, app version - with sign-out as a
+  confirmed destructive action at the bottom. Password reset exists via
+  the auth flow.
+- **Design gap:** privacy/data links land here when the policies exist;
+  subscription management (Stage 4) and data export/deletion (Stage 4)
+  now have a home to land in.
 
 ### J10. Support and reports
 
 - **Reader moment:** something's wrong (spoiler shown, bad transcript, bug);
   the reader needs to feel heard.
 - **Today:** `report-issue` screen writes to the reports table (spoiler and
-  issue categories).
+  issue categories); its entry point moved to the settings screen
+  (D-035) - the shelf no longer carries a report link.
 - **Design gap:** confirmation and status messaging (roadmap item) - "we
-  got it" acknowledgment; entry point relocated to settings + contextual
-  spots (companion surfaces when they exist).
+  got it" acknowledgment; contextual entry points on companion surfaces
+  when they exist.
 
 ### J11. Subscription purchase (design-only in Stage 3)
 
@@ -279,9 +285,10 @@ Stage 3 design effort, in order:
 To keep the shelf redesign shippable in one OTA round, these were
 deliberately deferred and stay on this stage's list:
 
-- **J9 - settings screen and sign-out relocation.** Sign-out remains a
-  header link on the library screen; competitors put account actions
-  behind a settings/profile surface. Next J-round candidate.
+- **J9 - settings screen and sign-out relocation.** ~~Sign-out remains a
+  header link on the library screen~~ - **shipped 2026-08-22 (D-035)**: a
+  gear in the shelf header opens the settings screen (account, bookmarks,
+  support, version, confirmed sign-out).
 - **J2 - first-run onboarding.** The empty-shelf state carries first-run
   weight today; a warm two-or-three-screen welcome remains undesigned.
 - **J10 - empty/error/loading illustration polish** continues to wait on

@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 
+import { type CoverCandidate } from '@/domains/library/covers';
 import { deleteBook, getBook, updateBook, type Book } from '@/domains/library/service';
 import { CoverPicker } from '@/components/CoverPicker';
 import { ErrorState, LoadingState } from '@/components/states';
@@ -111,6 +112,34 @@ function EditBookForm({ book }: { book: Book }) {
 
   const busy = updateMutation.isPending || deleteMutation.isPending;
 
+  // Picking a cover also fills blank details from the matched edition -
+  // same fill-blanks contract as the scan, with a one-tap Undo (D-033).
+  const handleCoverCandidate = (candidate: CoverCandidate) => {
+    const fillAuthor = !author.trim() && candidate.author ? candidate.author : null;
+    const fillPages =
+      !totalPages.trim() && candidate.pagesMedian !== null ? String(candidate.pagesMedian) : null;
+    if (!fillAuthor && !fillPages) {
+      return;
+    }
+    const prevAuthor = author;
+    const prevPages = totalPages;
+    if (fillAuthor) setAuthor(fillAuthor);
+    if (fillPages) setTotalPages(fillPages);
+    const message =
+      fillAuthor && fillPages
+        ? 'Author and pages filled from the cover match - pages vary by edition.'
+        : fillAuthor
+          ? 'Author filled from the cover match.'
+          : 'Pages filled from the cover match - pages vary by edition.';
+    showToast(message, 'info', {
+      label: 'Undo',
+      onPress: () => {
+        if (fillAuthor) setAuthor(prevAuthor);
+        if (fillPages) setTotalPages(prevPages);
+      },
+    });
+  };
+
   const handleDelete = () => {
     Alert.alert(
       'Delete book',
@@ -163,6 +192,7 @@ function EditBookForm({ book }: { book: Book }) {
           author={author}
           coverUrl={coverUrl}
           onChange={setCoverUrl}
+          onCandidateSelected={handleCoverCandidate}
           isbnLookup
           onIsbnResolved={setIsbn}
         />

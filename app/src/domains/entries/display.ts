@@ -40,6 +40,41 @@ export function formatBoundaryPosition(boundary: ProgressBoundary): string {
   return `${type} ${boundary.upper}`;
 }
 
+export interface HighlightSegment {
+  text: string;
+  /** True when this segment matches the search query (case-insensitive). */
+  match: boolean;
+}
+
+/**
+ * Splits text into plain and matching segments for search-hit highlighting
+ * (every editor and journal app marks the hit itself, not just the row).
+ * Case-insensitive, matches every occurrence, display-only. An empty query
+ * returns the whole text as one plain segment.
+ */
+export function splitTextForHighlight(text: string, query: string): HighlightSegment[] {
+  const needle = query.trim().toLowerCase();
+  if (!text || !needle) {
+    return [{ text, match: false }];
+  }
+  const haystack = text.toLowerCase();
+  const segments: HighlightSegment[] = [];
+  let cursor = 0;
+  let hit = haystack.indexOf(needle, cursor);
+  while (hit !== -1) {
+    if (hit > cursor) {
+      segments.push({ text: text.slice(cursor, hit), match: false });
+    }
+    segments.push({ text: text.slice(hit, hit + needle.length), match: true });
+    cursor = hit + needle.length;
+    hit = haystack.indexOf(needle, cursor);
+  }
+  if (cursor < text.length) {
+    segments.push({ text: text.slice(cursor), match: false });
+  }
+  return segments;
+}
+
 /**
  * The reader's most recent position across both progress types: the first
  * entry (list is newest-first) whose text carries a parseable boundary.

@@ -137,6 +137,8 @@ export interface CoverCandidate {
   title: string;
   author: string | null;
   year: number | null;
+  /** Median page count across editions - a starting point, not gospel. */
+  pagesMedian: number | null;
 }
 
 interface CoverSearchDoc {
@@ -144,6 +146,7 @@ interface CoverSearchDoc {
   title?: unknown;
   author_name?: unknown;
   first_publish_year?: unknown;
+  number_of_pages_median?: unknown;
 }
 
 /** Pure parser for cover search results: keeps docs with covers, dedupes. */
@@ -168,6 +171,7 @@ export function parseCoverSearchPayload(payload: unknown): CoverCandidate[] {
       title: String(doc.title ?? '').trim(),
       author: authorList.length ? String(authorList[0] ?? '').trim() || null : null,
       year: normalizeOptionalPublicationYear(doc.first_publish_year),
+      pagesMedian: normalizeOptionalPositiveInt(doc.number_of_pages_median),
     });
     if (candidates.length >= MAX_CANDIDATES) {
       break;
@@ -191,7 +195,7 @@ export async function searchCoverCandidates(
     params.set('author', author.trim());
   }
   params.set('limit', String(SEARCH_LIMIT));
-  params.set('fields', 'cover_i,title,author_name,first_publish_year');
+  params.set('fields', 'cover_i,title,author_name,first_publish_year,number_of_pages_median');
   const url = `https://openlibrary.org/search.json?${params.toString()}`;
   const resp = await withTimeout(fetch(url), LOOKUP_TIMEOUT_MS, 'Cover search timed out.');
   if (!resp.ok) {
