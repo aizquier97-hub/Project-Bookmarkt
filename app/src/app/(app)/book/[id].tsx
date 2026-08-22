@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Image as CoverImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
@@ -203,21 +204,33 @@ export default function BookScreen() {
           }}
         />
 
-        {book?.author ? <Text style={styles.author}>by {book.author}</Text> : null}
-        {metaParts.length ? <Text style={styles.meta}>{metaParts.join(' · ')}</Text> : null}
+        <View style={styles.headerRow}>
+          {book?.cover_url ? (
+            <CoverImage
+              source={{ uri: book.cover_url }}
+              style={styles.headerCover}
+              contentFit="cover"
+              accessibilityLabel={`Cover of ${book.name}`}
+            />
+          ) : null}
+          <View style={styles.headerInfo}>
+            {book?.author ? <Text style={styles.author}>by {book.author}</Text> : null}
+            {metaParts.length ? <Text style={styles.meta}>{metaParts.join(' · ')}</Text> : null}
 
-        {currentPosition ? (
-          <View style={styles.positionRow}>
-            <View style={styles.positionChip}>
-              <Text style={styles.positionChipText}>
-                {formatBoundaryPosition(currentPosition)}
-              </Text>
-            </View>
-            {lastEntryRelative ? (
-              <Text style={styles.positionMeta}>last entry {lastEntryRelative}</Text>
+            {currentPosition ? (
+              <View style={styles.positionRow}>
+                <View style={styles.positionChip}>
+                  <Text style={styles.positionChipText}>
+                    {formatBoundaryPosition(currentPosition)}
+                  </Text>
+                </View>
+                {lastEntryRelative ? (
+                  <Text style={styles.positionMeta}>last entry {lastEntryRelative}</Text>
+                ) : null}
+              </View>
             ) : null}
           </View>
-        ) : null}
+        </View>
 
         <View style={styles.detailsRow}>
           {book ? (
@@ -1356,6 +1369,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     padding: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  headerCover: {
+    width: 56,
+    height: 84,
+    borderRadius: 5,
+    backgroundColor: colors.border,
+  },
+  headerInfo: {
+    flex: 1,
   },
   author: {
     color: colors.muted,

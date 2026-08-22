@@ -136,14 +136,16 @@ for the design-system and screen-polish work items.
   from position, glow, and motion, the pattern reading trackers use).
   Finished books render as a matched
   leather-bound collector set - deep leather, gold stamping and tooling,
-  gilt page edges (D-025). Look-and-feel requirements are logged in
-  DESIGN_REQUIREMENTS.md.
-- **Design gap:** cover art treatment - real covers are the top
-  professional-polish item per the D-027 audit (Open Library Covers /
-  Google Books sources identified; awaiting owner approval, no schema
-  field yet); move sign-out into settings (J9). Uniform cover sizing was
-  hardened 2026-08-22 (D-027): fixed cover heights and a reserved bubble
-  band in every slot, and all UI chrome now uses vector icons.
+  gilt page edges (D-025). Real cover art shipped 2026-08-22 (D-028):
+  covers chosen via Open Library picker or filled by ISBN scan/lookup
+  render on the shelf and book header, painted cloth stays the fallback,
+  and the add-book screen leads with a barcode scan card (typed-ISBN
+  lookup everywhere; scanning arrives with the next native build).
+  Look-and-feel requirements are logged in DESIGN_REQUIREMENTS.md.
+- **Design gap:** move sign-out into settings (J9); empty/error/loading
+  polish (J10). Uniform cover sizing was hardened 2026-08-22 (D-027):
+  fixed cover heights and a reserved bubble band in every slot, and all
+  UI chrome now uses vector icons.
 
 ### J5. Book home and progress
 
