@@ -121,9 +121,10 @@ for the design-system and screen-polish work items.
 - **Design gap:** refine shelf rendering (cover art treatment, spine
   fallback for books without covers); finished-book treatment (visible
   accomplishment for R3 - needs a schema decision); move sign-out into
-  settings (J9). Shipped 2026-08-22: currently-reading emphasis via a
-  "Continue reading" card plus per-cover position and last-touched cues,
-  so multi-book readers see at a glance which book to resume.
+  settings (J9). Shipped 2026-08-22: currently-reading emphasis lives on
+  the shelf itself - the most recently touched book stands taller with a
+  ribbon bookmark and accent frame - plus per-cover position cues, so
+  multi-book readers see at a glance which book to resume.
 
 ### J5. Book home and progress
 

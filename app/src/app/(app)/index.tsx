@@ -18,7 +18,6 @@ import { listEntrySummaryRows } from '@/domains/entries/service';
 import { listBooks, type Book } from '@/domains/library/service';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { formatRelativeTime } from '@/lib/relativeTime';
 import { cardShadow, colors, fonts, spineColorFor, wood } from '@/lib/theme';
 
 const BOOKS_PER_SHELF = 2;
@@ -49,8 +48,9 @@ export default function LibraryScreen() {
     [summariesQuery.data],
   );
 
-  // The most recently touched book becomes the one-tap "Continue reading"
-  // card; ISO timestamps compare lexicographically.
+  // The most recently touched book gets shelf emphasis - it stands taller
+  // with a ribbon bookmark, staying inside the bookshelf metaphor instead
+  // of a separate card. ISO timestamps compare lexicographically.
   const continueReading = useMemo(() => {
     let best: { book: Book; lastEntryAt: string } | null = null;
     for (const book of booksQuery.data ?? []) {
@@ -103,47 +103,6 @@ export default function LibraryScreen() {
 
       {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
 
-      {continueReading ? (
-        <Link
-          href={{ pathname: '/book/[id]', params: { id: String(continueReading.book.id) } }}
-          asChild
-        >
-          <Pressable
-            style={styles.continueCard}
-            accessibilityRole="button"
-            accessibilityLabel={`Continue reading ${continueReading.book.name}`}
-          >
-            <View
-              style={[
-                styles.continueSpine,
-                { backgroundColor: spineColorFor(continueReading.book.id) },
-              ]}
-            />
-            <View style={styles.continueBody}>
-              <Text style={styles.continueKicker}>Continue reading</Text>
-              <Text style={styles.continueTitle} numberOfLines={1}>
-                {continueReading.book.name}
-              </Text>
-              <Text style={styles.continueMeta} numberOfLines={1}>
-                {[
-                  (() => {
-                    const position = summaries.get(continueReading.book.id)?.position;
-                    return position ? formatBoundaryPosition(position) : null;
-                  })(),
-                  (() => {
-                    const relative = formatRelativeTime(continueReading.lastEntryAt);
-                    return relative ? `last entry ${relative}` : null;
-                  })(),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
-            </View>
-            <Text style={styles.continueArrow}>›</Text>
-          </Pressable>
-        </Link>
-      ) : null}
-
       {booksQuery.isPending ? (
         <LoadingState label="Loading your shelf…" />
       ) : booksQuery.isError ? (
@@ -163,50 +122,59 @@ export default function LibraryScreen() {
           renderItem={({ item: shelf }) => (
             <View style={styles.shelfUnit}>
               <View style={styles.shelfRow}>
-                {shelf.map((book) => (
-                  <Link
-                    key={book.id}
-                    href={{ pathname: '/book/[id]', params: { id: String(book.id) } }}
-                    asChild
-                  >
-                    <Pressable style={styles.bookCover}>
-                      <View
-                        style={[styles.coverSpine, { backgroundColor: spineColorFor(book.id) }]}
-                      />
-                      <View style={styles.coverBody}>
-                        <Text style={styles.coverTitle} numberOfLines={4}>
-                          {book.name}
-                        </Text>
-                        <View>
-                          {book.author ? (
-                            <Text style={styles.coverAuthor} numberOfLines={1}>
-                              {book.author}
-                            </Text>
-                          ) : null}
-                          {(() => {
-                            const summary = summaries.get(book.id);
-                            if (summary && summary.position) {
-                              return (
-                                <Text style={styles.coverPosition} numberOfLines={1}>
-                                  {formatBoundaryPosition(summary.position)}
-                                </Text>
-                              );
-                            }
-                            if (summary && summary.lastEntryAt) {
-                              return <Text style={styles.coverPosition}>In progress</Text>;
-                            }
-                            if (book.total_pages) {
-                              return (
-                                <Text style={styles.coverPages}>{book.total_pages} pages</Text>
-                              );
-                            }
-                            return null;
-                          })()}
+                {shelf.map((book) => {
+                  const isActive = continueReading?.book.id === book.id;
+                  return (
+                    <Link
+                      key={book.id}
+                      href={{ pathname: '/book/[id]', params: { id: String(book.id) } }}
+                      asChild
+                    >
+                      <Pressable
+                        style={[styles.bookCover, isActive && styles.bookCoverActive]}
+                        accessibilityLabel={
+                          isActive ? `Continue reading ${book.name}` : book.name
+                        }
+                      >
+                        <View
+                          style={[styles.coverSpine, { backgroundColor: spineColorFor(book.id) }]}
+                        />
+                        <View style={styles.coverBody}>
+                          <Text style={styles.coverTitle} numberOfLines={4}>
+                            {book.name}
+                          </Text>
+                          <View>
+                            {book.author ? (
+                              <Text style={styles.coverAuthor} numberOfLines={1}>
+                                {book.author}
+                              </Text>
+                            ) : null}
+                            {(() => {
+                              const summary = summaries.get(book.id);
+                              if (summary && summary.position) {
+                                return (
+                                  <Text style={styles.coverPosition} numberOfLines={1}>
+                                    {formatBoundaryPosition(summary.position)}
+                                  </Text>
+                                );
+                              }
+                              if (summary && summary.lastEntryAt) {
+                                return <Text style={styles.coverPosition}>In progress</Text>;
+                              }
+                              if (book.total_pages) {
+                                return (
+                                  <Text style={styles.coverPages}>{book.total_pages} pages</Text>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </View>
                         </View>
-                      </View>
-                    </Pressable>
-                  </Link>
-                ))}
+                        {isActive ? <View style={styles.ribbon} /> : null}
+                      </Pressable>
+                    </Link>
+                  );
+                })}
                 {shelf.length < BOOKS_PER_SHELF ? <View style={styles.coverSpacer} /> : null}
               </View>
               <View style={styles.shelfBoardTop} />
@@ -338,50 +306,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 2,
   },
-  continueCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 12,
-    marginBottom: 14,
-    overflow: 'hidden',
-    ...cardShadow,
+  // The active book stands taller and carries a ribbon bookmark draped
+  // over its cover - the shelf itself says "you are here".
+  bookCoverActive: {
+    minHeight: 182,
+    borderColor: colors.accent,
+    borderWidth: 1.5,
+    shadowOpacity: 0.28,
+    elevation: 5,
   },
-  continueSpine: {
-    alignSelf: 'stretch',
-    width: 6,
-  },
-  continueBody: {
-    flex: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  continueKicker: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  continueTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontFamily: fonts.serif,
-    fontWeight: '700',
-  },
-  continueMeta: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  continueArrow: {
-    color: colors.accent,
-    fontSize: 26,
-    fontWeight: '700',
-    paddingHorizontal: 14,
+  ribbon: {
+    position: 'absolute',
+    top: 0,
+    right: 12,
+    width: 16,
+    height: 34,
+    backgroundColor: colors.accent,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
   },
   coverSpacer: {
     flex: 1,

@@ -335,9 +335,9 @@ function EntriesTab({
         accessibilityLabel="Where you left off, coming with the Companion"
       >
         <Text style={styles.teaserTitle}>🔒 Where you left off</Text>
-        <Text style={styles.teaserMeta}>
-          {teaserOpen ? 'close' : 'coming with the Companion'}
-        </Text>
+        <View style={styles.teaserPill}>
+          <Text style={styles.teaserPillText}>{teaserOpen ? '✕' : 'Companion'}</Text>
+        </View>
       </Pressable>
       {teaserOpen ? (
         <View style={styles.teaserCard}>
@@ -1208,32 +1208,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
   },
+  // The paid recap teaser dresses differently from entry cards on purpose:
+  // warm gold tint, accent frame, serif title - a Companion-branded surface.
   teaserRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    borderColor: colors.border,
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingVertical: 12,
     marginBottom: 14,
+    ...cardShadow,
   },
   teaserTitle: {
     color: colors.text,
+    fontFamily: fonts.serif,
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 15,
   },
-  teaserMeta: {
-    color: colors.muted,
-    fontSize: 12,
-    fontStyle: 'italic',
+  teaserPill: {
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  teaserPillText: {
+    color: colors.background,
+    fontWeight: '700',
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
   teaserCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderLeftColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderLeftWidth: 4,
     borderRadius: 12,
