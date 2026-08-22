@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { deleteBook, getBook, updateBook, type Book } from '@/domains/library/service';
+import { CoverPicker } from '@/components/CoverPicker';
 import { ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
@@ -72,11 +73,12 @@ function EditBookForm({ book }: { book: Book }) {
     book.publication_year ? String(book.publication_year) : '',
   );
   const [totalPages, setTotalPages] = useState(book.total_pages ? String(book.total_pages) : '');
+  const [coverUrl, setCoverUrl] = useState<string | null>(book.cover_url ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: () =>
-      updateBook(book.id, { name, author, publisher, publicationYear, totalPages }),
+      updateBook(book.id, { name, author, publisher, publicationYear, totalPages, coverUrl }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.books });
       void queryClient.invalidateQueries({ queryKey: queryKeys.book(book.id) });
@@ -167,6 +169,8 @@ function EditBookForm({ book }: { book: Book }) {
           onChangeText={setTotalPages}
           keyboardType="number-pad"
         />
+
+        <CoverPicker title={name} author={author} coverUrl={coverUrl} onChange={setCoverUrl} />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 

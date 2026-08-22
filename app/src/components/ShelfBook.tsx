@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatBoundaryPosition, type BookPositionSummary } from '@/domains/entries/display';
@@ -36,6 +37,13 @@ export function ShelfBook({
   const percent = computeCompletionPercent(summary?.position ?? null, book.total_pages, finished);
   const titleType = shelfTitleTypography(book.name);
   const lastEntryRelative = spotlight ? formatRelativeTime(summary?.lastEntryAt) : null;
+  // Real cover art when the reader picked one; broken images fall back to
+  // the painted cloth cover so the shelf never shows a hole.
+  const [coverFailed, setCoverFailed] = useState(false);
+  useEffect(() => {
+    setCoverFailed(false);
+  }, [book.cover_url]);
+  const showCover = Boolean(book.cover_url) && !coverFailed;
 
   // The hero book peeks off the shelf twice when the library appears -
   // one-time motion draws the eye without nagging (never loops).
@@ -140,9 +148,28 @@ export function ShelfBook({
         >
           {/* Spine ridge and hinge highlight give the cover its depth. */}
           <View style={styles.spineRidge} />
-          <View style={styles.hinge} />
 
-          <View style={[styles.paperLabel, finished && styles.paperLabelFinished]}>
+          {showCover ? (
+            <View style={styles.coverWrap}>
+              <Image
+                source={{ uri: book.cover_url ?? undefined }}
+                style={styles.coverImage}
+                contentFit="cover"
+                transition={150}
+                onError={() => setCoverFailed(true)}
+                accessibilityLabel={`Cover of ${book.name}`}
+              />
+              {percent !== null && !finished ? (
+                <View style={styles.coverPercentPill} pointerEvents="none">
+                  <Text style={styles.coverPercentText}>{percent}%</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : (
+            <>
+              <View style={styles.hinge} />
+
+              <View style={[styles.paperLabel, finished && styles.paperLabelFinished]}>
             <Text
               style={[
                 styles.title,
@@ -189,6 +216,8 @@ export function ShelfBook({
               ) : null}
             </View>
           </View>
+            </>
+          )}
 
           {/* Fore-edge page block: the stack of pages at the book's right. */}
           <View style={[styles.pages, finished && styles.pagesFinished]}>
@@ -199,8 +228,9 @@ export function ShelfBook({
 
           {finished ? (
             <>
-              {/* Gold tooling frame, stamped like a collector's edition. */}
-              <View style={styles.tooling} pointerEvents="none" />
+              {/* Gold tooling frame, stamped like a collector's edition -
+                  painted covers only; never draw over real cover art. */}
+              {!showCover ? <View style={styles.tooling} pointerEvents="none" /> : null}
               <View style={styles.finishedBand} pointerEvents="none">
                 <Text style={styles.finishedBandText}>FINISHED</Text>
               </View>
@@ -287,6 +317,29 @@ const styles = StyleSheet.create({
   },
   clothFinished: {
     borderColor: gold.base,
+  },
+  coverWrap: {
+    flex: 1,
+    position: 'relative',
+  },
+  coverImage: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+  },
+  coverPercentPill: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    backgroundColor: 'rgba(20, 14, 6, 0.72)',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  coverPercentText: {
+    color: '#fffdf6',
+    fontSize: 10,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   spineRidge: {
     width: 7,

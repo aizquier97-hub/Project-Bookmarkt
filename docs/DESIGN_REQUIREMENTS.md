@@ -49,7 +49,8 @@ with a pointer to the replacement.
 | Add-a-book as floating + | Bottom-right FAB; top of screen stays clear for the shelf. | Thumb-zone research (Hoober: ~49% one-handed; bottom-right = natural zone, top = hard zone); Material FAB; Bookly pattern. Owner feared top button wasted space - confirmed. | Shipped 2026-08-22 | D-024 |
 | Lived-in shelf | Odd empty slot holds a casual resting pile of books instead of a gap. | Empty-state warmth; skeuomorphic consistency. | Shipped 2026-08-22 | D-024 |
 | No "My bookmarks" top button | Removed; function fully behind the ribbon. | Chrome reduction; the case is the hero. | Shipped 2026-08-22 | D-024 |
-| Cover art treatment | Real cover art per book - the single biggest professional-finish gap vs StoryGraph/Bookly/Goodreads, which all show real covers. Candidate sources: Open Library Covers API (free, by ISBN) or Google Books thumbnails, with the painted-cloth cover as fallback. Needs a schema field and fetch flow. | Real covers are the strongest "finished app" marker in every shipped reading tracker. | Proposed - awaiting owner approval | D-027, J4 gap |
+| Cover art treatment | Real cover art per book: chosen in add/edit via a cover picker (search Open Library by title/author, up to 8 candidates) or auto-filled by an ISBN scan/lookup; the painted-cloth cover remains the permanent fallback and broken images fall back silently. Finished books keep the gold border, FINISHED band, and gilt pages over real art; a percent pill overlays in-progress real covers. Attribution "Covers from Open Library" shows in the forms. | Real covers are the strongest "finished app" marker in every shipped reading tracker (StoryGraph/Bookly/Goodreads). Open Library permits moderate per-reader lookups with attribution; Google Books declined (ToS conflicts with the paid companion). | Shipped 2026-08-22 | D-028 |
+| Scan or type the ISBN to add a book | The add-book screen leads with a "Scan the barcode" card (camera opens a full-screen scan sheet, EAN-13 only); a typed-ISBN field with "Look up" sits beside it. One scan or lookup fills title, author, publisher, year, pages, and cover in a single request - manual input always wins, and everything stays editable. ISBNs are checksum-validated so a misread never fires a bogus lookup. The scan card hides itself on builds without the camera module. | Barcode-scan-to-add is the marquee frictionless-entry pattern in Goodreads and Bookly; owner: "Remember, frictionless!" | Shipped 2026-08-22 (scan needs the next native build; typed lookup works everywhere) | D-028 |
 | Vector iconography everywhere | All UI chrome uses Ionicons vector icons (flag, trophy, pencil, mic, camera, lock, sparkles, +); emoji stays only inside user-facing celebration copy (e.g., the finish toast). | Apple HIG and Material: emoji-as-icon renders inconsistently across OSes, can't be styled/weighted, and is ambiguous for screen readers; every major reading app uses drawn icons. | Shipped 2026-08-22 | D-027 |
 
 ## 3. The book screen
@@ -78,9 +79,6 @@ with a pointer to the replacement.
 
 ## 5. Open design work (not yet designed/shipped)
 
-- **Real cover art** (top polish item per D-027 audit; awaiting owner
-  approval): schema field, Open Library Covers / Google Books fetch, painted
-  fallback.
 - **AI capture assist** (owner idea, D-027): awaiting owner approval and a
   boundary decision against D-012/D-016 before any build.
 - Onboarding and settings surface; move sign-out off the library header (J2, J9).

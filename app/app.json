@@ -51,6 +51,12 @@
             "com.google.android.googlequicksearchbox"
           ]
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Bookmarkt uses the camera to scan a book's barcode so the details fill in for you."
+        }
       ]
     ],
     "experiments": {

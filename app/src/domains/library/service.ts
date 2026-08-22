@@ -1,6 +1,6 @@
 import { requireUserId } from '@/domains/auth/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
-import type { Tables } from '@/lib/database.types';
+import type { Tables, TablesUpdate } from '@/lib/database.types';
 import { supabase } from '@/lib/supabase';
 
 export type Book = Tables<'topics'>;
@@ -40,6 +40,8 @@ export async function addBook(input: BookInput): Promise<Book> {
       publisher: input.publisher?.trim() || null,
       publication_year: publicationYear,
       total_pages: totalPages,
+      cover_url: input.coverUrl?.trim() || null,
+      isbn: input.isbn?.trim() || null,
       user_id: userId,
     })
     .select()
@@ -62,15 +64,24 @@ export async function updateBook(bookId: number, input: BookInput): Promise<Book
   const publicationYear = normalizeOptionalInt(input.publicationYear, 1000, 3000);
   const totalPages = normalizeOptionalInt(input.totalPages, 1, Number.MAX_SAFE_INTEGER);
   const userId = await requireUserId();
+  const patch: TablesUpdate<'topics'> = {
+    name,
+    author,
+    publisher: input.publisher?.trim() || null,
+    publication_year: publicationYear,
+    total_pages: totalPages,
+  };
+  // Cover and ISBN only change when the caller supplies them, so older
+  // call sites never wipe a stored cover.
+  if (input.coverUrl !== undefined) {
+    patch.cover_url = input.coverUrl?.trim() || null;
+  }
+  if (input.isbn !== undefined) {
+    patch.isbn = input.isbn?.trim() || null;
+  }
   const { data, error } = await supabase
     .from('topics')
-    .update({
-      name,
-      author,
-      publisher: input.publisher?.trim() || null,
-      publication_year: publicationYear,
-      total_pages: totalPages,
-    })
+    .update(patch)
     .eq('id', bookId)
     .eq('user_id', userId)
     .select()
@@ -173,6 +184,10 @@ export interface BookInput {
   publisher?: string;
   publicationYear?: string | number | null;
   totalPages?: string | number | null;
+  /** Selected cover image URL; null clears it, undefined leaves it alone. */
+  coverUrl?: string | null;
+  /** Normalized ISBN from a scan or typed lookup; undefined leaves it alone. */
+  isbn?: string | null;
 }
 
 function normalizeOptionalInt(

@@ -569,9 +569,11 @@ export type Database = {
       topics: {
         Row: {
           author: string | null
+          cover_url: string | null
           created_at: string | null
           finished_at: string | null
           id: number
+          isbn: string | null
           name: string
           publication_year: number | null
           publisher: string | null
@@ -580,9 +582,11 @@ export type Database = {
         }
         Insert: {
           author?: string | null
+          cover_url?: string | null
           created_at?: string | null
           finished_at?: string | null
           id?: never
+          isbn?: string | null
           name: string
           publication_year?: number | null
           publisher?: string | null
@@ -591,9 +595,11 @@ export type Database = {
         }
         Update: {
           author?: string | null
+          cover_url?: string | null
           created_at?: string | null
           finished_at?: string | null
           id?: never
+          isbn?: string | null
           name?: string
           publication_year?: number | null
           publisher?: string | null
