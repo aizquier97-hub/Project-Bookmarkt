@@ -19,3 +19,29 @@ export function passwordPolicyError(password: string): string | null {
   }
   return null;
 }
+
+/**
+ * Translates raw Supabase auth errors into plain language (J1): the reader
+ * should never see API phrasing like "Invalid login credentials". Unknown
+ * errors fall back to the screen's own message.
+ */
+export function friendlyAuthMessage(error: unknown, fallback: string): string {
+  const raw = error instanceof Error ? error.message : '';
+  const lowered = raw.toLowerCase();
+  if (lowered.includes('invalid login credentials')) {
+    return "That email and password don't match. Check both and try again.";
+  }
+  if (lowered.includes('email not confirmed')) {
+    return 'Confirm your email first - look for our message in your inbox.';
+  }
+  if (lowered.includes('already registered') || lowered.includes('already been registered')) {
+    return 'That email already has an account. Sign in instead.';
+  }
+  if (lowered.includes('rate limit') || lowered.includes('too many requests')) {
+    return 'Too many attempts - wait a minute, then try again.';
+  }
+  if (lowered.includes('network') || lowered.includes('fetch') || lowered.includes('timed out')) {
+    return 'Could not reach Bookmarkt - check your connection and try again.';
+  }
+  return raw || fallback;
+}

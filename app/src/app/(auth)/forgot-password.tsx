@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { requestPasswordReset } from '@/domains/auth/service';
+import { friendlyAuthMessage } from '@/domains/auth/policy';
 import { colors, fonts } from '@/lib/theme';
 
 export default function ForgotPasswordScreen() {
@@ -30,7 +31,7 @@ export default function ForgotPasswordScreen() {
       await requestPasswordReset(email, Linking.createURL('/reset-password'));
       setLinkSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send the recovery email.');
+      setError(friendlyAuthMessage(err, 'Could not send the recovery email.'));
     } finally {
       setSubmitting(false);
     }

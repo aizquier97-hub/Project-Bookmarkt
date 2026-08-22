@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { signIn } from '@/domains/auth/service';
+import { friendlyAuthMessage } from '@/domains/auth/policy';
 import { colors, fonts } from '@/lib/theme';
 
 export default function SignInScreen() {
@@ -30,7 +31,7 @@ export default function SignInScreen() {
       await signIn(email, password);
       // Redirect happens via the (auth) layout when the session appears.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed. Try again.');
+      setError(friendlyAuthMessage(err, 'Sign-in failed. Try again.'));
     } finally {
       setSubmitting(false);
     }
