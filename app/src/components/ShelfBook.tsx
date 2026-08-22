@@ -227,14 +227,26 @@ export function ShelfBook({
           </View>
 
           {finished ? (
-            <>
-              {/* Gold tooling frame, stamped like a collector's edition -
-                  painted covers only; never draw over real cover art. */}
-              {!showCover ? <View style={styles.tooling} pointerEvents="none" /> : null}
-              <View style={styles.finishedBand} pointerEvents="none">
-                <Text style={styles.finishedBandText}>FINISHED</Text>
-              </View>
-            </>
+            showCover ? (
+              <>
+                {/* Real cover art: a stamped gilt frame plus a gold trophy
+                    plaque along the base - celebrates the finish without
+                    covering the artwork's title. */}
+                <View style={styles.coverGiltFrame} pointerEvents="none" />
+                <View style={styles.coverFinishedPlaque} pointerEvents="none">
+                  <Ionicons name="trophy" size={11} color="#3a2b12" />
+                  <Text style={styles.coverFinishedPlaqueText}>FINISHED</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                {/* Gold tooling frame, stamped like a collector's edition. */}
+                <View style={styles.tooling} pointerEvents="none" />
+                <View style={styles.finishedBand} pointerEvents="none">
+                  <Text style={styles.finishedBandText}>FINISHED</Text>
+                </View>
+              </>
+            )
           ) : null}
         </Pressable>
       </Animated.View>
@@ -296,8 +308,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   cloth: {
-    // Fixed height: every cover is identical regardless of label content.
-    height: 176,
+    // True book proportions (2:3, the ratio Goodreads/Bookly/StoryGraph
+    // render covers at): height derives from the shared slot width, so
+    // every cover stays identical AND real cover art crops minimally.
+    aspectRatio: 0.66,
     flexDirection: 'row',
     borderTopLeftRadius: 3,
     borderBottomLeftRadius: 3,
@@ -340,6 +354,31 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+  },
+  coverGiltFrame: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 2.5,
+    borderColor: leather.stamp,
+  },
+  coverFinishedPlaque: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: gold.base,
+    paddingVertical: 5,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(58, 43, 18, 0.35)',
+  },
+  coverFinishedPlaqueText: {
+    color: '#3a2b12',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.6,
   },
   spineRidge: {
     width: 7,

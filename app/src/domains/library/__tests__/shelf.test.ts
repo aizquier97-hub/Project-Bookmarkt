@@ -113,6 +113,17 @@ describe('shelfTitleTypography', () => {
     expect(shelfTitleTypography('Uncharacteristic').fontSize).toBe(11);
   });
 
+  it('renders every single-word title on one line, shrinking before ellipsizing', () => {
+    // The owner's exact bug: "Monsterholic" split as "Monsterhol / ic".
+    expect(shelfTitleTypography('Monsterholic')).toEqual({
+      fontSize: 13,
+      lineHeight: 17,
+      maxLines: 1,
+    });
+    expect(shelfTitleTypography('Emma')).toEqual({ fontSize: 15, lineHeight: 20, maxLines: 1 });
+    expect(shelfTitleTypography('Middlemarch').maxLines).toBe(1);
+  });
+
   it('steps down for long overall titles even when every word is short', () => {
     expect(shelfTitleTypography('The Name of the Wind').fontSize).toBe(13);
     expect(shelfTitleTypography('The Brothers Karamazov').fontSize).toBe(13);
