@@ -68,10 +68,6 @@ function EditBookForm({ book }: { book: Book }) {
   const { showToast } = useToast();
   const [name, setName] = useState(book.name ?? '');
   const [author, setAuthor] = useState(book.author ?? '');
-  const [publisher, setPublisher] = useState(book.publisher ?? '');
-  const [publicationYear, setPublicationYear] = useState(
-    book.publication_year ? String(book.publication_year) : '',
-  );
   const [totalPages, setTotalPages] = useState(book.total_pages ? String(book.total_pages) : '');
   const [coverUrl, setCoverUrl] = useState<string | null>(book.cover_url ?? null);
   const [isbn, setIsbn] = useState<string | null>(book.isbn ?? null);
@@ -82,8 +78,10 @@ function EditBookForm({ book }: { book: Book }) {
       updateBook(book.id, {
         name,
         author,
-        publisher,
-        publicationYear,
+        // Publisher/year are no longer collected (D-032); stored values on
+        // older books pass through untouched.
+        publisher: book.publisher ?? '',
+        publicationYear: book.publication_year ? String(book.publication_year) : '',
         totalPages,
         coverUrl,
         isbn,
@@ -148,25 +146,6 @@ function EditBookForm({ book }: { book: Book }) {
           placeholderTextColor={colors.muted}
           value={author}
           onChangeText={setAuthor}
-        />
-
-        <Text style={styles.label}>Publisher</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Publisher"
-          placeholderTextColor={colors.muted}
-          value={publisher}
-          onChangeText={setPublisher}
-        />
-
-        <Text style={styles.label}>Publication year</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g., 1984"
-          placeholderTextColor={colors.muted}
-          value={publicationYear}
-          onChangeText={setPublicationYear}
-          keyboardType="number-pad"
         />
 
         <Text style={styles.label}>Total pages</Text>

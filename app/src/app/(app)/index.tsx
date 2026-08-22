@@ -22,9 +22,10 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
 import { colors, leather, wood } from '@/lib/theme';
 
-// Three covers per shelf: the grid density Kindle, Apple Books, and Bookly
-// ship. Two-across rendered giant, toy-like books; three reads as a library.
-const BOOKS_PER_SHELF = 3;
+// Two covers per shelf: the owner tried three-across (Kindle density) and
+// covers felt small; at true 2:3 full-bleed, two-across reads generous
+// without going toy-like.
+const BOOKS_PER_SHELF = 2;
 
 function chunkIntoShelves(books: Book[]): Book[][] {
   const shelves: Book[][] = [];

@@ -27,8 +27,6 @@ import { colors } from '@/lib/theme';
 async function addBookWithLookup(input: {
   name: string;
   author: string;
-  publisher: string;
-  publicationYear: string;
   totalPages: string;
   coverUrl: string | null;
   isbn: string | null;
@@ -37,19 +35,19 @@ async function addBookWithLookup(input: {
   if (!name) {
     throw new Error('Book title is required.');
   }
-  // PWA contract: manual fields win, Open Library fills whatever is missing.
+  // Manual fields win, Open Library fills missing pages. Publisher/year
+  // are deliberately not collected (owner, D-032): the book record needs
+  // title, author, and pages - nothing a reader has to look up.
   const metadata = await resolveBookMetadata({
     title: name,
     author: input.author,
-    manualPublisher: input.publisher,
-    manualPublicationYear: input.publicationYear,
+    manualPublisher: '',
+    manualPublicationYear: '',
     manualTotalPages: input.totalPages,
   });
   return addBook({
     name,
     author: input.author,
-    publisher: metadata.publisher,
-    publicationYear: metadata.publicationYear,
     totalPages: metadata.totalPages,
     coverUrl: input.coverUrl,
     isbn: input.isbn,
@@ -60,9 +58,7 @@ async function addBookWithLookup(input: {
       {
         topicId: String(book.id),
         hasAuthor: Boolean(input.author.trim()),
-        hasMetadata: Boolean(
-          metadata.publisher || metadata.publicationYear || metadata.totalPages,
-        ),
+        hasMetadata: Boolean(metadata.totalPages),
         hasCover: Boolean(input.coverUrl),
         viaIsbn: Boolean(input.isbn),
       },
@@ -78,8 +74,6 @@ export default function AddBookScreen() {
   const { showToast } = useToast();
   const [name, setName] = useState('');
   const [author, setAuthor] = useState('');
-  const [publisher, setPublisher] = useState('');
-  const [publicationYear, setPublicationYear] = useState('');
   const [totalPages, setTotalPages] = useState('');
   const [storedIsbn, setStoredIsbn] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
@@ -101,8 +95,8 @@ export default function AddBookScreen() {
     },
   });
 
-  // One lookup fills everything the reader has not already typed: scanned
-  // or typed ISBN resolves title, author, publisher, year, pages, cover.
+  // One scan fills what the reader has not already typed: title, author,
+  // total pages, and the cover (publisher/year intentionally not kept).
   const applyIsbn = async (raw: string) => {
     const normalized = normalizeIsbn(raw);
     if (!normalized) {
@@ -121,10 +115,6 @@ export default function AddBookScreen() {
       // Manual input wins; the lookup only fills the blanks (PWA contract).
       if (!name.trim() && found.title) setName(found.title);
       if (!author.trim() && found.author) setAuthor(found.author);
-      if (!publisher.trim() && found.publisher) setPublisher(found.publisher);
-      if (!publicationYear.trim() && found.publicationYear) {
-        setPublicationYear(String(found.publicationYear));
-      }
       if (!totalPages.trim() && found.totalPages) setTotalPages(String(found.totalPages));
       if (!coverUrl && found.coverUrl) setCoverUrl(found.coverUrl);
       showToast(`Found "${found.title}".`, 'success');
@@ -145,8 +135,6 @@ export default function AddBookScreen() {
     addBookMutation.mutate({
       name,
       author,
-      publisher,
-      publicationYear,
       totalPages,
       coverUrl,
       isbn: storedIsbn,
@@ -205,23 +193,13 @@ export default function AddBookScreen() {
           onChangeText={setAuthor}
         />
 
-        <Text style={styles.label}>Publisher</Text>
+        <Text style={styles.label}>Author *</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g., Ace Books"
+          placeholder="Author name"
           placeholderTextColor={colors.muted}
-          value={publisher}
-          onChangeText={setPublisher}
-        />
-
-        <Text style={styles.label}>Publication year</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g., 1984"
-          placeholderTextColor={colors.muted}
-          value={publicationYear}
-          onChangeText={setPublicationYear}
-          keyboardType="number-pad"
+          value={author}
+          onChangeText={setAuthor}
         />
 
         <Text style={styles.label}>Total pages</Text>
@@ -239,7 +217,7 @@ export default function AddBookScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Text style={styles.hint}>
-          Leave publisher, year, or pages blank and we will try to fill them from Open Library.
+          Leave pages blank and we will try to fill them from Open Library.
         </Text>
 
         <Pressable

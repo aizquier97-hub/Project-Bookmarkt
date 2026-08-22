@@ -152,11 +152,9 @@ export default function BookScreen() {
   }
 
   const book = bookQuery.data;
-  const metaParts = [
-    book?.publisher ? String(book.publisher) : null,
-    book?.publication_year ? String(book.publication_year) : null,
-    book?.total_pages ? `${book.total_pages} pages` : null,
-  ].filter(Boolean);
+  // Publisher/year retired from display (D-032): pages is the one metadata
+  // detail a reader actually uses here.
+  const metaParts = [book?.total_pages ? `${book.total_pages} pages` : null].filter(Boolean);
 
   const headerEntries = entriesQuery.data ?? [];
   const currentPosition = getCurrentPosition(headerEntries);
