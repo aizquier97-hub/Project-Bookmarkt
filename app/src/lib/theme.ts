@@ -21,6 +21,20 @@ export const wood = {
   boardFront: '#7c5a33',
 } as const;
 
+// Gold celebrates: the spotlight on the freshest book and finished books.
+export const gold = {
+  base: '#c1912e',
+  deep: '#9c731f',
+  glow: 'rgba(212, 165, 50, 0.32)',
+  glowSoft: 'rgba(212, 165, 50, 0.14)',
+} as const;
+
+// Page-block tones for the 2.5D book covers.
+export const paper = {
+  edge: '#f7efdc',
+  edgeLine: 'rgba(109, 85, 47, 0.35)',
+} as const;
+
 // System serif keeps the literary feel without bundling font assets yet.
 export const fonts = {
   serif: Platform.select({ ios: 'Georgia', default: 'serif' }),

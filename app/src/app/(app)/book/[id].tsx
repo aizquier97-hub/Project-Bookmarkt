@@ -45,7 +45,7 @@ import {
   uploadBookImage,
   type BookImage,
 } from '@/domains/library/images';
-import { getBook } from '@/domains/library/service';
+import { getBook, setBookFinished } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
 import { useDictation } from '@/domains/voice/useDictation';
@@ -53,7 +53,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
 import { formatRelativeTime } from '@/lib/relativeTime';
-import { cardShadow, colors, fonts } from '@/lib/theme';
+import { cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 // Capture composer states: closed (bar only), opened for typing, or opened
 // with dictation auto-started (J6: voice as prominent as typing).
@@ -91,6 +91,8 @@ export default function BookScreen() {
   const validId = Number.isInteger(bookId) && bookId > 0;
   const [tab, setTab] = useState<'entries' | 'characters' | 'photos'>('entries');
   const [composerMode, setComposerMode] = useState<ComposerMode>(null);
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   // Return-to-book journey signal (Stage 3 entry gate); ids only, no content.
   useEffect(() => {
@@ -115,6 +117,19 @@ export default function BookScreen() {
     queryKey: queryKeys.entries(bookId),
     queryFn: () => listEntries(bookId),
     enabled: validId,
+  });
+
+  // Finishing a book is the roadmap's primary outcome - celebrate it, and
+  // let an accidental tap be undone without ceremony.
+  const finishMutation = useMutation({
+    mutationFn: (finished: boolean) => setBookFinished(bookId, finished),
+    onSuccess: (updated, finished) => {
+      queryClient.setQueryData(queryKeys.book(bookId), updated);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.books });
+      if (finished) {
+        showToast('🎉 Book finished! It now shines in gold on your shelf.');
+      }
+    },
   });
 
   if (!validId) {
@@ -166,14 +181,48 @@ export default function BookScreen() {
           </View>
         ) : null}
 
-        <Link
-          href={{ pathname: '/edit-book', params: { id: String(bookId) } }}
-          asChild
-        >
-          <Pressable style={styles.editDetailsButton}>
-            <Text style={styles.editDetailsText}>Edit book details</Text>
-          </Pressable>
-        </Link>
+        <View style={styles.detailsRow}>
+          <Link
+            href={{ pathname: '/edit-book', params: { id: String(bookId) } }}
+            asChild
+          >
+            <Pressable style={styles.editDetailsButton}>
+              <Text style={styles.editDetailsText}>Edit book details</Text>
+            </Pressable>
+          </Link>
+          {book ? (
+            book.finished_at ? (
+              <Pressable
+                style={[styles.finishButton, styles.finishButtonDone]}
+                onPress={() => finishMutation.mutate(false)}
+                disabled={finishMutation.isPending}
+                accessibilityRole="button"
+                accessibilityLabel="Finished. Tap to mark as still reading"
+              >
+                <Text style={styles.finishTextDone}>
+                  🏆 Finished {new Date(book.finished_at).toLocaleDateString()} · undo
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                style={styles.finishButton}
+                onPress={() => finishMutation.mutate(true)}
+                disabled={finishMutation.isPending}
+                accessibilityRole="button"
+                accessibilityLabel="Mark this book as finished"
+              >
+                <Text style={styles.finishText}>🏁 I finished this book</Text>
+              </Pressable>
+            )
+          ) : null}
+        </View>
+        {finishMutation.isError ? (
+          <Text style={styles.error}>
+            {finishMutation.error instanceof Error
+              ? finishMutation.error.message
+              : 'Could not update the book.'}
+          </Text>
+        ) : null}
 
         <View style={styles.tabRow}>
           <Pressable
@@ -1102,18 +1151,43 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  detailsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
   editDetailsButton: {
-    alignSelf: 'flex-start',
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    marginTop: 10,
   },
   editDetailsText: {
     color: colors.accent,
     fontWeight: '600',
+    fontSize: 13,
+  },
+  finishButton: {
+    borderColor: gold.base,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  finishButtonDone: {
+    backgroundColor: gold.base,
+  },
+  finishText: {
+    color: gold.deep,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  finishTextDone: {
+    color: '#fffdf6',
+    fontWeight: '700',
     fontSize: 13,
   },
   tabRow: {

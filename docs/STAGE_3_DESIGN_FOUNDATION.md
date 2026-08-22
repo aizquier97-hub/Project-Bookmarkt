@@ -115,16 +115,17 @@ for the design-system and screen-polish work items.
 ### J4. Library (the bookshelf)
 
 - **Reader moment:** R1's homecoming screen; R3's progress-at-a-glance.
-- **Today:** bookshelf-metaphor library (direction locked 2026-08-21):
-  upright covers on wooden shelves; add/edit/delete books; sign-out lives
-  here as a header link.
-- **Design gap:** refine shelf rendering (cover art treatment, spine
-  fallback for books without covers); finished-book treatment (visible
-  accomplishment for R3 - needs a schema decision); move sign-out into
-  settings (J9). Shipped 2026-08-22: currently-reading emphasis lives on
-  the shelf itself - the most recently touched book stands taller with a
-  ribbon bookmark and accent frame - plus per-cover position cues, so
-  multi-book readers see at a glance which book to resume.
+- **Today:** bookshelf-metaphor library (direction locked 2026-08-21) with
+  the D-023 redesign shipped 2026-08-22: 2.5D covers (cloth color, paper
+  label, page block) with completion percent where computable; recency
+  sort - the freshest book sits top-left under a gold spotlight with a
+  "last entry" bubble, finished books settle onto the lower shelves in
+  gold; pull-out animation on open; finished-book marking from the book
+  screen (`topics.finished_at`, `book_finished` analytics - the primary
+  metric measured directly); QR-bookmark management now lives behind a
+  ribbon bookmark on the bookcase frame. Sign-out is a header link.
+- **Design gap:** cover art treatment (real covers or richer generated
+  covers - no schema field yet); move sign-out into settings (J9).
 
 ### J5. Book home and progress
 
