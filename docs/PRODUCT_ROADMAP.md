@@ -8,7 +8,7 @@
 | Current stage | Stage 3 - Polished UI/UX |
 | Current gate state | Stage 2 closed with GO (D-020, August 21, 2026); iOS builds deferred to Stage 5 |
 | Observation window | Stage 1 window closed early under D-013 (August 16-21, 2026) |
-| Last updated | August 21, 2026 |
+| Last updated | August 22, 2026 |
 
 This document is the authoritative product roadmap for Bookmarkt. Execution and
 approval rules are defined in [STAGE_GATES.md](STAGE_GATES.md), and material
@@ -29,17 +29,31 @@ ability to read books. It shows up as three failures:**
   who people are, what happened - so re-entry feels like work and the book gets
   abandoned.
 - **P3 - Comprehension:** even while reading, readers struggle to track
-  characters, plot threads, and causality deeply enough to stay engaged.
+  characters, plot threads, and causality deeply enough to stay engaged. This
+  is more than a reading failure: following causality, weighing motives, and
+  connecting ideas across a long text is critical thinking in practice, and
+  when books are abandoned that faculty loses its main training ground.
 
 **The consequence:** books stall and reading declines - and with it, the
-sustained thinking that reading uniquely exercises.
+sustained thinking that reading uniquely exercises. The erosion is
+compounding: weaker sustained attention makes long-form reading harder, and
+less reading further weakens the capacity for sustained, critical thought.
+Bookmarkt exists to interrupt that spiral at its most tractable point - the
+abandoned book.
 
 ### Honest coverage assessment
 
 The product attacks P2 directly and centrally; every companion feature exists to
 make re-entry cheap. It attacks P3 through active production: writing your own
 summary and building your own character map are well-supported comprehension
-interventions, reinforced by Socratic dialogue and continuity flags. P1 is
+interventions, reinforced by Socratic dialogue and continuity flags. The
+critical-thinking dimension of P3 is exercised chiefly by the paid companion -
+Socratic questioning that asks rather than tells, cue cards and quizzes built
+on retrieval practice, and continuity flags that surface contradictions for
+the reader to resolve - all grounded in the reader's own entries. This is a
+mechanism-level benefit and part of why the companion justifies its price; it
+is never marketed as a measured outcome, because the product's honest metric
+remains books finished. P1 is
 addressed only indirectly: the bet is that lower re-entry cost and deeper
 engagement produce more frequent sessions, and stamina rebuilds through reading
 itself. No feature directly extends session length. If P1 ever deserves direct
