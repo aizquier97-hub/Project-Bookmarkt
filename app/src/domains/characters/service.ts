@@ -3,6 +3,7 @@ import {
   mergeCharacterDescription,
   type CharacterDetails,
 } from '@/domains/characters/encoding';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import type { Tables } from '@/lib/database.types';
 import { supabase } from '@/lib/supabase';
 
@@ -53,6 +54,7 @@ export async function addCharacter(
   if (error) {
     throw error;
   }
+  trackAnalyticsEvent('character_map_saved', { action: 'added' }, bookId);
   return data;
 }
 
@@ -84,6 +86,7 @@ export async function updateCharacter(
   if (error) {
     throw error;
   }
+  trackAnalyticsEvent('character_map_saved', { action: 'updated' }, bookId);
 }
 
 export async function deleteCharacter(characterId: number, bookId: number): Promise<void> {

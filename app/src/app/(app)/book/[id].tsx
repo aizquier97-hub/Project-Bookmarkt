@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -41,6 +41,7 @@ import {
   type BookImage,
 } from '@/domains/library/images';
 import { getBook } from '@/domains/library/service';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
 import { useDictation } from '@/domains/voice/useDictation';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
@@ -79,6 +80,13 @@ export default function BookScreen() {
   const bookId = Number(params.id);
   const validId = Number.isInteger(bookId) && bookId > 0;
   const [tab, setTab] = useState<'entries' | 'characters' | 'photos'>('entries');
+
+  // Return-to-book journey signal (Stage 3 entry gate); ids only, no content.
+  useEffect(() => {
+    if (validId) {
+      trackAnalyticsEvent('book_opened', {}, bookId);
+    }
+  }, [validId, bookId]);
 
   const bookQuery = useQuery({
     queryKey: queryKeys.book(bookId),

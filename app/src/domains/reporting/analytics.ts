@@ -7,7 +7,12 @@ import { supabase } from '@/lib/supabase';
  * shapes, fire-and-forget so tracking never blocks or breaks a user action.
  */
 
-export type AnalyticsEventName = 'user_signed_in' | 'book_added' | 'manual_entry_added';
+export type AnalyticsEventName =
+  | 'user_signed_in'
+  | 'book_added'
+  | 'book_opened'
+  | 'manual_entry_added'
+  | 'character_map_saved';
 
 export function trackAnalyticsEvent(
   eventName: AnalyticsEventName,
