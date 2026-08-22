@@ -2,6 +2,7 @@ import {
   formatBoundaryPosition,
   getCurrentPosition,
   splitEntryText,
+  summarizeEntriesByBook,
 } from '@/domains/entries/display';
 
 describe('splitEntryText', () => {
@@ -73,5 +74,57 @@ describe('getCurrentPosition', () => {
 
   it('returns null when nothing parses', () => {
     expect(getCurrentPosition([{ text: 'no header' }, { text: null }])).toBeNull();
+  });
+});
+
+describe('summarizeEntriesByBook', () => {
+  it('keeps the newest timestamp and newest parseable position per book', () => {
+    const rows = [
+      { topic_id: 1, text: 'no header here', created_at: '2026-08-20T10:00:00Z' },
+      {
+        topic_id: 2,
+        text: '[Manual Entry - chapter 4]\nlatest for book two',
+        created_at: '2026-08-19T09:00:00Z',
+      },
+      {
+        topic_id: 1,
+        text: '[Manual Entry - page 90]\nolder for book one',
+        created_at: '2026-08-15T08:00:00Z',
+      },
+      {
+        topic_id: 1,
+        text: '[Manual Entry - page 12]\noldest for book one',
+        created_at: '2026-08-01T08:00:00Z',
+      },
+    ];
+    const summaries = summarizeEntriesByBook(rows);
+    expect(summaries.get(1)).toEqual({
+      lastEntryAt: '2026-08-20T10:00:00Z',
+      position: { progressType: 'page', lower: null, upper: 90 },
+    });
+    expect(summaries.get(2)).toEqual({
+      lastEntryAt: '2026-08-19T09:00:00Z',
+      position: { progressType: 'chapter', lower: null, upper: 4 },
+    });
+  });
+
+  it('skips rows without a book id and allows books with no position', () => {
+    const summaries = summarizeEntriesByBook([
+      {
+        topic_id: null,
+        text: '[Manual Entry - page 5]\norphan row',
+        created_at: '2026-08-20T10:00:00Z',
+      },
+      { topic_id: 3, text: 'plain thought, no header', created_at: '2026-08-18T10:00:00Z' },
+    ]);
+    expect(summaries.size).toBe(1);
+    expect(summaries.get(3)).toEqual({
+      lastEntryAt: '2026-08-18T10:00:00Z',
+      position: null,
+    });
+  });
+
+  it('returns an empty map for no rows', () => {
+    expect(summarizeEntriesByBook([]).size).toBe(0);
   });
 });

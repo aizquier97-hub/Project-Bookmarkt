@@ -55,3 +55,45 @@ export function getCurrentPosition(
   }
   return null;
 }
+
+export interface EntrySummaryRow {
+  topic_id: number | null;
+  text: string | null;
+  created_at: string | null;
+}
+
+export interface BookPositionSummary {
+  /** ISO timestamp of the newest entry for the book. */
+  lastEntryAt: string | null;
+  /** Newest parseable position for the book, if any entry carries one. */
+  position: ProgressBoundary | null;
+}
+
+/**
+ * Reduces a newest-first stream of minimal entry rows to one summary per
+ * book: when it was last touched and where the reader is. Powers the shelf's
+ * multi-book re-entry cues (J4).
+ */
+export function summarizeEntriesByBook(
+  rows: EntrySummaryRow[],
+): Map<number, BookPositionSummary> {
+  const map = new Map<number, BookPositionSummary>();
+  for (const row of rows) {
+    const bookId = row.topic_id;
+    if (typeof bookId !== 'number') {
+      continue;
+    }
+    let summary = map.get(bookId);
+    if (!summary) {
+      summary = { lastEntryAt: row.created_at ?? null, position: null };
+      map.set(bookId, summary);
+    }
+    if (!summary.position) {
+      const parsed = parseProgressBoundaryFromEntryText(row.text);
+      if (parsed) {
+        summary.position = parsed;
+      }
+    }
+  }
+  return map;
+}

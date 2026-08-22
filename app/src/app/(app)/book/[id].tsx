@@ -302,34 +302,54 @@ function EntriesTab({
       onComposerModeChange(null);
       showToast('Entry saved.', 'success');
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
     },
     onError: (err) => {
       setFormError(err instanceof Error ? err.message : 'Could not save the entry.');
     },
   });
 
-  // J5 re-entry moment: the reader's latest words are the fastest recap.
+  // "Where you left off" (working name, D-022): a paid Companion feature -
+  // an AI-written recap of the reader's entries up to their latest one,
+  // story or bullets at a reader-chosen level of detail. Until the
+  // Companion ships, this is a locked teaser; taps are counted as a
+  // buying-interest signal (ids and counts only, never content).
+  const [teaserOpen, setTeaserOpen] = useState(false);
   const latestEntry = entries[0] ?? null;
-  const latestParts = latestEntry ? splitEntryText(latestEntry.text) : null;
   const latestRelative = latestEntry ? formatRelativeTime(latestEntry.created_at) : null;
 
-  const recapCard =
-    latestEntry && latestParts ? (
-      <View style={styles.recapCard}>
-        <Text style={styles.recapKicker}>Where you left off</Text>
-        <View style={styles.recapMetaRow}>
-          {latestParts.boundaryLabel ? (
-            <View style={styles.recapChip}>
-              <Text style={styles.recapChipText}>{latestParts.boundaryLabel}</Text>
-            </View>
-          ) : null}
-          {latestRelative ? <Text style={styles.recapWhen}>{latestRelative}</Text> : null}
-        </View>
-        <Text style={styles.recapBody} numberOfLines={6}>
-          {latestParts.body || latestEntry.text}
+  const toggleTeaser = () => {
+    const opening = !teaserOpen;
+    setTeaserOpen(opening);
+    if (opening) {
+      trackAnalyticsEvent('recap_teaser_tapped', { entryCount: entries.length }, bookId);
+    }
+  };
+
+  const recapTeaser = latestEntry ? (
+    <View>
+      <Pressable
+        style={styles.teaserRow}
+        onPress={toggleTeaser}
+        accessibilityRole="button"
+        accessibilityLabel="Where you left off, coming with the Companion"
+      >
+        <Text style={styles.teaserTitle}>🔒 Where you left off</Text>
+        <Text style={styles.teaserMeta}>
+          {teaserOpen ? 'close' : 'coming with the Companion'}
         </Text>
-      </View>
-    ) : null;
+      </Pressable>
+      {teaserOpen ? (
+        <View style={styles.teaserCard}>
+          <Text style={styles.teaserBody}>
+            A Companion feature in the works: it will retell the story so far from your own
+            entries — a short story or quick bullets, your choice — and it never reads past
+            your latest entry{latestRelative ? ` (${latestRelative})` : ''}.
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  ) : null;
 
   const composer =
     composerMode !== null ? (
@@ -462,7 +482,7 @@ function EntriesTab({
       ListHeaderComponent={
         <View>
           {composer}
-          {recapCard}
+          {recapTeaser}
           {entriesQuery.isPending ? (
             <LoadingState label="Loading entries…" />
           ) : entriesQuery.isError ? (
@@ -494,6 +514,7 @@ function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
       setEditing(false);
       setError(null);
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Could not save the entry.');
@@ -504,6 +525,7 @@ function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
     mutationFn: () => deleteEntry(entry.id, bookId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Could not delete the entry.');
@@ -1186,7 +1208,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
   },
-  recapCard: {
+  teaserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginBottom: 14,
+  },
+  teaserTitle: {
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  teaserMeta: {
+    color: colors.muted,
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  teaserCard: {
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderLeftColor: colors.accent,
@@ -1194,44 +1238,13 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderRadius: 12,
     padding: 14,
+    marginTop: -8,
     marginBottom: 14,
-    ...cardShadow,
   },
-  recapKicker: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  recapMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  recapChip: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  recapChipText: {
-    color: colors.accent,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  recapWhen: {
-    color: colors.muted,
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  recapBody: {
+  teaserBody: {
     color: colors.text,
-    fontSize: 16,
-    lineHeight: 24,
-    fontFamily: fonts.serif,
+    fontSize: 14,
+    lineHeight: 21,
   },
   entryChip: {
     alignSelf: 'flex-start',

@@ -100,10 +100,12 @@ A reader can:
 9. Rely on their latest entry as the spoiler-safe boundary for everything the
    product shows or asks.
 10. Store book metadata and personal images.
-11. Optionally subscribe to the **AI Reading Companion**: "Previously on..."
-    recaps, Socratic dialogue, cue cards, character-map quizzes, semantic
-    search, cross-book threads, book-club prep, continuity flags, and a
-    vocabulary bank - all grounded exclusively in their own entries.
+11. Optionally subscribe to the **AI Reading Companion**: "Where you left
+    off" recaps (working name; the story so far as prose or bullets, at a
+    reader-chosen level of detail), Socratic dialogue, cue cards,
+    character-map quizzes, semantic search, cross-book threads, book-club
+    prep, continuity flags, and a vocabulary bank - all grounded exclusively
+    in their own entries.
 12. Return from another supported phone and recover the same account data.
 13. Understand and control their subscription, privacy, data, and account.
 
@@ -251,7 +253,7 @@ flowchart TB
 | Manual character maps | Included | Included |
 | Progress and boundary tracking (latest entry = ceiling) | Included | Included |
 | Book metadata and personal images | Included | Included |
-| "Previously on..." recaps from the reader's entries | - | Included |
+| "Where you left off" recaps (working name, D-022) - AI story-so-far from the reader's entries, prose or bullets at reader-chosen detail | Locked teaser only | Included |
 | Socratic dialogue - questions-first, ungraded by default | - | Included |
 | Cue cards with deterministic spaced repetition | - | Included |
 | Character-map quizzes - the reader's map is the answer key | - | Included |
@@ -680,7 +682,8 @@ capture.
       default, provenance labels ("from your notes" versus "from my knowledge"),
       explicit verified-answer requests, visible declines, and the notes-mirror
       stance when an answer conflicts with the reader's own entries.
-- [ ] Design "Previously on..." recaps, cue-card review, character-map quizzes,
+- [ ] Design "Where you left off" recaps (working name, D-022; prose or
+      bullets at reader-chosen detail), cue-card review, character-map quizzes,
       semantic search, cross-book threads, book-club prep, continuity flags, and
       the vocabulary bank as boundary-safe surfaces built from the reader's
       entries.

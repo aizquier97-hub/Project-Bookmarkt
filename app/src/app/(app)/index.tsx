@@ -10,9 +10,15 @@ import {
 } from 'react-native';
 
 import { signOut } from '@/domains/auth/service';
+import {
+  formatBoundaryPosition,
+  summarizeEntriesByBook,
+} from '@/domains/entries/display';
+import { listEntrySummaryRows } from '@/domains/entries/service';
 import { listBooks, type Book } from '@/domains/library/service';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
+import { formatRelativeTime } from '@/lib/relativeTime';
 import { cardShadow, colors, fonts, spineColorFor, wood } from '@/lib/theme';
 
 const BOOKS_PER_SHELF = 2;
@@ -31,6 +37,33 @@ export default function LibraryScreen() {
 
   const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
   const shelves = useMemo(() => chunkIntoShelves(booksQuery.data ?? []), [booksQuery.data]);
+
+  // Per-book re-entry cues (J4): when each book was last touched and where
+  // the reader is, so multi-book readers can see which book to resume.
+  const summariesQuery = useQuery({
+    queryKey: queryKeys.entrySummaries,
+    queryFn: listEntrySummaryRows,
+  });
+  const summaries = useMemo(
+    () => summarizeEntriesByBook(summariesQuery.data ?? []),
+    [summariesQuery.data],
+  );
+
+  // The most recently touched book becomes the one-tap "Continue reading"
+  // card; ISO timestamps compare lexicographically.
+  const continueReading = useMemo(() => {
+    let best: { book: Book; lastEntryAt: string } | null = null;
+    for (const book of booksQuery.data ?? []) {
+      const summary = summaries.get(book.id);
+      if (!summary || !summary.lastEntryAt) {
+        continue;
+      }
+      if (!best || summary.lastEntryAt > best.lastEntryAt) {
+        best = { book, lastEntryAt: summary.lastEntryAt };
+      }
+    }
+    return best;
+  }, [booksQuery.data, summaries]);
 
   const handleSignOut = async () => {
     try {
@@ -69,6 +102,47 @@ export default function LibraryScreen() {
       </View>
 
       {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
+
+      {continueReading ? (
+        <Link
+          href={{ pathname: '/book/[id]', params: { id: String(continueReading.book.id) } }}
+          asChild
+        >
+          <Pressable
+            style={styles.continueCard}
+            accessibilityRole="button"
+            accessibilityLabel={`Continue reading ${continueReading.book.name}`}
+          >
+            <View
+              style={[
+                styles.continueSpine,
+                { backgroundColor: spineColorFor(continueReading.book.id) },
+              ]}
+            />
+            <View style={styles.continueBody}>
+              <Text style={styles.continueKicker}>Continue reading</Text>
+              <Text style={styles.continueTitle} numberOfLines={1}>
+                {continueReading.book.name}
+              </Text>
+              <Text style={styles.continueMeta} numberOfLines={1}>
+                {[
+                  (() => {
+                    const position = summaries.get(continueReading.book.id)?.position;
+                    return position ? formatBoundaryPosition(position) : null;
+                  })(),
+                  (() => {
+                    const relative = formatRelativeTime(continueReading.lastEntryAt);
+                    return relative ? `last entry ${relative}` : null;
+                  })(),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Text>
+            </View>
+            <Text style={styles.continueArrow}>›</Text>
+          </Pressable>
+        </Link>
+      ) : null}
 
       {booksQuery.isPending ? (
         <LoadingState label="Loading your shelf…" />
@@ -109,9 +183,25 @@ export default function LibraryScreen() {
                               {book.author}
                             </Text>
                           ) : null}
-                          {book.total_pages ? (
-                            <Text style={styles.coverPages}>{book.total_pages} pages</Text>
-                          ) : null}
+                          {(() => {
+                            const summary = summaries.get(book.id);
+                            if (summary && summary.position) {
+                              return (
+                                <Text style={styles.coverPosition} numberOfLines={1}>
+                                  {formatBoundaryPosition(summary.position)}
+                                </Text>
+                              );
+                            }
+                            if (summary && summary.lastEntryAt) {
+                              return <Text style={styles.coverPosition}>In progress</Text>;
+                            }
+                            if (book.total_pages) {
+                              return (
+                                <Text style={styles.coverPages}>{book.total_pages} pages</Text>
+                              );
+                            }
+                            return null;
+                          })()}
                         </View>
                       </View>
                     </Pressable>
@@ -241,6 +331,57 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 11,
     marginTop: 2,
+  },
+  coverPosition: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  continueCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 14,
+    overflow: 'hidden',
+    ...cardShadow,
+  },
+  continueSpine: {
+    alignSelf: 'stretch',
+    width: 6,
+  },
+  continueBody: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  continueKicker: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  continueTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontFamily: fonts.serif,
+    fontWeight: '700',
+  },
+  continueMeta: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  continueArrow: {
+    color: colors.accent,
+    fontSize: 26,
+    fontWeight: '700',
+    paddingHorizontal: 14,
   },
   coverSpacer: {
     flex: 1,
