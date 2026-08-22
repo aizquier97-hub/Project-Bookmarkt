@@ -131,8 +131,10 @@ for the design-system and screen-polish work items.
   molding; titles wrap at spaces with cover-style type scaling (mid-word
   breaks eliminated, extreme single words ellipsize); the case has plank
   and shading depth with a resting book pile in odd slots; the spotlight
-  book is the largest on the shelf with an ink-and-gold "last entry"
-  bubble and a one-time peek nudge. Finished books render as a matched
+  book leads the shelf with an ink-and-gold "last entry" bubble and a
+  one-time peek nudge (uniform book sizes per D-026 - prominence comes
+  from position, glow, and motion, the pattern reading trackers use).
+  Finished books render as a matched
   leather-bound collector set - deep leather, gold stamping and tooling,
   gilt page edges (D-025). Look-and-feel requirements are logged in
   DESIGN_REQUIREMENTS.md.
@@ -145,6 +147,9 @@ for the design-system and screen-polish work items.
   land on.
 - **Today:** `book/[id]` with entries/characters/photos tabs; latest-entry
   boundary drives ordering; progress types (page/percent/chapter/finished).
+  Entries render in a day-grouped timeline (Today / Yesterday / dated
+  headings) with search from six entries; finishing is a gold status pill
+  under the title and Edit lives in the nav bar (D-026).
 - **Design gap:** the "re-entry moment" is the paid recap - "Where you left
   off" (working name, D-022): an AI-written story-so-far from the reader's
   entries, prose or bullets at reader-chosen detail. Free tier shows a
@@ -158,7 +163,9 @@ for the design-system and screen-polish work items.
 - **Reader moment:** R2 mid-chapter with a thought to keep; R1 at session
   end investing one minute for future-them.
 - **Today:** entry composer with progress fields; voice dictation (record →
-  review → confirm, raw transcript preserved) on dev/preview builds.
+  review → confirm, raw transcript preserved) on dev/preview builds. The
+  capture bar follows the active tab (D-026): entries write/speak an entry,
+  characters add/speak a character, photos open the picker.
 - **Design gap (roadmap: capture is the fastest path in the product):**
   composer opens focused with one-tap reachability from anywhere in the
   book; one-sentence entries visibly acceptable (short placeholder, no
