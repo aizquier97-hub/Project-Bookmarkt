@@ -17,9 +17,9 @@ import { listBooks, type Book } from '@/domains/library/service';
 import { sortBooksForShelf } from '@/domains/library/shelf';
 import { ContinueReadingCard } from '@/components/ContinueReadingCard';
 import { ShelfBook } from '@/components/ShelfBook';
-import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, leather, wood } from '@/lib/theme';
+import { colors, fonts, leather, wood } from '@/lib/theme';
 
 // Two covers per shelf: the owner tried three-across (Kindle density) and
 // covers felt small; at true 2:3 full-bleed, two-across reads generous
@@ -153,7 +153,29 @@ export default function LibraryScreen() {
           onRetry={() => void booksQuery.refetch()}
         />
       ) : booksQuery.data.length === 0 ? (
-        <EmptyState message="Your shelf is empty. Add the book you are reading to start capturing entries." />
+        // First-run welcome (J2): teach by inviting, not touring - a warm
+        // promise and one obvious first step in place of a bare empty state.
+        <View style={styles.welcomeWrap}>
+          <Ionicons name="book-outline" size={44} color={colors.accent} />
+          <Text style={styles.welcomeTitle}>Welcome to Bookmarkt</Text>
+          <Text style={styles.welcomeBody}>
+            Your reading, in your own words. Add the book you are reading, jot one line about
+            where you are, and picking it back up - even weeks later - takes seconds, not pages.
+          </Text>
+          <Link href="/add-book" asChild>
+            <Pressable
+              style={styles.welcomeButton}
+              accessibilityRole="button"
+              accessibilityLabel="Add your first book"
+            >
+              <Ionicons name="add" size={20} color={colors.background} />
+              <Text style={styles.welcomeButtonText}>Add your first book</Text>
+            </Pressable>
+          </Link>
+          <Text style={styles.welcomeHint}>
+            One sentence per sitting is plenty - your words, kept verbatim.
+          </Text>
+        </View>
       ) : (
         <>
           {statLine ? <Text style={styles.statLine}>{statLine}</Text> : null}
@@ -380,5 +402,46 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
+  },
+  welcomeWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  welcomeTitle: {
+    color: colors.text,
+    fontSize: 26,
+    fontFamily: fonts.serif,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  welcomeBody: {
+    color: colors.muted,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  welcomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 22,
+    marginTop: 6,
+  },
+  welcomeButtonText: {
+    color: colors.background,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  welcomeHint: {
+    color: colors.muted,
+    fontSize: 12.5,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });

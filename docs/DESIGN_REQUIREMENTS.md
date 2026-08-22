@@ -80,12 +80,21 @@ with a pointer to the replacement.
 | Thinking-benefit claims stay mechanism-level | Socratic prompts, cue cards, continuity flags are described by mechanism, never marketed as measured outcomes. | Honest-claims rule anchored in the problem statement. | Standing rule | D-021 |
 | AI capture assist (owner idea) | The reader describes a character (or entry) by voice in their own words; AI structures it into the four-field record for the reader to review and approve before anything saves. A quality-of-life companion capability - never required, and free capture stays frictionless without it. | Voice-first structured capture reduces entry friction; review-before-save keeps the reader the author. Tension to resolve before build: D-012 says the companion never writes the record, D-016 limits cleanup to punctuation/casing - approving this means amending those boundaries by decision entry. | Proposed - awaiting owner approval | D-027, D-012, D-016 |
 
-## 5. Open design work (not yet designed/shipped)
+## 5. Auth, first-run, and support
+
+| Requirement | Look and feel | Research / proven pattern | Status | Refs |
+| --- | --- | --- | --- | --- |
+| First-run welcome | A brand-new account's empty shelf greets instead of apologizing: serif "Welcome to Bookmarkt", the one-line promise ("Your reading, in your own words..."), one gold **Add your first book** button, and an italic reassurance that one sentence per sitting is plenty. Teaching happens by invitation - no tutorial screens, no permission asks until a feature needs them (mic on first dictation). | Stage 3 foundation J2: "progressive hints, not a tutorial; empty states that teach." Bookly/StoryGraph onboard by inviting the first book, not by touring; R3's north star is judgment-free momentum. | Shipped 2026-08-22 | D-036 |
+| Plain-language auth errors | Sign-in, sign-up, and forgot-password never surface raw API phrasing: "Invalid login credentials" becomes "That email and password don't match...", unconfirmed email, duplicate account, rate limits, and network failures all get human copy via a unit-tested mapper; unknown errors fall back gracefully. | NN/g error-message guidelines (human language, say how to recover); J1 design gap "error states in plain language". | Shipped 2026-08-22 | D-036 |
+| Report confirmation and status | Submitting a report confirms in-line ("Thanks - your report is in. You can track its status below.") and the screen lists the reader's reports with status chips (Received / In review / Resolved) and resolution notes when present. Entry point lives in Settings (D-035). | J10: "we got it" acknowledgment - readers need to feel heard; status visibility is the support-ticket convention. | Shipped (Stage 2/3) | J10, D-035 |
+| QR bookmark states | Every scan outcome has a plain-language screen: linked bookmarks jump straight to the book (scan audited), unregistered codes offer "Add this bookmark to my account", unclaimed ones offer claiming, unlinked ones list the shelf to link, and conflicts explain that the code belongs to another account. Full physical-QR payoff arrives with Stage 5 smart links. | J3 design gap (landing / wrong-account / unclaimed states); frictionless re-entry is R1's north star. | Shipped (Stage 2/3) | J3 |
+
+## 6. Open design work (not yet designed/shipped)
 
 - **AI capture assist** (owner idea, D-027): awaiting owner approval and a
   boundary decision against D-012/D-016 before any build.
-- Onboarding polish for the first-run experience (J2). Settings and sign-out
-  relocation shipped 2026-08-22 (J9, D-035).
+- Onboarding polish beyond the first-run welcome (J2 shipped 2026-08-22,
+  D-036) - a fuller multi-screen welcome only if usage shows the need.
 - QR scan-to-book transition states (J3; full payoff with Stage 5 smart links).
 - Companion and subscription surfaces (J8, J11).
 - Empty/error/loading state polish pass across screens (J10), including

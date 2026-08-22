@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { passwordPolicyError, signUp } from '@/domains/auth/service';
+import { friendlyAuthMessage } from '@/domains/auth/policy';
 import { colors, fonts } from '@/lib/theme';
 
 export default function SignUpScreen() {
@@ -41,7 +42,7 @@ export default function SignUpScreen() {
         'Account created. If email confirmation is required, check your inbox before signing in.',
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Signup failed. Try again.');
+      setError(friendlyAuthMessage(err, 'Signup failed. Try again.'));
     } finally {
       setSubmitting(false);
     }

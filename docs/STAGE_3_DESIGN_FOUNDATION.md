@@ -100,28 +100,35 @@ for the design-system and screen-polish work items.
 - **Reader moment:** R3's first impression; R1/R2 return path on a new phone.
 - **Today:** `(auth)` screens - sign-in, sign-up, forgot/reset password -
   functional with baseline styling; session persists across restarts.
-- **Design gap:** apply brand (paper-and-leather, serif); warm first-contact
-  copy that sells the promise in one line; error states in plain language;
-  password-manager-friendly fields.
+- **Design gap:** ~~apply brand... error states in plain language~~ -
+  shipped: serif brand title and tagline were in place, and D-036 added
+  the plain-language error mapper (invalid credentials, unconfirmed
+  email, duplicate account, rate limits, network) across sign-in,
+  sign-up, and forgot-password; fields are password-manager-friendly
+  (autocomplete hints). Remaining: none - J1 is closed for Stage 3.
 
 ### J2. First-run onboarding
 
 - **Reader moment:** R3 deciding within a minute whether this is for them.
-- **Today:** none - a new account lands on an empty library.
-- **Design gap (build in Stage 3):** guide from empty library → first book →
-  first entry with progressive hints, not a tutorial; empty states that teach
-  ("Your shelf is empty - add the book you're reading"); no permission asks
-  until the feature needs them (mic on first dictation).
+- **Today:** first-run welcome shipped 2026-08-22 (D-036): the empty shelf
+  greets with a serif welcome, the one-line promise, one gold "Add your
+  first book" action, and a judgment-free hint - invitation, not tutorial.
+  The book screen's empty entries state teaches ("One line about where you
+  are is a perfect start"); no permission asks until a feature needs them.
+- **Design gap:** a fuller multi-screen welcome only if usage shows the
+  need; J2 is otherwise closed for Stage 3.
 
 ### J3. QR entry
 
 - **Reader moment:** R1 scanning the bookmark in their book to jump back in.
 - **Today:** `bookmark/[code]` route resolves a bookmark code to its book;
-  physical QR codes still point at the frozen PWA until the smart-link
-  service ships (Stage 5).
-- **Design gap:** design the scan-to-book transition (landing state, wrong-
-  account state, unclaimed-code state); this journey's full payoff arrives
-  with Stage 5 routing, but the in-app screens are designed now.
+  every scan outcome has a plain-language screen (linked → straight to the
+  book with the scan audited; unregistered → add to account; unclaimed →
+  claim; unlinked → pick the book from the shelf; conflict → belongs to
+  another account). Physical QR codes still point at the frozen PWA until
+  the smart-link service ships (Stage 5).
+- **Design gap:** none in-app for Stage 3 - the journey's full payoff
+  arrives with Stage 5 routing.
 
 ### J4. Library (the bookshelf)
 
@@ -212,9 +219,9 @@ for the design-system and screen-polish work items.
 - **Reader moment:** R2 adding "Thomas Cromwell - blacksmith's son, now
   Wolsey's man" in ten seconds flat.
 - **Today:** characters tab with name/role/description/relationships;
-  add/edit/delete.
-- **Design gap:** entry speed (name alone is enough to save); glanceable
-  list ordered for mid-reading lookup; relationship text kept lightweight -
+  add/edit/delete. Name alone is enough to save (J7's entry-speed bar);
+  the list is searchable and ordered for mid-reading lookup.
+- **Design gap:** relationship text kept lightweight -
   a visual graph is out of scope for v1 unless usability tests demand it.
 
 ### J8. Companion (design-only in Stage 3)
@@ -252,10 +259,11 @@ for the design-system and screen-polish work items.
   the reader needs to feel heard.
 - **Today:** `report-issue` screen writes to the reports table (spoiler and
   issue categories); its entry point moved to the settings screen
-  (D-035) - the shelf no longer carries a report link.
-- **Design gap:** confirmation and status messaging (roadmap item) - "we
-  got it" acknowledgment; contextual entry points on companion surfaces
-  when they exist.
+  (D-035) - the shelf no longer carries a report link. Submitting confirms
+  in-line ("Thanks - your report is in") and the reader's reports list
+  shows status chips and resolution notes - the "we got it" loop exists.
+- **Design gap:** contextual entry points on companion surfaces when they
+  exist; empty/error/loading illustration polish waits on the brand pass.
 
 ### J11. Subscription purchase (design-only in Stage 3)
 
@@ -289,8 +297,9 @@ deliberately deferred and stay on this stage's list:
   header link on the library screen~~ - **shipped 2026-08-22 (D-035)**: a
   gear in the shelf header opens the settings screen (account, bookmarks,
   support, version, confirmed sign-out).
-- **J2 - first-run onboarding.** The empty-shelf state carries first-run
-  weight today; a warm two-or-three-screen welcome remains undesigned.
+- **J2 - first-run onboarding.** ~~A warm welcome remains undesigned~~ -
+  **shipped 2026-08-22 (D-036)**: the empty shelf now welcomes, promises,
+  and invites the first book in one screen.
 - **J10 - empty/error/loading illustration polish** continues to wait on
   the brand illustration pass.
 
