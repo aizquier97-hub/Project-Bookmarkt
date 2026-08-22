@@ -702,12 +702,12 @@ capture.
       (Rule recorded in DESIGN_REQUIREMENTS.md §4.)
 - [x] Establish Bookmarkt brand direction, typography, color, iconography,
       spacing, motion, and voice.
-      - Direction locked during Stage 2 device testing (2026-08-21, user-approved):
+    - Direction locked during Stage 2 device testing (2026-08-21, user-approved):
         warm "paper and leather" palette, serif literary typography, and a
         bookshelf-metaphor library (upright covers on wooden shelves). Stage 3
         refines this direction - custom fonts, motion, cover art, accessibility
         contrast passes - rather than restarting exploration.
-      - Refined through the D-023-D-037 shelf rounds: serif type ladder,
+    - Refined through the D-023-D-037 shelf rounds: serif type ladder,
         dark-walnut case, vector iconography, gold celebration accents.
 - [ ] Create a reusable design system with documented component states.
       (Partial - shared theme tokens ship in code and DESIGN_REQUIREMENTS.md
@@ -716,7 +716,7 @@ capture.
 - [ ] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Phone navigation shipped -
       stack routes with a settings gear, D-035; the tablet decision is still
-      unrecorded.)
+      unrecorded.) The definition for tablets has been made - tablets are in scope for this project.
 - [ ] Build the app-store-to-first-run onboarding experience and the minimal
       unsupported-device installation page. (The in-app first-run welcome
       shipped, D-036; the store-to-install half lands with Stage 5/6 store
@@ -741,13 +741,52 @@ capture.
       guidance for screen readers, contrast, focus, text scaling, input, and
       reduced-motion behavior; voice capture must have an equivalent typed path.
       (In progress - accessibility labels, contrast checks, and generous hit
-      targets ship with each round; the formal audit remains open.)
+      targets ship with each round; the owner is running the manual audit
+      checklist below during the current dogfooding window.)
 - [ ] Test touch targets and complex character-map interactions on small screens.
 - [ ] Conduct moderated usability tests with representative readers, including
       readers who self-describe fragmented attention.
 - [ ] Resolve all high-severity usability findings and verify analytics funnels.
 - [ ] Prototype the physical bookmark, QR placement, scan distance, contrast, and
       instructions without committing to mass production.
+
+### Accessibility audit checklist (manual, owner-run)
+
+The formal WCAG 2.2 AA audit above is conducted manually rather than by
+tooling alone: turning on the phone's screen reader and deliberately
+completing real tasks with it, not just everyday app use. The owner is
+running this checklist on the Android preview build during the current
+dogfooding window; results (pass/fail per test, with notes) will be
+reviewed and any failures triaged as defects before the Stage 3 exit gate.
+
+Setup: phone Settings → Accessibility → **TalkBack** → on. Single tap
+selects and reads aloud; double-tap activates; swipe right/left moves
+between items.
+
+1. **Sign-in screen** - every field/button announces a clear label (not
+   "button" or silence); typed input is trackable; a wrong-password error
+   is read aloud automatically.
+2. **Adding a book** - the add button, scan-barcode screen, and manual
+   entry fallback are all fully usable with TalkBack alone (manual entry
+   must work completely since scanning may require sight); the cover
+   picker announces each candidate.
+3. **Bookshelf (library home)** - each book announces at least its
+   title; the settings gear and QR ribbon are clearly labeled; the
+   empty-shelf welcome text and its button read clearly.
+4. **Book screen (entries and characters)** - Edit, the finish-status
+   pill, and the tabs are clearly labeled; typed capture works fully;
+   voice capture's recording state is announced, not shown by color
+   alone; search-highlighted text still reads as plain text.
+5. **Settings and sign-out** - every settings row is announced; the
+   sign-out confirmation dialog is read aloud automatically.
+6. **Text size** - phone Display settings set to the largest font size;
+   revisit sign-in, shelf, book screen, add-book, and settings; nothing
+   is cut off, overlapping, or untappable.
+7. **Reduce motion** - phone accessibility "remove animations" turned
+   on; the ribbon nudge, shelf scroll, and toasts degrade gracefully
+   rather than looking broken.
+8. **Color contrast** - in bright light, shelf titles, progress
+   percentages, entry text, and button labels all stay legible.
 
 Carried from Stage 2 (D-020):
 
@@ -991,7 +1030,9 @@ QR app-or-store routing for the native iOS and Android applications.
 **Status:** Planned
 
 **Purpose:** Make the product legally, operationally, and administratively ready
-for people outside the development team.
+for people outside the development team. An additional purpose is to provide recommendation to product owner on legal aspects that are required (licensing, copyright, freedom to operate, etc.) and inform to seek a lawyer if necessary. 
+
+**Assumption:** This is the product owners first project that he plans to commercialize and is unaware of legal requirements and implications of releasing a product. 
 
 ### Entry gate
 
