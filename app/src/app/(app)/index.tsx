@@ -198,6 +198,18 @@ export default function LibraryScreen() {
             keyExtractor={(shelf) => shelf.map((book) => book.id).join('-')}
             style={styles.bookcase}
             contentContainerStyle={styles.bookcaseContent}
+            // The crown and ribbon scroll away with the case top - a pinned
+            // molding floating over lower shelves read as broken (owner).
+            ListHeaderComponent={
+              <View style={styles.caseHeader}>
+                <View style={styles.crown} pointerEvents="none">
+                  <View style={styles.crownTop} />
+                  <View style={styles.crownFront} />
+                  <View style={styles.crownShade} />
+                </View>
+                <BookmarkRibbon />
+              </View>
+            }
             renderItem={({ item: shelf }) => (
               <View style={styles.shelfUnit}>
                 <View style={styles.shelfRow}>
@@ -217,13 +229,6 @@ export default function LibraryScreen() {
               </View>
             )}
           />
-          {/* Crown molding across the case top; the ribbon hangs over it. */}
-          <View style={styles.crown} pointerEvents="none">
-            <View style={styles.crownTop} />
-            <View style={styles.crownFront} />
-            <View style={styles.crownShade} />
-          </View>
-          <BookmarkRibbon />
           </View>
         </>
       )}
@@ -303,14 +308,18 @@ const styles = StyleSheet.create({
   },
   bookcaseContent: {
     padding: 12,
-    paddingTop: 44,
+    paddingTop: 0,
     paddingBottom: 64,
   },
+  // Scrolls with the shelves as the list header; bleeds over the content
+  // padding so the molding spans the full case width.
+  caseHeader: {
+    marginHorizontal: -12,
+    height: 48,
+    marginBottom: 6,
+  },
   crown: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    right: 8,
+    marginTop: 3,
   },
   crownTop: {
     height: 9,
@@ -339,8 +348,8 @@ const styles = StyleSheet.create({
   // Leather ribbon draped over the crown - QR bookmarks live behind it.
   ribbonWrap: {
     position: 'absolute',
-    top: 5,
-    right: 24,
+    top: 0,
+    right: 16,
     zIndex: 10,
   },
   ribbonBody: {

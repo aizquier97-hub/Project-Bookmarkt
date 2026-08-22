@@ -299,8 +299,8 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | Foundation | Functional prototype | Complete | Completed before formal tracking | QR-accessible production PWA proved the product concept |
 | Stage 1 | Stabilization | Complete (GO 2026-08-21, D-013 early exit) | Minimum 1-week clean observation | Reliable and secure baseline with five clean days observed |
-| Stage 2 | Architecture rebuild | In progress | 12-16 weeks | Maintainable, tested native application core |
-| Stage 3 | Polished UI/UX | Planned | 8-12 weeks | Accessible, branded, validated native experience |
+| Stage 2 | Architecture rebuild | Complete (GO 2026-08-21, D-020) | 12-16 weeks | Maintainable, tested native application core |
+| Stage 3 | Polished UI/UX | In progress (entered 2026-08-21) | 8-12 weeks | Accessible, branded, validated native experience |
 | Stage 4 | Monetization and accounts | Planned | 10-14 weeks | Store-compliant companion subscription and entitlement system |
 | Stage 5 | Native iOS/Android packaging | Planned | 6-8 weeks | Signed internal builds on real devices |
 | Stage 6 | Compliance and launch operations | Planned | 6-10 weeks | Legally and operationally ready external-beta candidate |
@@ -666,54 +666,82 @@ capture.
       the daily real reading companion throughout Stage 3, log every friction
       point and defect as it happens, and triage the log weekly (P0/P1 fixed
       immediately per STAGE_GATES.md). Runs alongside design work; blocks
-      nothing.
-- [ ] Define target readers - individuals whose fragmented attention impedes
+      nothing. (Active - the owner daily-drives the EAS preview build; the
+      D-030 crash flight recorder captures field defects automatically.)
+- [x] Define target readers - individuals whose fragmented attention impedes
       long-form reading, recall, or comprehension - and their priority
       jobs-to-be-done: pick the book back up, stay oriented, finish it.
-- [ ] Map signup, onboarding, QR entry, library, book progress, capture (typed
+      (Done - STAGE_3_DESIGN_FOUNDATION.md §1, owner-approved 2026-08-22.)
+- [x] Map signup, onboarding, QR entry, library, book progress, capture (typed
       and voice), character maps, companion, settings, subscription, and support
-      journeys.
-- [ ] Design capture as the fastest path in the product: one-sentence entries
+      journeys. (Done - journey map J1-J11 in STAGE_3_DESIGN_FOUNDATION.md §2.)
+- [x] Design capture as the fastest path in the product: one-sentence entries
       are visibly acceptable, voice is one tap away, and no surface judges or
-      grades the reader's writing.
-- [ ] Design the voice flow: record, live or post-hoc transcript, punctuation-only
+      grades the reader's writing. (Shipped - context-aware capture bar,
+      one-tap voice, "one sentence is plenty" first-run copy; D-026, D-036.)
+- [x] Design the voice flow: record, live or post-hoc transcript, punctuation-only
       cleanup, reader confirmation, and clear preservation of the reader's words.
-- [ ] Design the companion experience: questions-first dialogue, ungraded by
+      (Shipped in Stage 2 per D-016 and carried through the Stage 3 polish
+      rounds unchanged.)
+- [x] Design the companion experience: questions-first dialogue, ungraded by
       default, provenance labels ("from your notes" versus "from my knowledge"),
       explicit verified-answer requests, visible declines, and the notes-mirror
       stance when an answer conflicts with the reader's own entries.
-- [ ] Design "Where you left off" recaps (working name, D-022; prose or
+      (Design-complete - DESIGN_REQUIREMENTS.md §4; built against Stage 4
+      billing.)
+- [x] Design "Where you left off" recaps (working name, D-022; prose or
       bullets at reader-chosen detail), cue-card review, character-map quizzes,
       semantic search, cross-book threads, book-club prep, continuity flags, and
       the vocabulary bank as boundary-safe surfaces built from the reader's
-      entries.
-- [ ] Design locked-companion, subscription-offer, trial, entitlement-loading,
+      entries. (Design-complete - D-022 scope plus DESIGN_REQUIREMENTS.md §4.)
+- [x] Design locked-companion, subscription-offer, trial, entitlement-loading,
       and expired/downgraded states without ever blocking capture.
-- [ ] Show the companion offer only after a few entries exist, matching the
+      (Design-complete - DESIGN_REQUIREMENTS.md §4.)
+- [x] Show the companion offer only after a few entries exist, matching the
       trial rule; a canceled or dismissed purchase returns to capture.
-- [ ] Establish Bookmarkt brand direction, typography, color, iconography,
+      (Rule recorded in DESIGN_REQUIREMENTS.md §4.)
+- [x] Establish Bookmarkt brand direction, typography, color, iconography,
       spacing, motion, and voice.
       - Direction locked during Stage 2 device testing (2026-08-21, user-approved):
         warm "paper and leather" palette, serif literary typography, and a
         bookshelf-metaphor library (upright covers on wooden shelves). Stage 3
         refines this direction - custom fonts, motion, cover art, accessibility
         contrast passes - rather than restarting exploration.
+      - Refined through the D-023-D-037 shelf rounds: serif type ladder,
+        dark-walnut case, vector iconography, gold celebration accents.
 - [ ] Create a reusable design system with documented component states.
+      (Partial - shared theme tokens ship in code and DESIGN_REQUIREMENTS.md
+      records look-and-feel decisions; a formal component-state inventory
+      remains open.)
 - [ ] Design native phone navigation and define whether tablets are supported in
-      v1; desktop is not a reading-product target.
+      v1; desktop is not a reading-product target. (Phone navigation shipped -
+      stack routes with a settings gear, D-035; the tablet decision is still
+      unrecorded.)
 - [ ] Build the app-store-to-first-run onboarding experience and the minimal
-      unsupported-device installation page.
-- [ ] Add clear empty states and progressive guidance for a first book and first
-      entry.
-- [ ] Polish progress entry, metadata, images, and character-map interactions.
+      unsupported-device installation page. (The in-app first-run welcome
+      shipped, D-036; the store-to-install half lands with Stage 5/6 store
+      presence.)
+- [x] Add clear empty states and progressive guidance for a first book and first
+      entry. (Shipped - first-run welcome D-036; empty states exist on every
+      list; illustration polish tracked under J10.)
+- [x] Polish progress entry, metadata, images, and character-map interactions.
+      (Shipped across the D-026 through D-035 rounds.)
 - [ ] Make the reading boundary and provenance labels unmistakable in every
-      companion surface.
-- [ ] Add useful confirmation and status messaging for spoiler/issue reports.
+      companion surface. (The boundary is unmistakable in capture and the
+      timeline today; provenance labels ship with the companion build in
+      Stage 4.)
+- [x] Add useful confirmation and status messaging for spoiler/issue reports.
+      (Shipped - submission confirmation, status chips, and resolution notes
+      on the report screen; J10.)
 - [ ] Design offline, poor-network, expired-session, update-available, and
       recoverable-error states, including interrupted voice recordings.
+      (Partial - plain-language auth/network errors and retry affordances
+      shipped, D-036; the systematic state pass remains open.)
 - [ ] Meet WCAG 2.2 AA where applicable plus Apple and Android accessibility
       guidance for screen readers, contrast, focus, text scaling, input, and
       reduced-motion behavior; voice capture must have an equivalent typed path.
+      (In progress - accessibility labels, contrast checks, and generous hit
+      targets ship with each round; the formal audit remains open.)
 - [ ] Test touch targets and complex character-map interactions on small screens.
 - [ ] Conduct moderated usability tests with representative readers, including
       readers who self-describe fragmented attention.
@@ -725,14 +753,57 @@ Carried from Stage 2 (D-020):
 
 - [ ] Add native component and integration tests for authentication, book CRUD,
       book switching, typed and voice entries, character maps, and private
-      images.
+      images. (Partial - 121 unit/component tests across 13 suites run on
+      every round; deeper integration coverage remains open.)
 - [ ] Add Android device automation for critical journeys against the internal
       dev build (iOS automation joins in Stage 5 with the Apple account).
 - [ ] Provision a safe Supabase test project; add integration tests for the
       Supabase service boundaries and explicit cross-account isolation tests.
-- [ ] Configure eas.json preview environment variables and ship the first
+- [x] Configure eas.json preview environment variables and ship the first
       internal preview build (also the distribution vehicle for usability
-      testing).
+      testing). (Done - the owner daily-drives the preview build; every
+      Stage 3 round ships to it over-the-air on channel `preview`.)
+
+### Completed work
+
+All Stage 3 implementation to date shipped over-the-air to the owner's EAS
+preview build, validated on every round by typecheck, lint, and the test
+suite (121 tests across 13 suites at this writing). Full rationale lives in
+[DECISION_LOG.md](DECISION_LOG.md) entries D-021 through D-037,
+look-and-feel requirements in [DESIGN_REQUIREMENTS.md](DESIGN_REQUIREMENTS.md),
+and journey-by-journey status in
+[STAGE_3_DESIGN_FOUNDATION.md](STAGE_3_DESIGN_FOUNDATION.md) §4.
+
+- [x] Design foundation: target readers R1-R3, journey map J1-J11, and
+      priorities documented and owner-approved (2026-08-22); the problem
+      statement expanded to name critical thinking (D-021); free replay and
+      paid recap merged into one paid "Where you left off" (D-022).
+- [x] Bookshelf redesign arc (D-023, D-024, D-031, D-032, D-037): wooden
+      case with crown molding and a leather QR-bookmark ribbon; dark-walnut
+      professional pass with full-bleed cover art and a Continue Reading
+      hero card; two covers per shelf; reading/finished stat line;
+      scan-first add-book; the case scrolls as one piece of furniture.
+- [x] Finished-book celebration: leather-bound collector set on painted
+      covers (D-025) and a gold corner trophy medal over real art
+      (D-029, D-031).
+- [x] Real cover art and frictionless entry via Open Library (D-028):
+      barcode scan / typed-ISBN lookup with checksum validation fills
+      title, author, pages, and cover; cover picker on add and edit;
+      picking a cover fills blank author/pages with a one-tap Undo (D-033).
+- [x] Book screen: day-grouped entry timeline, search with in-text match
+      highlighting (D-034), gold finish pill, nav-bar Edit, and a
+      context-aware capture bar (D-026).
+- [x] App structure: Settings screen behind a header gear with account,
+      bookmarks, support, version, and confirmed sign-out (D-035);
+      first-run welcome on the empty shelf plus plain-language auth errors
+      (D-036).
+- [x] Professional finish: vector icons replace all emoji chrome, uniform
+      cover slots, title typography ladder (D-027); true 2:3 cover
+      geometry and one-line single-word titles (D-029).
+- [x] Reliability: crash flight recorder reporting unhandled JS errors to
+      analytics plus a screen error boundary (D-030) - it diagnosed its
+      first field crash (an OTA/native-module mismatch) remotely within
+      minutes.
 
 ### Stage 3 exit gate
 

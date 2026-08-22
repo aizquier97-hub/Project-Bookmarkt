@@ -168,7 +168,10 @@ for the design-system and screen-polish work items.
   two covers per shelf, removed the cloth-tint halo around real art,
   quieted the painted fallback under a soft ink veil, and cut book
   details to title + author + pages (publisher/year retired from forms
-  and header; a scan records title, author, pages, cover).
+  and header; a scan records title, author, pages, cover). The case now
+  scrolls as one piece of furniture - the crown molding and ribbon ride
+  away with the top shelf instead of floating over lower ones (D-037,
+  2026-08-22).
 - **Design gap:** empty/error/loading polish (J10). Sign-out left the
   header for the settings screen 2026-08-22 (J9, D-035) - the shelf's
   header now carries only the settings gear. Uniform cover sizing was
@@ -303,7 +306,35 @@ deliberately deferred and stay on this stage's list:
 - **J10 - empty/error/loading illustration polish** continues to wait on
   the brand illustration pass.
 
-## 4. Approval
+## 4. Stage 3 implementation record
+
+Everything below shipped over-the-air during Stage 3 and is live on the
+owner's EAS preview build, validated on every round by typecheck, lint,
+and the test suite (121 tests across 13 suites at this writing).
+Decisions D-021 through D-037 in [DECISION_LOG.md](DECISION_LOG.md) carry
+the full rationale; the roadmap's Stage 3 "Completed work" list mirrors
+this record.
+
+| Shipped | Journeys served | Decisions |
+| --- | --- | --- |
+| Reader definitions, journey map, priorities (this document), problem-statement expansion, recap scope merge | all | D-021, D-022 |
+| Bookshelf: wooden case with crown molding and leather QR ribbon, dark-walnut professional pass, full-bleed cover art, Continue Reading hero card, two covers per shelf, stat line, scan-first add-book, case scrolls as one piece | J4 | D-023, D-024, D-026, D-027, D-031, D-032, D-037 |
+| Finished-book celebration: leather-bound collector set on painted covers, gold corner medal over real art | J4 | D-025, D-029, D-031 |
+| Real cover art and frictionless entry via Open Library: barcode scan / ISBN lookup with checksum validation, cover picker on add and edit, cover pick fills blank author/pages with one-tap Undo | J4, J5 | D-028, D-029, D-033 |
+| Book screen: day-grouped entry timeline, search with in-text match highlighting, gold finish pill, nav-bar Edit, context-aware capture bar | J5, J6 | D-026, D-034 |
+| Settings screen behind a header gear (account, bookmarks, support, version, confirmed sign-out) | J9 | D-035 |
+| First-run welcome on the empty shelf; plain-language auth errors on sign-in/sign-up/reset | J1, J2 | D-036 |
+| Professional finish: vector icons replace emoji chrome, uniform cover slots, title typography ladder, true 2:3 cover geometry | J4 | D-027, D-029 |
+| Crash flight recorder (unhandled errors reported to analytics) plus screen error boundary; diagnosed its first field crash remotely | reliability | D-030 |
+
+Still open in Stage 3: J10 empty/error/loading illustration polish (waits
+on the brand illustration pass), the formal WCAG 2.2 AA audit, moderated
+usability tests with representative readers, the physical bookmark
+prototype, and the carried Stage 2 test/automation items - the roadmap's
+Stage 3 work plan is the authoritative list. J8 (companion) and J11
+(subscription) are design-complete and build against Stage 4 billing.
+
+## 5. Approval
 
 - Product-owner approval of reader definitions and priorities: \*\*Approved,
   2026-08-22\*\* (recorded in session; readers R1/R2/R3, exclusions, journey
