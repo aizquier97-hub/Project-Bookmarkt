@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link, Stack, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   FlatList,
@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 
-import { signOut } from '@/domains/auth/service';
 import { summarizeEntriesByBook } from '@/domains/entries/display';
 import { listEntrySummaryRows } from '@/domains/entries/service';
 import { listBooks, type Book } from '@/domains/library/service';
@@ -86,8 +85,7 @@ function BookmarkRibbon() {
 }
 
 export default function LibraryScreen() {
-  const queryClient = useQueryClient();
-  const [actionError, setActionError] = useState<string | null>(null);
+  const router = useRouter();
 
   const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
 
@@ -126,30 +124,25 @@ export default function LibraryScreen() {
     .filter(Boolean)
     .join(' · ');
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      // Cross-account hygiene: drop every cached row before the next user.
-      queryClient.clear();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Sign-out failed.');
-    }
-  };
-
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
           title: 'Your bookshelf',
+          // Settings behind a gear (J9): account, bookmarks, and support
+          // live one tap away instead of crowding the shelf itself.
           headerRight: () => (
-            <Pressable onPress={handleSignOut} hitSlop={8}>
-              <Text style={styles.signOut}>Sign out</Text>
+            <Pressable
+              onPress={() => router.push('/settings')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+            >
+              <Ionicons name="settings-outline" size={22} color={colors.text} />
             </Pressable>
           ),
         }}
       />
-
-      {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
 
       {booksQuery.isPending ? (
         <LoadingState label="Loading your shelf…" />
@@ -213,12 +206,6 @@ export default function LibraryScreen() {
         </>
       )}
 
-      <Link href="/report-issue" asChild>
-        <Pressable style={styles.reportLink} hitSlop={8}>
-          <Text style={styles.reportLinkText}>Something broken? Report an issue</Text>
-        </Pressable>
-      </Link>
-
       {/* Primary action floats bottom-right: the natural one-handed thumb
           zone (Hoober; Material FAB), keeping the top clear for the shelf. */}
       <Link href="/add-book" asChild>
@@ -239,15 +226,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     padding: 16,
-  },
-  signOut: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  error: {
-    color: colors.danger,
-    marginBottom: 8,
   },
   statLine: {
     color: colors.muted,
@@ -402,14 +380,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
-  },
-  reportLink: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  reportLinkText: {
-    color: colors.muted,
-    fontSize: 13,
-    textDecorationLine: 'underline',
   },
 });

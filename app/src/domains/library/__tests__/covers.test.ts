@@ -101,7 +101,7 @@ describe('parseCoverSearchPayload', () => {
   it('keeps only docs with covers and dedupes repeated cover ids', () => {
     const payload = {
       docs: [
-        { cover_i: 11, title: 'A', author_name: ['Author One'], first_publish_year: 1999 },
+        { cover_i: 11, title: 'A', author_name: ['Author One'], first_publish_year: 1999, number_of_pages_median: 350 },
         { title: 'No cover' },
         { cover_i: 11, title: 'A (reprint)' },
         { cover_i: 22, title: 'B', author_name: [], first_publish_year: 'not-a-year' },
@@ -116,9 +116,11 @@ describe('parseCoverSearchPayload', () => {
       title: 'A',
       author: 'Author One',
       year: 1999,
+      pagesMedian: 350,
     });
     expect(result[1].author).toBeNull();
     expect(result[1].year).toBeNull();
+    expect(result[1].pagesMedian).toBeNull();
   });
 
   it('caps the candidate list at eight covers', () => {

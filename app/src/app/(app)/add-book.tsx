@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 
-import { lookupBookByIsbn, normalizeIsbn } from '@/domains/library/covers';
+import { lookupBookByIsbn, normalizeIsbn, type CoverCandidate } from '@/domains/library/covers';
 import { resolveBookMetadata } from '@/domains/library/metadata';
 import { addBook, type Book } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
@@ -130,6 +130,34 @@ export default function AddBookScreen() {
     void applyIsbn(digits);
   };
 
+  // Picking a cover also fills blank details from the matched edition -
+  // same fill-blanks contract as the scan, with a one-tap Undo (D-033).
+  const handleCoverCandidate = (candidate: CoverCandidate) => {
+    const fillAuthor = !author.trim() && candidate.author ? candidate.author : null;
+    const fillPages =
+      !totalPages.trim() && candidate.pagesMedian !== null ? String(candidate.pagesMedian) : null;
+    if (!fillAuthor && !fillPages) {
+      return;
+    }
+    const prevAuthor = author;
+    const prevPages = totalPages;
+    if (fillAuthor) setAuthor(fillAuthor);
+    if (fillPages) setTotalPages(fillPages);
+    const message =
+      fillAuthor && fillPages
+        ? 'Author and pages filled from the cover match - pages vary by edition.'
+        : fillAuthor
+          ? 'Author filled from the cover match.'
+          : 'Pages filled from the cover match - pages vary by edition.';
+    showToast(message, 'info', {
+      label: 'Undo',
+      onPress: () => {
+        if (fillAuthor) setAuthor(prevAuthor);
+        if (fillPages) setTotalPages(prevPages);
+      },
+    });
+  };
+
   const handleSave = () => {
     setError(null);
     addBookMutation.mutate({
@@ -193,15 +221,6 @@ export default function AddBookScreen() {
           onChangeText={setAuthor}
         />
 
-        <Text style={styles.label}>Author *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Author name"
-          placeholderTextColor={colors.muted}
-          value={author}
-          onChangeText={setAuthor}
-        />
-
         <Text style={styles.label}>Total pages</Text>
         <TextInput
           style={styles.input}
@@ -212,7 +231,13 @@ export default function AddBookScreen() {
           keyboardType="number-pad"
         />
 
-        <CoverPicker title={name} author={author} coverUrl={coverUrl} onChange={setCoverUrl} />
+        <CoverPicker
+          title={name}
+          author={author}
+          coverUrl={coverUrl}
+          onChange={setCoverUrl}
+          onCandidateSelected={handleCoverCandidate}
+        />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 

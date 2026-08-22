@@ -31,6 +31,7 @@ import {
   formatBoundaryPosition,
   getCurrentPosition,
   splitEntryText,
+  splitTextForHighlight,
 } from '@/domains/entries/display';
 import { getLatestProgressBoundary, type ProgressType } from '@/domains/entries/progress';
 import { groupEntriesByDay } from '@/domains/entries/timeline';
@@ -666,14 +667,46 @@ function EntriesTab({
         item.kind === 'heading' ? (
           <Text style={styles.dayHeading}>{item.heading}</Text>
         ) : (
-          <EntryCard entry={item.entry} bookId={bookId} />
+          <EntryCard entry={item.entry} bookId={bookId} highlight={entrySearch.trim()} />
         )
       }
     />
   );
 }
 
-function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
+/**
+ * Wraps every case-insensitive match of the search query in a gold-marked
+ * Text segment, so the reader can see where in the entry the word appears
+ * (D-034) - the highlighted-hit convention of every search UI.
+ */
+function renderHighlighted(text: string, query: string | undefined) {
+  if (!query || !text) {
+    return text;
+  }
+  const segments = splitTextForHighlight(text, query);
+  if (segments.length === 1 && !segments[0].match) {
+    return text;
+  }
+  return segments.map((segment, index) =>
+    segment.match ? (
+      <Text key={index} style={styles.highlightMatch}>
+        {segment.text}
+      </Text>
+    ) : (
+      segment.text
+    ),
+  );
+}
+
+function EntryCard({
+  entry,
+  bookId,
+  highlight,
+}: {
+  entry: Entry;
+  bookId: number;
+  highlight?: string;
+}) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.text);
@@ -742,10 +775,12 @@ function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
         <>
           {parts.boundaryLabel ? (
             <View style={styles.entryChip}>
-              <Text style={styles.entryChipText}>{parts.boundaryLabel}</Text>
+              <Text style={styles.entryChipText}>
+                {renderHighlighted(parts.boundaryLabel, highlight)}
+              </Text>
             </View>
           ) : null}
-          <Text style={styles.cardText}>{parts.body || entry.text}</Text>
+          <Text style={styles.cardText}>{renderHighlighted(parts.body || entry.text, highlight)}</Text>
           <Text style={styles.cardDate}>{formatRecordTimestamp(entry)}</Text>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.cardActions}>
@@ -1750,6 +1785,12 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     marginTop: 14,
+  },
+  highlightMatch: {
+    backgroundColor: gold.glow,
+    color: colors.text,
+    fontWeight: '700',
+    borderRadius: 3,
   },
   primaryButton: {
     backgroundColor: colors.accent,

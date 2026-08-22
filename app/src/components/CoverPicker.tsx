@@ -27,6 +27,8 @@ interface CoverPickerProps {
   author: string;
   coverUrl: string | null;
   onChange: (coverUrl: string | null) => void;
+  /** Called when the reader picks a search candidate, so forms can fill blanks. */
+  onCandidateSelected?: (candidate: CoverCandidate) => void;
   /** Show the ISBN/barcode row (edit screen; add-book has its own). */
   isbnLookup?: boolean;
   /** Called with the normalized ISBN when a lookup resolves, so the form can store it. */
@@ -38,6 +40,7 @@ export function CoverPicker({
   author,
   coverUrl,
   onChange,
+  onCandidateSelected,
   isbnLookup = false,
   onIsbnResolved,
 }: CoverPickerProps) {
@@ -192,7 +195,10 @@ export function CoverPicker({
               return (
                 <Pressable
                   key={candidate.coverId}
-                  onPress={() => onChange(candidate.coverUrl)}
+                  onPress={() => {
+                    onChange(candidate.coverUrl);
+                    onCandidateSelected?.(candidate);
+                  }}
                   accessibilityRole="button"
                   accessibilityLabel={`Use the cover for ${candidate.title}${
                     candidate.author ? ` by ${candidate.author}` : ''
