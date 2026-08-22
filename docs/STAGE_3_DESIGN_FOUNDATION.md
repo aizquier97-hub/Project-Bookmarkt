@@ -1,17 +1,26 @@
 # Stage 3 Design Foundation - Target Readers and Journey Map
 
-| Field | Value |
+| Field | ```<br>Value<br>``` |
 | --- | --- |
-| Status | Approved |
-| Date | August 22, 2026 |
-| Owner | Bookmarkt product owner |
-| Sources | PRODUCT_ROADMAP.md §1-4, §12 (incl. D-021 problem-statement expansion); Stage 2 acceptance baseline; current app screens |
-
+| ```<br>Status<br>``` | ```<br>Approved<br>``` |
+| ```<br>Date<br>``` | ```<br>August 22, 2026<br>``` |
+| ```<br>Owner<br>``` | ```<br>Bookmarkt product owner<br>``` |
+| ```<br>Sources<br>``` | ```<br>PRODUCT_ROADMAP.md §1-4, §12 (incl. D-021 problem-statement expansion); Stage 2 acceptance baseline; current app screens<br>``` |
+```
+```
+```
 Every Stage 3 design decision should trace back to this document. If a design
+```
+```
 choice doesn't serve one of the readers below on one of the journeys below, it
+```
+```
 doesn't ship. The running list of concrete look-and-feel requirements (what
+```
+```
 shipped, what's proposed, and the research behind each) lives in
-DESIGN_REQUIREMENTS.md.
+```
+DESIGN\_REQUIREMENTS.md.
 
 ## 1. Target readers
 
@@ -26,8 +35,8 @@ be. They differ in which failure hits them hardest.
 - **Failure that bites:** P2 - Recall. Picking the book back up means
   re-reading pages to remember who people are and what happened; that feels
   like work, so the book stalls and eventually gets abandoned.
-- **Job-to-be-done:** *"When I finally have twenty minutes to read, get me
-  back into the story in seconds, not pages."*
+- **Job-to-be-done:** \*"When I finally have twenty minutes to read, get me
+  back into the story in seconds, not pages."\*
 - **What they need from design:** opening the app lands them one tap from
   their current book; their latest entry (their own words) is the fastest
   recap; capture at session end takes under a minute so future-them is always
@@ -45,8 +54,8 @@ be. They differ in which failure hits them hardest.
   expanded problem statement (D-021), this is also where critical thinking
   lives: following motives and causality across a long text is that faculty
   in practice.
-- **Job-to-be-done:** *"Help me keep the cast and the plot straight without
-  leaving my chair or spoiling what's ahead."*
+- **Job-to-be-done:** \*"Help me keep the cast and the plot straight without
+  leaving my chair or spoiling what's ahead."\*
 - **What they need from design:** character maps that are fast to build and
   glanceable mid-reading; entries that capture a thought in one sentence
   without ceremony; the spoiler-safe boundary respected everywhere. R2 is
@@ -141,7 +150,7 @@ for the design-system and screen-polish work items.
   render on the shelf and book header, painted cloth stays the fallback,
   and the add-book screen leads with a barcode scan card (typed-ISBN
   lookup everywhere; scanning arrives with the next native build).
-  Look-and-feel requirements are logged in DESIGN_REQUIREMENTS.md.
+  Look-and-feel requirements are logged in DESIGN\_REQUIREMENTS.md.
 - **Design gap:** move sign-out into settings (J9); empty/error/loading
   polish (J10). Uniform cover sizing was hardened 2026-08-22 (D-027):
   fixed cover heights and a reserved bubble band in every slot, and all
@@ -178,8 +187,8 @@ for the design-system and screen-polish work items.
   minimum, no "add more" nudges); voice one tap away with the same
   prominence as typing; review step preserves "your words, kept verbatim"
   framing; nothing anywhere grades, scores, or corrects the reader's
-  writing. Proposed (D-027, owner idea, needs approval): an **AI capture
-  assist** companion capability - the reader describes a character by
+  writing. Proposed (D-027, owner idea, needs approval): an \*\*AI capture
+  assist\*\* companion capability - the reader describes a character by
   voice and AI structures it into the four-field record for review before
   save; blocked on a boundary decision against D-012/D-016, and free
   capture stays frictionless with or without it.
@@ -256,6 +265,6 @@ Stage 3 design effort, in order:
 
 ## 4. Approval
 
-- Product-owner approval of reader definitions and priorities: **Approved,
-  2026-08-22** (recorded in session; readers R1/R2/R3, exclusions, journey
+- Product-owner approval of reader definitions and priorities: \*\*Approved,
+  2026-08-22\*\* (recorded in session; readers R1/R2/R3, exclusions, journey
   priorities as written above).

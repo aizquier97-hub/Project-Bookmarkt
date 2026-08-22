@@ -74,11 +74,20 @@ function EditBookForm({ book }: { book: Book }) {
   );
   const [totalPages, setTotalPages] = useState(book.total_pages ? String(book.total_pages) : '');
   const [coverUrl, setCoverUrl] = useState<string | null>(book.cover_url ?? null);
+  const [isbn, setIsbn] = useState<string | null>(book.isbn ?? null);
   const [error, setError] = useState<string | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: () =>
-      updateBook(book.id, { name, author, publisher, publicationYear, totalPages, coverUrl }),
+      updateBook(book.id, {
+        name,
+        author,
+        publisher,
+        publicationYear,
+        totalPages,
+        coverUrl,
+        isbn,
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.books });
       void queryClient.invalidateQueries({ queryKey: queryKeys.book(book.id) });
@@ -170,7 +179,14 @@ function EditBookForm({ book }: { book: Book }) {
           keyboardType="number-pad"
         />
 
-        <CoverPicker title={name} author={author} coverUrl={coverUrl} onChange={setCoverUrl} />
+        <CoverPicker
+          title={name}
+          author={author}
+          coverUrl={coverUrl}
+          onChange={setCoverUrl}
+          isbnLookup
+          onIsbnResolved={setIsbn}
+        />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 

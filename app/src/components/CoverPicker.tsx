@@ -1,14 +1,25 @@
-// Cover picker (D-028): the reader searches Open Library and chooses the
-// cover - or keeps the painted cloth cover. Candidates load only on demand
-// (one search per tap, device-side, cached by expo-image) and attribution
-// is always visible, per Open Library's moderate-use guidance.
+// Cover picker (D-028/D-029): the reader searches Open Library and chooses
+// the cover - or fetches the exact edition's cover by typing or scanning
+// its ISBN. Candidates load only on demand (one search per tap, device-
+// side, cached by expo-image) and attribution is always visible, per Open
+// Library's moderate-use guidance.
 
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
-import { searchCoverCandidates, type CoverCandidate } from '@/domains/library/covers';
+import { lookupBookByIsbn, normalizeIsbn, searchCoverCandidates } from '@/domains/library/covers';
+import type { CoverCandidate } from '@/domains/library/covers';
+import { IsbnScanner, isBarcodeScannerAvailable } from '@/components/IsbnScanner';
 import { colors, gold } from '@/lib/theme';
 
 interface CoverPickerProps {
@@ -16,14 +27,30 @@ interface CoverPickerProps {
   author: string;
   coverUrl: string | null;
   onChange: (coverUrl: string | null) => void;
+  /** Show the ISBN/barcode row (edit screen; add-book has its own). */
+  isbnLookup?: boolean;
+  /** Called with the normalized ISBN when a lookup resolves, so the form can store it. */
+  onIsbnResolved?: (isbn: string) => void;
 }
 
-export function CoverPicker({ title, author, coverUrl, onChange }: CoverPickerProps) {
+export function CoverPicker({
+  title,
+  author,
+  coverUrl,
+  onChange,
+  isbnLookup = false,
+  onIsbnResolved,
+}: CoverPickerProps) {
   const [candidates, setCandidates] = useState<CoverCandidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [isbnField, setIsbnField] = useState('');
+  const [isbnBusy, setIsbnBusy] = useState(false);
+  const [isbnNote, setIsbnNote] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const canSearch = Boolean(title.trim());
+  const scannerAvailable = isbnLookup && isBarcodeScannerAvailable();
 
   const handleSearch = async () => {
     setSearching(true);
@@ -35,6 +62,41 @@ export function CoverPicker({ title, author, coverUrl, onChange }: CoverPickerPr
       setSearching(false);
       setSearched(true);
     }
+  };
+
+  // Exact-edition path: one ISBN lookup returns that printing's own cover.
+  const applyIsbn = async (raw: string) => {
+    const normalized = normalizeIsbn(raw);
+    if (!normalized) {
+      setIsbnNote('That does not look like a valid ISBN - check the digits.');
+      return;
+    }
+    setIsbnField(normalized);
+    setIsbnBusy(true);
+    setIsbnNote(null);
+    try {
+      const found = await lookupBookByIsbn(normalized);
+      if (!found) {
+        setIsbnNote('No match for that ISBN.');
+        return;
+      }
+      onIsbnResolved?.(normalized);
+      if (found.coverUrl) {
+        onChange(found.coverUrl);
+        setIsbnNote(`Found the cover for "${found.title}".`);
+      } else {
+        setIsbnNote(`Found "${found.title}", but it has no cover on file - try Find covers.`);
+      }
+    } catch {
+      setIsbnNote('The lookup timed out - try again in a moment.');
+    } finally {
+      setIsbnBusy(false);
+    }
+  };
+
+  const handleScanned = (digits: string) => {
+    setScannerOpen(false);
+    void applyIsbn(digits);
   };
 
   return (
@@ -63,6 +125,45 @@ export function CoverPicker({ title, author, coverUrl, onChange }: CoverPickerPr
           No cover selected - the shelf shows a painted cloth cover instead.
         </Text>
       )}
+
+      {isbnLookup ? (
+        <View style={styles.isbnBlock}>
+          <View style={styles.isbnRow}>
+            {scannerAvailable ? (
+              <Pressable
+                style={styles.scanButton}
+                onPress={() => setScannerOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Scan the book's barcode to fetch its exact cover"
+              >
+                <Ionicons name="barcode-outline" size={20} color={colors.accent} />
+              </Pressable>
+            ) : null}
+            <TextInput
+              style={styles.isbnInput}
+              placeholder="ISBN for the exact edition"
+              placeholderTextColor={colors.muted}
+              value={isbnField}
+              onChangeText={setIsbnField}
+              keyboardType="number-pad"
+            />
+            <Pressable
+              style={styles.lookupButton}
+              onPress={() => void applyIsbn(isbnField)}
+              disabled={isbnBusy || !isbnField.trim()}
+              accessibilityRole="button"
+              accessibilityLabel="Look up this ISBN"
+            >
+              {isbnBusy ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text style={styles.lookupButtonText}>Look up</Text>
+              )}
+            </Pressable>
+          </View>
+          {isbnNote ? <Text style={styles.isbnNote}>{isbnNote}</Text> : null}
+        </View>
+      ) : null}
 
       <Pressable
         style={[styles.searchButton, !canSearch && styles.searchButtonDisabled]}
@@ -117,6 +218,14 @@ export function CoverPicker({ title, author, coverUrl, onChange }: CoverPickerPr
       ) : null}
 
       <Text style={styles.attribution}>Covers from Open Library</Text>
+
+      {isbnLookup ? (
+        <IsbnScanner
+          visible={scannerOpen}
+          onScanned={handleScanned}
+          onClose={() => setScannerOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -151,6 +260,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     marginBottom: 10,
+  },
+  isbnBlock: {
+    marginBottom: 10,
+  },
+  isbnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  scanButton: {
+    borderColor: colors.accent,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  isbnInput: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    color: colors.text,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+  },
+  lookupButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+  },
+  lookupButtonText: {
+    color: colors.background,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  isbnNote: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 6,
   },
   searchButton: {
     flexDirection: 'row',

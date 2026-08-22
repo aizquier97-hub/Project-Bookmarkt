@@ -64,20 +64,23 @@ export interface ShelfTitleTypography {
  * Book-cover typography, matching what Kindle/Apple Books do on generated
  * covers: titles wrap at spaces, never mid-word. Both the longest word AND
  * the overall title length step the type down, only within readable bounds
- * (NN/g: don't shrink below glanceable sizes). A single word too long even
- * at the smallest step stays on one line and ellipsizes - truncation is the
- * last resort, not the default, because it hides the book's identity.
+ * (NN/g: don't shrink below glanceable sizes). Single-word titles always
+ * render on ONE line - the size ladder shrinks them first and the ellipsis
+ * is the last resort - because React Native breaks any word that overflows
+ * its line, and a mid-word break is the one thing a cover must never do.
  */
 export function shelfTitleTypography(title: string): ShelfTitleTypography {
   const trimmed = title.trim();
   const words = trimmed.split(/\s+/).filter(Boolean);
   const longest = words.reduce((max, word) => Math.max(max, word.length), 0);
 
-  const sizeForWord = longest <= 12 ? 15 : longest <= 15 ? 13 : 11;
+  // Word thresholds are sized to the cover label's real width: ~10 chars
+  // fit at 15pt serif, ~14 at 13pt ("Monsterholic" at 15pt broke mid-word).
+  const sizeForWord = longest <= 9 ? 15 : longest <= 13 ? 13 : 11;
   const sizeForLength = trimmed.length <= 16 ? 15 : trimmed.length <= 26 ? 13 : 11;
   const fontSize = Math.min(sizeForWord, sizeForLength);
   const lineHeight = fontSize === 15 ? 20 : fontSize === 13 ? 17 : 15;
 
-  const maxLines = longest > 18 && words.length === 1 ? 1 : 3;
+  const maxLines = words.length === 1 ? 1 : 3;
   return { fontSize, lineHeight, maxLines };
 }
