@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,11 @@ import {
   type Character,
   type CharacterDetails,
 } from '@/domains/characters/service';
+import {
+  formatBoundaryPosition,
+  getCurrentPosition,
+  splitEntryText,
+} from '@/domains/entries/display';
 import { getLatestProgressBoundary, type ProgressType } from '@/domains/entries/progress';
 import {
   addEntry,
@@ -47,7 +52,12 @@ import { useDictation } from '@/domains/voice/useDictation';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
+import { formatRelativeTime } from '@/lib/relativeTime';
 import { cardShadow, colors, fonts } from '@/lib/theme';
+
+// Capture composer states: closed (bar only), opened for typing, or opened
+// with dictation auto-started (J6: voice as prominent as typing).
+type ComposerMode = 'write' | 'speak' | null;
 
 // Matches the PWA rule: only flag "(edited)" when updated_at trails created_at
 // by more than a second.
@@ -80,6 +90,7 @@ export default function BookScreen() {
   const bookId = Number(params.id);
   const validId = Number.isInteger(bookId) && bookId > 0;
   const [tab, setTab] = useState<'entries' | 'characters' | 'photos'>('entries');
+  const [composerMode, setComposerMode] = useState<ComposerMode>(null);
 
   // Return-to-book journey signal (Stage 3 entry gate); ids only, no content.
   useEffect(() => {
@@ -98,6 +109,13 @@ export default function BookScreen() {
     queryFn: () => listCharacters(bookId),
     enabled: validId,
   });
+  // Shares the entries cache key with the entries tab; powers the glanceable
+  // position line in the header (J5).
+  const entriesQuery = useQuery({
+    queryKey: queryKeys.entries(bookId),
+    queryFn: () => listEntries(bookId),
+    enabled: validId,
+  });
 
   if (!validId) {
     return (
@@ -114,6 +132,16 @@ export default function BookScreen() {
     book?.total_pages ? `${book.total_pages} pages` : null,
   ].filter(Boolean);
 
+  const headerEntries = entriesQuery.data ?? [];
+  const currentPosition = getCurrentPosition(headerEntries);
+  const lastEntryRelative = formatRelativeTime(headerEntries[0]?.created_at);
+
+  const openComposer = (mode: Exclude<ComposerMode, null>) => {
+    setTab('entries');
+    setComposerMode(mode);
+  };
+  const captureBarVisible = !(tab === 'entries' && composerMode !== null);
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -124,6 +152,19 @@ export default function BookScreen() {
 
         {book?.author ? <Text style={styles.author}>by {book.author}</Text> : null}
         {metaParts.length ? <Text style={styles.meta}>{metaParts.join(' · ')}</Text> : null}
+
+        {currentPosition ? (
+          <View style={styles.positionRow}>
+            <View style={styles.positionChip}>
+              <Text style={styles.positionChipText}>
+                {formatBoundaryPosition(currentPosition)}
+              </Text>
+            </View>
+            {lastEntryRelative ? (
+              <Text style={styles.positionMeta}>last entry {lastEntryRelative}</Text>
+            ) : null}
+          </View>
+        ) : null}
 
         <Link
           href={{ pathname: '/edit-book', params: { id: String(bookId) } }}
@@ -140,7 +181,7 @@ export default function BookScreen() {
             onPress={() => setTab('entries')}
           >
             <Text style={[styles.tabText, tab === 'entries' && styles.tabTextActive]}>
-              Entries
+              Entries{entriesQuery.data ? ` (${entriesQuery.data.length})` : ''}
             </Text>
           </Pressable>
           <Pressable
@@ -161,19 +202,58 @@ export default function BookScreen() {
           </Pressable>
         </View>
 
-        {tab === 'entries' ? (
-          <EntriesTab bookId={bookId} />
-        ) : tab === 'characters' ? (
+        {/* All panes stay mounted so drafts and searches survive tab peeks
+            (capture-without-friction: leaving must never cost the reader). */}
+        <View style={[styles.tabPane, tab !== 'entries' && styles.tabPaneHidden]}>
+          <EntriesTab
+            bookId={bookId}
+            composerMode={composerMode}
+            onComposerModeChange={setComposerMode}
+          />
+        </View>
+        <View style={[styles.tabPane, tab !== 'characters' && styles.tabPaneHidden]}>
           <CharactersTab bookId={bookId} />
-        ) : (
+        </View>
+        <View style={[styles.tabPane, tab !== 'photos' && styles.tabPaneHidden]}>
           <PhotosTab bookId={bookId} />
-        )}
+        </View>
+
+        {/* One-tap capture from anywhere in the book; voice and typing carry
+            equal weight (J6). */}
+        {captureBarVisible ? (
+          <View style={styles.captureBar}>
+            <Pressable
+              style={styles.captureAction}
+              onPress={() => openComposer('write')}
+              accessibilityRole="button"
+              accessibilityLabel="Write an entry"
+            >
+              <Text style={styles.captureActionText}>✏️ Write</Text>
+            </Pressable>
+            <Pressable
+              style={styles.captureAction}
+              onPress={() => openComposer('speak')}
+              accessibilityRole="button"
+              accessibilityLabel="Speak an entry"
+            >
+              <Text style={styles.captureActionText}>🎤 Speak</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-function EntriesTab({ bookId }: { bookId: number }) {
+function EntriesTab({
+  bookId,
+  composerMode,
+  onComposerModeChange,
+}: {
+  bookId: number;
+  composerMode: ComposerMode;
+  onComposerModeChange: (mode: ComposerMode) => void;
+}) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [progressType, setProgressType] = useState<ProgressType>('page');
@@ -182,6 +262,19 @@ function EntriesTab({ bookId }: { bookId: number }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [rawTranscripts, setRawTranscripts] = useState<string[]>([]);
   const dictation = useDictation();
+
+  // "Speak" opens the composer with dictation already running - one tap from
+  // thought to capture. The ref stops re-triggering as status changes.
+  const speakStartedRef = useRef(false);
+  useEffect(() => {
+    if (composerMode === 'speak' && dictation.status === 'idle' && !speakStartedRef.current) {
+      speakStartedRef.current = true;
+      void dictation.start();
+    }
+    if (composerMode !== 'speak') {
+      speakStartedRef.current = false;
+    }
+  }, [composerMode, dictation.status, dictation]);
 
   const entriesQuery = useQuery({
     queryKey: queryKeys.entries(bookId),
@@ -206,6 +299,7 @@ function EntriesTab({ bookId }: { bookId: number }) {
       setText('');
       setRawTranscripts([]);
       setFormError(null);
+      onComposerModeChange(null);
       showToast('Entry saved.', 'success');
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
     },
@@ -214,56 +308,89 @@ function EntriesTab({ bookId }: { bookId: number }) {
     },
   });
 
-  const captureForm = (
-    <View style={styles.captureCard}>
-      <Text style={styles.captureTitle}>Save a reading entry</Text>
-      <Text style={styles.captureHint}>
-        Record where you stopped and what happened, in your own words. Your latest entry sets
-        your reading boundary.
-      </Text>
+  // J5 re-entry moment: the reader's latest words are the fastest recap.
+  const latestEntry = entries[0] ?? null;
+  const latestParts = latestEntry ? splitEntryText(latestEntry.text) : null;
+  const latestRelative = latestEntry ? formatRelativeTime(latestEntry.created_at) : null;
 
-      <View style={styles.segmentRow}>
-        {(['page', 'chapter'] as const).map((type) => (
-          <Pressable
-            key={type}
-            style={[styles.segment, progressType === type && styles.segmentActive]}
-            onPress={() => setProgressType(type)}
-          >
-            <Text style={[styles.segmentText, progressType === type && styles.segmentTextActive]}>
-              {type === 'page' ? 'Page' : 'Chapter'}
-            </Text>
-          </Pressable>
-        ))}
-        <TextInput
-          style={[styles.input, styles.progressInput]}
-          placeholder={progressType === 'page' ? 'e.g., 12' : 'e.g., 3'}
-          placeholderTextColor={colors.muted}
-          value={progressValue}
-          onChangeText={setProgressValue}
-          keyboardType="number-pad"
-        />
+  const recapCard =
+    latestEntry && latestParts ? (
+      <View style={styles.recapCard}>
+        <Text style={styles.recapKicker}>Where you left off</Text>
+        <View style={styles.recapMetaRow}>
+          {latestParts.boundaryLabel ? (
+            <View style={styles.recapChip}>
+              <Text style={styles.recapChipText}>{latestParts.boundaryLabel}</Text>
+            </View>
+          ) : null}
+          {latestRelative ? <Text style={styles.recapWhen}>{latestRelative}</Text> : null}
+        </View>
+        <Text style={styles.recapBody} numberOfLines={6}>
+          {latestParts.body || latestEntry.text}
+        </Text>
       </View>
+    ) : null;
 
-      <Text style={styles.boundaryHint}>
-        {latestBoundary
-          ? `Reading boundary: ${latestBoundary.progressType} ${latestBoundary.upper}. New entries start after it.`
-          : `Set your current ${progressType} to track your reading boundary.`}
-      </Text>
+  const composer =
+    composerMode !== null ? (
+      <View style={styles.captureCard}>
+        <View style={styles.composerHeader}>
+          <Text style={styles.captureTitle}>Save an entry</Text>
+          <Pressable
+            style={styles.composerClose}
+            onPress={() => onComposerModeChange(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Close the entry composer"
+          >
+            <Text style={styles.composerCloseText}>✕</Text>
+          </Pressable>
+        </View>
 
-      <TextInput
-        style={[styles.input, styles.textArea]}
-        placeholder="Write what happened since your last entry..."
-        placeholderTextColor={colors.muted}
-        value={text}
-        onChangeText={setText}
-        multiline
-      />
+        <View style={styles.segmentRow}>
+          {(['page', 'chapter'] as const).map((type) => (
+            <Pressable
+              key={type}
+              style={[styles.segment, progressType === type && styles.segmentActive]}
+              onPress={() => setProgressType(type)}
+            >
+              <Text
+                style={[styles.segmentText, progressType === type && styles.segmentTextActive]}
+              >
+                {type === 'page' ? 'Page' : 'Chapter'}
+              </Text>
+            </Pressable>
+          ))}
+          <TextInput
+            style={[styles.input, styles.progressInput]}
+            placeholder={progressType === 'page' ? 'e.g., 12' : 'e.g., 3'}
+            placeholderTextColor={colors.muted}
+            value={progressValue}
+            onChangeText={setProgressValue}
+            keyboardType="number-pad"
+          />
+        </View>
 
-      {dictation.status === 'idle' ? (
-        <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
-          <Text style={styles.dictateButtonText}>🎤 Dictate instead</Text>
-        </Pressable>
-      ) : null}
+        <Text style={styles.boundaryHint}>
+          {latestBoundary
+            ? `Reading boundary: ${latestBoundary.progressType} ${latestBoundary.upper}. New entries start after it.`
+            : `Set your current ${progressType} to track your reading boundary.`}
+        </Text>
+
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="One line is plenty - what just happened?"
+          placeholderTextColor={colors.muted}
+          value={text}
+          onChangeText={setText}
+          multiline
+          autoFocus={composerMode === 'write'}
+        />
+
+        {dictation.status === 'idle' ? (
+          <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
+            <Text style={styles.dictateButtonText}>🎤 Add by voice</Text>
+          </Pressable>
+        ) : null}
 
       {dictation.status === 'recording' ? (
         <View style={styles.dictationCard}>
@@ -312,19 +439,19 @@ function EntriesTab({ bookId }: { bookId: number }) {
 
       {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
-      <Pressable
-        style={styles.primaryButton}
-        onPress={() => addEntryMutation.mutate()}
-        disabled={addEntryMutation.isPending}
-      >
-        {addEntryMutation.isPending ? (
-          <ActivityIndicator color={colors.background} />
-        ) : (
-          <Text style={styles.primaryButtonText}>Save entry</Text>
-        )}
-      </Pressable>
-    </View>
-  );
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => addEntryMutation.mutate()}
+          disabled={addEntryMutation.isPending}
+        >
+          {addEntryMutation.isPending ? (
+            <ActivityIndicator color={colors.background} />
+          ) : (
+            <Text style={styles.primaryButtonText}>Save entry</Text>
+          )}
+        </Pressable>
+      </View>
+    ) : null;
 
   return (
     <FlatList
@@ -334,7 +461,8 @@ function EntriesTab({ bookId }: { bookId: number }) {
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <View>
-          {captureForm}
+          {composer}
+          {recapCard}
           {entriesQuery.isPending ? (
             <LoadingState label="Loading entries…" />
           ) : entriesQuery.isError ? (
@@ -344,7 +472,7 @@ function EntriesTab({ bookId }: { bookId: number }) {
               onRetry={() => void entriesQuery.refetch()}
             />
           ) : entries.length === 0 ? (
-            <EmptyState message="No entries yet for this book." />
+            <EmptyState message="No entries yet. One line about where you are is a perfect start." />
           ) : null}
         </View>
       }
@@ -358,6 +486,7 @@ function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.text);
   const [error, setError] = useState<string | null>(null);
+  const parts = splitEntryText(entry.text);
 
   const updateMutation = useMutation({
     mutationFn: () => updateEntry(entry.id, bookId, draft),
@@ -417,7 +546,12 @@ function EntryCard({ entry, bookId }: { entry: Entry; bookId: number }) {
         </>
       ) : (
         <>
-          <Text style={styles.cardText}>{entry.text}</Text>
+          {parts.boundaryLabel ? (
+            <View style={styles.entryChip}>
+              <Text style={styles.entryChipText}>{parts.boundaryLabel}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.cardText}>{parts.body || entry.text}</Text>
           <Text style={styles.cardDate}>{formatRecordTimestamp(entry)}</Text>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.cardActions}>
@@ -962,29 +1096,155 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 4,
     marginTop: 14,
     marginBottom: 12,
+    backgroundColor: colors.accentSoft,
+    borderRadius: 12,
+    padding: 4,
   },
   tabButton: {
     flex: 1,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 10,
+    borderRadius: 9,
+    paddingVertical: 9,
     alignItems: 'center',
   },
   tabButtonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: colors.card,
+    ...cardShadow,
   },
   tabText: {
     color: colors.muted,
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 13,
   },
   tabTextActive: {
-    color: colors.background,
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  tabPane: {
+    flex: 1,
+  },
+  tabPaneHidden: {
+    display: 'none',
+  },
+  positionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  positionChip: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  positionChipText: {
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  positionMeta: {
+    color: colors.muted,
+    fontSize: 12,
+  },
+  captureBar: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingTop: 10,
+  },
+  captureAction: {
+    flex: 1,
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  captureActionText: {
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  composerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  composerClose: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  composerCloseText: {
+    color: colors.muted,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  recapCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderLeftColor: colors.accent,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    ...cardShadow,
+  },
+  recapKicker: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  recapMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  recapChip: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  recapChipText: {
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  recapWhen: {
+    color: colors.muted,
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  recapBody: {
+    color: colors.text,
+    fontSize: 16,
+    lineHeight: 24,
+    fontFamily: fonts.serif,
+  },
+  entryChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accentSoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  entryChipText: {
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 11,
   },
   captureCard: {
     backgroundColor: colors.card,
