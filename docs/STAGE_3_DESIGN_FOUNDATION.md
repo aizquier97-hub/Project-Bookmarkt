@@ -119,9 +119,11 @@ for the design-system and screen-polish work items.
   upright covers on wooden shelves; add/edit/delete books; sign-out lives
   here as a header link.
 - **Design gap:** refine shelf rendering (cover art treatment, spine
-  fallback for books without covers); currently-reading emphasis so the
-  active book is one obvious tap; finished-book treatment (visible
-  accomplishment for R3); move sign-out into settings (J9).
+  fallback for books without covers); finished-book treatment (visible
+  accomplishment for R3 - needs a schema decision); move sign-out into
+  settings (J9). Shipped 2026-08-22: currently-reading emphasis via a
+  "Continue reading" card plus per-cover position and last-touched cues,
+  so multi-book readers see at a glance which book to resume.
 
 ### J5. Book home and progress
 
@@ -129,10 +131,13 @@ for the design-system and screen-polish work items.
   land on.
 - **Today:** `book/[id]` with entries/characters/photos tabs; latest-entry
   boundary drives ordering; progress types (page/percent/chapter/finished).
-- **Design gap:** design the "re-entry moment" - latest entry surfaced as
-  the de facto recap at the top, timestamped ("You were here, 3 weeks ago");
-  progress made glanceable; tab bar styled to brand; this is the highest-
-  value screen for R1 and gets design priority.
+- **Design gap:** the "re-entry moment" is the paid recap - "Where you left
+  off" (working name, D-022): an AI-written story-so-far from the reader's
+  entries, prose or bullets at reader-chosen detail. Free tier shows a
+  locked teaser row (taps counted as buying-interest signal); free
+  orientation stays glanceable via the header's position chip and
+  last-entry age. Progress glanceable; tab bar styled to brand; this is
+  the highest-value screen for R1 and gets design priority.
 
 ### J6. Capture - typed and voice
 
@@ -160,7 +165,8 @@ for the design-system and screen-polish work items.
 
 ### J8. Companion (design-only in Stage 3)
 
-- **Reader moment:** R1 tapping "Previously on..." after three weeks away.
+- **Reader moment:** R1 tapping "Where you left off" (working name, D-022)
+  after three weeks away.
 - **Today:** no user surface; retrieval foundation and entitlement gate
   exist server-side (Stage 2); subscription arrives Stage 4.
 - **Design gap (all states designed now, built against Stage 4 backend):**

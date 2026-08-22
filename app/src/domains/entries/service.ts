@@ -31,6 +31,25 @@ export async function listEntries(bookId: number): Promise<Entry[]> {
   return data ?? [];
 }
 
+/**
+ * Minimal newest-first rows across every book the user owns (RLS-scoped),
+ * for the shelf's per-book position summaries. 500 rows comfortably covers
+ * the recent horizon at personal-library scale.
+ */
+export async function listEntrySummaryRows(): Promise<
+  Pick<Entry, 'topic_id' | 'text' | 'created_at'>[]
+> {
+  const { data, error } = await supabase
+    .from('entries')
+    .select('topic_id, text, created_at')
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) {
+    throw error;
+  }
+  return data ?? [];
+}
+
 export async function addEntry(bookId: number, input: NewEntryInput): Promise<Entry> {
   const trimmed = input.text.trim();
   if (!trimmed) {

@@ -12,6 +12,7 @@ export const queryKeys = {
   books: ['books'] as const,
   book: (bookId: number) => ['book', bookId] as const,
   entries: (bookId: number) => ['entries', bookId] as const,
+  entrySummaries: ['entry-summaries'] as const,
   characters: (bookId: number) => ['characters', bookId] as const,
   bookImages: (bookId: number) => ['book-images', bookId] as const,
   bookmarks: ['bookmarks'] as const,
