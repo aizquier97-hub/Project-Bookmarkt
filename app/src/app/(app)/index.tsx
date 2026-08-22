@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Stack, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -231,7 +232,7 @@ export default function LibraryScreen() {
           accessibilityRole="button"
           accessibilityLabel="Add a book"
         >
-          <Text style={styles.fabText}>+</Text>
+          <Ionicons name="add" size={30} color="#fffdf6" />
         </Pressable>
       </Link>
     </View>
@@ -408,12 +409,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
-  },
-  fabText: {
-    color: '#fffdf6',
-    fontSize: 30,
-    lineHeight: 34,
-    fontWeight: '600',
   },
   reportLink: {
     alignItems: 'center',

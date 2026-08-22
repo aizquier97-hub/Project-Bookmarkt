@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -109,11 +110,17 @@ export function ShelfBook({
       ) : null}
 
       <Animated.View style={[styles.animatedWrap, pullStyle]}>
-        {spotlight && lastEntryRelative ? (
-          <View style={styles.bubble}>
-            <Text style={styles.bubbleText}>✨ Last entry {lastEntryRelative}</Text>
-          </View>
-        ) : null}
+        {/* Every slot reserves the same bubble band so covers start at one
+            baseline and stay truly uniform (the in-flow bubble used to make
+            the spotlight cover shorter than its neighbor). */}
+        <View style={styles.bubbleZone}>
+          {spotlight && lastEntryRelative ? (
+            <View style={styles.bubble}>
+              <Ionicons name="sparkles" size={11} color="#f2c75c" />
+              <Text style={styles.bubbleText}>Last entry {lastEntryRelative}</Text>
+            </View>
+          ) : null}
+        </View>
 
         <Pressable
           style={[
@@ -152,15 +159,17 @@ export function ShelfBook({
                   {book.author}
                 </Text>
               ) : null}
-              {positionLine ? (
-                <Text
-                  style={[styles.position, finished && styles.positionFinished]}
-                  numberOfLines={1}
-                >
-                  {finished ? '🏆 Finished' : positionLine}
+              {finished ? (
+                <View style={styles.positionRow}>
+                  <Ionicons name="trophy" size={11} color={leather.stamp} />
+                  <Text style={[styles.position, styles.positionFinished, styles.positionInRow]}>
+                    Finished
+                  </Text>
+                </View>
+              ) : positionLine ? (
+                <Text style={styles.position} numberOfLines={1}>
+                  {positionLine}
                 </Text>
-              ) : finished ? (
-                <Text style={[styles.position, styles.positionFinished]}>🏆 Finished</Text>
               ) : null}
               {percent !== null ? (
                 <View style={styles.progressRow}>
@@ -217,7 +226,7 @@ const styles = StyleSheet.create({
   },
   haloOuter: {
     position: 'absolute',
-    top: -10,
+    top: 20,
     left: -10,
     right: -10,
     bottom: -6,
@@ -226,22 +235,29 @@ const styles = StyleSheet.create({
   },
   haloInner: {
     position: 'absolute',
-    top: -4,
+    top: 26,
     left: -4,
     right: -4,
     bottom: -2,
     borderRadius: 16,
     backgroundColor: gold.glow,
   },
+  bubbleZone: {
+    height: 30,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   bubble: {
-    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: colors.text,
     borderWidth: 1,
     borderColor: gold.base,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    marginBottom: 6,
     zIndex: 2,
   },
   bubbleText: {
@@ -250,14 +266,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   cloth: {
-    flex: 1,
-    minHeight: 172,
+    // Fixed height: every cover is identical regardless of label content.
+    height: 176,
     flexDirection: 'row',
     borderTopLeftRadius: 3,
     borderBottomLeftRadius: 3,
     borderTopRightRadius: 7,
     borderBottomRightRadius: 7,
     overflow: 'hidden',
+    // The border exists in BOTH states (transparent when unfinished):
+    // toggling borderWidth on an elevated, clipped Android view hits a
+    // redraw bug that leaves the cover painted as a solid color.
+    borderWidth: 1.5,
+    borderColor: 'transparent',
     elevation: 4,
     shadowColor: '#3f2f16',
     shadowOpacity: 0.35,
@@ -265,7 +286,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 2, height: 4 },
   },
   clothFinished: {
-    borderWidth: 1.5,
     borderColor: gold.base,
   },
   spineRidge: {
@@ -308,6 +328,15 @@ const styles = StyleSheet.create({
   },
   authorFinished: {
     color: 'rgba(232, 201, 121, 0.75)',
+  },
+  positionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+  positionInRow: {
+    marginTop: 0,
   },
   position: {
     color: colors.accent,

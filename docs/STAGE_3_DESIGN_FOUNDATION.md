@@ -138,8 +138,12 @@ for the design-system and screen-polish work items.
   leather-bound collector set - deep leather, gold stamping and tooling,
   gilt page edges (D-025). Look-and-feel requirements are logged in
   DESIGN_REQUIREMENTS.md.
-- **Design gap:** cover art treatment (real covers or richer generated
-  covers - no schema field yet); move sign-out into settings (J9).
+- **Design gap:** cover art treatment - real covers are the top
+  professional-polish item per the D-027 audit (Open Library Covers /
+  Google Books sources identified; awaiting owner approval, no schema
+  field yet); move sign-out into settings (J9). Uniform cover sizing was
+  hardened 2026-08-22 (D-027): fixed cover heights and a reserved bubble
+  band in every slot, and all UI chrome now uses vector icons.
 
 ### J5. Book home and progress
 
@@ -172,7 +176,11 @@ for the design-system and screen-polish work items.
   minimum, no "add more" nudges); voice one tap away with the same
   prominence as typing; review step preserves "your words, kept verbatim"
   framing; nothing anywhere grades, scores, or corrects the reader's
-  writing.
+  writing. Proposed (D-027, owner idea, needs approval): an **AI capture
+  assist** companion capability - the reader describes a character by
+  voice and AI structures it into the four-field record for review before
+  save; blocked on a boundary decision against D-012/D-016, and free
+  capture stays frictionless with or without it.
 
 ### J7. Character maps
 
