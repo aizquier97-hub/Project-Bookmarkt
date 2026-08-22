@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, Stack } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { Link, Stack, useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   FlatList,
   Pressable,
   StyleSheet,
@@ -10,15 +11,14 @@ import {
 } from 'react-native';
 
 import { signOut } from '@/domains/auth/service';
-import {
-  formatBoundaryPosition,
-  summarizeEntriesByBook,
-} from '@/domains/entries/display';
+import { summarizeEntriesByBook } from '@/domains/entries/display';
 import { listEntrySummaryRows } from '@/domains/entries/service';
 import { listBooks, type Book } from '@/domains/library/service';
+import { sortBooksForShelf } from '@/domains/library/shelf';
+import { ShelfBook } from '@/components/ShelfBook';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { cardShadow, colors, fonts, spineColorFor, wood } from '@/lib/theme';
+import { colors, wood } from '@/lib/theme';
 
 const BOOKS_PER_SHELF = 2;
 
@@ -30,12 +30,61 @@ function chunkIntoShelves(books: Book[]): Book[][] {
   return shelves;
 }
 
+/**
+ * The QR-bookmark ribbon draped over the bookcase's top rail. It nudges
+ * downward twice when the shelf appears - motion says "pull me" - then
+ * rests. Tapping it opens bookmark management.
+ */
+function BookmarkRibbon() {
+  const router = useRouter();
+  const nudge = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const timing = (toValue: number) =>
+      Animated.timing(nudge, { toValue, duration: 240, useNativeDriver: true });
+    const sequence = Animated.sequence([
+      Animated.delay(800),
+      timing(1),
+      timing(0),
+      Animated.delay(220),
+      timing(1),
+      timing(0),
+    ]);
+    sequence.start();
+    return () => sequence.stop();
+  }, [nudge]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.ribbonWrap,
+        {
+          transform: [
+            { translateY: nudge.interpolate({ inputRange: [0, 1], outputRange: [0, 7] }) },
+          ],
+        },
+      ]}
+    >
+      <Pressable
+        onPress={() => router.push('/bookmarks')}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Your QR bookmarks"
+      >
+        <View style={styles.ribbonBody}>
+          <View style={styles.ribbonStripe} />
+        </View>
+        <View style={styles.ribbonNotch} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export default function LibraryScreen() {
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
 
   const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
-  const shelves = useMemo(() => chunkIntoShelves(booksQuery.data ?? []), [booksQuery.data]);
 
   // Per-book re-entry cues (J4): when each book was last touched and where
   // the reader is, so multi-book readers can see which book to resume.
@@ -48,22 +97,19 @@ export default function LibraryScreen() {
     [summariesQuery.data],
   );
 
-  // The most recently touched book gets shelf emphasis - it stands taller
-  // with a ribbon bookmark, staying inside the bookshelf metaphor instead
-  // of a separate card. ISO timestamps compare lexicographically.
-  const continueReading = useMemo(() => {
-    let best: { book: Book; lastEntryAt: string } | null = null;
-    for (const book of booksQuery.data ?? []) {
-      const summary = summaries.get(book.id);
-      if (!summary || !summary.lastEntryAt) {
-        continue;
-      }
-      if (!best || summary.lastEntryAt > best.lastEntryAt) {
-        best = { book, lastEntryAt: summary.lastEntryAt };
-      }
-    }
-    return best;
-  }, [booksQuery.data, summaries]);
+  // Research-backed shelf order: freshest active book lands top-left and
+  // gets the gold spotlight; finished books settle onto the lower shelves.
+  const sortedBooks = useMemo(
+    () => sortBooksForShelf(booksQuery.data ?? [], summaries),
+    [booksQuery.data, summaries],
+  );
+  const shelves = useMemo(() => chunkIntoShelves(sortedBooks), [sortedBooks]);
+  const spotlightId =
+    sortedBooks.length > 0 &&
+    !sortedBooks[0].finished_at &&
+    summaries.get(sortedBooks[0].id)?.lastEntryAt
+      ? sortedBooks[0].id
+      : null;
 
   const handleSignOut = async () => {
     try {
@@ -90,13 +136,8 @@ export default function LibraryScreen() {
 
       <View style={styles.actionsRow}>
         <Link href="/add-book" asChild>
-          <Pressable style={[styles.addButton, styles.actionFlex]}>
+          <Pressable style={styles.addButton}>
             <Text style={styles.addButtonText}>+ Add a book</Text>
-          </Pressable>
-        </Link>
-        <Link href="/bookmarks" asChild>
-          <Pressable style={[styles.bookmarksButton, styles.actionFlex]}>
-            <Text style={styles.bookmarksButtonText}>My bookmarks</Text>
           </Pressable>
         </Link>
       </View>
@@ -114,74 +155,32 @@ export default function LibraryScreen() {
       ) : booksQuery.data.length === 0 ? (
         <EmptyState message="Your shelf is empty. Add the book you are reading to start capturing entries." />
       ) : (
-        <FlatList
-          data={shelves}
-          keyExtractor={(shelf) => shelf.map((book) => book.id).join('-')}
-          style={styles.bookcase}
-          contentContainerStyle={styles.bookcaseContent}
-          renderItem={({ item: shelf }) => (
-            <View style={styles.shelfUnit}>
-              <View style={styles.shelfRow}>
-                {shelf.map((book) => {
-                  const isActive = continueReading?.book.id === book.id;
-                  return (
-                    <Link
+        <View style={styles.bookcaseWrap}>
+          <FlatList
+            data={shelves}
+            keyExtractor={(shelf) => shelf.map((book) => book.id).join('-')}
+            style={styles.bookcase}
+            contentContainerStyle={styles.bookcaseContent}
+            renderItem={({ item: shelf }) => (
+              <View style={styles.shelfUnit}>
+                <View style={styles.shelfRow}>
+                  {shelf.map((book) => (
+                    <ShelfBook
                       key={book.id}
-                      href={{ pathname: '/book/[id]', params: { id: String(book.id) } }}
-                      asChild
-                    >
-                      <Pressable
-                        style={[styles.bookCover, isActive && styles.bookCoverActive]}
-                        accessibilityLabel={
-                          isActive ? `Continue reading ${book.name}` : book.name
-                        }
-                      >
-                        <View
-                          style={[styles.coverSpine, { backgroundColor: spineColorFor(book.id) }]}
-                        />
-                        <View style={styles.coverBody}>
-                          <Text style={styles.coverTitle} numberOfLines={4}>
-                            {book.name}
-                          </Text>
-                          <View>
-                            {book.author ? (
-                              <Text style={styles.coverAuthor} numberOfLines={1}>
-                                {book.author}
-                              </Text>
-                            ) : null}
-                            {(() => {
-                              const summary = summaries.get(book.id);
-                              if (summary && summary.position) {
-                                return (
-                                  <Text style={styles.coverPosition} numberOfLines={1}>
-                                    {formatBoundaryPosition(summary.position)}
-                                  </Text>
-                                );
-                              }
-                              if (summary && summary.lastEntryAt) {
-                                return <Text style={styles.coverPosition}>In progress</Text>;
-                              }
-                              if (book.total_pages) {
-                                return (
-                                  <Text style={styles.coverPages}>{book.total_pages} pages</Text>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </View>
-                        </View>
-                        {isActive ? <View style={styles.ribbon} /> : null}
-                      </Pressable>
-                    </Link>
-                  );
-                })}
-                {shelf.length < BOOKS_PER_SHELF ? <View style={styles.coverSpacer} /> : null}
+                      book={book}
+                      summary={summaries.get(book.id)}
+                      spotlight={book.id === spotlightId}
+                    />
+                  ))}
+                  {shelf.length < BOOKS_PER_SHELF ? <View style={styles.coverSpacer} /> : null}
+                </View>
+                <View style={styles.shelfBoardTop} />
+                <View style={styles.shelfBoardFront} />
               </View>
-              <View style={styles.shelfBoardTop} />
-              <View style={styles.shelfBoardFront} />
-            </View>
-          )}
-        />
+            )}
+          />
+          <BookmarkRibbon />
+        </View>
       )}
 
       <Link href="/report-issue" asChild>
@@ -205,17 +204,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
     marginBottom: 16,
-  },
-  actionFlex: {
-    flex: 1,
   },
   addButton: {
     backgroundColor: colors.accent,
     borderRadius: 10,
-    paddingVertical: 12,
+    paddingVertical: 11,
     alignItems: 'center',
   },
   addButtonText: {
@@ -223,22 +217,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
   },
-  bookmarksButton: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  bookmarksButtonText: {
-    color: colors.text,
-    fontWeight: '700',
-    fontSize: 16,
-  },
   error: {
     color: colors.danger,
     marginBottom: 8,
+  },
+  bookcaseWrap: {
+    flex: 1,
+    position: 'relative',
   },
   bookcase: {
     backgroundColor: wood.back,
@@ -248,6 +233,7 @@ const styles = StyleSheet.create({
   },
   bookcaseContent: {
     padding: 12,
+    paddingTop: 16,
     paddingBottom: 4,
   },
   shelfUnit: {
@@ -259,74 +245,44 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 2,
   },
-  bookCover: {
-    flex: 1,
-    minHeight: 165,
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderTopLeftRadius: 3,
-    borderBottomLeftRadius: 3,
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
-    overflow: 'hidden',
-    ...cardShadow,
-  },
-  coverSpine: {
-    width: 9,
-  },
-  coverBody: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'space-between',
-  },
-  coverTitle: {
-    color: colors.text,
-    fontSize: 16,
-    lineHeight: 22,
-    fontFamily: fonts.serif,
-    fontWeight: '700',
-  },
-  coverAuthor: {
-    color: colors.muted,
-    fontSize: 12,
-    fontFamily: fonts.serif,
-    fontStyle: 'italic',
-    marginTop: 8,
-  },
-  coverPages: {
-    color: colors.muted,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  coverPosition: {
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  // The active book stands taller and carries a ribbon bookmark draped
-  // over its cover - the shelf itself says "you are here".
-  bookCoverActive: {
-    minHeight: 182,
-    borderColor: colors.accent,
-    borderWidth: 1.5,
-    shadowOpacity: 0.28,
-    elevation: 5,
-  },
-  ribbon: {
-    position: 'absolute',
-    top: 0,
-    right: 12,
-    width: 16,
-    height: 34,
-    backgroundColor: colors.accent,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-  },
   coverSpacer: {
     flex: 1,
+  },
+  // Leather ribbon draped over the bookcase's top rail - QR bookmarks live
+  // behind it.
+  ribbonWrap: {
+    position: 'absolute',
+    top: 2,
+    right: 22,
+    zIndex: 10,
+  },
+  ribbonBody: {
+    width: 26,
+    height: 46,
+    backgroundColor: colors.accent,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+    alignItems: 'center',
+    paddingTop: 6,
+    elevation: 3,
+    shadowColor: '#3f2f16',
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  ribbonStripe: {
+    width: 2,
+    height: 30,
+    backgroundColor: 'rgba(255, 253, 246, 0.55)',
+    borderRadius: 1,
+  },
+  ribbonNotch: {
+    alignSelf: 'center',
+    width: 19,
+    height: 19,
+    marginTop: -10,
+    transform: [{ rotate: '45deg' }],
+    backgroundColor: wood.back,
   },
   shelfBoardTop: {
     height: 7,

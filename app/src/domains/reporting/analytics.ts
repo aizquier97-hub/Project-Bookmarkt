@@ -11,6 +11,7 @@ export type AnalyticsEventName =
   | 'user_signed_in'
   | 'book_added'
   | 'book_opened'
+  | 'book_finished'
   | 'manual_entry_added'
   | 'character_map_saved'
   | 'recap_teaser_tapped';

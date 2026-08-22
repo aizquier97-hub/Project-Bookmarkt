@@ -1,4 +1,5 @@
 import { requireUserId } from '@/domains/auth/service';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import type { Tables } from '@/lib/database.types';
 import { supabase } from '@/lib/supabase';
 
@@ -83,6 +84,29 @@ export async function updateBook(bookId: number, input: BookInput): Promise<Book
 const BOOK_IMAGES_BUCKET = 'book-images';
 
 export { BOOK_IMAGES_BUCKET };
+
+/**
+ * Mark a book finished (or reopen it). Finishing is the roadmap's primary
+ * outcome metric, so it fires a book_finished analytics event; undoing is
+ * silent and simply clears the timestamp.
+ */
+export async function setBookFinished(bookId: number, finished: boolean): Promise<Book> {
+  const userId = await requireUserId();
+  const { data, error } = await supabase
+    .from('topics')
+    .update({ finished_at: finished ? new Date().toISOString() : null })
+    .eq('id', bookId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  if (error) {
+    throw error;
+  }
+  if (finished) {
+    trackAnalyticsEvent('book_finished', {}, bookId);
+  }
+  return data;
+}
 
 // Mirrors the PWA: stored image files are removed first because only the DB
 // rows cascade when the topic row is deleted.
