@@ -881,7 +881,15 @@ QR app-or-store routing for the native iOS and Android applications.
       including microphone and speech-recognition usage descriptions.
 - [ ] Add privacy-conscious crash and performance monitoring. (Carries the
       Stage 2 structured error/performance telemetry item, D-020; pull into
-      Stage 3 early if the manual performance budgets are breached.)
+      Stage 3 early if the manual performance budgets are breached. Stage 3
+      shipped an interim JS crash flight recorder into `analytics_events`,
+      D-030; this item adds a real native crash SDK on top.)
+- [ ] Switch the Expo runtime version from the fixed string to the
+      fingerprint policy at the first Stage 5 native build, so an OTA update
+      can never again reach a binary that lacks the native modules the update
+      assumes. (Lesson from the D-030 add-book crash: an older installed
+      binary received scanner JS without the camera module and died on
+      screen open.)
 - [ ] Test file/image selection, keyboards, safe areas, orientation, text scaling,
       back navigation, and assistive technologies.
 - [ ] Configure reproducible signed release builds and protected signing assets.

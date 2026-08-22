@@ -1,9 +1,13 @@
-// Guarded ISBN barcode scanner (D-028), following the D-016 voice pattern:
-// expo-camera only exists in native builds that include its config plugin.
-// On builds without it the require throws, we cache null, and the add-book
-// screen simply hides the scan option - typed ISBN lookup still works.
+// Guarded ISBN barcode scanner (D-028, hardened D-030): expo-camera only
+// exists in native builds that include it. Requiring it on an older binary
+// makes the module loader report a FATAL error directly to the global
+// handler - try/catch around the require cannot stop it and the app dies
+// (the standalone add-book crash). So we first probe the native registry
+// with requireOptionalNativeModule, which returns null instead of throwing,
+// and only require('expo-camera') when the native side is really there.
 
 import { Ionicons } from '@expo/vector-icons';
+import { requireOptionalNativeModule } from 'expo';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -33,6 +37,12 @@ function getCameraApi(): CameraApi | null {
     return cachedApi;
   }
   try {
+    // Ask the native side first; never evaluate expo-camera's JS (whose
+    // module factory throws fatally) unless the native module exists.
+    if (!requireOptionalNativeModule('ExpoCamera')) {
+      cachedApi = null;
+      return cachedApi;
+    }
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const api = require('expo-camera') as Partial<CameraApi>;
     cachedApi = api.CameraView && api.useCameraPermissions ? (api as CameraApi) : null;
