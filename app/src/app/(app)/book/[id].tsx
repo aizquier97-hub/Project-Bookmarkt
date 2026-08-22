@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
@@ -228,8 +229,9 @@ export default function BookScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Finished. Tap to mark as still reading"
               >
+                <Ionicons name="trophy" size={14} color="#fffdf6" />
                 <Text style={styles.finishTextDone}>
-                  🏆 Finished {new Date(book.finished_at).toLocaleDateString()} · undo
+                  Finished {new Date(book.finished_at).toLocaleDateString()} · undo
                 </Text>
               </Pressable>
             ) : (
@@ -240,7 +242,8 @@ export default function BookScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Mark this book as finished"
               >
-                <Text style={styles.finishText}>🏁 Mark as finished</Text>
+                <Ionicons name="flag" size={14} color={gold.deep} />
+                <Text style={styles.finishText}>Mark as finished</Text>
               </Pressable>
             )
           ) : null}
@@ -313,7 +316,8 @@ export default function BookScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Add photos"
               >
-                <Text style={styles.captureActionText}>📷 Add photos</Text>
+                <Ionicons name="images-outline" size={16} color={colors.accent} />
+                <Text style={styles.captureActionText}>Add photos</Text>
               </Pressable>
             ) : (
               <>
@@ -327,8 +331,9 @@ export default function BookScreen() {
                     tab === 'characters' ? 'Add a character' : 'Write an entry'
                   }
                 >
+                  <Ionicons name="create-outline" size={16} color={colors.accent} />
                   <Text style={styles.captureActionText}>
-                    {tab === 'characters' ? '✏️ Add character' : '✏️ Write'}
+                    {tab === 'characters' ? 'Add character' : 'Write'}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -341,8 +346,9 @@ export default function BookScreen() {
                     tab === 'characters' ? 'Speak a character' : 'Speak an entry'
                   }
                 >
+                  <Ionicons name="mic-outline" size={16} color={colors.accent} />
                   <Text style={styles.captureActionText}>
-                    {tab === 'characters' ? '🎤 Speak character' : '🎤 Speak'}
+                    {tab === 'characters' ? 'Speak character' : 'Speak'}
                   </Text>
                 </Pressable>
               </>
@@ -467,7 +473,10 @@ function EntriesTab({
         accessibilityRole="button"
         accessibilityLabel="Where you left off, coming with the Companion"
       >
-        <Text style={styles.teaserTitle}>🔒 Where you left off</Text>
+        <View style={styles.teaserTitleRow}>
+          <Ionicons name="lock-closed" size={13} color={gold.deep} />
+          <Text style={styles.teaserTitle}>Where you left off</Text>
+        </View>
         <View style={styles.teaserPill}>
           <Text style={styles.teaserPillText}>{teaserOpen ? '✕' : 'Companion'}</Text>
         </View>
@@ -541,7 +550,8 @@ function EntriesTab({
 
         {dictation.status === 'idle' ? (
           <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
-            <Text style={styles.dictateButtonText}>🎤 Add by voice</Text>
+            <Ionicons name="mic" size={15} color={colors.text} />
+            <Text style={styles.dictateButtonText}>Add by voice</Text>
           </Pressable>
         ) : null}
 
@@ -552,7 +562,8 @@ function EntriesTab({
             <Text style={styles.dictationPartial}>{dictation.partial}</Text>
           ) : null}
           <Pressable style={styles.stopButton} onPress={dictation.stop}>
-            <Text style={styles.stopButtonText}>■ Stop dictation</Text>
+            <Ionicons name="stop" size={14} color={colors.danger} />
+            <Text style={styles.stopButtonText}>Stop dictation</Text>
           </Pressable>
         </View>
       ) : null}
@@ -868,7 +879,8 @@ function CharactersTab({
 
         {dictation.status === 'idle' ? (
           <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
-            <Text style={styles.dictateButtonText}>🎤 Describe by voice</Text>
+            <Ionicons name="mic" size={15} color={colors.text} />
+            <Text style={styles.dictateButtonText}>Describe by voice</Text>
           </Pressable>
         ) : null}
 
@@ -879,7 +891,8 @@ function CharactersTab({
               <Text style={styles.dictationPartial}>{dictation.partial}</Text>
             ) : null}
             <Pressable style={styles.stopButton} onPress={dictation.stop}>
-              <Text style={styles.stopButtonText}>■ Stop dictation</Text>
+              <Ionicons name="stop" size={14} color={colors.danger} />
+              <Text style={styles.stopButtonText}>Stop dictation</Text>
             </Pressable>
           </View>
         ) : null}
@@ -1370,6 +1383,9 @@ const styles = StyleSheet.create({
   // Status pill styled like Bookly's bold finish control: soft gold fill
   // with a firm gold border so it reads as a milestone, not body text.
   finishButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: gold.glowSoft,
     borderColor: gold.base,
     borderWidth: 1.5,
@@ -1462,6 +1478,9 @@ const styles = StyleSheet.create({
   },
   captureAction: {
     flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
     borderWidth: 1,
@@ -1506,6 +1525,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 14,
     ...cardShadow,
+  },
+  teaserTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   teaserTitle: {
     color: colors.text,
@@ -1608,6 +1632,9 @@ const styles = StyleSheet.create({
   },
   dictateButton: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
@@ -1660,6 +1687,9 @@ const styles = StyleSheet.create({
   },
   stopButton: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderColor: colors.danger,
     borderWidth: 1,
     borderRadius: 8,

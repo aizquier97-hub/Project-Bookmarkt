@@ -113,8 +113,14 @@ describe('shelfTitleTypography', () => {
     expect(shelfTitleTypography('Uncharacteristic').fontSize).toBe(11);
   });
 
-  it('sizes by the longest word, not the title length', () => {
-    expect(shelfTitleTypography('The Brothers Karamazov').fontSize).toBe(15);
+  it('steps down for long overall titles even when every word is short', () => {
+    expect(shelfTitleTypography('The Name of the Wind').fontSize).toBe(13);
+    expect(shelfTitleTypography('The Brothers Karamazov').fontSize).toBe(13);
+    expect(shelfTitleTypography('One Hundred Years of Solitude')).toEqual({
+      fontSize: 11,
+      lineHeight: 15,
+      maxLines: 3,
+    });
     expect(shelfTitleTypography('A Counterrevolutionary Tale').fontSize).toBe(11);
   });
 

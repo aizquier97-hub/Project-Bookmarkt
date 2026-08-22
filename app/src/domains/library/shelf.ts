@@ -62,23 +62,22 @@ export interface ShelfTitleTypography {
 
 /**
  * Book-cover typography, matching what Kindle/Apple Books do on generated
- * covers: titles wrap at spaces, never mid-word. The longest word sets the
- * type size, stepping down only within readable bounds (NN/g: don't shrink
- * below glanceable sizes). A single word too long even at the smallest step
- * stays on one line and ellipsizes - truncation is the last resort, not the
- * default, because it hides the book's identity.
+ * covers: titles wrap at spaces, never mid-word. Both the longest word AND
+ * the overall title length step the type down, only within readable bounds
+ * (NN/g: don't shrink below glanceable sizes). A single word too long even
+ * at the smallest step stays on one line and ellipsizes - truncation is the
+ * last resort, not the default, because it hides the book's identity.
  */
 export function shelfTitleTypography(title: string): ShelfTitleTypography {
-  const words = title.trim().split(/\s+/).filter(Boolean);
+  const trimmed = title.trim();
+  const words = trimmed.split(/\s+/).filter(Boolean);
   const longest = words.reduce((max, word) => Math.max(max, word.length), 0);
-  if (longest <= 12) {
-    return { fontSize: 15, lineHeight: 20, maxLines: 3 };
-  }
-  if (longest <= 15) {
-    return { fontSize: 13, lineHeight: 17, maxLines: 3 };
-  }
-  if (longest <= 18) {
-    return { fontSize: 11, lineHeight: 15, maxLines: 3 };
-  }
-  return { fontSize: 11, lineHeight: 15, maxLines: words.length === 1 ? 1 : 3 };
+
+  const sizeForWord = longest <= 12 ? 15 : longest <= 15 ? 13 : 11;
+  const sizeForLength = trimmed.length <= 16 ? 15 : trimmed.length <= 26 ? 13 : 11;
+  const fontSize = Math.min(sizeForWord, sizeForLength);
+  const lineHeight = fontSize === 15 ? 20 : fontSize === 13 ? 17 : 15;
+
+  const maxLines = longest > 18 && words.length === 1 ? 1 : 3;
+  return { fontSize, lineHeight, maxLines };
 }
