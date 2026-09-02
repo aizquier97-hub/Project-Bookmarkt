@@ -132,7 +132,8 @@ export async function lookupBookByIsbn(isbn: string): Promise<IsbnBookResult | n
 }
 
 export interface CoverCandidate {
-  coverId: number;
+  /** Open Library cover id - absent for Google-sourced candidates. */
+  coverId?: number;
   /** Shelf-sized thumbnail for the picker row. */
   previewUrl: string;
   /** Stored on the book; large enough for every surface. */
@@ -183,7 +184,7 @@ export function parseCoverSearchPayload(payload: unknown): CoverCandidate[] {
   return candidates;
 }
 
-/** Search cover candidates for a title (+ optional author) so the reader picks. */
+/** Open Library cover search - the fallback when Google has no covers. */
 export async function searchCoverCandidates(
   title: string,
   author?: string,

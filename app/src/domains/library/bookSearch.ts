@@ -6,11 +6,15 @@
  * is governed by the general Google APIs terms, which permit commercial
  * apps. Bookmarkt never charges for Google-sourced data (the paid tier is
  * the AI companion), and attribution renders in the add/edit forms. Open
- * Library remains the cover-picker source (it offers many edition covers)
- * and the fallback when Google is unreachable.
+ * Library remains the silent fallback for search, covers, and page counts.
  */
 
-import { lookupBookByIsbn, normalizeIsbn } from './covers';
+import {
+  lookupBookByIsbn,
+  normalizeIsbn,
+  searchCoverCandidates as searchOpenLibraryCovers,
+  type CoverCandidate,
+} from './covers';
 import {
   joinTitleAndSubtitle,
   normalizeOptionalPositiveInt,
@@ -358,4 +362,47 @@ export async function lookupPagesForTitle(
   } catch {
     return null;
   }
+}
+
+/** Pure mapper: search results with covers become cover candidates, deduped. */
+export function coverCandidatesFromSearchResults(results: BookSearchResult[]): CoverCandidate[] {
+  const seen = new Set<string>();
+  const candidates: CoverCandidate[] = [];
+  for (const result of results) {
+    if (!result.coverUrl || seen.has(result.coverUrl)) {
+      continue;
+    }
+    seen.add(result.coverUrl);
+    candidates.push({
+      previewUrl: result.coverUrl,
+      coverUrl: result.coverUrl,
+      title: result.title,
+      author: result.author,
+      year: result.year,
+      pagesMedian: result.pages,
+    });
+  }
+  return candidates;
+}
+
+/**
+ * Cover candidates for the picker: Google Books first (the same source the
+ * search-first add uses, so a manual entry's cover matches what a search
+ * would have found), Open Library only when Google has nothing.
+ */
+export async function searchCovers(title: string, author?: string): Promise<CoverCandidate[]> {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    return [];
+  }
+  try {
+    const query = author?.trim() ? `${trimmed} ${author.trim()}` : trimmed;
+    const candidates = coverCandidatesFromSearchResults(await searchGoogleBooks(query));
+    if (candidates.length) {
+      return candidates;
+    }
+  } catch {
+    // fall through to Open Library
+  }
+  return searchOpenLibraryCovers(trimmed, author);
 }

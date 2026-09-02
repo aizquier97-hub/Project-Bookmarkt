@@ -1,8 +1,8 @@
-// Cover picker (D-028/D-029): the reader searches Open Library and chooses
-// the cover - or fetches the exact edition's cover by typing or scanning
-// its ISBN. Candidates load only on demand (one search per tap, device-
-// side, cached by expo-image) and attribution is always visible, per Open
-// Library's moderate-use guidance.
+// Cover picker (D-028/D-029, amended D-043): the reader searches Google
+// Books first - the same source as the search-first add - with Open Library
+// as the silent fallback; or fetches the exact edition's cover by typing or
+// scanning its ISBN. Candidates load only on demand (one search per tap,
+// device-side, cached by expo-image) and attribution is always visible.
 
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -17,7 +17,8 @@ import {
   View,
 } from 'react-native';
 
-import { lookupBookByIsbn, normalizeIsbn, searchCoverCandidates } from '@/domains/library/covers';
+import { searchCovers } from '@/domains/library/bookSearch';
+import { lookupBookByIsbn, normalizeIsbn } from '@/domains/library/covers';
 import type { CoverCandidate } from '@/domains/library/covers';
 import { IsbnScanner, isBarcodeScannerAvailable } from '@/components/IsbnScanner';
 import { colors, gold } from '@/lib/theme';
@@ -58,7 +59,7 @@ export function CoverPicker({
   const handleSearch = async () => {
     setSearching(true);
     try {
-      setCandidates(await searchCoverCandidates(title, author));
+      setCandidates(await searchCovers(title, author));
     } catch {
       setCandidates([]);
     } finally {
@@ -194,7 +195,7 @@ export function CoverPicker({
               const selected = candidate.coverUrl === coverUrl;
               return (
                 <Pressable
-                  key={candidate.coverId}
+                  key={candidate.coverUrl}
                   onPress={() => {
                     onChange(candidate.coverUrl);
                     onCandidateSelected?.(candidate);
@@ -223,7 +224,7 @@ export function CoverPicker({
         )
       ) : null}
 
-      <Text style={styles.attribution}>Covers from Open Library</Text>
+      <Text style={styles.attribution}>Covers from Google Books and Open Library</Text>
 
       {isbnLookup ? (
         <IsbnScanner

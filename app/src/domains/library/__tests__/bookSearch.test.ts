@@ -1,4 +1,5 @@
 import {
+  coverCandidatesFromSearchResults,
   isbn10To13,
   joinTitleAndSubtitle,
   lookupPagesForTitle,
@@ -91,6 +92,35 @@ describe('pickPagesForTitle', () => {
 
   it('ignores matches without a page count', () => {
     expect(pickPagesForTitle([result({ title: 'Dune' })], 'Dune')).toBeNull();
+  });
+});
+
+describe('coverCandidatesFromSearchResults', () => {
+  it('keeps results with covers, dedupes by URL, and maps fields', () => {
+    const withCover = result({
+      title: 'Dune',
+      author: 'Frank Herbert',
+      year: 1965,
+      pages: 412,
+      coverUrl: 'https://books.google.com/x',
+    });
+    const duplicate = result({ title: 'Dune (reissue)', coverUrl: 'https://books.google.com/x' });
+    const coverless = result({ title: 'Dune Messiah' });
+    const candidates = coverCandidatesFromSearchResults([withCover, duplicate, coverless]);
+    expect(candidates).toEqual([
+      {
+        previewUrl: 'https://books.google.com/x',
+        coverUrl: 'https://books.google.com/x',
+        title: 'Dune',
+        author: 'Frank Herbert',
+        year: 1965,
+        pagesMedian: 412,
+      },
+    ]);
+  });
+
+  it('returns empty for empty input', () => {
+    expect(coverCandidatesFromSearchResults([])).toEqual([]);
   });
 });
 

@@ -487,7 +487,7 @@ export default function AddBookScreen() {
         ) : null}
 
         <Text style={styles.attribution}>
-          Search results from Google Books. Covers also from Open Library.
+          Book data and covers from Google Books and Open Library.
         </Text>
 
         <View style={styles.footerSpace} />
