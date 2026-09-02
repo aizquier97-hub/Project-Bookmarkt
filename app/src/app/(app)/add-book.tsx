@@ -18,6 +18,7 @@ import {
 
 import {
   lookupBookSearchByIsbn,
+  lookupPagesForTitle,
   searchBooks,
   type BookSearchResult,
 } from '@/domains/library/bookSearch';
@@ -46,15 +47,23 @@ async function addBookWithLookup(input: {
   if (!name) {
     throw new Error('Book title is required.');
   }
-  // Manual fields win, the lookup fills missing pages. Publisher/year are
-  // deliberately not collected (owner, D-032): the book record needs
-  // title, author, and pages - nothing a reader has to look up.
+  // Manual fields win. Blank pages fill from Google Books first (exact
+  // title match only, so a series sibling never supplies its count), then
+  // Open Library's cross-edition median as the last resort. Publisher/year
+  // are deliberately not collected (owner, D-032).
+  let pages = input.totalPages.trim();
+  if (!pages) {
+    const googlePages = await lookupPagesForTitle(name, input.author);
+    if (googlePages) {
+      pages = String(googlePages);
+    }
+  }
   const metadata = await resolveBookMetadata({
     title: name,
     author: input.author,
     manualPublisher: '',
     manualPublicationYear: '',
-    manualTotalPages: input.totalPages,
+    manualTotalPages: pages,
   });
   return addBook({
     name,

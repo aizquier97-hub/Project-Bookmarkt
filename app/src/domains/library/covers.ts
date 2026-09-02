@@ -12,6 +12,7 @@
  */
 
 import {
+  joinTitleAndSubtitle,
   normalizeOptionalPositiveInt,
   normalizeOptionalPublicationYear,
   withTimeout,
@@ -65,6 +66,7 @@ export interface IsbnBookResult {
 
 interface IsbnPayloadEntry {
   title?: unknown;
+  subtitle?: unknown;
   authors?: unknown;
   publishers?: unknown;
   publish_date?: unknown;
@@ -106,7 +108,7 @@ export function parseIsbnPayload(payload: unknown, isbn: string): IsbnBookResult
       : null;
   const coverUrl = String(cover?.large ?? cover?.medium ?? cover?.small ?? '').trim();
   return {
-    title,
+    title: joinTitleAndSubtitle(title, entry.subtitle),
     author: firstName(entry.authors),
     publisher: firstName(entry.publishers),
     publicationYear: normalizeOptionalPublicationYear(yearMatch ? yearMatch[1] : null),

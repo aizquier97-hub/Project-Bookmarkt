@@ -77,6 +77,17 @@ describe('parseIsbnPayload', () => {
     );
   });
 
+  it('merges a series subtitle into the title', () => {
+    const withSubtitle = {
+      [`ISBN:${isbn}`]: {
+        ...payload[`ISBN:${isbn}`],
+        title: 'Sword art online',
+        subtitle: 'Progressive',
+      },
+    };
+    expect(parseIsbnPayload(withSubtitle, isbn)?.title).toBe('Sword art online: Progressive');
+  });
+
   it('returns nulls for missing optional fields', () => {
     const sparse = { [`ISBN:${isbn}`]: { title: 'Bare Book' } };
     expect(parseIsbnPayload(sparse, isbn)).toEqual({
