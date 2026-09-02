@@ -18,7 +18,8 @@
       "env": {
         "EXPO_PUBLIC_APP_ENV": "preview",
         "EXPO_PUBLIC_SUPABASE_URL": "https://bfallxtcxxyykcnkedom.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_NzMdHQACfZknql5bcdcExQ_ZI2KllTq"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_NzMdHQACfZknql5bcdcExQ_ZI2KllTq",
+        "EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY": "AIzaSyAinbV8q5gHwVUIzOZByY8CupgBLBZId2A"
       }
     },
     "production": {
