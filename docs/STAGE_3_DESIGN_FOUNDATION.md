@@ -171,12 +171,18 @@ for the design-system and screen-polish work items.
   and header; a scan records title, author, pages, cover). The case now
   scrolls as one piece of furniture - the crown molding and ribbon ride
   away with the top shelf instead of floating over lower ones (D-037,
-  2026-08-22).
-- **Design gap:** empty/error/loading polish (J10). Sign-out left the
-  header for the settings screen 2026-08-22 (J9, D-035) - the shelf's
-  header now carries only the settings gear. Uniform cover sizing was
-  hardened 2026-08-22 (D-027): fixed cover heights and a reserved bubble
-  band in every slot, and all UI chrome now uses vector icons.
+  2026-08-22). **Superseded 2026-09-01 (D-040):** the bookshelf metaphor
+  is retired for the MVP. The library is now a clean, competitor-matched
+  screen - warm neutral surfaces, bottom tabs (Library / My bookmarks /
+  Settings), stats chips, the Continue Reading hero, and a flat 3-across
+  cover grid under "Currently reading" and "Finished" headers; gold
+  survives as the finished-book check badge. Recency order, real cover
+  art, the FAB, and the hero card all carry over.
+- **Design gap:** none remaining for the MVP; the mascot-era redesign is
+  professionally outsourced after beta validation (D-038). Historical:
+  sign-out left the header for the settings screen 2026-08-22 (J9, D-035);
+  uniform cover sizing was hardened 2026-08-22 (D-027); empty/error states
+  closed 2026-09-01 with the offline-aware pass (D-040).
 
 ### J5. Book home and progress
 
@@ -308,15 +314,17 @@ deliberately deferred and stay on this stage's list:
 - **J2 - first-run onboarding.** ~~A warm welcome remains undesigned~~ -
   **shipped 2026-08-22 (D-036)**: the empty shelf now welcomes, promises,
   and invites the first book in one screen.
-- **J10 - empty/error/loading illustration polish** continues to wait on
-  the brand illustration pass.
+- **J10 - empty/error/loading illustration polish** ~~continues to wait on
+  the brand illustration pass~~ - the clean D-040 states (plain invitation
+  copy, offline-aware errors with retry) are the MVP treatment;
+  illustrations join the outsourced professional UI/UX pass (D-038).
 
 ## 4. Stage 3 implementation record
 
 Everything below shipped over-the-air during Stage 3 and is live on the
 owner's EAS preview build, validated on every round by typecheck, lint,
-and the test suite (121 tests across 13 suites at this writing).
-Decisions D-021 through D-037 in [DECISION_LOG.md](DECISION_LOG.md) carry
+and the test suite (139 tests across 14 suites at this writing).
+Decisions D-021 through D-041 in [DECISION_LOG.md](DECISION_LOG.md) carry
 the full rationale; the roadmap's Stage 3 "Completed work" list mirrors
 this record.
 
@@ -331,13 +339,17 @@ this record.
 | First-run welcome on the empty shelf; plain-language auth errors on sign-in/sign-up/reset | J1, J2 | D-036 |
 | Professional finish: vector icons replace emoji chrome, uniform cover slots, title typography ladder, true 2:3 cover geometry | J4 | D-027, D-029 |
 | Crash flight recorder (unhandled errors reported to analytics) plus screen error boundary; diagnosed its first field crash remotely | reliability | D-030 |
+| Clean interface: warm-neutral theme tokens, bottom-tab navigation (Library / My bookmarks / Settings), sectioned 3-across cover grid, flat book cards with gold finished badges, stats chips, restyled hero card | J4, J9 | D-040 |
+| Offline-aware error states: connectivity failures render friendly "you're offline" messaging with retry on every query screen | J10 | D-040 |
+| Device automation: Maestro flows for sign-in, add-book, and log-entry with an owner-run guide (`.maestro/`) | testing | D-040 |
+| RLS hardening and isolation evidence: content writes now require topic ownership; a simulated two-user probe passes 13 cross-account checks against the live project | security | D-041 |
 
-Still open in Stage 3: J10 empty/error/loading illustration polish (waits
-on the brand illustration pass), the formal WCAG 2.2 AA audit, moderated
-usability tests with representative readers, the physical bookmark
-prototype, and the carried Stage 2 test/automation items - the roadmap's
-Stage 3 work plan is the authoritative list. J8 (companion) and J11
-(subscription) are design-complete and build against Stage 4 billing.
+Still open in Stage 3 (all owner-run): the WCAG 2.2 AA audit checklist
+results, the dogfooding log review, moderated usability tests with
+representative readers, the physical bookmark prototype, and the Stage 3
+exit sign-off - the roadmap's Stage 3 work plan is the authoritative
+list. J8 (companion) and J11 (subscription) are design-complete and build
+against Stage 4 billing.
 
 ## 5. Approval
 

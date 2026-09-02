@@ -1,0 +1,19 @@
+appId: com.inkmarkt.bookmarkt
+name: Log a reading entry
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Maestro Smoke Test"
+    timeout: 20000
+- tapOn: "Maestro Smoke Test"
+- extendedWaitUntil:
+    visible: "One line is plenty - what just happened?"
+    timeout: 15000
+- tapOn: "One line is plenty - what just happened?"
+- inputText: "Automated smoke entry from Maestro."
+- hideKeyboard
+- tapOn: "Save entry"
+# The entry text appearing in the timeline proves the round trip.
+- extendedWaitUntil:
+    visible: "Automated smoke entry from Maestro."
+    timeout: 20000

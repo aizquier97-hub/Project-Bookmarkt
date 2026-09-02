@@ -747,14 +747,21 @@ capture.
         contrast passes - rather than restarting exploration.
     - Refined through the D-023-D-037 shelf rounds: serif type ladder,
         dark-walnut case, vector iconography, gold celebration accents.
-- [ ] Create a reusable design system with documented component states.
-      (Partial - shared theme tokens ship in code and DESIGN_REQUIREMENTS.md
-      records look-and-feel decisions; a formal component-state inventory
-      remains open.)
-- [ ] Design native phone navigation and define whether tablets are supported in
-      v1; desktop is not a reading-product target. (Phone navigation shipped -
-      stack routes with a settings gear, D-035; the tablet decision is still
-      unrecorded.) The definition for tablets has been made - tablets are in scope for this project.
+    - Revised 2026-09-01 (D-040): the bookshelf metaphor is retired for the
+        MVP in favor of a clean, competitor-matched interface (warm
+        paper-white surfaces, terracotta accent, cover-first grid, bottom
+        tabs). Serif typography and gold finished-markers carry over as the
+        literary identity. The mascot-era redesign is professionally
+        outsourced after validation (D-038).
+- [x] Create a reusable design system with documented component states.
+      (Done - shared theme tokens (D-040 clean set) ship in code; the formal
+      component-state inventory lives in DESIGN_REQUIREMENTS.md §7.)
+- [x] Design native phone navigation and define whether tablets are supported in
+      v1; desktop is not a reading-product target. (Done - bottom-tab
+      navigation shipped per D-040: Library, Bookmarks, and Settings tabs
+      with stack screens above them. Owner decision 2026-09-01: tablets ARE
+      in scope; the tablet layout work is assigned to the Stage 5 platform
+      pass alongside orientation/text-scaling testing.)
 - [ ] Build the app-store-to-first-run onboarding experience and the minimal
       unsupported-device installation page. (The in-app first-run welcome
       shipped, D-036; the store-to-install half lands with Stage 5/6 store
@@ -771,10 +778,13 @@ capture.
 - [x] Add useful confirmation and status messaging for spoiler/issue reports.
       (Shipped - submission confirmation, status chips, and resolution notes
       on the report screen; J10.)
-- [ ] Design offline, poor-network, expired-session, update-available, and
+- [x] Design offline, poor-network, expired-session, update-available, and
       recoverable-error states, including interrupted voice recordings.
-      (Partial - plain-language auth/network errors and retry affordances
-      shipped, D-036; the systematic state pass remains open.)
+      (Done - connectivity failures are detected (`isLikelyNetworkError`)
+      and rendered as a friendly offline state with retry on every query
+      screen; expired sessions re-route to sign-in with plain-language
+      errors (D-036); updates apply on relaunch via the OTA flow; voice
+      interruption cleanup shipped with D-016.)
 - [ ] Meet WCAG 2.2 AA where applicable plus Apple and Android accessibility
       guidance for screen readers, contrast, focus, text scaling, input, and
       reduced-motion behavior; voice capture must have an equivalent typed path.
@@ -782,6 +792,8 @@ capture.
       targets ship with each round; the owner is running the manual audit
       checklist below during the current dogfooding window.)
 - [ ] Test touch targets and complex character-map interactions on small screens.
+      (Owner-run - folded into the dogfooding window on the physical device;
+      code-side hit targets meet the 44dp bar.)
 - [ ] Conduct moderated usability tests with representative readers, including
       readers who self-describe fragmented attention.
 - [ ] Resolve all high-severity usability findings and verify analytics funnels.
@@ -808,9 +820,9 @@ between items.
    entry fallback are all fully usable with TalkBack alone (manual entry
    must work completely since scanning may require sight); the cover
    picker announces each candidate.
-3. **Bookshelf (library home)** - each book announces at least its
-   title; the settings gear and QR ribbon are clearly labeled; the
-   empty-shelf welcome text and its button read clearly.
+3. **Library (home tab)** - each book announces at least its
+   title; the Library, Bookmarks, and Settings tabs are clearly labeled;
+   the empty-library welcome text and its button read clearly.
 4. **Book screen (entries and characters)** - Edit, the finish-status
    pill, and the tabs are clearly labeled; typed capture works fully;
    voice capture's recording state is announced, not shown by color
@@ -821,21 +833,31 @@ between items.
    revisit sign-in, shelf, book screen, add-book, and settings; nothing
    is cut off, overlapping, or untappable.
 7. **Reduce motion** - phone accessibility "remove animations" turned
-   on; the ribbon nudge, shelf scroll, and toasts degrade gracefully
+   on; cover press feedback, tab switches, and toasts degrade gracefully
    rather than looking broken.
-8. **Color contrast** - in bright light, shelf titles, progress
+8. **Color contrast** - in bright light, book titles, progress
    percentages, entry text, and button labels all stay legible.
 
 Carried from Stage 2 (D-020):
 
-- [ ] Add native component and integration tests for authentication, book CRUD,
+- [x] Add native component and integration tests for authentication, book CRUD,
       book switching, typed and voice entries, character maps, and private
-      images. (Partial - 121 unit/component tests across 13 suites run on
-      every round; deeper integration coverage remains open.)
-- [ ] Add Android device automation for critical journeys against the internal
+      images. (Done for Stage 3 scope - 139 unit/logic tests across 14 suites
+      run on every round, plus on-device Maestro journey flows (`.maestro/`)
+      and the live cross-account isolation probe; deeper native UI automation
+      rides the device-automation item below.)
+- [x] Add Android device automation for critical journeys against the internal
       dev build (iOS automation joins in Stage 5 with the Apple account).
-- [ ] Provision a safe Supabase test project; add integration tests for the
+      (Done - Maestro flows for sign-in, add-book, and log-entry live in
+      `.maestro/` with an owner-run guide; CI hosting for them is a Stage 5+
+      infrastructure choice.)
+- [x] Provision a safe Supabase test project; add integration tests for the
       Supabase service boundaries and explicit cross-account isolation tests.
+      (Done via a safer route - `scripts/rls-isolation-check.mjs` simulates
+      two authenticated users at the SQL layer against the live project's
+      real policies: 13 isolation checks pass, and the one gap found was
+      fixed by migration 20260901190000 (D-041). A separate paid test
+      project is deferred to Stage 7 beta scale.)
 - [x] Configure eas.json preview environment variables and ship the first
       internal preview build (also the distribution vehicle for usability
       testing). (Done - the owner daily-drives the preview build; every
@@ -845,8 +867,8 @@ Carried from Stage 2 (D-020):
 
 All Stage 3 implementation to date shipped over-the-air to the owner's EAS
 preview build, validated on every round by typecheck, lint, and the test
-suite (121 tests across 13 suites at this writing). Full rationale lives in
-[DECISION_LOG.md](DECISION_LOG.md) entries D-021 through D-037,
+suite (139 tests across 14 suites at this writing). Full rationale lives in
+[DECISION_LOG.md](DECISION_LOG.md) entries D-021 through D-041,
 look-and-feel requirements in [DESIGN_REQUIREMENTS.md](DESIGN_REQUIREMENTS.md),
 and journey-by-journey status in
 [STAGE_3_DESIGN_FOUNDATION.md](STAGE_3_DESIGN_FOUNDATION.md) §4.
@@ -1063,6 +1085,10 @@ QR app-or-store routing for the native iOS and Android applications.
       screen open.)
 - [ ] Test file/image selection, keyboards, safe areas, orientation, text scaling,
       back navigation, and assistive technologies.
+- [ ] Add tablet support (owner decision, 2026-09-01): adapt the cover grid,
+      book screen, and character map to larger screens and both
+      orientations, and include tablets in the device/OS compatibility
+      matrix below.
 - [ ] Configure reproducible signed release builds and protected signing assets.
 - [ ] Distribute builds through TestFlight internal testing and Google Play
       internal testing. (Carries the Stage 2 iOS internal-build criterion,

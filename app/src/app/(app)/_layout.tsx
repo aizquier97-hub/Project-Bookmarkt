@@ -22,6 +22,9 @@ export default function AppLayout() {
         headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.background },
       }}
-    />
+    >
+      {/* The tab navigator draws its own header per tab. */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    </Stack>
   );
 }

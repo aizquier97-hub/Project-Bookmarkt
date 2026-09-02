@@ -1,0 +1,19 @@
+appId: com.inkmarkt.bookmarkt
+name: Sign in reaches the library
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Email"
+    timeout: 20000
+- tapOn: "Email"
+- inputText: ${MAESTRO_TEST_EMAIL}
+- tapOn: "Password"
+- inputText: ${MAESTRO_TEST_PASSWORD}
+- hideKeyboard
+- tapOn: "Sign in"
+# The library tab header (or the first-run welcome) proves auth + routing.
+- extendedWaitUntil:
+    visible:
+      text: "Library|Welcome to Bookmarkt"
+    timeout: 20000

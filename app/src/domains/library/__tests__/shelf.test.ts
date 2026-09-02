@@ -1,6 +1,7 @@
 import type { BookPositionSummary } from '@/domains/entries/display';
 import type { Book } from '@/domains/library/service';
 import {
+  buildLibraryRows,
   computeCompletionPercent,
   shelfTitleTypography,
   sortBooksForShelf,
@@ -145,5 +146,42 @@ describe('shelfTitleTypography', () => {
 
   it('keeps multiple lines when an extreme word has company', () => {
     expect(shelfTitleTypography('The Supercalifragilisticexpialidocious Story').maxLines).toBe(3);
+  });
+});
+
+describe('buildLibraryRows', () => {
+  it('splits reading and finished into labeled sections with chunked rows', () => {
+    const sorted = [
+      book({ id: 1, finished_at: null }),
+      book({ id: 2, finished_at: null }),
+      book({ id: 3, finished_at: null }),
+      book({ id: 4, finished_at: null }),
+      book({ id: 5, finished_at: '2026-08-01T00:00:00Z' }),
+    ];
+    const rows = buildLibraryRows(sorted, 3);
+    expect(rows.map((r) => r.kind)).toEqual(['section', 'books', 'books', 'section', 'books']);
+    expect(rows[0]).toMatchObject({ title: 'Currently reading', count: 4 });
+    expect(rows[1].kind === 'books' && rows[1].books.map((b) => b.id)).toEqual([1, 2, 3]);
+    expect(rows[2].kind === 'books' && rows[2].books.map((b) => b.id)).toEqual([4]);
+    expect(rows[3]).toMatchObject({ title: 'Finished', count: 1 });
+    expect(rows[4].kind === 'books' && rows[4].books.map((b) => b.id)).toEqual([5]);
+  });
+
+  it('omits empty sections', () => {
+    const readingOnly = buildLibraryRows([book({ id: 1, finished_at: null })], 3);
+    expect(readingOnly.map((r) => r.kind)).toEqual(['section', 'books']);
+    const finishedOnly = buildLibraryRows([book({ id: 1, finished_at: '2026-08-01T00:00:00Z' })], 3);
+    expect(finishedOnly[0]).toMatchObject({ title: 'Finished', count: 1 });
+    expect(buildLibraryRows([], 3)).toEqual([]);
+  });
+
+  it('gives every row a unique stable key', () => {
+    const sorted = [
+      book({ id: 1, finished_at: null }),
+      book({ id: 2, finished_at: null }),
+      book({ id: 3, finished_at: '2026-08-01T00:00:00Z' }),
+    ];
+    const keys = buildLibraryRows(sorted, 2).map((r) => r.key);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });

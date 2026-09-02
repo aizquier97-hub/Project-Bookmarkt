@@ -16,7 +16,12 @@ with a pointer to the replacement.
 
 1. **A warm library, not a productivity tool.** Wood, cloth, paper, leather
    and gold - the materials of reading - instead of flat cards. The shelf is
-   Bookmarkt's identity (locked 2026-08-21).
+   Bookmarkt's identity (locked 2026-08-21). *Amended 2026-09-01 (D-040): the
+   MVP expresses the warmth through a clean warm-neutral palette
+   (paper-white surfaces, warm ink, terracotta accent, reserved gold) and
+   serif literary typography rather than skeuomorphic materials; the
+   mascot-era redesign sets the final identity after beta validation
+   (D-038).*
 2. **Judgment-free.** No streaks, no guilt mechanics, no red badges. The app
    celebrates progress and never scolds absence (roadmap principle; owner).
 3. **Seconds to oriented.** Opening the app must answer "where was I?"
@@ -34,6 +39,17 @@ with a pointer to the replacement.
    2026-08-22; recorded per-decision in DECISION_LOG.md).
 
 ## 2. The bookshelf (library screen)
+
+> **2026-09-01 (D-040): the skeuomorphic bookshelf below is retired for the
+> MVP.** The rows in this table stand as design history. Carried forward
+> into the clean library: recency ordering, the Continue Reading hero,
+> cover-title typography, real cover art at 2:3, scan-to-add, minimal book
+> details, vector iconography, the bottom-right FAB, and gold as the
+> finished/celebration marker. Retired: the wooden case, 2.5D painted covers
+> as the primary look (a flat painted cover remains the placeholder), the
+> pull-out animation, the QR ribbon, and the settings gear (bookmarks and
+> settings are now bottom tabs). The current library is specified in the
+> **Clean library (D-040)** table at the end of this section.
 
 | Requirement | Look and feel | Research / proven pattern | Status | Refs |
 | --- | --- | --- | --- | --- |
@@ -54,7 +70,17 @@ with a pointer to the replacement.
 | Scan to add a book | The add-book screen leads with a "Scan the barcode" card (camera opens a full-screen scan sheet, EAN-13 only); one scan fills title, author, total pages, and the cover - manual input always wins, and everything stays editable (publisher/year retired per D-032). ~~A typed-ISBN field with "Look up" sat below it~~ - removed per owner (D-031): nobody types a 13-digit number when scan and plain manual entry exist; the scan card itself shows a spinner during lookup. The edit screen's cover picker keeps the exact-edition ISBN path (the ISBN is stored). ISBNs are checksum-validated so a misread never fires a bogus lookup. The scan card hides on builds without the camera module - manual entry remains. | Barcode-scan-to-add is the marquee frictionless-entry pattern in Goodreads and Bookly; owner: "Remember, frictionless!", then: "remove the ISBN row and just ask for the book scan". | Shipped 2026-08-22 (scan needs the camera build) | D-028, D-029, D-031 |
 | Minimal book details | Add and edit ask only title, author, and total pages (plus the cover picker); publisher and publication year are gone from the forms and the book header. A scan records title, author, pages, and cover; Open Library still auto-fills missing pages. Picking a cover from the search also fills a blank author and blank page count from the matched edition (median pages across editions), with a one-tap Undo toast - typed input always wins and every field stays editable (D-033). Older books keep stored publisher/year in the database untouched - just no longer asked for or shown. | Every removed form field lifts completion (Baymard form research); Goodreads/Bookly scan-to-add asks for nothing beyond the scan; owner: publisher/year "not necessary at this stage". Undo-toast for a reversible automatic fill is the Material snackbar pattern; the median-pages caveat lives in the toast copy per the owner's edition-variance concern. | Shipped 2026-08-22 (amended per D-033) | D-032, D-033 |
 | Vector iconography everywhere | All UI chrome uses Ionicons vector icons (flag, trophy, pencil, mic, camera, lock, sparkles, +); emoji stays only inside user-facing celebration copy (e.g., the finish toast). | Apple HIG and Material: emoji-as-icon renders inconsistently across OSes, can't be styled/weighted, and is ambiguous for screen readers; every major reading app uses drawn icons. | Shipped 2026-08-22 | D-027 |
-| Settings behind a gear | A gear icon in the shelf header opens a Settings screen: grouped sections for the signed-in account (email + "your entries sync to this account"), a Your QR bookmarks shortcut, Report an issue, and the app version, with Sign out as a destructive-styled action behind a confirm dialog at the bottom. The shelf itself carries no sign-out link and no report link - the case is the hero. | Kindle, Apple Books, Goodreads, and Bookly all keep account/support behind a profile or gear entry; Apple HIG puts destructive actions behind an intentional step, never beside everyday navigation. Owner: "the settings window is not placed... make sure the app looks professional." | Shipped 2026-08-22 | D-035 |
+| Settings behind a gear | A gear icon in the shelf header opens a Settings screen: grouped sections for the signed-in account (email + "your entries sync to this account"), a Your QR bookmarks shortcut, Report an issue, and the app version, with Sign out as a destructive-styled action behind a confirm dialog at the bottom. The shelf itself carries no sign-out link and no report link - the case is the hero. | Kindle, Apple Books, Goodreads, and Bookly all keep account/support behind a profile or gear entry; Apple HIG puts destructive actions behind an intentional step, never beside everyday navigation. Owner: "the settings window is not placed... make sure the app looks professional." | Shipped 2026-08-22; entry point superseded by the Settings tab (D-040) - the screen itself is unchanged | D-035 |
+
+### Clean library (D-040, current)
+
+| Requirement | Look and feel | Research / proven pattern | Status | Refs |
+| --- | --- | --- | --- | --- |
+| Warm neutral surfaces | Paper-white background (#faf7f2), white cards, warm-ink text, a single terracotta accent, soft warm borders; serif stays on headers and book titles; gold appears only on finished/celebration markers. All text tokens meet 4.5:1 contrast on their surfaces. | StoryGraph, Goodreads, Fable, and Kindle all use clean neutral surfaces that let cover art carry the color; a single accent keeps actions unmistakable (Material/HIG). | Shipped 2026-09-01 | D-040 |
+| Bottom-tab navigation | Three tabs - Library, My bookmarks, Settings - with vector icons and the terracotta active tint; book, add-book, and support screens stack above the tabs. | Bottom tabs are the universal pattern in StoryGraph, Goodreads, Fable, and Bookmory; top-level reachability beats hidden entry points (the ribbon and gear required discovery). | Shipped 2026-09-01 | D-040 |
+| Sectioned cover grid | Flat 3-across grid of covers under "Currently reading" and "Finished" section headers; recency order carries over; stats chips ("X reading · Y finished") and the Continue Reading hero sit above the grid; bottom-right FAB adds a book. | Cover-first grids at 3-across are the shipped norm (StoryGraph library, Goodreads shelves, Kindle); section headers replace physical shelf rows. | Shipped 2026-09-01 | D-040 |
+| Flat book cards | 2:3 cover with an 8pt radius; real art full-bleed; placeholder is a flat per-book color with the word-safe title typography; finished covers wear a small gold check badge; title, author, and a slim progress bar render below the cover; press feedback is a gentle opacity change (reduce-motion safe). | Flat cards with metadata below the cover match every current competitor; the gold badge keeps the celebration language without skeuomorphism. | Shipped 2026-09-01 | D-040 |
+| Offline-aware error states | Every query screen distinguishes "you're offline" (cloud icon, friendly copy, retry) from other errors (alert icon, plain-language message, retry); retry buttons carry accessibility roles and labels. | Kindle/Goodreads degrade gracefully offline; NN/g error-message guidance (say what happened, in plain words, with a way forward). | Shipped 2026-09-01 | D-040 |
 
 ## 3. The book screen
 
@@ -109,6 +135,25 @@ with a pointer to the replacement.
   D-036) - a fuller multi-screen welcome only if usage shows the need;
   premium onboarding must also explain semantic search clearly (D-039).
 - QR scan-to-book transition states (J3; full payoff with Stage 5 smart links).
-- Empty/error/loading state polish pass across screens (J10), including
-  empty-state illustrations.
+- Empty-state illustrations (J10) - deferred to the professionally
+  outsourced UI/UX pass (D-038); the clean D-040 empty states (plain
+  invitation copy + action) are the MVP treatment.
 - App icon and splash screen (Stage 5 packaging).
+
+## 7. Component-state inventory (Stage 3)
+
+The reusable pieces and the states each one covers, as shipped. This is the
+formal design-system inventory required by the Stage 3 work plan.
+
+| Component | States covered | Lives in |
+| --- | --- | --- |
+| Screen data states | Loading (spinner + label), empty (invitation copy + action button), offline error (cloud icon, "you're offline" copy, retry), other error (alert icon, plain-language message, retry), content | `components/states.tsx` + `lib/networkErrors.ts`; used by the library, book, and bookmarks screens |
+| Book card | Real cover / flat placeholder with word-safe title / failed image falls back to placeholder; reading (progress bar) vs finished (gold check badge); pressed (opacity, reduce-motion safe) | `components/BookCard.tsx` |
+| Continue Reading hero | Present when an in-progress book exists, hidden otherwise; pressed feedback; progress bar with or without a known % | `components/ContinueReadingCard.tsx` |
+| Buttons | Default, pressed, disabled, busy (label swap, e.g. "Saving...") | Per-screen, shared token styling |
+| Text inputs | Default, focused, inline validation error in plain language, disabled while submitting | Auth and book forms |
+| Capture bar | Idle, typing, recording (state announced, not color-only), transcribing, error with retry | Book screen |
+| Toasts | Success and undo variants, auto-dismiss, reduce-motion safe | Toast provider |
+| Dialogs | Destructive confirmation (sign out, delete) with cancel as the safe default | Settings, book screen |
+| Session states | Signed-out routing, session restore on launch, expired-session redirect with plain-language message | `(app)/_layout.tsx`, auth flow |
+| Tabs | Active (terracotta tint + label), inactive (muted) | `(app)/(tabs)/_layout.tsx` |
