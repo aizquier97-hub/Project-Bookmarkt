@@ -242,6 +242,11 @@ for the design-system and screen-polish work items.
   tells, quizzes and cue cards visibly come from the reader's own words,
   and the offer frames the companion as exercise for the reader's thinking -
   mechanism-level framing only, never a measured-outcome claim.
+  Per D-038/D-039 (2026-09-01) the companion is embodied by the scholarly-
+  capybara mascot with an archetype-driven personality, and the feature set
+  is revised (word bank, quote logs, important event flags, structuring aid,
+  background reasoning; continuity flags removed) - the MVP ships these
+  text-only, with professional mascot art following closed-beta validation.
 
 ### J9. Settings and account
 

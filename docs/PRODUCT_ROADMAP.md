@@ -46,11 +46,11 @@ abandoned book.
 The product attacks P2 directly and centrally; every companion feature exists to
 make re-entry cheap. It attacks P3 through active production: writing your own
 summary and building your own character map are well-supported comprehension
-interventions, reinforced by Socratic dialogue and continuity flags. The
+interventions, reinforced by Socratic dialogue and important event flags. The
 critical-thinking dimension of P3 is exercised chiefly by the paid companion -
 Socratic questioning that asks rather than tells, cue cards and quizzes built
-on retrieval practice, and continuity flags that surface contradictions for
-the reader to resolve - all grounded in the reader's own entries. This is a
+on retrieval practice, and the reader's own flagged events anchoring what
+matters in the story - all grounded in the reader's own entries. This is a
 mechanism-level benefit and part of why the companion justifies its price; it
 is never marketed as a measured outcome, because the product's honest metric
 remains books finished. P1 is
@@ -100,11 +100,12 @@ A reader can:
 9. Rely on their latest entry as the spoiler-safe boundary for everything the
    product shows or asks.
 10. Store book metadata and personal images.
-11. Optionally subscribe to the **AI Reading Companion**: "Where you left
-    off" recaps (working name; the story so far as prose or bullets, at a
-    reader-chosen level of detail), Socratic dialogue, cue cards,
-    character-map quizzes, semantic search, cross-book threads, book-club
-    prep, continuity flags, and a vocabulary bank - all grounded exclusively
+11. Optionally subscribe to the **AI Reading Companion**, delivered by the
+    mascot (D-038): "Where you left off" recaps (working name; the story so
+    far as prose or bullets, at a reader-chosen level of detail), Socratic
+    dialogue, cue cards, character-map quizzes, semantic search, background
+    mascot reasoning, book-club prep, AI-suggested important event flags, the
+    capture structuring aid, and the word bank - all grounded exclusively
     in their own entries.
 12. Return from another supported phone and recover the same account data.
 13. Understand and control their subscription, privacy, data, and account.
@@ -167,7 +168,10 @@ not initially:
 - An AI content generator. No product surface produces AI-written summaries,
   character maps, or images. The image-generation backend remains dormant
   behind a server-side disabled flag; re-enabling it requires a material
-  roadmap decision.
+  roadmap decision. (This boundary protects the reader's own records. AI-
+  generated reference material - word-bank definitions and examples - and the
+  companion asking questions or helping arrange the reader's own words are
+  permitted per D-039; the reader authors every saved word of their records.)
 - A note-quality grader. The companion never scores, corrects, or coaches the
   reader's writing style; grading capture kills the habit.
 - An autonomous AI correction or model-training platform.
@@ -247,21 +251,34 @@ flowchart TB
 
 ### Free and paid feature matrix
 
+Every paid capability is delivered by the companion mascot (D-038) - a
+scholarly capybara whose conversational personality adapts to the reader's
+logged genres via an intellectual-archetype spider chart, while his
+dignified visuals never change.
+
 | Capability | Free capture tier | AI Reading Companion (paid) |
 | --- | --- | --- |
 | Manual summaries and notes - typed or voice | Included | Included |
 | Manual character maps | Included | Included |
 | Progress and boundary tracking (latest entry = ceiling) | Included | Included |
 | Book metadata and personal images | Included | Included |
+| Quote Logs - save favorite quotes per book (D-039) | Included | Included; quotes also feed companion personalization |
+| Important event flags - mark events that matter (D-039, replaces continuity flags) | Included (manual) | Included; AI can suggest flags from the reader's entries |
 | "Where you left off" recaps (working name, D-022) - AI story-so-far from the reader's entries, prose or bullets at reader-chosen detail | Locked teaser only | Included |
-| Socratic dialogue - questions-first, ungraded by default | - | Included |
+| Socratic dialogue - questions-first, ungraded by default, in the mascot's archetype-flavored voice | - | Included |
 | Cue cards with deterministic spaced repetition | - | Included |
 | Character-map quizzes - the reader's map is the answer key | - | Included |
-| Semantic search across every logged book | - | Included |
-| Cross-book threads | - | Included |
-| Book-club prep - boundary-bounded | - | Included |
-| Continuity flags between the reader's own entries | - | Included |
-| Vocabulary bank feeding cue cards | - | Included |
+| Semantic search across every logged book (premium onboarding explains how it works) | - | Included |
+| Background mascot reasoning (formerly cross-book threads, D-039) - behind-the-scenes clustering that powers the mascot's observations and recommendations | - | Included |
+| Book-club prep - discussion points and questions summarized from the reader's own entries, boundary-bounded | - | Included |
+| Word bank - AI-generated to reader level and genre plus manually added words; the mascot's box with definition, pronunciation, and example (D-039) | - | Included |
+| Capture structuring aid - the mascot asks leading questions and helps arrange the reader's own words; never writes for them (D-039) | - | Included |
+
+On the backburner as a key differentiator (D-039): **pattern recognition** -
+the mascot noticing recurring themes in what a reader highlights across
+entries and books ("I noticed you keep returning to ideas about memory...")
+and building on them in dialogue. The heaviest companion engineering item;
+deliberately sequenced after closed-beta buy-in.
 
 *"Your notes are free forever. The companion that helps you think about them is
 the subscription."*
@@ -315,6 +332,24 @@ approximately 52-74 weeks after Stage 2 entry. Scope changes, unresolved defects
 gate conditions, staffing, external legal or store review, and third-party
 dependencies can change the ranges. Reforecast the remaining stages at every gate
 review and record any material schedule change in the roadmap.
+
+### Validation-first release strategy (D-038)
+
+The final product vision includes a professionally animated companion mascot
+and an outsourced professional UI/UX pass - investment (~$5k for mascot art
+alone) that is deliberately deferred until real demand is proven:
+
+1. **Build the MVP** (Stages 3-6) without the professional mascot art or the
+   final visual polish - the current in-house design carries it.
+2. **Closed beta** (Stage 7) ships the MVP to real users and tests buy-in,
+   including willingness to pay for the companion.
+3. **If buy-in is proven,** initial profits are reinvested into the
+   professional mascot animation (5 master poses + 6 Lottie/Rive sequences,
+   already specced with an artist), the professional UI/UX redesign, and a
+   marketing campaign for the official launch (Stage 8).
+
+A concept drawing of the mascot exists as the foundation for the final
+commissioned artwork. No mascot art spend occurs before Stage 7 evidence.
 
 ## 9. Foundation history - completed
 
@@ -693,7 +728,10 @@ capture.
       bullets at reader-chosen detail), cue-card review, character-map quizzes,
       semantic search, cross-book threads, book-club prep, continuity flags, and
       the vocabulary bank as boundary-safe surfaces built from the reader's
-      entries. (Design-complete - D-022 scope plus DESIGN_REQUIREMENTS.md §4.)
+      entries. (Design-complete - D-022 scope plus DESIGN_REQUIREMENTS.md §4.
+      Feature set since revised by D-038/D-039: mascot-led, threads become
+      background reasoning, continuity flags become important event flags,
+      the vocabulary bank becomes the word bank.)
 - [x] Design locked-companion, subscription-offer, trial, entitlement-loading,
       and expired/downgraded states without ever blocking capture.
       (Design-complete - DESIGN_REQUIREMENTS.md §4.)
@@ -877,6 +915,29 @@ operations, and app-store distribution.
 
 - [ ] Implement the single paid subscription: **AI Reading Companion**. Free
       capture is never paywalled and never degraded by subscription state.
+- [ ] Build the mascot dialogue layer (D-038): the intellectual-archetype
+      spider chart derived from logged genres (Analyst / Empath / Philosopher /
+      World-Builder), updated silently as entries accumulate, driving the
+      companion's system-prompt personality within a fixed rule-set (calm,
+      non-judgmental, deadpan-scholarly). Text-only in the MVP; professional
+      mascot art and animation arrive post-validation per the
+      validation-first strategy.
+- [ ] Build the revised companion feature set (D-039): archetype-flavored
+      Socratic dialogue, "Where you left off" recaps, cue cards, character-map
+      quizzes, semantic search with a premium onboarding explainer, background
+      mascot reasoning (cross-book clustering), book-club prep from the
+      reader's own entries, the level- and genre-aware word bank with its
+      first-use assessment, the capture structuring aid (leading questions and
+      arrangement help - the reader authors every saved word), and AI-suggested
+      important event flags.
+- [ ] Build the free-tier additions that feed the companion (D-039): Quote
+      Logs and manual important event flags (these ship with or before the
+      subscription so beta readers exercise them).
+- [ ] Backburner - **pattern recognition** (D-039): the mascot noticing and
+      building on recurring themes across a reader's entries and books.
+      Key differentiator for a unique per-reader experience; heaviest
+      engineering item (embeddings + clustering); sequenced after closed-beta
+      buy-in rather than into the MVP.
 - [ ] Set the companion price, billing period, and introductory offer. The trial
       is server-authorized, time-bound, limited to one per account, and begins
       only after the qualifying number of entries exists.
