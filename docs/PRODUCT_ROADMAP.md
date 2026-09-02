@@ -317,8 +317,8 @@ flowchart LR
 | Foundation | Functional prototype | Complete | Completed before formal tracking | QR-accessible production PWA proved the product concept |
 | Stage 1 | Stabilization | Complete (GO 2026-08-21, D-013 early exit) | Minimum 1-week clean observation | Reliable and secure baseline with five clean days observed |
 | Stage 2 | Architecture rebuild | Complete (GO 2026-08-21, D-020) | 12-16 weeks | Maintainable, tested native application core |
-| Stage 3 | Polished UI/UX | In progress (entered 2026-08-21) | 8-12 weeks | Accessible, branded, validated native experience |
-| Stage 4 | Monetization and accounts | Planned | 10-14 weeks | Store-compliant companion subscription and entitlement system |
+| Stage 3 | Polished UI/UX | Complete (GO 2026-09-02, D-046) | 8-12 weeks | Accessible, branded, validated native experience |
+| Stage 4 | Monetization and accounts | In progress (entered 2026-09-02) | 10-14 weeks | Store-compliant companion subscription and entitlement system |
 | Stage 5 | Native iOS/Android packaging | Planned | 6-8 weeks | Signed internal builds on real devices |
 | Stage 6 | Compliance and launch operations | Planned | 6-10 weeks | Legally and operationally ready external-beta candidate |
 | Stage 7 | External beta | Planned | 6-8 weeks, including at least 14 observed days | Evidence that real users and operations are launch-ready |
@@ -683,7 +683,8 @@ STAGE_2_EXIT_REVIEW.md §2, STAGE_2_OPERATIONS.md §8).
 
 ## 12. Stage 3 - Polished UI/UX
 
-**Status:** Active (entered August 21, 2026 per Stage 2 `GO`, D-020)
+**Status:** Complete (`GO` recorded 2026-09-02, D-046; see
+[gates/STAGE_3_EXIT.md](gates/STAGE_3_EXIT.md))
 
 **Purpose:** Turn the reliable native application into an intuitive, distinctive,
 accessible iOS and Android reading product built around fast, judgment-free
@@ -697,12 +698,13 @@ capture.
 
 ### Work plan
 
-- [ ] Run a continuous owner dogfooding period: use the Android dev build as
+- [x] Run a continuous owner dogfooding period: use the Android dev build as
       the daily real reading companion throughout Stage 3, log every friction
       point and defect as it happens, and triage the log weekly (P0/P1 fixed
       immediately per STAGE_GATES.md). Runs alongside design work; blocks
-      nothing. (Active - the owner daily-drives the EAS preview build; the
-      D-030 crash flight recorder captures field defects automatically.)
+      nothing. (Closed 2026-09-02 - every logged friction point and defect
+      was fixed during the stage; no open P0/P1. The D-030 crash flight
+      recorder stays live for ongoing field coverage.)
 - [x] Define target readers - individuals whose fragmented attention impedes
       long-form reading, recall, or comprehension - and their priority
       jobs-to-be-done: pick the book back up, stay oriented, finish it.
@@ -762,19 +764,19 @@ capture.
       with stack screens above them. Owner decision 2026-09-01: tablets ARE
       in scope; the tablet layout work is assigned to the Stage 5 platform
       pass alongside orientation/text-scaling testing.)
-- [ ] Build the app-store-to-first-run onboarding experience and the minimal
-      unsupported-device installation page. (The in-app first-run welcome
-      shipped, D-036; the store-to-install half lands with Stage 5/6 store
-      presence.)
+- [x] Build the app-store-to-first-run onboarding experience and the minimal
+      unsupported-device installation page. (In-app first-run welcome
+      shipped, D-036; the store-to-install half is **deferred to Stage 5/6**
+      store presence - recorded in gates/STAGE_3_EXIT.md.)
 - [x] Add clear empty states and progressive guidance for a first book and first
       entry. (Shipped - first-run welcome D-036; empty states exist on every
       list; illustration polish tracked under J10.)
 - [x] Polish progress entry, metadata, images, and character-map interactions.
       (Shipped across the D-026 through D-035 rounds.)
-- [ ] Make the reading boundary and provenance labels unmistakable in every
+- [x] Make the reading boundary and provenance labels unmistakable in every
       companion surface. (The boundary is unmistakable in capture and the
-      timeline today; provenance labels ship with the companion build in
-      Stage 4.)
+      timeline today; provenance labels **ship with the Stage 4 companion
+      build** - they cannot precede it. Recorded in gates/STAGE_3_EXIT.md.)
 - [x] Add useful confirmation and status messaging for spoiler/issue reports.
       (Shipped - submission confirmation, status chips, and resolution notes
       on the report screen; J10.)
@@ -792,14 +794,22 @@ capture.
       animation/contrast tests on the Android preview build; every test
       passed with no defects. See ACCESSIBILITY_AUDIT_CHECKLIST.md for the
       full results.)
-- [ ] Test touch targets and complex character-map interactions on small screens.
-      (Owner-run - folded into the dogfooding window on the physical device;
-      code-side hit targets meet the 44dp bar.)
-- [ ] Conduct moderated usability tests with representative readers, including
-      readers who self-describe fragmented attention.
-- [ ] Resolve all high-severity usability findings and verify analytics funnels.
-- [ ] Prototype the physical bookmark, QR placement, scan distance, contrast, and
-      instructions without committing to mass production.
+- [x] Test touch targets and complex character-map interactions on small screens.
+      (Done 2026-09-02 - owner verified on the physical device during the
+      dogfooding window; interactions feel fine and code-side hit targets
+      meet the 44dp bar.)
+- [x] Conduct moderated usability tests with representative readers, including
+      readers who self-describe fragmented attention. (**Deferred to
+      Stage 6** - owner decision 2026-09-02: real readers test once the
+      Stage 4 companion and Stage 5 platform work complete the feature set,
+      before the external-beta candidate is declared ready. Recorded in
+      gates/STAGE_3_EXIT.md.)
+- [x] Resolve all high-severity usability findings and verify analytics funnels.
+      (**Deferred to Stage 6** with the usability tests above - findings
+      triage and funnel verification happen when those tests run.)
+- [x] Prototype the physical bookmark, QR placement, scan distance, contrast, and
+      instructions without committing to mass production. (Done 2026-09-02 -
+      owner printed a sample and verified the QR scans reliably.)
 
 ### Accessibility audit checklist (manual, owner-run)
 
@@ -915,9 +925,17 @@ and journey-by-journey status in
 - Physical bookmark samples scan reliably under defined test conditions.
 - The product owner approves the v1 experience and brand direction.
 
+**Gate result (2026-09-02): `GO`, approved by the product owner (D-046).**
+Every criterion passes or carries a named, destination-gated deferral;
+the full criterion-by-criterion record, deferred-work table, and rationale
+live in [gates/STAGE_3_EXIT.md](gates/STAGE_3_EXIT.md). Moderated usability
+testing (and the two exit criteria that depend on it) is deferred to
+Stage 6 so representative readers exercise the complete feature set,
+companion included.
+
 ## 13. Stage 4 - Monetization and accounts
 
-**Status:** Planned
+**Status:** Active (entered 2026-09-02 per Stage 3 `GO`, D-046)
 
 **Purpose:** Add a policy-compliant subscription and entitlement system for the
 single AI Reading Companion tier that can support the cost of AI, storage,
