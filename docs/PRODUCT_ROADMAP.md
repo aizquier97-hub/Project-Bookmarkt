@@ -889,6 +889,13 @@ and journey-by-journey status in
       silent fallback everywhere. The competitor reference set is
       documented in
       [COMPETITOR_REFERENCES.md](COMPETITOR_REFERENCES.md).
+- [x] Frictionless character capture (D-045): name-first quick add with
+      details behind a toggle; suggestion chips mined from the reader's
+      own entries; every add stamps the current reading position
+      ("First noted · Page 124") and the list sorts by order of
+      appearance; "@" in the entry composer suggests characters, and
+      saved entries render @mentions as tappable links to the
+      character's card.
 
 ### Stage 3 exit gate
 

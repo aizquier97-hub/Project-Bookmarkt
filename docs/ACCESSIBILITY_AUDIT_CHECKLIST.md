@@ -43,12 +43,12 @@ screen using only TalkBack.
 - [x] The + button on the Library tab is announced clearly.
 - [x] The "Scan the barcode" card and the scan screen are usable, and you
       can always escape back to manual entry.
-- [ ] Manual entry (title, author, pages) works completely with TalkBack
+- [x] Manual entry (title, author, pages) works completely with TalkBack
       alone - this path must be fully usable since scanning may require
       sight.
 - [x] The cover picker announces each cover candidate.
 
-**Result:**
+**Result:** All criteria successfully met. 
 
 ### 3. Library home (TalkBack on)
 
