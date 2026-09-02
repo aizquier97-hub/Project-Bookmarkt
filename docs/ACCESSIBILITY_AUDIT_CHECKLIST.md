@@ -63,52 +63,52 @@ screen using only TalkBack.
 
 ### 4. Book screen - entries and characters (TalkBack on)
 
-- [ ] The Edit button, the "Mark as finished" pill, and the
+- [x] The Edit button, the "Mark as finished" pill, and the
       Entries/Characters/Photos tabs are clearly labeled.
-- [ ] Writing and saving a typed entry works fully with TalkBack.
-- [ ] Voice capture: the recording state is announced, not shown by
+- [x] Writing and saving a typed entry works fully with TalkBack.
+- [x] Voice capture: the recording state is announced, not shown by
       color alone.
-- [ ] Search your entries, then select a result: highlighted matches
+- [x] Search your entries, then select a result: highlighted matches
       still read as plain text.
 
-**Result:**
+**Result:** The edit button is clearly visible on each past entry. The mark as finished button for the book works fine. The entries/characters/photos are clealry labeled. The writing and saving a typed  entry is saved and voice capture works well. The search feature results in  highlighted word from past  entries. 
 
 ### 5. Settings and sign-out (TalkBack on)
 
-- [ ] Every row on the Settings tab is announced (account, bookmarks,
+- [x] Every row on the Settings tab is announced (account, bookmarks,
       report an issue, version).
-- [ ] Tap Sign out: the confirmation dialog is read aloud automatically,
+- [x] Tap Sign out: the confirmation dialog is read aloud automatically,
       and both dialog buttons are labeled.
 
-**Result:**
+**Result: Met with success.**
 
 ### 6. Largest text size (TalkBack off)
 
 With the font size at maximum, revisit: sign-in, the Library tab, a book
 screen, add-book, and Settings.
 
-- [ ] Nothing is cut off, overlapping, or impossible to tap.
-- [ ] All button labels are still fully readable.
+- [x] Nothing is cut off, overlapping, or impossible to tap.
+- [x] All button labels are still fully readable.
 
-**Result:**
+**Result:** Completed..
 
 ### 7. Remove animations (TalkBack off)
 
 With animations removed, use the app normally for a few minutes.
 
-- [ ] Cover press feedback, tab switches, and toasts degrade gracefully -
+- [x] Cover press feedback, tab switches, and toasts degrade gracefully -
       nothing looks broken or stuck.
 
-**Result:**
+**Result:** There are no animation anymore and the app operates adequately. 
 
 ### 8. Color contrast in bright light (TalkBack off)
 
 Take the phone outdoors or under a bright lamp at typical brightness.
 
-- [ ] Book titles, progress percentages, entry text, and button labels
+- [x] Book titles, progress percentages, entry text, and button labels
       all stay legible on the Library tab and the book screen.
 
-**Result:**
+**Result:** The requirement is met. 
 
 ## When you are done
 
