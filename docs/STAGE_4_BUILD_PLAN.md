@@ -87,8 +87,11 @@ Build order within the phase:
        chips, boundary chip, "Spoiler held back" declines, suggestion
        chips, offer state, and quota copy; entry row on the book screen
        (D-048).*
-2. [ ] **"Where you left off" recaps (D-022)**: prose or bullets at
+2. [x] **"Where you left off" recaps (D-022)**: prose or bullets at
        reader-chosen detail - the highest-value single feature.
+       *Done 2026-09-02: the locked teaser became the live RecapCard —
+       brief/detailed toggle, stored newest recap (reopening costs
+       nothing), boundary + provenance chips (D-049).*
 3. [ ] **Free-tier feeders (D-039)**: Quote Logs and manual important event
        flags (ship with or before the subscription so beta readers exercise
        them).
