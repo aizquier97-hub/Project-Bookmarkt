@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { type CoverCandidate } from '@/domains/library/covers';
 import { deleteBook, getBook, updateBook, type Book } from '@/domains/library/service';
@@ -151,12 +152,17 @@ function EditBookForm({ book }: { book: Book }) {
     );
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+      >
         <Stack.Screen options={{ title: 'Edit book details' }} />
 
         <Text style={styles.label}>Book title *</Text>

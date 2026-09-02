@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   claimBookmark,
@@ -165,6 +166,8 @@ function LinkBookmarkFlow({ bookmark }: { bookmark: Bookmark }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
+  // Edge-to-edge Android: keep the last book row above the system buttons.
+  const insets = useSafeAreaInsets();
 
   const linkMutation = useMutation({
     mutationFn: (topicId: number) => linkBookmark(bookmark.id, topicId),
@@ -202,7 +205,7 @@ function LinkBookmarkFlow({ bookmark }: { bookmark: Bookmark }) {
         <FlatList
           data={booksQuery.data}
           keyExtractor={(book) => String(book.id)}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
           renderItem={({ item }) => (
             <Pressable
               style={styles.bookRow}
