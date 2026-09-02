@@ -838,6 +838,16 @@ function EntryCard({
   const [error, setError] = useState<string | null>(null);
   const parts = splitEntryText(entry.text);
 
+  // Same one-tap @mention chips as the composer, for edits (D-045).
+  const editMentionQuery = editing ? findActiveMentionQuery(draft) : null;
+  const editMentionMatches =
+    editMentionQuery !== null
+      ? filterNamesForMention(
+          mentionTargets.map((target) => target.name),
+          editMentionQuery,
+        )
+      : [];
+
   const updateMutation = useMutation({
     mutationFn: () => updateEntry(entry.id, bookId, draft),
     onSuccess: () => {
@@ -873,6 +883,21 @@ function EntryCard({
             multiline
             autoFocus
           />
+          {editMentionMatches.length > 0 ? (
+            <View style={styles.mentionRow}>
+              {editMentionMatches.map((mentionName) => (
+                <Pressable
+                  key={mentionName}
+                  style={styles.suggestionChip}
+                  onPress={() => setDraft((prev) => applyMentionToText(prev, mentionName))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Mention ${mentionName}`}
+                >
+                  <Text style={styles.suggestionChipText}>@{mentionName}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.cardActions}>
             <Pressable
