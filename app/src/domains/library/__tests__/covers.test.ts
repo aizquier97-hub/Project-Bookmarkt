@@ -1,9 +1,77 @@
 import {
+  coverFillUpdates,
   coverUrlForId,
   normalizeIsbn,
   parseCoverSearchPayload,
   parseIsbnPayload,
+  type CoverCandidate,
 } from '../covers';
+
+function candidate(overrides: Partial<CoverCandidate>): CoverCandidate {
+  return {
+    previewUrl: 'p',
+    coverUrl: 'c',
+    title: 'Untitled',
+    author: null,
+    year: null,
+    pagesMedian: null,
+    ...overrides,
+  };
+}
+
+describe('coverFillUpdates', () => {
+  const noAuto = { author: null, pages: null };
+
+  it('fills blank fields from the candidate', () => {
+    expect(
+      coverFillUpdates(
+        candidate({ author: 'Frank Herbert', pagesMedian: 412 }),
+        { author: '', totalPages: '' },
+        noAuto,
+      ),
+    ).toEqual({ author: 'Frank Herbert', pages: '412' });
+  });
+
+  it('never overwrites typed input', () => {
+    expect(
+      coverFillUpdates(
+        candidate({ author: 'Frank Herbert', pagesMedian: 412 }),
+        { author: 'My Author', totalPages: '100' },
+        noAuto,
+      ),
+    ).toEqual({ author: null, pages: null });
+  });
+
+  it('swaps values a previous pick supplied when a new cover is chosen', () => {
+    expect(
+      coverFillUpdates(
+        candidate({ author: 'New Author', pagesMedian: 300 }),
+        { author: 'Old Author', totalPages: '250' },
+        { author: 'Old Author', pages: '250' },
+      ),
+    ).toEqual({ author: 'New Author', pages: '300' });
+  });
+
+  it('keeps a field the reader edited after an auto-fill', () => {
+    expect(
+      coverFillUpdates(
+        candidate({ author: 'New Author', pagesMedian: 300 }),
+        { author: 'Edited By Hand', totalPages: '250' },
+        { author: 'Old Author', pages: '250' },
+      ),
+    ).toEqual({ author: null, pages: '300' });
+  });
+
+  it('reports nothing when the candidate matches the current values', () => {
+    expect(
+      coverFillUpdates(
+        candidate({ author: 'Same', pagesMedian: 250 }),
+        { author: 'Same', totalPages: '250' },
+        { author: 'Same', pages: '250' },
+      ),
+    ).toEqual({ author: null, pages: null });
+  });
+});
 
 describe('normalizeIsbn', () => {
   it('accepts a valid EAN-13 barcode number', () => {

@@ -66,6 +66,18 @@ export function normalizeGoogleCoverUrl(raw: unknown): string | null {
   return url.replace(/^http:\/\//, 'https://').replace(/&edge=curl/g, '');
 }
 
+/**
+ * A bigger rendition for the enlarged-cover view: Google content URLs
+ * accept a zoom parameter (1 = thumbnail, 2 = medium). Non-Google URLs
+ * (e.g. Open Library, already sized L) pass through unchanged.
+ */
+export function enlargeCoverUrl(url: string): string {
+  if (/books\.google/.test(url) && /([?&])zoom=1(&|$)/.test(url)) {
+    return url.replace(/([?&])zoom=1(&|$)/, '$1zoom=2$2');
+  }
+  return url;
+}
+
 function extractIsbn13(identifiers: unknown): string | null {
   if (!Array.isArray(identifiers)) {
     return null;
