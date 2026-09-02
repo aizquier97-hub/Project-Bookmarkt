@@ -8,7 +8,7 @@ import { formatBoundaryPosition, type BookPositionSummary } from '@/domains/entr
 import type { Book } from '@/domains/library/service';
 import { computeCompletionPercent } from '@/domains/library/shelf';
 import { formatRelativeTime } from '@/lib/relativeTime';
-import { cardShadow, colors, fonts, gold, spineColorFor } from '@/lib/theme';
+import { cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
 
 /**
  * The hero "Continue reading" card above the shelf - the resume pattern
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eyebrow: {
-    color: gold.deep,
+    color: colors.accent,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.4,

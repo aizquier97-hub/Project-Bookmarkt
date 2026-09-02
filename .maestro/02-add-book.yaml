@@ -1,0 +1,23 @@
+appId: com.inkmarkt.bookmarkt
+name: Add a book from the FAB
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      text: "Library|Welcome to Bookmarkt"
+    timeout: 20000
+# FAB and the first-run welcome button share this accessibility label space;
+# either entry point lands on the add-book form.
+- tapOn:
+    text: "Add a book|Add your first book"
+- extendedWaitUntil:
+    visible: "e.g., Don Quixote"
+    timeout: 10000
+- tapOn: "e.g., Don Quixote"
+- inputText: "Maestro Smoke Test"
+- hideKeyboard
+- tapOn: "Add book"
+# Back on the library, the new book's card is in the grid.
+- extendedWaitUntil:
+    visible: "Maestro Smoke Test"
+    timeout: 20000

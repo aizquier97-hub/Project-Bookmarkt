@@ -60,6 +60,42 @@ export interface ShelfTitleTypography {
   maxLines: number;
 }
 
+/** A renderable row of the library list: a section header or a row of covers. */
+export type LibraryRow =
+  | { key: string; kind: 'section'; title: string; count: number }
+  | { key: string; kind: 'books'; books: Book[] };
+
+/**
+ * Split the shelf-sorted library into labeled sections — "Currently reading"
+ * then "Finished" — and chunk each into fixed-width cover-grid rows (D-040,
+ * the sectioned cover grid StoryGraph/Kindle use). Headers only render for
+ * non-empty sections; row keys are stable per book set.
+ */
+export function buildLibraryRows(sorted: Book[], columns: number): LibraryRow[] {
+  const reading = sorted.filter((b) => !b.finished_at);
+  const finished = sorted.filter((b) => b.finished_at);
+  const rows: LibraryRow[] = [];
+
+  const pushSection = (title: string, books: Book[]) => {
+    if (books.length === 0) {
+      return;
+    }
+    rows.push({ key: `section-${title}`, kind: 'section', title, count: books.length });
+    for (let i = 0; i < books.length; i += columns) {
+      const chunk = books.slice(i, i + columns);
+      rows.push({
+        key: `row-${chunk.map((b) => b.id).join('-')}`,
+        kind: 'books',
+        books: chunk,
+      });
+    }
+  };
+
+  pushSection('Currently reading', reading);
+  pushSection('Finished', finished);
+  return rows;
+}
+
 /**
  * Book-cover typography, matching what Kindle/Apple Books do on generated
  * covers: titles wrap at spaces, never mid-word. Both the longest word AND

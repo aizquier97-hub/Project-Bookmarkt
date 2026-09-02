@@ -1,5 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
+import { isLikelyNetworkError } from '@/lib/networkErrors';
 import { colors } from '@/lib/theme';
 
 /**
@@ -26,12 +28,30 @@ export function ErrorState({
   fallback: string;
   onRetry?: () => void;
 }) {
-  const message = error instanceof Error && error.message ? error.message : fallback;
+  // Connectivity drops get a friendly, actionable message instead of the
+  // raw "Network request failed" (Stage 3 offline pass).
+  const offline = isLikelyNetworkError(error);
+  const message = offline
+    ? 'You seem to be offline. Check your connection and try again — nothing was lost.'
+    : error instanceof Error && error.message
+      ? error.message
+      : fallback;
   return (
     <View style={styles.block}>
-      <Text style={styles.errorText}>{message}</Text>
+      <Ionicons
+        name={offline ? 'cloud-offline-outline' : 'alert-circle-outline'}
+        size={28}
+        color={offline ? colors.muted : colors.danger}
+      />
+      <Text style={offline ? styles.mutedText : styles.errorText}>{message}</Text>
       {onRetry ? (
-        <Pressable style={styles.retryButton} onPress={onRetry} hitSlop={8}>
+        <Pressable
+          style={styles.retryButton}
+          onPress={onRetry}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+        >
           <Text style={styles.retryText}>Try again</Text>
         </Pressable>
       ) : null}
