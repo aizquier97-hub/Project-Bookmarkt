@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image as CoverImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -50,6 +51,7 @@ import {
   CompanionRequestError,
   requestFlagSuggestions,
   requestStructureAid,
+  searchEntriesByMeaning,
   type CompanionFlagSuggestion,
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
@@ -88,6 +90,9 @@ import { cardShadow, colors, fonts, gold } from '@/lib/theme';
 // Capture composer states: closed (bar only), opened for typing, or opened
 // with dictation auto-started (J6: voice as prominent as typing).
 type ComposerMode = 'write' | 'speak' | null;
+
+// One-time "search by meaning" explainer flag (D-052).
+const MEANING_INTRO_KEY = 'semantic_search_intro_seen';
 
 // The entries list renders day headings between cards (Day One-style
 // timeline): a flattened FlatList keeps scroll behavior simple.
@@ -477,6 +482,11 @@ function EntriesTab({
   // events (D-039) add a kind filter once any marked entries exist.
   const [entrySearch, setEntrySearch] = useState('');
   const [entryFilter, setEntryFilter] = useState<'all' | 'quote' | 'important'>('all');
+  // Search by meaning (D-052): premium semantic search over the reader's own
+  // notes. Matches replace the substring filter until cleared or retyped.
+  const [meaningMatches, setMeaningMatches] = useState<{ query: string; ids: number[] } | null>(
+    null,
+  );
   const hasMarkedEntries = useMemo(
     () => entries.some((entry) => parseEntryKind(splitEntryText(entry.text).body).kind !== 'note'),
     [entries],
@@ -484,18 +494,22 @@ function EntriesTab({
   const visibleEntries = useMemo(() => {
     const query = entrySearch.trim().toLowerCase();
     const filter = hasMarkedEntries ? entryFilter : 'all';
+    const meaningIds = meaningMatches ? new Set(meaningMatches.ids) : null;
     return entries.filter((entry) => {
       const parts = splitEntryText(entry.text);
       const marked = parseEntryKind(parts.body);
       if (filter !== 'all' && marked.kind !== filter) {
         return false;
       }
+      if (meaningIds) {
+        return meaningIds.has(entry.id);
+      }
       if (!query) {
         return true;
       }
       return `${parts.boundaryLabel ?? ''} ${marked.body}`.toLowerCase().includes(query);
     });
-  }, [entries, entrySearch, entryFilter, hasMarkedEntries]);
+  }, [entries, entrySearch, entryFilter, hasMarkedEntries, meaningMatches]);
   const listItems = useMemo(() => {
     const items: EntryListItem[] = [];
     for (const group of groupEntriesByDay(visibleEntries)) {
@@ -600,6 +614,52 @@ function EntriesTab({
       setFlagsError('The flag could not be saved. Please try again.');
     },
   });
+
+  // Search by meaning (D-052). First use shows a one-time explainer so the
+  // reader knows what the companion does with the query (nothing is kept).
+  const [showMeaningIntro, setShowMeaningIntro] = useState(false);
+  const [meaningError, setMeaningError] = useState<string | null>(null);
+  const meaningMutation = useMutation({
+    mutationFn: (query: string) => searchEntriesByMeaning(bookId, query),
+    onMutate: () => {
+      setMeaningError(null);
+      setMeaningMatches(null);
+    },
+    onSuccess: (result, query) => {
+      setMeaningMatches({ query, ids: result.results.map((r) => r.entryId) });
+      trackAnalyticsEvent(
+        'semantic_search_used',
+        { status: 'succeeded', matches: result.results.length },
+        bookId,
+      );
+    },
+    onError: (err) => {
+      const status = err instanceof CompanionRequestError ? err.code : 'error';
+      trackAnalyticsEvent('semantic_search_used', { status }, bookId);
+      setMeaningError(
+        err instanceof CompanionRequestError
+          ? err.message
+          : 'The search could not run just now. Please try again.',
+      );
+    },
+  });
+  const startMeaningSearch = async () => {
+    const query = entrySearch.trim();
+    if (query.length < 3 || meaningMutation.isPending) {
+      return;
+    }
+    const seen = await AsyncStorage.getItem(MEANING_INTRO_KEY).catch(() => null);
+    if (!seen) {
+      setShowMeaningIntro(true);
+      return;
+    }
+    meaningMutation.mutate(query);
+  };
+  const confirmMeaningIntro = () => {
+    setShowMeaningIntro(false);
+    void AsyncStorage.setItem(MEANING_INTRO_KEY, 'seen').catch(() => undefined);
+    meaningMutation.mutate(entrySearch.trim());
+  };
 
   // "Where you left off" (D-022): the companion's recap of the reader's own
   // entries, never past the latest one. RecapCard renders the real feature
@@ -874,8 +934,77 @@ function EntriesTab({
               placeholder="Search your entries..."
               placeholderTextColor={colors.muted}
               value={entrySearch}
-              onChangeText={setEntrySearch}
+              onChangeText={(value) => {
+                setEntrySearch(value);
+                setMeaningMatches(null);
+                setShowMeaningIntro(false);
+              }}
             />
+          ) : null}
+          {companionEntitled && entries.length >= 6 && entrySearch.trim().length >= 3 ? (
+            <View style={styles.meaningBlock}>
+              {showMeaningIntro ? (
+                <View style={styles.aidCard}>
+                  <Text style={styles.aidLabel}>Search by meaning</Text>
+                  <Text style={styles.aidSuggestion}>
+                    The companion compares what your notes mean, not just the words they use —
+                    “betrayal” can find the note where you wrote “he sold them out.” It only reads
+                    the notes you already saved, and nothing about the search is kept.
+                  </Text>
+                  <View style={styles.cardActions}>
+                    <Pressable
+                      style={styles.smallButton}
+                      onPress={confirmMeaningIntro}
+                      accessibilityRole="button"
+                      accessibilityLabel="Run the search by meaning"
+                    >
+                      <Text style={styles.smallButtonText}>Got it — search</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.smallButtonGhost}
+                      onPress={() => setShowMeaningIntro(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Dismiss the explainer"
+                    >
+                      <Text style={styles.smallButtonGhostText}>Not now</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : meaningMutation.isPending ? (
+                <View style={styles.aidPendingRow}>
+                  <ActivityIndicator size="small" color={colors.muted} />
+                  <Text style={styles.aidPendingText}>Reading your notes…</Text>
+                </View>
+              ) : meaningMatches ? (
+                <View style={styles.meaningResultRow}>
+                  <Text style={styles.meaningResultText}>
+                    {meaningMatches.ids.length === 0
+                      ? 'Nothing in your notes reads close to that.'
+                      : `${meaningMatches.ids.length} ${
+                          meaningMatches.ids.length === 1 ? 'note reads' : 'notes read'
+                        } close to “${meaningMatches.query}”`}
+                  </Text>
+                  <Pressable
+                    onPress={() => setMeaningMatches(null)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear the meaning search"
+                  >
+                    <Text style={styles.meaningClearText}>Clear</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  style={styles.flagsRow}
+                  onPress={() => void startMeaningSearch()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Search your notes by meaning"
+                >
+                  <Ionicons name="sparkles-outline" size={14} color={colors.accent} />
+                  <Text style={styles.flagsRowText}>Search by meaning</Text>
+                </Pressable>
+              )}
+              {meaningError ? <Text style={styles.error}>{meaningError}</Text> : null}
+            </View>
           ) : null}
           {hasMarkedEntries ? (
             <View style={styles.filterRow}>
@@ -2392,6 +2521,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   flagsRowText: { color: colors.text, fontSize: 13, fontWeight: '600' },
+  meaningBlock: { marginTop: 10 },
+  meaningResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+  },
+  meaningResultText: { color: colors.text, fontSize: 13, flex: 1 },
+  meaningClearText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
   flagsHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   flagSuggestion: {
     borderTopWidth: StyleSheet.hairlineWidth,

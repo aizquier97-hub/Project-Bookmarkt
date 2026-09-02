@@ -41,6 +41,16 @@ are supporting context.
 
 ## Current status
 
-Stage 1 stabilization is in its seven-day production observation window. The
-earliest exit review is August 23, 2026 after seven consecutive 24-hour periods,
-assuming no critical or high-severity defect occurs.
+Stages 1-3 are complete (Stage 3 `GO` recorded September 2, 2026, D-046). The
+prototype PWA has been succeeded by the native Expo app in `app/`, delivered
+to the owner's Android phone as an EAS preview build with over-the-air
+updates.
+
+Stage 4 (Monetization and accounts) is active. The AI Reading Companion is
+built and live for entitled accounts: book-scoped chat, "Where you left off"
+recaps, cue cards, quizzes, book-club prep, word bank, capture structuring
+aid, suggested important flags, and search by meaning - all server-gated
+(entitlement + daily quotas) and grounded only in the reader's own entries
+(see [docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). Remaining
+Stage 4 work: native billing integration, pricing decisions, and data
+export/account-deletion foundations.

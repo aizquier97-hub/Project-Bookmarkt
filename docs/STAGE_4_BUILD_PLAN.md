@@ -1,6 +1,8 @@
 # Stage 4 Build Plan - AI Reading Companion
 
-**Status:** Phase 1 complete (2026-09-02, D-047); Phase 2 in progress. This
+**Status:** Phases 1-2 complete (2026-09-02, D-047..D-052) - the full
+companion feature set is live OTA. Phase 3 (billing; owner decisions
+pending) and Phase 4 (hardening, export/deletion foundations) remain. This
 document sequences the
 [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) §13 work plan into build phases; the
 roadmap remains the authoritative scope list. Revisit and refine before each
@@ -99,16 +101,17 @@ Build order within the phase:
        selector; quotes render serif-italic with an accent rule, important
        moments earn a gold chip, and All/Quotes/Important filters appear
        once any exist (D-050).*
-4. [ ] Remaining companion feature set (D-039): cue cards, character-map
+4. [x] Remaining companion feature set (D-039): cue cards, character-map
        quizzes, semantic search with premium onboarding explainer,
        book-club prep from the reader's own entries, the level- and
        genre-aware word bank with first-use assessment, the capture
        structuring aid (the reader authors every saved word), and
        AI-suggested important event flags.
-       *2026-09-02: everything except semantic search shipped (D-051) —
-       cue cards, quizzes, club prep, and word bank as chat tools;
-       structure aid in the composer; suggested flags over the timeline.
-       Semantic search (embeddings) remains, sequenced last.*
+       *Done 2026-09-02: cue cards, quizzes, club prep, and word bank as
+       chat tools; structure aid in the composer; suggested flags over the
+       timeline (D-051). Semantic "search by meaning" shipped last -
+       pgvector embeddings, one-time explainer, matches filter the
+       timeline (D-052).*
 5. **Backburner** - pattern recognition (embeddings + clustering) stays
        sequenced after closed-beta buy-in (D-039); not MVP scope.
 

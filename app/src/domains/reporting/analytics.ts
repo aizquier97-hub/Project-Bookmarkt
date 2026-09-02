@@ -19,7 +19,8 @@ export type AnalyticsEventName =
   | 'companion_message_sent'
   | 'recap_requested'
   | 'companion_tool_used'
-  | 'entry_flag_applied';
+  | 'entry_flag_applied'
+  | 'semantic_search_used';
 
 export function trackAnalyticsEvent(
   eventName: AnalyticsEventName,

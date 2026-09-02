@@ -21,6 +21,11 @@ export interface CompanionFlagSuggestion {
   reason: string;
 }
 
+export interface CompanionSearchResult {
+  entryId: number;
+  similarity: number;
+}
+
 export interface CompanionQuota {
   used: number;
   remaining: number;
@@ -49,6 +54,8 @@ export interface CompanionSendResult {
   code: string | null;
   /** Present only for suggest_flags: entries that look like pivotal moments. */
   suggestions: CompanionFlagSuggestion[];
+  /** Present only for semantic_search: matching entries, best first. */
+  results: CompanionSearchResult[];
 }
 
 /** A denial or failure from the companion service, typed for the UI. */
@@ -158,6 +165,7 @@ interface RawSendResponse {
   messages?: unknown;
   code?: unknown;
   suggestions?: unknown;
+  results?: unknown;
 }
 
 function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
@@ -186,11 +194,23 @@ function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
         return { entryId: Number(item.entryId), reason: String(item.reason ?? '').trim() };
       })
       .filter((item) => Number.isFinite(item.entryId) && item.entryId > 0),
+    results: (Array.isArray(data.results) ? data.results : [])
+      .map((raw) => {
+        const item = (raw ?? {}) as { entryId?: unknown; similarity?: unknown };
+        return { entryId: Number(item.entryId), similarity: Number(item.similarity ?? 0) };
+      })
+      .filter((item) => Number.isFinite(item.entryId) && item.entryId > 0),
   };
 }
 
 async function invokeCompanion(body: {
-  feature: 'dialogue' | 'recap' | CompanionToolFeature | 'structure_aid' | 'suggest_flags';
+  feature:
+    | 'dialogue'
+    | 'recap'
+    | CompanionToolFeature
+    | 'structure_aid'
+    | 'suggest_flags'
+    | 'semantic_search';
   bookId: number;
   message?: string;
   detail?: string;
@@ -251,6 +271,14 @@ export function requestStructureAid(bookId: number, draft: string): Promise<Comp
 /** Transient: which notes look like pivotal moments (nothing is saved). */
 export function requestFlagSuggestions(bookId: number): Promise<CompanionSendResult> {
   return invokeCompanion({ feature: 'suggest_flags', bookId });
+}
+
+/** Search the reader's own notes by meaning; returns entry ids, best first. */
+export function searchEntriesByMeaning(
+  bookId: number,
+  query: string,
+): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'semantic_search', bookId, message: query.trim() });
 }
 
 const MESSAGE_PAGE_SIZE = 200;

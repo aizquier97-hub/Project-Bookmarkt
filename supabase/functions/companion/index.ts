@@ -30,7 +30,8 @@ type Feature =
   | "club_prep"
   | "word_bank"
   | "structure_aid"
-  | "suggest_flags";
+  | "suggest_flags"
+  | "semantic_search";
 
 const FEATURES: Feature[] = [
   "dialogue",
@@ -41,6 +42,7 @@ const FEATURES: Feature[] = [
   "word_bank",
   "structure_aid",
   "suggest_flags",
+  "semantic_search",
 ];
 
 /** Tools that persist their result as a companion message (revisitable). */
@@ -62,6 +64,11 @@ const corsHeaders = {
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 
 const GEMINI_MODEL = "gemini-2.5-flash";
+const EMBEDDING_MODEL = "gemini-embedding-001";
+const EMBEDDING_DIMS = 768;
+const MAX_SEARCH_ENTRIES = 400;
+const SEARCH_MATCH_COUNT = 8;
+const SEARCH_MIN_SIMILARITY = 0.25;
 const MAX_MESSAGE_CHARS = 2000;
 const MAX_CONTEXT_ENTRIES = 60;
 const MAX_CONTEXT_CHARS = 24000;
@@ -279,6 +286,68 @@ function extractGeminiText(geminiJson: any): string {
   return parts.map((p: any) => p?.text ?? "").join("").trim();
 }
 
+/** djb2 - cheap change detection for re-embedding edited entries. */
+function hashContent(text: string): string {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+  }
+  return `djb2:${(hash >>> 0).toString(16)}:${text.length}`;
+}
+
+/** Re-normalize: sub-3072-dim Gemini embeddings are not unit vectors. */
+function normalizeVector(values: number[]): number[] {
+  let sumSquares = 0;
+  for (const v of values) sumSquares += v * v;
+  const norm = Math.sqrt(sumSquares);
+  if (!Number.isFinite(norm) || norm === 0) return values;
+  return values.map((v) => v / norm);
+}
+
+/** Batch-embed texts (documents or the query) at EMBEDDING_DIMS, normalized. */
+async function embedTexts(
+  geminiKey: string,
+  texts: string[],
+  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY",
+): Promise<number[][]> {
+  const out: number[][] = [];
+  const BATCH = 100;
+  for (let start = 0; start < texts.length; start += BATCH) {
+    const chunk = texts.slice(start, start + BATCH);
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:batchEmbedContents?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: chunk.map((text) => ({
+            model: `models/${EMBEDDING_MODEL}`,
+            content: { parts: [{ text: text.slice(0, 8000) }] },
+            taskType,
+            outputDimensionality: EMBEDDING_DIMS,
+          })),
+        }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`embedding upstream ${response.status}: ${(await response.text()).slice(0, 200)}`);
+    }
+    const json = await response.json();
+    const embeddings = Array.isArray(json?.embeddings) ? json.embeddings : [];
+    if (embeddings.length !== chunk.length) {
+      throw new Error("embedding upstream returned a mismatched batch");
+    }
+    for (const item of embeddings) {
+      const values = Array.isArray(item?.values) ? item.values.map(Number) : [];
+      if (values.length !== EMBEDDING_DIMS) {
+        throw new Error("embedding upstream returned wrong dimensionality");
+      }
+      out.push(normalizeVector(values));
+    }
+  }
+  return out;
+}
+
 function parseCompanionJson(raw: string): {
   reply: string;
   provenance: string;
@@ -368,6 +437,9 @@ serve(async (req) => {
   if (feature === "structure_aid" && !message) {
     return jsonResponse({ error: "Write a draft first, then ask for help arranging it.", code: "BAD_REQUEST" }, 400);
   }
+  if (feature === "semantic_search" && !message) {
+    return jsonResponse({ error: "Type what you are looking for first.", code: "BAD_REQUEST" }, 400);
+  }
   const detail =
     feature === "word_bank"
       ? ["simple", "standard", "scholarly"].includes(String(body?.detail))
@@ -436,6 +508,7 @@ serve(async (req) => {
       word_bank: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
       structure_aid: { env: "COMPANION_STRUCTURE_AID_DAILY_LIMIT", fallback: 20, max: 500 },
       suggest_flags: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
+      semantic_search: { env: "COMPANION_SEARCH_DAILY_LIMIT", fallback: 20, max: 500 },
     };
     const limitSpec = TOOL_LIMITS[feature] ?? TOOL_LIMITS.dialogue!;
     const userDailyLimit = readPositiveLimit(
@@ -582,6 +655,115 @@ serve(async (req) => {
         boundaryLabel: null,
         quota,
       });
+    }
+
+    // Semantic search: bring embeddings up to date, match, return entry ids.
+    // No generative call and nothing persisted beyond the embeddings, which
+    // are numerical signatures scoped by RLS like the entries themselves.
+    if (feature === "semantic_search") {
+      const { data: searchRows, error: searchError } = await userClient
+        .from("entries")
+        .select("id, text")
+        .eq("topic_id", bookId)
+        .order("created_at", { ascending: false })
+        .limit(MAX_SEARCH_ENTRIES);
+      if (searchError) {
+        await finalize("failed", 503, { error_code: "CONTEXT_UNAVAILABLE" });
+        return jsonResponse({ error: "Your notes could not be loaded. Please try again.", code: "CONTEXT_UNAVAILABLE" }, 503);
+      }
+      const rows = (searchRows ?? []).filter((r) => String(r.text ?? "").trim());
+      if (rows.length === 0) {
+        await finalize("succeeded", 200, { grounding_entries: 0, model: EMBEDDING_MODEL });
+        return jsonResponse({
+          code: "NO_ENTRIES",
+          reply: {
+            content: "There are no notes to search yet - save a few first.",
+            provenance: "your_notes",
+            declined: false,
+          },
+          boundaryLabel: null,
+          quota,
+          results: [],
+        });
+      }
+      try {
+        // Re-embed only entries whose text changed since last time.
+        const { data: existing } = await admin
+          .from("entry_embeddings")
+          .select("entry_id, content_hash")
+          .eq("topic_id", bookId)
+          .eq("user_id", userId);
+        const existingHashes = new Map(
+          (existing ?? []).map((e) => [Number(e.entry_id), String(e.content_hash)]),
+        );
+        const stale = rows.filter(
+          (r) => existingHashes.get(Number(r.id)) !== hashContent(String(r.text)),
+        );
+        if (stale.length > 0) {
+          const vectors = await embedTexts(
+            geminiKey,
+            stale.map((r) => String(r.text)),
+            "RETRIEVAL_DOCUMENT",
+          );
+          const { error: upsertError } = await admin.from("entry_embeddings").upsert(
+            stale.map((r, i) => ({
+              entry_id: r.id,
+              user_id: userId,
+              topic_id: bookId,
+              content_hash: hashContent(String(r.text)),
+              embedding: JSON.stringify(vectors[i]),
+              updated_at: new Date().toISOString(),
+            })),
+            { onConflict: "entry_id" },
+          );
+          if (upsertError) {
+            throw new Error(`embedding upsert failed: ${upsertError.message}`);
+          }
+        }
+        const [queryVector] = await embedTexts(geminiKey, [message], "RETRIEVAL_QUERY");
+        const { data: matches, error: matchError } = await userClient.rpc(
+          "match_entry_embeddings",
+          {
+            p_topic_id: bookId,
+            p_query_embedding: JSON.stringify(queryVector),
+            p_match_count: SEARCH_MATCH_COUNT,
+          },
+        );
+        if (matchError) {
+          throw new Error(`embedding match failed: ${matchError.message}`);
+        }
+        const results = (Array.isArray(matches) ? matches : [])
+          .map((m: any) => ({ entryId: Number(m.entry_id), similarity: Number(m.similarity) }))
+          .filter((m) => Number.isFinite(m.entryId) && m.similarity >= SEARCH_MIN_SIMILARITY);
+        await finalize("succeeded", 200, {
+          grounding_entries: rows.length,
+          model: EMBEDDING_MODEL,
+        });
+        return jsonResponse({
+          reply: {
+            content:
+              results.length > 0
+                ? `${results.length} of your notes read close to that.`
+                : "Nothing in your notes reads close to that. Perhaps it lies ahead of you.",
+            provenance: "your_notes",
+            declined: false,
+          },
+          boundaryLabel,
+          quota,
+          results,
+        });
+      } catch (searchFailure) {
+        console.error("semantic search failed", searchFailure);
+        await finalize("failed", 502, {
+          error_code: "PROVIDER_ERROR",
+          model: EMBEDDING_MODEL,
+          error_message: truncate(String(searchFailure), 300),
+        });
+        return jsonResponse(
+          { error: "The search could not run just now. Please try again.", code: "PROVIDER_ERROR" },
+          502,
+        );
+      }
     }
 
     let contextChars = 0;
