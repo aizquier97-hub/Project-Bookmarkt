@@ -74,7 +74,7 @@ every later phase depends on it.
 
 Build order within the phase:
 
-1. [ ] **Companion chat screen + mascot dialogue layer (D-038)**: the
+1. [x] **Companion chat screen + mascot dialogue layer (D-038)**: the
        intellectual-archetype profile (Analyst / Empath / Philosopher /
        World-Builder) derived silently from logged genres, driving the
        system-prompt personality within the fixed rule-set (calm,
@@ -83,6 +83,10 @@ Build order within the phase:
        "from my knowledge"), the latest-entry spoiler boundary, visible
        declines, and the notes-mirror stance ship with this first surface
        (Stage 3 deferral, gates/STAGE_3_EXIT.md).
+       *Done 2026-09-02: book-scoped chat at `/companion` with provenance
+       chips, boundary chip, "Spoiler held back" declines, suggestion
+       chips, offer state, and quota copy; entry row on the book screen
+       (D-048).*
 2. [ ] **"Where you left off" recaps (D-022)**: prose or bullets at
        reader-chosen detail - the highest-value single feature.
 3. [ ] **Free-tier feeders (D-039)**: Quote Logs and manual important event

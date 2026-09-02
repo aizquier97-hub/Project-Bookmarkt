@@ -14,7 +14,9 @@ export type AnalyticsEventName =
   | 'book_finished'
   | 'manual_entry_added'
   | 'character_map_saved'
-  | 'recap_teaser_tapped';
+  | 'recap_teaser_tapped'
+  | 'companion_opened'
+  | 'companion_message_sent';
 
 export function trackAnalyticsEvent(
   eventName: AnalyticsEventName,

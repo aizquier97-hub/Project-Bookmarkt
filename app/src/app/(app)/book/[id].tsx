@@ -532,6 +532,24 @@ function EntriesTab({
         )
       : [];
 
+  // Entry point for the companion chat (Stage 4). Always visible: entitled
+  // readers land in the conversation, others see the subscription offer.
+  const companionRow = (
+    <Link href={{ pathname: '/companion', params: { id: String(bookId) } }} asChild>
+      <Pressable
+        style={styles.companionRow}
+        accessibilityRole="button"
+        accessibilityLabel="Talk it over with the Companion"
+      >
+        <View style={styles.teaserTitleRow}>
+          <Ionicons name="chatbubble-ellipses-outline" size={15} color={colors.accent} />
+          <Text style={styles.companionRowTitle}>Talk it over with the Companion</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+      </Pressable>
+    </Link>
+  );
+
   const recapTeaser = latestEntry ? (
     <View>
       <Pressable
@@ -713,6 +731,7 @@ function EntriesTab({
       ListHeaderComponent={
         <View>
           {composer}
+          {companionRow}
           {recapTeaser}
           {entries.length >= 6 ? (
             <TextInput
@@ -1883,6 +1902,25 @@ const styles = StyleSheet.create({
   },
   // The paid recap teaser dresses differently from entry cards on purpose:
   // warm gold tint, accent frame, serif title - a Companion-branded surface.
+  companionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    borderColor: colors.accent,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+    ...cardShadow,
+  },
+  companionRowTitle: {
+    color: colors.accent,
+    fontFamily: fonts.serif,
+    fontWeight: '700',
+    fontSize: 15,
+  },
   teaserRow: {
     flexDirection: 'row',
     alignItems: 'center',
