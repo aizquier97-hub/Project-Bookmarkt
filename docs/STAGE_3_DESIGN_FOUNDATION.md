@@ -344,6 +344,7 @@ this record.
 | Device automation: Maestro flows for sign-in, add-book, and log-entry with an owner-run guide (`.maestro/`) | testing | D-040 |
 | RLS hardening and isolation evidence: content writes now require topic ownership; a simulated two-user probe passes 13 cross-account checks against the live project | security | D-041 |
 | Search-first add-book: Google Books-powered live search with one-tap add, scan adds the match immediately, manual entry as fallback; the cover picker is Google-first too (D-043), Open Library stays as the silent fallback | J4 | D-042, D-043 |
+| Frictionless character capture: name-first quick add, suggestion chips mined from the reader's entries, first-noted position stamps with order-of-appearance sorting, and inline @mentions in entries that link to character cards | J6, J7 | D-045 |
 
 Still open in Stage 3 (all owner-run): the WCAG 2.2 AA audit checklist
 results, the dogfooding log review, moderated usability tests with

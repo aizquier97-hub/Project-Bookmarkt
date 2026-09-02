@@ -29,6 +29,18 @@ import {
   type CharacterDetails,
 } from '@/domains/characters/service';
 import {
+  formatFirstNoted,
+  formatFirstNotedLabel,
+  sortCharactersByAppearance,
+  suggestCharacterNames,
+} from '@/domains/characters/capture';
+import {
+  applyMentionToText,
+  filterNamesForMention,
+  findActiveMentionQuery,
+  splitTextForMentions,
+} from '@/domains/entries/mentions';
+import {
   formatBoundaryPosition,
   getCurrentPosition,
   splitEntryText,
@@ -97,10 +109,18 @@ function confirmDestructive(title: string, message: string, onConfirm: () => voi
 }
 
 export default function BookScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; tab?: string; character?: string }>();
   const bookId = Number(params.id);
   const validId = Number.isInteger(bookId) && bookId > 0;
-  const [tab, setTab] = useState<'entries' | 'characters' | 'photos'>('entries');
+  // Deep-link groundwork (D-045): /book/[id]?tab=characters&character=<id>
+  // opens the Characters tab focused on that card.
+  const [tab, setTab] = useState<'entries' | 'characters' | 'photos'>(
+    params.tab === 'characters' || params.tab === 'photos' ? params.tab : 'entries',
+  );
+  const [focusCharacterId, setFocusCharacterId] = useState<number | null>(() => {
+    const parsed = Number(params.character);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  });
   const [composerMode, setComposerMode] = useState<ComposerMode>(null);
   const [characterMode, setCharacterMode] = useState<ComposerMode>(null);
   const addPhotosRef = useRef<(() => void) | null>(null);
@@ -168,6 +188,11 @@ export default function BookScreen() {
   const openComposer = (mode: Exclude<ComposerMode, null>) => {
     setTab('entries');
     setComposerMode(mode);
+  };
+  // A tapped @mention anywhere in the book jumps to that character's card.
+  const openCharacter = (characterId: number) => {
+    setFocusCharacterId(characterId);
+    setTab('characters');
   };
   // The bar hides while the active tab's composer is open; on Photos it
   // stays (the picker is a modal, not an inline form).
@@ -306,6 +331,7 @@ export default function BookScreen() {
             bookId={bookId}
             composerMode={composerMode}
             onComposerModeChange={setComposerMode}
+            onOpenCharacter={openCharacter}
           />
         </View>
         <View style={[styles.tabPane, tab !== 'characters' && styles.tabPaneHidden]}>
@@ -313,6 +339,8 @@ export default function BookScreen() {
             bookId={bookId}
             composerMode={characterMode}
             onComposerModeChange={setCharacterMode}
+            focusCharacterId={tab === 'characters' ? focusCharacterId : null}
+            onFocusHandled={() => setFocusCharacterId(null)}
           />
         </View>
         <View style={[styles.tabPane, tab !== 'photos' && styles.tabPaneHidden]}>
@@ -380,10 +408,12 @@ function EntriesTab({
   bookId,
   composerMode,
   onComposerModeChange,
+  onOpenCharacter,
 }: {
   bookId: number;
   composerMode: ComposerMode;
   onComposerModeChange: (mode: ComposerMode) => void;
+  onOpenCharacter: (characterId: number) => void;
 }) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -411,6 +441,16 @@ function EntriesTab({
     queryKey: queryKeys.entries(bookId),
     queryFn: () => listEntries(bookId),
   });
+  // Shares the characters cache key with the Characters tab; powers inline
+  // @mention suggestions and tappable mentions in entry cards (D-045).
+  const charactersQuery = useQuery({
+    queryKey: queryKeys.characters(bookId),
+    queryFn: () => listCharacters(bookId),
+  });
+  const mentionTargets = useMemo(
+    () => (charactersQuery.data ?? []).map((c) => ({ id: c.id, name: c.name })),
+    [charactersQuery.data],
+  );
 
   const entries = useMemo(() => entriesQuery.data ?? [], [entriesQuery.data]);
   const latestBoundary = useMemo(
@@ -480,6 +520,17 @@ function EntriesTab({
       trackAnalyticsEvent('recap_teaser_tapped', { entryCount: entries.length }, bookId);
     }
   };
+
+  // An "@..." being typed at the end of the composer surfaces matching
+  // character names as one-tap chips (D-045).
+  const mentionQuery = findActiveMentionQuery(text);
+  const mentionMatches =
+    mentionQuery !== null
+      ? filterNamesForMention(
+          mentionTargets.map((target) => target.name),
+          mentionQuery,
+        )
+      : [];
 
   const recapTeaser = latestEntry ? (
     <View>
@@ -556,13 +607,33 @@ function EntriesTab({
 
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="One line is plenty - what just happened?"
+          placeholder={
+            mentionTargets.length > 0
+              ? 'One line is plenty - type @ to mention a character.'
+              : 'One line is plenty - what just happened?'
+          }
           placeholderTextColor={colors.muted}
           value={text}
           onChangeText={setText}
           multiline
           autoFocus={composerMode === 'write'}
         />
+
+        {mentionMatches.length > 0 ? (
+          <View style={styles.mentionRow}>
+            {mentionMatches.map((mentionName) => (
+              <Pressable
+                key={mentionName}
+                style={styles.suggestionChip}
+                onPress={() => setText((prev) => applyMentionToText(prev, mentionName))}
+                accessibilityRole="button"
+                accessibilityLabel={`Mention ${mentionName}`}
+              >
+                <Text style={styles.suggestionChipText}>@{mentionName}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
 
         {dictation.status === 'idle' ? (
           <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
@@ -671,7 +742,13 @@ function EntriesTab({
         item.kind === 'heading' ? (
           <Text style={styles.dayHeading}>{item.heading}</Text>
         ) : (
-          <EntryCard entry={item.entry} bookId={bookId} highlight={entrySearch.trim()} />
+          <EntryCard
+            entry={item.entry}
+            bookId={bookId}
+            highlight={entrySearch.trim()}
+            mentionTargets={mentionTargets}
+            onOpenCharacter={onOpenCharacter}
+          />
         )
       }
     />
@@ -702,14 +779,58 @@ function renderHighlighted(text: string, query: string | undefined) {
   );
 }
 
+/**
+ * Entry body rendering: search highlighting wins when a query is active;
+ * otherwise @mentions of known characters become tappable links that jump
+ * to the character's card (D-045).
+ */
+function renderEntryBody(
+  text: string,
+  highlight: string | undefined,
+  mentionTargets: { id: number; name: string }[],
+  onOpenCharacter: (characterId: number) => void,
+) {
+  if (highlight) {
+    return renderHighlighted(text, highlight);
+  }
+  const segments = splitTextForMentions(
+    text,
+    mentionTargets.map((target) => target.name),
+  );
+  if (segments.length === 1 && !segments[0].characterName) {
+    return text;
+  }
+  return segments.map((segment, index) => {
+    if (!segment.characterName) {
+      return segment.text;
+    }
+    const lower = segment.characterName.toLowerCase();
+    const target = mentionTargets.find((candidate) => candidate.name.toLowerCase() === lower);
+    return (
+      <Text
+        key={index}
+        style={styles.mentionText}
+        onPress={target ? () => onOpenCharacter(target.id) : undefined}
+        accessibilityRole={target ? 'link' : undefined}
+      >
+        {segment.text}
+      </Text>
+    );
+  });
+}
+
 function EntryCard({
   entry,
   bookId,
   highlight,
+  mentionTargets,
+  onOpenCharacter,
 }: {
   entry: Entry;
   bookId: number;
   highlight?: string;
+  mentionTargets: { id: number; name: string }[];
+  onOpenCharacter: (characterId: number) => void;
 }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -784,7 +905,9 @@ function EntryCard({
               </Text>
             </View>
           ) : null}
-          <Text style={styles.cardText}>{renderHighlighted(parts.body || entry.text, highlight)}</Text>
+          <Text style={styles.cardText}>
+            {renderEntryBody(parts.body || entry.text, highlight, mentionTargets, onOpenCharacter)}
+          </Text>
           <Text style={styles.cardDate}>{formatRecordTimestamp(entry)}</Text>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.cardActions}>
@@ -815,10 +938,14 @@ function CharactersTab({
   bookId,
   composerMode,
   onComposerModeChange,
+  focusCharacterId,
+  onFocusHandled,
 }: {
   bookId: number;
   composerMode: ComposerMode;
   onComposerModeChange: (mode: ComposerMode) => void;
+  focusCharacterId: number | null;
+  onFocusHandled: () => void;
 }) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -828,6 +955,9 @@ function CharactersTab({
   const [relationships, setRelationships] = useState('');
   const [search, setSearch] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  // Name-first quick add (D-045): details fields hide behind a toggle so a
+  // name alone is a complete, zero-friction capture.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const dictation = useDictation();
 
   // "Speak character" opens the form with dictation already running -
@@ -836,6 +966,7 @@ function CharactersTab({
   useEffect(() => {
     if (composerMode === 'speak' && dictation.status === 'idle' && !speakStartedRef.current) {
       speakStartedRef.current = true;
+      setDetailsOpen(true);
       void dictation.start();
     }
     if (composerMode !== 'speak') {
@@ -847,8 +978,25 @@ function CharactersTab({
     queryKey: queryKeys.characters(bookId),
     queryFn: () => listCharacters(bookId),
   });
+  // Shared entries cache: powers the reading-position stamp and the
+  // name-suggestion chips (D-045).
+  const entriesQuery = useQuery({
+    queryKey: queryKeys.entries(bookId),
+    queryFn: () => listEntries(bookId),
+  });
+  const entries = useMemo(() => entriesQuery.data ?? [], [entriesQuery.data]);
+  const currentPosition = useMemo(() => getCurrentPosition(entries), [entries]);
+  const stampLabel = currentPosition ? formatBoundaryPosition(currentPosition) : null;
 
   const characters = useMemo(() => charactersQuery.data ?? [], [charactersQuery.data]);
+  const suggestions = useMemo(
+    () =>
+      suggestCharacterNames(
+        entries.map((entry) => splitEntryText(entry.text).body || entry.text),
+        characters.map((character) => character.name),
+      ),
+    [entries, characters],
+  );
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) {
@@ -861,26 +1009,104 @@ function CharactersTab({
       return haystack.includes(query);
     });
   }, [characters, search]);
+  // Order of appearance: stamped characters sort by first-noted position.
+  const sorted = useMemo(() => sortCharactersByAppearance(filtered), [filtered]);
 
   const addMutation = useMutation({
-    mutationFn: () => addCharacter(bookId, name, { role, description, relationships }),
-    onSuccess: () => {
-      setName('');
-      setRole('');
-      setDescription('');
-      setRelationships('');
+    mutationFn: (input: {
+      name: string;
+      details: CharacterDetails;
+      via: 'form' | 'quick' | 'suggestion';
+    }) => addCharacter(bookId, input.name, input.details, input.via),
+    onSuccess: (_created, input) => {
       setFormError(null);
-      onComposerModeChange(null);
-      showToast('Character added.', 'success');
+      showToast(
+        input.via === 'suggestion' ? `${input.name} added to your map.` : 'Character added.',
+        'success',
+      );
       void queryClient.invalidateQueries({ queryKey: queryKeys.characters(bookId) });
+      if (input.via !== 'suggestion') {
+        setName('');
+        setRole('');
+        setDescription('');
+        setRelationships('');
+        setDetailsOpen(false);
+        onComposerModeChange(null);
+      }
     },
     onError: (err) => {
       setFormError(err instanceof Error ? err.message : 'Could not add the character.');
     },
   });
 
-  // Progressive disclosure: the four-field form only appears when the
-  // capture bar asks for it, so the tab stays a readable character list.
+  // Every add carries the reader's current position so the map can later be
+  // sorted (and spoiler-guarded) by when each character appeared.
+  const submitForm = () => {
+    addMutation.mutate({
+      name,
+      details: {
+        role,
+        description,
+        relationships,
+        firstNoted: formatFirstNoted(currentPosition),
+      },
+      via: detailsOpen ? 'form' : 'quick',
+    });
+  };
+  const addSuggestion = (suggestedName: string) => {
+    addMutation.mutate({
+      name: suggestedName,
+      details: {
+        role: '',
+        description: '',
+        relationships: '',
+        firstNoted: formatFirstNoted(currentPosition),
+      },
+      via: 'suggestion',
+    });
+  };
+
+  // A tapped @mention scrolls to and briefly highlights the card (D-045).
+  const listRef = useRef<FlatList<Character>>(null);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  useEffect(() => {
+    if (focusCharacterId === null) {
+      return;
+    }
+    const index = sorted.findIndex((character) => character.id === focusCharacterId);
+    if (index < 0) {
+      return;
+    }
+    listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.3 });
+    setHighlightId(focusCharacterId);
+    onFocusHandled();
+    const timer = setTimeout(() => setHighlightId(null), 2500);
+    return () => clearTimeout(timer);
+  }, [focusCharacterId, sorted, onFocusHandled]);
+
+  const suggestionBlock =
+    suggestions.length > 0 ? (
+      <View style={styles.suggestionBlock}>
+        <Text style={styles.suggestionLabel}>From your entries — tap to add</Text>
+        <View style={styles.suggestionRow}>
+          {suggestions.map((suggestedName) => (
+            <Pressable
+              key={suggestedName}
+              style={styles.suggestionChip}
+              onPress={() => addSuggestion(suggestedName)}
+              disabled={addMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${suggestedName} to your character map`}
+            >
+              <Text style={styles.suggestionChipText}>+ {suggestedName}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    ) : null;
+
+  // Progressive disclosure: the form only appears when the capture bar asks
+  // for it, and its detail fields only when the reader wants them.
   const addForm =
     composerMode !== null ? (
       <View style={styles.captureCard}>
@@ -895,113 +1121,153 @@ function CharactersTab({
             <Text style={styles.composerCloseText}>✕</Text>
           </Pressable>
         </View>
-        <TextInput
-          style={styles.input}
-          placeholder="Name, e.g., Frodo Baggins"
-          placeholderTextColor={colors.muted}
-          value={name}
-          onChangeText={setName}
-          autoFocus={composerMode === 'write'}
-        />
-        <TextInput
-          style={[styles.input, styles.stackedInput]}
-          placeholder="Role, e.g., Main protagonist"
-          placeholderTextColor={colors.muted}
-          value={role}
-          onChangeText={setRole}
-        />
-        <TextInput
-          style={[styles.input, styles.stackedInput, styles.textAreaSmall]}
-          placeholder="Traits and notes..."
-          placeholderTextColor={colors.muted}
-          value={description}
-          onChangeText={setDescription}
-          multiline
-        />
-        <TextInput
-          style={[styles.input, styles.stackedInput, styles.textAreaSmall]}
-          placeholder="Relationships, e.g., Sam (best friend)"
-          placeholderTextColor={colors.muted}
-          value={relationships}
-          onChangeText={setRelationships}
-          multiline
-        />
-
-        {dictation.status === 'idle' ? (
-          <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
-            <Ionicons name="mic" size={15} color={colors.text} />
-            <Text style={styles.dictateButtonText}>Describe by voice</Text>
+        <View style={styles.nameRow}>
+          <TextInput
+            style={[styles.input, styles.nameInput]}
+            placeholder="Name, e.g., Frodo Baggins"
+            placeholderTextColor={colors.muted}
+            value={name}
+            onChangeText={setName}
+            autoFocus={composerMode === 'write'}
+            returnKeyType="done"
+            onSubmitEditing={submitForm}
+          />
+          <Pressable
+            style={[styles.primaryButton, styles.nameAddButton]}
+            onPress={submitForm}
+            disabled={addMutation.isPending}
+            accessibilityRole="button"
+            accessibilityLabel="Add character"
+          >
+            {addMutation.isPending ? (
+              <ActivityIndicator color={colors.background} />
+            ) : (
+              <Text style={styles.primaryButtonText}>Add</Text>
+            )}
           </Pressable>
-        ) : null}
+        </View>
+        <Text style={styles.quickAddHint}>
+          {stampLabel
+            ? `Just the name is enough — they'll be noted around ${stampLabel.toLowerCase()}.`
+            : 'Just the name is enough — details can come later.'}
+        </Text>
 
-        {dictation.status === 'recording' ? (
-          <View style={styles.dictationCard}>
-            <Text style={styles.dictationLabel}>Listening… describe the character.</Text>
-            {dictation.partial ? (
-              <Text style={styles.dictationPartial}>{dictation.partial}</Text>
+        {!detailsOpen ? (
+          <Pressable
+            style={styles.detailsToggle}
+            onPress={() => setDetailsOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Add role, notes, and relationships"
+          >
+            <Text style={styles.detailsToggleText}>+ Add role, notes, and relationships</Text>
+          </Pressable>
+        ) : (
+          <>
+            <TextInput
+              style={[styles.input, styles.stackedInput]}
+              placeholder="Role, e.g., Main protagonist"
+              placeholderTextColor={colors.muted}
+              value={role}
+              onChangeText={setRole}
+            />
+            <TextInput
+              style={[styles.input, styles.stackedInput, styles.textAreaSmall]}
+              placeholder="Traits and notes..."
+              placeholderTextColor={colors.muted}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+            />
+            <TextInput
+              style={[styles.input, styles.stackedInput, styles.textAreaSmall]}
+              placeholder="Relationships, e.g., Sam (best friend)"
+              placeholderTextColor={colors.muted}
+              value={relationships}
+              onChangeText={setRelationships}
+              multiline
+            />
+
+            {dictation.status === 'idle' ? (
+              <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
+                <Ionicons name="mic" size={15} color={colors.text} />
+                <Text style={styles.dictateButtonText}>Describe by voice</Text>
+              </Pressable>
             ) : null}
-            <Pressable style={styles.stopButton} onPress={dictation.stop}>
-              <Ionicons name="stop" size={14} color={colors.danger} />
-              <Text style={styles.stopButtonText}>Stop dictation</Text>
-            </Pressable>
-          </View>
-        ) : null}
 
-        {dictation.status === 'review' ? (
-          <View style={styles.dictationCard}>
-            <Text style={styles.dictationLabel}>Review your dictation</Text>
-            <Text style={styles.dictationPreview}>{cleanupTranscript(dictation.raw)}</Text>
-            <Text style={styles.dictationHint}>
-              Only punctuation and capitalization were adjusted — your words are untouched.
-            </Text>
-            <View style={styles.cardActions}>
-              <Pressable
-                style={styles.smallButton}
-                onPress={() => {
-                  const raw = dictation.confirm();
-                  if (!raw) {
-                    return;
-                  }
-                  const cleaned = cleanupTranscript(raw);
-                  setDescription((prev) =>
-                    prev.trim() ? `${prev.trimEnd()} ${cleaned}` : cleaned,
-                  );
-                }}
-              >
-                <Text style={styles.smallButtonText}>Add to notes</Text>
-              </Pressable>
-              <Pressable style={styles.smallButtonGhost} onPress={dictation.discard}>
-                <Text style={styles.smallButtonGhostText}>Discard</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
+            {dictation.status === 'recording' ? (
+              <View style={styles.dictationCard}>
+                <Text style={styles.dictationLabel}>Listening… describe the character.</Text>
+                {dictation.partial ? (
+                  <Text style={styles.dictationPartial}>{dictation.partial}</Text>
+                ) : null}
+                <Pressable style={styles.stopButton} onPress={dictation.stop}>
+                  <Ionicons name="stop" size={14} color={colors.danger} />
+                  <Text style={styles.stopButtonText}>Stop dictation</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {dictation.status === 'review' ? (
+              <View style={styles.dictationCard}>
+                <Text style={styles.dictationLabel}>Review your dictation</Text>
+                <Text style={styles.dictationPreview}>{cleanupTranscript(dictation.raw)}</Text>
+                <Text style={styles.dictationHint}>
+                  Only punctuation and capitalization were adjusted — your words are untouched.
+                </Text>
+                <View style={styles.cardActions}>
+                  <Pressable
+                    style={styles.smallButton}
+                    onPress={() => {
+                      const raw = dictation.confirm();
+                      if (!raw) {
+                        return;
+                      }
+                      const cleaned = cleanupTranscript(raw);
+                      setDescription((prev) =>
+                        prev.trim() ? `${prev.trimEnd()} ${cleaned}` : cleaned,
+                      );
+                    }}
+                  >
+                    <Text style={styles.smallButtonText}>Add to notes</Text>
+                  </Pressable>
+                  <Pressable style={styles.smallButtonGhost} onPress={dictation.discard}>
+                    <Text style={styles.smallButtonGhostText}>Discard</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+          </>
+        )}
 
         {dictation.error ? <Text style={styles.error}>{dictation.error}</Text> : null}
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => addMutation.mutate()}
-          disabled={addMutation.isPending}
-        >
-          {addMutation.isPending ? (
-            <ActivityIndicator color={colors.background} />
-          ) : (
-            <Text style={styles.primaryButtonText}>Add character</Text>
-          )}
-        </Pressable>
       </View>
     ) : null;
 
   return (
     <FlatList
-      data={filtered}
+      ref={listRef}
+      data={sorted}
       keyExtractor={(character) => String(character.id)}
       contentContainerStyle={styles.list}
       keyboardShouldPersistTaps="handled"
+      onScrollToIndexFailed={(info) => {
+        listRef.current?.scrollToOffset({
+          offset: info.averageItemLength * info.index,
+          animated: true,
+        });
+        setTimeout(() => {
+          listRef.current?.scrollToIndex({
+            index: info.index,
+            animated: true,
+            viewPosition: 0.3,
+          });
+        }, 300);
+      }}
       ListHeaderComponent={
         <View>
           {addForm}
+          {suggestionBlock}
           {characters.length > 0 ? (
             <TextInput
               style={[styles.input, styles.searchInput]}
@@ -1030,14 +1296,25 @@ function CharactersTab({
           ) : null}
         </View>
       }
-      renderItem={({ item }) => <CharacterCard character={item} bookId={bookId} />}
+      renderItem={({ item }) => (
+        <CharacterCard character={item} bookId={bookId} focused={item.id === highlightId} />
+      )}
     />
   );
 }
 
-function CharacterCard({ character, bookId }: { character: Character; bookId: number }) {
+function CharacterCard({
+  character,
+  bookId,
+  focused,
+}: {
+  character: Character;
+  bookId: number;
+  focused?: boolean;
+}) {
   const queryClient = useQueryClient();
   const details = parseCharacterDescription(character.description);
+  const firstNotedLabel = formatFirstNotedLabel(details.firstNoted);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<CharacterDetails & { name: string }>({
     name: character.name,
@@ -1051,6 +1328,7 @@ function CharacterCard({ character, bookId }: { character: Character; bookId: nu
         role: draft.role,
         description: draft.description,
         relationships: draft.relationships,
+        firstNoted: draft.firstNoted,
       }),
     onSuccess: () => {
       setEditing(false);
@@ -1073,7 +1351,7 @@ function CharacterCard({ character, bookId }: { character: Character; bookId: nu
   });
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, focused && styles.cardFocused]}>
       {editing ? (
         <>
           <TextInput
@@ -1136,6 +1414,9 @@ function CharacterCard({ character, bookId }: { character: Character; bookId: nu
       ) : (
         <>
           <Text style={styles.characterName}>{character.name}</Text>
+          {firstNotedLabel ? (
+            <Text style={styles.firstNotedText}>First noted · {firstNotedLabel}</Text>
+          ) : null}
           {details.role ? (
             <View style={styles.characterSection}>
               <Text style={styles.characterLabel}>Role</Text>
@@ -1887,6 +2168,83 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 17,
     fontFamily: fonts.serif,
+    fontWeight: '700',
+  },
+  firstNotedText: {
+    color: gold.deep,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  cardFocused: {
+    borderColor: colors.accent,
+    borderWidth: 2,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'stretch',
+  },
+  nameInput: {
+    flex: 1,
+  },
+  nameAddButton: {
+    marginTop: 0,
+    paddingHorizontal: 18,
+    justifyContent: 'center',
+  },
+  quickAddHint: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 6,
+  },
+  detailsToggle: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  detailsToggleText: {
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  suggestionBlock: {
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  suggestionLabel: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  suggestionChip: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  suggestionChipText: {
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  mentionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  mentionText: {
+    color: colors.accent,
     fontWeight: '700',
   },
   characterSection: {

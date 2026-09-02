@@ -31,6 +31,7 @@ export async function addCharacter(
   bookId: number,
   name: string,
   details: CharacterDetails,
+  via: 'form' | 'quick' | 'suggestion' = 'form',
 ): Promise<Character> {
   const trimmedName = name.trim();
   if (!trimmedName) {
@@ -45,6 +46,7 @@ export async function addCharacter(
         role: details.role.trim(),
         description: details.description.trim(),
         relationships: details.relationships.trim(),
+        firstNoted: details.firstNoted?.trim() ?? '',
       }),
       topic_id: bookId,
       user_id: userId,
@@ -54,7 +56,7 @@ export async function addCharacter(
   if (error) {
     throw error;
   }
-  trackAnalyticsEvent('character_map_saved', { action: 'added' }, bookId);
+  trackAnalyticsEvent('character_map_saved', { action: 'added', via }, bookId);
   return data;
 }
 
@@ -77,6 +79,7 @@ export async function updateCharacter(
         role: details.role.trim(),
         description: details.description.trim(),
         relationships: details.relationships.trim(),
+        firstNoted: details.firstNoted?.trim() ?? '',
       }),
       updated_at: new Date().toISOString(),
     })
