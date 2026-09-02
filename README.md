@@ -38,6 +38,7 @@ are supporting context.
 ## Operations
 
 - [Stage 1 operations, AI controls, monitoring, and recovery](docs/STAGE_1_OPERATIONS.md)
+- [Billing dispute support procedures](docs/SUPPORT_BILLING_DISPUTES.md)
 
 ## Current status
 
@@ -51,6 +52,7 @@ built and live for entitled accounts: book-scoped chat, "Where you left off"
 recaps, cue cards, quizzes, book-club prep, word bank, capture structuring
 aid, suggested important flags, and search by meaning - all server-gated
 (entitlement + daily quotas) and grounded only in the reader's own entries
-(see [docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). Remaining
-Stage 4 work: native billing integration, pricing decisions, and data
-export/account-deletion foundations.
+(see [docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). Account
+self-service foundations are in place: change password, JSON data export,
+and permanent account deletion from Settings. Remaining Stage 4 work:
+native billing integration and pricing decisions.

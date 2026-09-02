@@ -1020,13 +1020,18 @@ operations, and app-store distribution.
 - [x] Prevent client-only entitlement decisions. *(Structural since
       2026-09-02, D-047: the client's entitlement read is render-only; the
       Edge Function re-checks on every request.)*
-- [ ] Add account email/password recovery and secure sensitive-account changes.
-- [ ] Implement data export and account-deletion foundations covering entries,
-      character maps, images, and voice transcripts.
+- [x] Add account email/password recovery and secure sensitive-account changes.
+      *(Done 2026-09-02: recovery deep-link flow from Stage 3 plus a
+      Settings Change password row, D-053.)*
+- [x] Implement data export and account-deletion foundations covering entries,
+      character maps, images, and voice transcripts. *(Done 2026-09-02,
+      D-053: JSON export via the share sheet; server-side deletion Edge
+      Function that also releases bookmark codes.)*
 - [ ] Add subscription analytics without exposing payment details.
 - [ ] Test sandbox purchases, duplicate events, delayed webhooks, refunds,
       revocations, offline receipts, and cross-platform account restoration.
-- [ ] Document customer-support procedures for billing disputes.
+- [x] Document customer-support procedures for billing disputes.
+      *(Done 2026-09-02: [SUPPORT_BILLING_DISPUTES.md](SUPPORT_BILLING_DISPUTES.md).)*
 - [ ] Open Apple Developer and Google Play Console accounts early enough to avoid
       approval delays in Stage 5.
 
