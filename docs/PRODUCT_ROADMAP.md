@@ -5,10 +5,10 @@
 | Roadmap version | 2.0 |
 | Status | Active |
 | Product owner | Bookmarkt product owner |
-| Current stage | Stage 3 - Polished UI/UX |
-| Current gate state | Stage 2 closed with GO (D-020, August 21, 2026); iOS builds deferred to Stage 5 |
+| Current stage | Stage 4 - Monetization and accounts |
+| Current gate state | Stage 3 closed with GO (D-046, September 2, 2026); moderated usability testing deferred to Stage 6 |
 | Observation window | Stage 1 window closed early under D-013 (August 16-21, 2026) |
-| Last updated | August 22, 2026 |
+| Last updated | September 2, 2026 |
 
 This document is the authoritative product roadmap for Bookmarkt. Execution and
 approval rules are defined in [STAGE_GATES.md](STAGE_GATES.md), and material
@@ -955,24 +955,27 @@ operations, and app-store distribution.
 
 - [ ] Implement the single paid subscription: **AI Reading Companion**. Free
       capture is never paywalled and never degraded by subscription state.
-- [ ] Build the mascot dialogue layer (D-038): the intellectual-archetype
+      *(Companion features live behind server entitlements; the billing
+      purchase flow remains - see Phase 3 of the build plan.)*
+- [x] Build the mascot dialogue layer (D-038): the intellectual-archetype
       spider chart derived from logged genres (Analyst / Empath / Philosopher /
       World-Builder), updated silently as entries accumulate, driving the
       companion's system-prompt personality within a fixed rule-set (calm,
       non-judgmental, deadpan-scholarly). Text-only in the MVP; professional
       mascot art and animation arrive post-validation per the
-      validation-first strategy.
-- [ ] Build the revised companion feature set (D-039): archetype-flavored
+      validation-first strategy. *(Done 2026-09-02, D-048.)*
+- [x] Build the revised companion feature set (D-039): archetype-flavored
       Socratic dialogue, "Where you left off" recaps, cue cards, character-map
       quizzes, semantic search with a premium onboarding explainer, background
       mascot reasoning (cross-book clustering), book-club prep from the
       reader's own entries, the level- and genre-aware word bank with its
       first-use assessment, the capture structuring aid (leading questions and
       arrangement help - the reader authors every saved word), and AI-suggested
-      important event flags.
-- [ ] Build the free-tier additions that feed the companion (D-039): Quote
+      important event flags. *(Done 2026-09-02, D-048..D-052, except
+      cross-book clustering, which is the backburner item below.)*
+- [x] Build the free-tier additions that feed the companion (D-039): Quote
       Logs and manual important event flags (these ship with or before the
-      subscription so beta readers exercise them).
+      subscription so beta readers exercise them). *(Done 2026-09-02, D-050.)*
 - [ ] Backburner - **pattern recognition** (D-039): the mascot noticing and
       building on recurring themes across a reader's entries and books.
       Key differentiator for a unique per-reader experience; heaviest
@@ -989,29 +992,34 @@ operations, and app-store distribution.
       product and store-policy decision.
 - [ ] Verify current Apple and Google rules for digital subscriptions; do not
       route native users around required in-app purchase mechanisms.
-- [ ] Create a server-authoritative entitlement model in Supabase.
+- [x] Create a server-authoritative entitlement model in Supabase.
+      *(Done 2026-09-02, D-047.)*
 - [ ] Implement idempotent signed webhooks and transaction reconciliation.
-- [ ] Map the companion entitlement to server-checked feature access plus usage
+- [x] Map the companion entitlement to server-checked feature access plus usage
       quotas (for example dialogue turns and recap/quiz generations per day) as
-      cost controls.
-- [ ] Require the Edge Function/backend to validate the authenticated user, the
+      cost controls. *(Done 2026-09-02, D-047 + per-feature quotas D-049..D-052.)*
+- [x] Require the Edge Function/backend to validate the authenticated user, the
       active companion entitlement, and the applicable usage quota before
-      calling any AI provider.
-- [ ] Return a clear subscription-offer response without consuming quota or
+      calling any AI provider. *(Done 2026-09-02, D-047.)*
+- [x] Return a clear subscription-offer response without consuming quota or
       contacting an AI provider when authorization fails.
-- [ ] Audit every companion session: entitlement decision, feature, quota
+      *(Done 2026-09-02, D-047.)*
+- [x] Audit every companion session: entitlement decision, feature, quota
       outcome, provider cost, latency, and grounding source counts, without
-      logging unnecessary entry content.
-- [ ] Keep all companion context assembly inside the user's security boundary;
+      logging unnecessary entry content. *(Done 2026-09-02, D-047.)*
+- [x] Keep all companion context assembly inside the user's security boundary;
       entries never leave user-owned RLS rows, and no reader content is used to
-      train models.
+      train models. *(Done 2026-09-02, D-047; embeddings follow the same RLS
+      scoping, D-052.)*
 - [ ] Implement purchase, restore purchase, cancellation, grace period, expiry,
       refund, and billing-retry states.
 - [ ] After subscribing, require verified App Store/Google Play purchase state
       before companion access; canceled, failed, or abandoned purchases return
       safely to capture.
 - [ ] Build subscription and account-management screens.
-- [ ] Prevent client-only entitlement decisions.
+- [x] Prevent client-only entitlement decisions. *(Structural since
+      2026-09-02, D-047: the client's entitlement read is render-only; the
+      Edge Function re-checks on every request.)*
 - [ ] Add account email/password recovery and secure sensitive-account changes.
 - [ ] Implement data export and account-deletion foundations covering entries,
       character maps, images, and voice transcripts.
