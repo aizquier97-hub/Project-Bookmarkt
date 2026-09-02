@@ -11,6 +11,16 @@ import { supabase } from '@/lib/supabase';
 
 export type CompanionProvenance = 'your_notes' | 'general_knowledge' | 'mixed';
 
+/** Tools that persist their result into the conversation (D-039 feature set). */
+export type CompanionToolFeature = 'cue_cards' | 'quiz' | 'club_prep' | 'word_bank';
+
+export type WordBankLevel = 'simple' | 'standard' | 'scholarly';
+
+export interface CompanionFlagSuggestion {
+  entryId: number;
+  reason: string;
+}
+
 export interface CompanionQuota {
   used: number;
   remaining: number;
@@ -35,8 +45,10 @@ export interface CompanionSendResult {
   boundaryLabel: string | null;
   quota: CompanionQuota | null;
   messages: CompanionChatMessage[];
-  /** Set for the recap empty-notes case (code NO_ENTRIES). */
+  /** Set for empty-context short-circuits (NO_ENTRIES, NO_CHARACTERS). */
   code: string | null;
+  /** Present only for suggest_flags: entries that look like pivotal moments. */
+  suggestions: CompanionFlagSuggestion[];
 }
 
 /** A denial or failure from the companion service, typed for the UI. */
@@ -145,6 +157,7 @@ interface RawSendResponse {
   quota?: unknown;
   messages?: unknown;
   code?: unknown;
+  suggestions?: unknown;
 }
 
 function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
@@ -154,6 +167,7 @@ function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
       ? provenanceRaw
       : 'your_notes';
   const rows = Array.isArray(data.messages) ? data.messages : [];
+  const rawSuggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
   return {
     reply: {
       content: String(data.reply?.content ?? ''),
@@ -166,14 +180,20 @@ function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
       mapCompanionMessageRow(row as Parameters<typeof mapCompanionMessageRow>[0]),
     ),
     code: typeof data.code === 'string' ? data.code : null,
+    suggestions: rawSuggestions
+      .map((raw) => {
+        const item = (raw ?? {}) as { entryId?: unknown; reason?: unknown };
+        return { entryId: Number(item.entryId), reason: String(item.reason ?? '').trim() };
+      })
+      .filter((item) => Number.isFinite(item.entryId) && item.entryId > 0),
   };
 }
 
 async function invokeCompanion(body: {
-  feature: 'dialogue' | 'recap';
+  feature: 'dialogue' | 'recap' | CompanionToolFeature | 'structure_aid' | 'suggest_flags';
   bookId: number;
   message?: string;
-  detail?: 'brief' | 'detailed';
+  detail?: string;
 }): Promise<CompanionSendResult> {
   const { data, error } = await supabase.functions.invoke('companion', { body });
   if (error) {
@@ -210,6 +230,29 @@ export function requestCompanionRecap(
   return invokeCompanion({ feature: 'recap', bookId, detail });
 }
 
+/** Run a persisted companion tool; its result lands in the conversation. */
+export function runCompanionTool(
+  bookId: number,
+  tool: CompanionToolFeature,
+  level?: WordBankLevel,
+): Promise<CompanionSendResult> {
+  return invokeCompanion({
+    feature: tool,
+    bookId,
+    ...(tool === 'word_bank' && level ? { detail: level } : {}),
+  });
+}
+
+/** Transient: suggest a tidier arrangement of a draft (nothing is saved). */
+export function requestStructureAid(bookId: number, draft: string): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'structure_aid', bookId, message: draft.trim() });
+}
+
+/** Transient: which notes look like pivotal moments (nothing is saved). */
+export function requestFlagSuggestions(bookId: number): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'suggest_flags', bookId });
+}
+
 const MESSAGE_PAGE_SIZE = 200;
 
 /** The stored conversation for a book, oldest first (RLS scopes to owner). */
@@ -218,7 +261,7 @@ export async function fetchCompanionMessages(bookId: number): Promise<CompanionC
     .from('companion_messages')
     .select('id, role, feature, content, provenance, created_at')
     .eq('topic_id', bookId)
-    .eq('feature', 'dialogue')
+    .neq('feature', 'recap')
     .order('created_at', { ascending: false })
     .limit(MESSAGE_PAGE_SIZE);
   if (error) {

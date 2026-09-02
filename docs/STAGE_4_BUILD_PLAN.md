@@ -105,6 +105,10 @@ Build order within the phase:
        genre-aware word bank with first-use assessment, the capture
        structuring aid (the reader authors every saved word), and
        AI-suggested important event flags.
+       *2026-09-02: everything except semantic search shipped (D-051) —
+       cue cards, quizzes, club prep, and word bank as chat tools;
+       structure aid in the composer; suggested flags over the timeline.
+       Semantic search (embeddings) remains, sequenced last.*
 5. **Backburner** - pattern recognition (embeddings + clustering) stays
        sequenced after closed-beta buy-in (D-039); not MVP scope.
 
