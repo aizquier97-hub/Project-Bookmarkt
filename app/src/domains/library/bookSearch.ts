@@ -12,13 +12,21 @@
 
 import { lookupBookByIsbn, normalizeIsbn } from './covers';
 import {
+  joinTitleAndSubtitle,
   normalizeOptionalPositiveInt,
   normalizeOptionalPublicationYear,
   withTimeout,
 } from './metadata';
 
+export { joinTitleAndSubtitle };
+
 const SEARCH_TIMEOUT_MS = 9000;
 const MAX_RESULTS = 10;
+
+// Optional: a Google Cloud API key lifts the shared anonymous per-IP quota
+// (the keyless endpoint 429s when the shared pool is exhausted, which
+// silently pushed lookups to Open Library's weaker data).
+const GOOGLE_API_KEY = (process.env.EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY ?? '').trim();
 
 export interface BookSearchResult {
   /** Stable row key: Google volume id or an Open Library-derived key. */
@@ -36,6 +44,7 @@ interface GoogleVolume {
   id?: unknown;
   volumeInfo?: {
     title?: unknown;
+    subtitle?: unknown;
     authors?: unknown;
     publishedDate?: unknown;
     pageCount?: unknown;
@@ -88,7 +97,7 @@ export function parseGoogleVolumesPayload(payload: unknown): BookSearchResult[] 
     const yearMatch = String(info?.publishedDate ?? '').match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
     results.push({
       id: String(item.id ?? `g-${results.length}`),
-      title,
+      title: joinTitleAndSubtitle(title, info?.subtitle),
       author: authors.length ? String(authors[0] ?? '').trim() || null : null,
       year: normalizeOptionalPublicationYear(yearMatch ? yearMatch[1] : null),
       pages: normalizeOptionalPositiveInt(info?.pageCount),
@@ -106,6 +115,7 @@ export function parseGoogleVolumesPayload(payload: unknown): BookSearchResult[] 
 interface OpenLibrarySearchDoc {
   key?: unknown;
   title?: unknown;
+  subtitle?: unknown;
   author_name?: unknown;
   first_publish_year?: unknown;
   number_of_pages_median?: unknown;
@@ -128,7 +138,7 @@ export function parseOpenLibrarySearchPayload(payload: unknown): BookSearchResul
     const coverId = normalizeOptionalPositiveInt(doc.cover_i);
     results.push({
       id: String(doc.key ?? `ol-${results.length}`),
-      title,
+      title: joinTitleAndSubtitle(title, doc.subtitle),
       author: authorList.length ? String(authorList[0] ?? '').trim() || null : null,
       year: normalizeOptionalPublicationYear(doc.first_publish_year),
       pages: normalizeOptionalPositiveInt(doc.number_of_pages_median),
@@ -148,6 +158,9 @@ async function searchGoogleBooks(query: string): Promise<BookSearchResult[]> {
   params.set('q', query);
   params.set('maxResults', String(MAX_RESULTS));
   params.set('printType', 'books');
+  if (GOOGLE_API_KEY) {
+    params.set('key', GOOGLE_API_KEY);
+  }
   const url = `https://www.googleapis.com/books/v1/volumes?${params.toString()}`;
   const resp = await withTimeout(fetch(url), SEARCH_TIMEOUT_MS, 'Book search timed out.');
   if (!resp.ok) {
@@ -160,7 +173,10 @@ async function searchOpenLibrary(query: string): Promise<BookSearchResult[]> {
   const params = new URLSearchParams();
   params.set('q', query);
   params.set('limit', String(MAX_RESULTS));
-  params.set('fields', 'key,title,author_name,first_publish_year,number_of_pages_median,cover_i');
+  params.set(
+    'fields',
+    'key,title,subtitle,author_name,first_publish_year,number_of_pages_median,cover_i',
+  );
   const url = `https://openlibrary.org/search.json?${params.toString()}`;
   const resp = await withTimeout(fetch(url), SEARCH_TIMEOUT_MS, 'Book search timed out.');
   if (!resp.ok) {
@@ -196,9 +212,40 @@ export async function searchBooks(query: string): Promise<BookSearchResult[]> {
   return searchOpenLibrary(trimmed);
 }
 
+/** Convert an ISBN-10 to its EAN-13 form so identifiers compare cleanly. */
+export function isbn10To13(isbn10: string): string | null {
+  if (!/^\d{9}[\dX]$/.test(isbn10)) {
+    return null;
+  }
+  const base = `978${isbn10.slice(0, 9)}`;
+  let sum = 0;
+  for (let i = 0; i < 12; i += 1) {
+    sum += Number(base[i]) * (i % 2 === 0 ? 1 : 3);
+  }
+  return `${base}${(10 - (sum % 10)) % 10}`;
+}
+
 /**
- * ISBN lookup for the barcode scan and pasted ISBNs: Google Books first,
- * Open Library fallback. Returns null when neither source knows the book.
+ * Google's `isbn:` query is a keyword search, not an exact lookup - it can
+ * lead with a sibling volume of a series. Only a result carrying the exact
+ * requested ISBN is trusted; anything else falls through to Open Library's
+ * exact-ISBN endpoint.
+ */
+export function pickVolumeMatchingIsbn(
+  results: BookSearchResult[],
+  isbn: string,
+): BookSearchResult | null {
+  const target = isbn.length === 10 ? isbn10To13(isbn) : isbn;
+  if (!target) {
+    return null;
+  }
+  return results.find((result) => result.isbn13 === target) ?? null;
+}
+
+/**
+ * ISBN lookup for the barcode scan and pasted ISBNs: Google Books first
+ * (exact-volume match required), Open Library exact lookup as fallback.
+ * Returns null when neither source knows the precise edition.
  */
 export async function lookupBookSearchByIsbn(isbn: string): Promise<BookSearchResult | null> {
   const normalized = normalizeIsbn(isbn);
@@ -207,8 +254,9 @@ export async function lookupBookSearchByIsbn(isbn: string): Promise<BookSearchRe
   }
   try {
     const results = await searchGoogleBooks(`isbn:${normalized}`);
-    if (results.length) {
-      return { ...results[0], isbn13: normalized };
+    const exact = pickVolumeMatchingIsbn(results, normalized);
+    if (exact) {
+      return { ...exact, isbn13: normalized };
     }
   } catch {
     // fall through to Open Library
@@ -231,4 +279,68 @@ export async function lookupBookSearchByIsbn(isbn: string): Promise<BookSearchRe
     // both sources unreachable
   }
   return null;
+}
+
+function normalizeTitleForMatch(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** Pure matcher: an exact normalized-title hit with pages, else null. */
+export function pickPagesForTitle(
+  results: BookSearchResult[],
+  title: string,
+  author?: string | null,
+): number | null {
+  const target = normalizeTitleForMatch(title);
+  if (!target) {
+    return null;
+  }
+  const authorTarget = normalizeTitleForMatch(author ?? '');
+  const candidates = results.filter(
+    (result) => result.pages && normalizeTitleForMatch(result.title) === target,
+  );
+  if (!candidates.length) {
+    return null;
+  }
+  if (authorTarget) {
+    const byAuthor = candidates.find((result) => {
+      const resultAuthor = normalizeTitleForMatch(result.author ?? '');
+      return (
+        resultAuthor &&
+        (resultAuthor.includes(authorTarget) || authorTarget.includes(resultAuthor))
+      );
+    });
+    if (byAuthor) {
+      return byAuthor.pages;
+    }
+  }
+  return candidates[0].pages;
+}
+
+/**
+ * Page count for a manually typed book: Google Books first, requiring an
+ * exact title match so a series sibling never supplies its page count.
+ * Returns null when Google has no exact match - the caller may then fall
+ * back to Open Library's cross-edition median.
+ */
+export async function lookupPagesForTitle(
+  title: string,
+  author?: string | null,
+): Promise<number | null> {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const query = author?.trim()
+      ? `intitle:"${trimmed}" inauthor:"${author.trim()}"`
+      : `intitle:"${trimmed}"`;
+    const results = await searchGoogleBooks(query);
+    return pickPagesForTitle(results, trimmed, author);
+  } catch {
+    return null;
+  }
 }

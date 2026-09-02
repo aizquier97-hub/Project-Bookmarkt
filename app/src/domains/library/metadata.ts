@@ -36,6 +36,18 @@ export function normalizeOptionalPositiveInt(value: unknown): number | null {
   return Math.floor(parsed);
 }
 
+/**
+ * Series entries often carry the volume in the subtitle ("Sword art
+ * online" + "Progressive"); merging them keeps volumes distinguishable.
+ */
+export function joinTitleAndSubtitle(title: string, subtitle: unknown): string {
+  const sub = String(subtitle ?? '').trim();
+  if (!sub || title.toLowerCase().includes(sub.toLowerCase())) {
+    return title;
+  }
+  return `${title}: ${sub}`;
+}
+
 export function normalizeOptionalPublicationYear(value: unknown): number | null {
   const parsed = normalizeOptionalPositiveInt(value);
   if (!parsed) return null;

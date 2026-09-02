@@ -1,8 +1,97 @@
 import {
+  isbn10To13,
+  joinTitleAndSubtitle,
   normalizeGoogleCoverUrl,
   parseGoogleVolumesPayload,
   parseOpenLibrarySearchPayload,
+  pickPagesForTitle,
+  pickVolumeMatchingIsbn,
+  type BookSearchResult,
 } from '../bookSearch';
+
+function result(overrides: Partial<BookSearchResult>): BookSearchResult {
+  return {
+    id: 'x',
+    title: 'Untitled',
+    author: null,
+    year: null,
+    pages: null,
+    coverUrl: null,
+    isbn13: null,
+    source: 'google-books',
+    ...overrides,
+  };
+}
+
+describe('joinTitleAndSubtitle', () => {
+  it('appends a distinguishing subtitle', () => {
+    expect(joinTitleAndSubtitle('Sword art online', 'Progressive')).toBe(
+      'Sword art online: Progressive',
+    );
+  });
+
+  it('skips a subtitle already contained in the title', () => {
+    expect(joinTitleAndSubtitle('Sword Art Online Progressive 1', 'progressive 1')).toBe(
+      'Sword Art Online Progressive 1',
+    );
+  });
+
+  it('ignores empty and missing subtitles', () => {
+    expect(joinTitleAndSubtitle('Dune', '')).toBe('Dune');
+    expect(joinTitleAndSubtitle('Dune', undefined)).toBe('Dune');
+  });
+});
+
+describe('isbn10To13', () => {
+  it('converts an ISBN-10 to its EAN-13 form', () => {
+    expect(isbn10To13('0316259365')).toBe('9780316259361');
+    expect(isbn10To13('080442957X')).toBe('9780804429573');
+  });
+
+  it('rejects malformed input', () => {
+    expect(isbn10To13('12345')).toBeNull();
+    expect(isbn10To13('9780316259361')).toBeNull();
+  });
+});
+
+describe('pickVolumeMatchingIsbn', () => {
+  const vol1 = result({ id: 'v1', title: 'Vol 1', isbn13: '9780316259361' });
+  const vol2 = result({ id: 'v2', title: 'Vol 2', isbn13: '9780316342179' });
+
+  it('picks the exact volume even when a sibling leads the results', () => {
+    expect(pickVolumeMatchingIsbn([vol2, vol1], '9780316259361')).toBe(vol1);
+  });
+
+  it('returns null when no result carries the scanned ISBN', () => {
+    expect(pickVolumeMatchingIsbn([vol2], '9780316259361')).toBeNull();
+    expect(pickVolumeMatchingIsbn([], '9780316259361')).toBeNull();
+  });
+
+  it('matches an ISBN-10 against ISBN-13 identifiers', () => {
+    expect(pickVolumeMatchingIsbn([vol2, vol1], '0316259365')).toBe(vol1);
+  });
+});
+
+describe('pickPagesForTitle', () => {
+  const exact = result({ title: 'Sword Art Online: Progressive, Vol. 1', pages: 248 });
+  const sibling = result({ title: 'Sword Art Online: Progressive, Vol. 2', pages: 320 });
+
+  it('requires an exact normalized title match', () => {
+    const results = [sibling, exact];
+    expect(pickPagesForTitle(results, 'sword art online progressive vol 1')).toBe(248);
+    expect(pickPagesForTitle(results, 'sword art online progressive')).toBeNull();
+  });
+
+  it('prefers the candidate whose author matches', () => {
+    const a = result({ title: 'Dune', author: 'Frank Herbert', pages: 412 });
+    const b = result({ title: 'Dune', author: 'Someone Else', pages: 200 });
+    expect(pickPagesForTitle([b, a], 'Dune', 'Frank Herbert')).toBe(412);
+  });
+
+  it('ignores matches without a page count', () => {
+    expect(pickPagesForTitle([result({ title: 'Dune' })], 'Dune')).toBeNull();
+  });
+});
 
 describe('normalizeGoogleCoverUrl', () => {
   it('upgrades http to https and strips the page-curl effect', () => {
@@ -93,6 +182,18 @@ describe('parseGoogleVolumesPayload', () => {
       ],
     });
     expect(result.isbn13).toBeNull();
+  });
+
+  it('merges a series subtitle into the title', () => {
+    const [result] = parseGoogleVolumesPayload({
+      items: [
+        {
+          id: 's',
+          volumeInfo: { title: 'Sword Art Online Progressive', subtitle: 'Vol. 3' },
+        },
+      ],
+    });
+    expect(result.title).toBe('Sword Art Online Progressive: Vol. 3');
   });
 
   it('caps results at ten volumes', () => {
