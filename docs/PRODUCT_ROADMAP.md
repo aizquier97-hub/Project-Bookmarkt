@@ -785,12 +785,13 @@ capture.
       screen; expired sessions re-route to sign-in with plain-language
       errors (D-036); updates apply on relaunch via the OTA flow; voice
       interruption cleanup shipped with D-016.)
-- [ ] Meet WCAG 2.2 AA where applicable plus Apple and Android accessibility
+- [x] Meet WCAG 2.2 AA where applicable plus Apple and Android accessibility
       guidance for screen readers, contrast, focus, text scaling, input, and
       reduced-motion behavior; voice capture must have an equivalent typed path.
-      (In progress - accessibility labels, contrast checks, and generous hit
-      targets ship with each round; the owner is running the manual audit
-      checklist below during the current dogfooding window.)
+      (Done 2026-09-01 - the owner ran all 8 manual TalkBack/text-size/
+      animation/contrast tests on the Android preview build; every test
+      passed with no defects. See ACCESSIBILITY_AUDIT_CHECKLIST.md for the
+      full results.)
 - [ ] Test touch targets and complex character-map interactions on small screens.
       (Owner-run - folded into the dogfooding window on the physical device;
       code-side hit targets meet the 44dp bar.)
@@ -816,6 +817,8 @@ TalkBack, (2) adding a book with TalkBack, (3) library home with TalkBack,
 (4) book screen capture with TalkBack, (5) settings and sign-out with
 TalkBack, (6) largest text size, (7) animations removed, (8) color
 contrast in bright light.
+
+**Result (2026-09-01): all 8 tests PASS, zero defects found.**
 
 Carried from Stage 2 (D-020):
 
