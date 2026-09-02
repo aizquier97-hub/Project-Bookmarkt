@@ -821,7 +821,7 @@ Carried from Stage 2 (D-020):
 
 - [x] Add native component and integration tests for authentication, book CRUD,
       book switching, typed and voice entries, character maps, and private
-      images. (Done for Stage 3 scope - 139 unit/logic tests across 14 suites
+      images. (Done for Stage 3 scope - 151 unit/logic tests across 15 suites
       run on every round, plus on-device Maestro journey flows (`.maestro/`)
       and the live cross-account isolation probe; deeper native UI automation
       rides the device-automation item below.)
@@ -846,8 +846,8 @@ Carried from Stage 2 (D-020):
 
 All Stage 3 implementation to date shipped over-the-air to the owner's EAS
 preview build, validated on every round by typecheck, lint, and the test
-suite (139 tests across 14 suites at this writing). Full rationale lives in
-[DECISION_LOG.md](DECISION_LOG.md) entries D-021 through D-041,
+suite (151 tests across 15 suites at this writing). Full rationale lives in
+[DECISION_LOG.md](DECISION_LOG.md) entries D-021 through D-042,
 look-and-feel requirements in [DESIGN_REQUIREMENTS.md](DESIGN_REQUIREMENTS.md),
 and journey-by-journey status in
 [STAGE_3_DESIGN_FOUNDATION.md](STAGE_3_DESIGN_FOUNDATION.md) §4.
@@ -882,6 +882,12 @@ and journey-by-journey status in
       analytics plus a screen error boundary (D-030) - it diagnosed its
       first field crash (an OTA/native-module mismatch) remotely within
       minutes.
+- [x] Search-first add-book powered by Google Books (D-042): one search
+      field with live results and one-tap add; the barcode scan adds the
+      matched book immediately; manual entry stays as the fallback; Open
+      Library remains the cover picker and silent fallback. The competitor
+      reference set is documented in
+      [COMPETITOR_REFERENCES.md](COMPETITOR_REFERENCES.md).
 
 ### Stage 3 exit gate
 

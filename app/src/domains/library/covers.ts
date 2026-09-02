@@ -4,10 +4,11 @@
  * Legal posture: Open Library explicitly supports moderate, real-time,
  * human-facing lookups with attribution; covers are fetched per reader
  * action (a scan or a search), device-side, cached by expo-image - never
- * bulk-harvested. Cover-ID image URLs are not rate-limited. Google Books
- * was considered and declined: its terms restrict charging users for
- * API-derived features, which conflicts with the paid companion.
- * Attribution ("Covers from Open Library") renders in the add/edit forms.
+ * bulk-harvested. Cover-ID image URLs are not rate-limited. Since D-042,
+ * Google Books is the primary search/scan source (see bookSearch.ts) -
+ * reversing the earlier D-028 caution - while Open Library remains the
+ * cover-picker source (many edition covers per work) and the fallback.
+ * Attribution for both sources renders in the add/edit forms.
  */
 
 import {

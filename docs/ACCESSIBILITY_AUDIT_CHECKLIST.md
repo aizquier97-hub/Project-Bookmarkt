@@ -14,10 +14,10 @@ just everyday app use.
 ## One-time setup
 
 - **TalkBack** (tests 1-5): phone Settings → Accessibility → TalkBack → on.
-  - Single tap selects an item and reads it aloud.
-  - Double-tap activates the selected item.
-  - Swipe right/left moves to the next/previous item.
-  - To turn TalkBack off again: hold both volume keys, or Settings →
+    - Single tap selects an item and reads it aloud.
+    - Double-tap activates the selected item.
+    - Swipe right/left moves to the next/previous item.
+    - To turn TalkBack off again: hold both volume keys, or Settings →
     Accessibility → TalkBack → off.
 - **Text size** (test 6): Settings → Display → Font size → largest.
 - **Remove animations** (test 7): Settings → Accessibility → Remove
@@ -30,13 +30,13 @@ just everyday app use.
 Sign out first (Settings tab → Sign out), then work through the sign-in
 screen using only TalkBack.
 
-- [ ] Every field and button announces a clear label - never just
+- [x] Every field and button announces a clear label - never just
       "button" or silence.
-- [ ] You can tell what you have typed in the email and password fields.
-- [ ] Enter a wrong password on purpose: the error message is read aloud
+- [x] You can tell what you have typed in the email and password fields.
+- [x] Enter a wrong password on purpose: the error message is read aloud
       automatically, without hunting for it.
 
-**Result:**
+**Result:** The sign in screen is looking good, there are no issues.
 
 ### 2. Adding a book (TalkBack on)
 
