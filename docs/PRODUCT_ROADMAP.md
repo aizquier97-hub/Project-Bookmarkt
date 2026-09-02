@@ -937,6 +937,10 @@ companion included.
 
 **Status:** Active (entered 2026-09-02 per Stage 3 `GO`, D-046)
 
+**Build plan:** the phase-by-phase build sequence for this stage lives in
+[STAGE_4_BUILD_PLAN.md](STAGE_4_BUILD_PLAN.md); the work plan below remains
+the authoritative scope list.
+
 **Purpose:** Add a policy-compliant subscription and entitlement system for the
 single AI Reading Companion tier that can support the cost of AI, storage,
 operations, and app-store distribution.
