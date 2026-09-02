@@ -1,6 +1,7 @@
 import {
   coverCandidatesFromSearchResults,
   enlargeCoverUrl,
+  extractPrimaryGenre,
   isbn10To13,
   joinTitleAndSubtitle,
   lookupPagesForTitle,
@@ -21,6 +22,7 @@ function result(overrides: Partial<BookSearchResult>): BookSearchResult {
     pages: null,
     coverUrl: null,
     isbn13: null,
+    genre: null,
     source: 'google-books',
     ...overrides,
   };
@@ -218,6 +220,7 @@ describe('parseGoogleVolumesPayload', () => {
       authors: ['Miguel de Cervantes', 'Translator Person'],
       publishedDate: '2003-02-25',
       pageCount: 992,
+      categories: ['Fiction / Classics'],
       imageLinks: {
         thumbnail: 'http://books.google.com/books/content?id=vol1&edge=curl',
       },
@@ -238,6 +241,7 @@ describe('parseGoogleVolumesPayload', () => {
       pages: 992,
       coverUrl: 'https://books.google.com/books/content?id=vol1',
       isbn13: '9780142437230',
+      genre: 'Fiction / Classics',
       source: 'google-books',
     });
   });
@@ -262,8 +266,25 @@ describe('parseGoogleVolumesPayload', () => {
       pages: null,
       coverUrl: null,
       isbn13: null,
+      genre: null,
       source: 'google-books',
     });
+  });
+
+  it('extracts the first category as the genre and ignores junk', () => {
+    const [result] = parseGoogleVolumesPayload({
+      items: [
+        {
+          id: 'g',
+          volumeInfo: { title: 'Genre Book', categories: ['  Fiction / Fantasy  ', 'Other'] },
+        },
+      ],
+    });
+    expect(result.genre).toBe('Fiction / Fantasy');
+    expect(extractPrimaryGenre('not-an-array')).toBeNull();
+    expect(extractPrimaryGenre([])).toBeNull();
+    expect(extractPrimaryGenre(['   '])).toBeNull();
+    expect(extractPrimaryGenre(['x'.repeat(300)])).toHaveLength(120);
   });
 
   it('ignores an ISBN_13 that fails the checksum', () => {
@@ -330,6 +351,7 @@ describe('parseOpenLibrarySearchPayload', () => {
       pages: 992,
       coverUrl: 'https://covers.openlibrary.org/b/id/456-L.jpg',
       isbn13: null,
+      genre: null,
       source: 'open-library',
     });
   });
@@ -347,6 +369,7 @@ describe('parseOpenLibrarySearchPayload', () => {
       pages: null,
       coverUrl: null,
       isbn13: null,
+      genre: null,
       source: 'open-library',
     });
   });

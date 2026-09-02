@@ -42,6 +42,7 @@ export async function addBook(input: BookInput): Promise<Book> {
       total_pages: totalPages,
       cover_url: input.coverUrl?.trim() || null,
       isbn: input.isbn?.trim() || null,
+      genre: input.genre?.trim() || null,
       user_id: userId,
     })
     .select()
@@ -188,6 +189,8 @@ export interface BookInput {
   coverUrl?: string | null;
   /** Normalized ISBN from a scan or typed lookup; undefined leaves it alone. */
   isbn?: string | null;
+  /** Genre/category from the search source; feeds the archetype profile (D-038). */
+  genre?: string | null;
 }
 
 function normalizeOptionalInt(

@@ -41,6 +41,8 @@ export interface BookSearchResult {
   pages: number | null;
   coverUrl: string | null;
   isbn13: string | null;
+  /** First Google Books category (e.g. "Fiction / Fantasy / Epic"); feeds the archetype profile (D-038). */
+  genre: string | null;
   source: 'google-books' | 'open-library';
 }
 
@@ -52,6 +54,7 @@ interface GoogleVolume {
     authors?: unknown;
     publishedDate?: unknown;
     pageCount?: unknown;
+    categories?: unknown;
     imageLinks?: { thumbnail?: unknown; smallThumbnail?: unknown };
     industryIdentifiers?: unknown;
   };
@@ -96,6 +99,15 @@ function extractIsbn13(identifiers: unknown): string | null {
   return null;
 }
 
+/** First listed category, trimmed to a sane length ("Fiction / Fantasy"). */
+export function extractPrimaryGenre(categories: unknown): string | null {
+  if (!Array.isArray(categories)) {
+    return null;
+  }
+  const first = String(categories[0] ?? '').trim();
+  return first ? first.slice(0, 120) : null;
+}
+
 /** Pure parser for the Google Books volumes payload. */
 export function parseGoogleVolumesPayload(payload: unknown): BookSearchResult[] {
   const items =
@@ -119,6 +131,7 @@ export function parseGoogleVolumesPayload(payload: unknown): BookSearchResult[] 
       pages: normalizeOptionalPositiveInt(info?.pageCount),
       coverUrl: normalizeGoogleCoverUrl(info?.imageLinks?.thumbnail ?? info?.imageLinks?.smallThumbnail),
       isbn13: extractIsbn13(info?.industryIdentifiers),
+      genre: extractPrimaryGenre(info?.categories),
       source: 'google-books',
     });
     if (results.length >= MAX_RESULTS) {
@@ -160,6 +173,7 @@ export function parseOpenLibrarySearchPayload(payload: unknown): BookSearchResul
       pages: normalizeOptionalPositiveInt(doc.number_of_pages_median),
       coverUrl: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : null,
       isbn13: null,
+      genre: null,
       source: 'open-library',
     });
     if (results.length >= MAX_RESULTS) {
@@ -288,6 +302,7 @@ export async function lookupBookSearchByIsbn(isbn: string): Promise<BookSearchRe
         pages: found.totalPages,
         coverUrl: found.coverUrl,
         isbn13: normalized,
+        genre: null,
         source: 'open-library',
       };
     }

@@ -46,6 +46,7 @@ async function addBookWithLookup(input: {
   totalPages: string;
   coverUrl: string | null;
   isbn: string | null;
+  genre: string | null;
   viaSearch: boolean;
 }): Promise<Book> {
   const name = input.name.trim();
@@ -76,6 +77,7 @@ async function addBookWithLookup(input: {
     totalPages: metadata.totalPages,
     coverUrl: input.coverUrl,
     isbn: input.isbn,
+    genre: input.genre,
   }).then((book) => {
     // PWA parity: same event name and property shape (new props additive).
     trackAnalyticsEvent(
@@ -239,6 +241,7 @@ export default function AddBookScreen() {
       totalPages: result.pages ? String(result.pages) : '',
       coverUrl: result.coverUrl,
       isbn: result.isbn13,
+      genre: result.genre,
       viaSearch: true,
     });
   };
@@ -326,6 +329,7 @@ export default function AddBookScreen() {
       totalPages,
       coverUrl,
       isbn: storedIsbn,
+      genre: null,
       viaSearch: false,
     });
   };
