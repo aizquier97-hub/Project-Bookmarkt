@@ -1,4 +1,5 @@
 import { requireUserId } from '@/domains/auth/service';
+import { encodeEntryBody, type EntryKind } from '@/domains/entries/markers';
 import {
   buildProgressRangeLabel,
   getLatestProgressBoundary,
@@ -17,6 +18,8 @@ export interface NewEntryInput {
   progressValue: string | number;
   /** Verbatim dictation transcript (D-016); stored beside the cleaned text. */
   rawTranscript?: string | null;
+  /** Quote Log / important-event flag (D-039); plain note when omitted. */
+  kind?: EntryKind;
 }
 
 export async function listEntries(bookId: number): Promise<Entry[]> {
@@ -73,10 +76,11 @@ export async function addEntry(bookId: number, input: NewEntryInput): Promise<En
       : buildProgressRangeLabel(input.progressType, lowerBoundary, progressValue);
   const userId = await requireUserId();
   const rawTranscript = input.rawTranscript?.trim() || null;
+  const kind: EntryKind = input.kind ?? 'note';
   const { data, error } = await supabase
     .from('entries')
     .insert({
-      text: `[Manual Entry - ${rangeLabel}]\n${trimmed}`,
+      text: `[Manual Entry - ${rangeLabel}]\n${encodeEntryBody(kind, trimmed)}`,
       topic_id: bookId,
       user_id: userId,
       raw_transcript: rawTranscript,
@@ -94,6 +98,7 @@ export async function addEntry(bookId: number, input: NewEntryInput): Promise<En
       progressType: input.progressType,
       progressValue,
       captureMethod: rawTranscript ? 'voice' : 'typed',
+      kind,
     },
     bookId,
   );
