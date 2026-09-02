@@ -321,10 +321,13 @@ export function pickPagesForTitle(
 }
 
 /**
- * Page count for a manually typed book: Google Books first, requiring an
+ * Page count for a book missing one: Google Books first, requiring an
  * exact title match so a series sibling never supplies its page count.
- * Returns null when Google has no exact match - the caller may then fall
- * back to Open Library's cross-edition median.
+ * Tries the author-filtered query first, then title-only, because Google
+ * can return a pageCount-0 edition under the author filter while the
+ * title-only query has the real count. Returns null when Google has no
+ * exact match - the caller may then fall back to Open Library's
+ * cross-edition median.
  */
 export async function lookupPagesForTitle(
   title: string,
@@ -334,12 +337,24 @@ export async function lookupPagesForTitle(
   if (!trimmed) {
     return null;
   }
+  const authorTrimmed = author?.trim();
+  if (authorTrimmed) {
+    try {
+      const withAuthor = await searchGoogleBooks(`intitle:"${trimmed}" inauthor:"${authorTrimmed}"`);
+      const pages = pickPagesForTitle(withAuthor, trimmed, author);
+      if (pages) {
+        return pages;
+      }
+    } catch {
+      // fall through to the title-only retry
+    }
+  }
+  // Google sometimes returns an edition with pageCount 0 under an author
+  // filter while the title-only query surfaces a record with real pages
+  // (seen live with "Sword Art Online Progressive 1 (light novel)").
   try {
-    const query = author?.trim()
-      ? `intitle:"${trimmed}" inauthor:"${author.trim()}"`
-      : `intitle:"${trimmed}"`;
-    const results = await searchGoogleBooks(query);
-    return pickPagesForTitle(results, trimmed, author);
+    const titleOnly = await searchGoogleBooks(`intitle:"${trimmed}"`);
+    return pickPagesForTitle(titleOnly, trimmed, author);
   } catch {
     return null;
   }

@@ -1,6 +1,7 @@
 import {
   isbn10To13,
   joinTitleAndSubtitle,
+  lookupPagesForTitle,
   normalizeGoogleCoverUrl,
   parseGoogleVolumesPayload,
   parseOpenLibrarySearchPayload,
@@ -90,6 +91,53 @@ describe('pickPagesForTitle', () => {
 
   it('ignores matches without a page count', () => {
     expect(pickPagesForTitle([result({ title: 'Dune' })], 'Dune')).toBeNull();
+  });
+});
+
+describe('lookupPagesForTitle', () => {
+  const volume = (title: string, pageCount: number, author = 'Reki Kawahara') => ({
+    id: 'g1',
+    volumeInfo: { title, pageCount, authors: [author] },
+  });
+  const payload = (items: unknown[]) => ({
+    ok: true,
+    json: async () => ({ items }),
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('retries title-only when the author-filtered query has no pages', async () => {
+    // Seen live: the inauthor: query returns a pageCount-0 edition while
+    // the title-only query carries the real count.
+    const title = 'Sword Art Online Progressive 1 (light novel)';
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(payload([volume(title, 0)]))
+      .mockResolvedValueOnce(payload([volume(title, 340)]));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(lookupPagesForTitle(title, 'Reki Kawahara')).resolves.toBe(340);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('inauthor');
+    expect(String(fetchMock.mock.calls[1][0])).not.toContain('inauthor');
+  });
+
+  it('returns the author-filtered pages without a second request', async () => {
+    const fetchMock = jest.fn().mockResolvedValueOnce(payload([volume('Dune', 412, 'Frank Herbert')]));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(lookupPagesForTitle('Dune', 'Frank Herbert')).resolves.toBe(412);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns null when neither query has an exact match with pages', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(payload([]));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(lookupPagesForTitle('Dune', 'Frank Herbert')).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 
