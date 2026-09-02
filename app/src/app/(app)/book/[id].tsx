@@ -47,6 +47,7 @@ import {
   splitTextForHighlight,
 } from '@/domains/entries/display';
 import { getLatestProgressBoundary, type ProgressType } from '@/domains/entries/progress';
+import { parseEntryKind, type EntryKind } from '@/domains/entries/markers';
 import { groupEntriesByDay } from '@/domains/entries/timeline';
 import {
   addEntry,
@@ -421,6 +422,7 @@ function EntriesTab({
   const [progressType, setProgressType] = useState<ProgressType>('page');
   const [progressValue, setProgressValue] = useState('');
   const [text, setText] = useState('');
+  const [entryKind, setEntryKind] = useState<EntryKind>('note');
   const [formError, setFormError] = useState<string | null>(null);
   const [rawTranscripts, setRawTranscripts] = useState<string[]>([]);
   const dictation = useDictation();
@@ -460,18 +462,29 @@ function EntriesTab({
   );
 
   // Search plus day-grouped timeline keep a long journal scannable
-  // (Day One / Journey / Apple Journal pattern).
+  // (Day One / Journey / Apple Journal pattern). Quote Logs and important
+  // events (D-039) add a kind filter once any marked entries exist.
   const [entrySearch, setEntrySearch] = useState('');
+  const [entryFilter, setEntryFilter] = useState<'all' | 'quote' | 'important'>('all');
+  const hasMarkedEntries = useMemo(
+    () => entries.some((entry) => parseEntryKind(splitEntryText(entry.text).body).kind !== 'note'),
+    [entries],
+  );
   const visibleEntries = useMemo(() => {
     const query = entrySearch.trim().toLowerCase();
-    if (!query) {
-      return entries;
-    }
+    const filter = hasMarkedEntries ? entryFilter : 'all';
     return entries.filter((entry) => {
       const parts = splitEntryText(entry.text);
-      return `${parts.boundaryLabel ?? ''} ${parts.body}`.toLowerCase().includes(query);
+      const marked = parseEntryKind(parts.body);
+      if (filter !== 'all' && marked.kind !== filter) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return `${parts.boundaryLabel ?? ''} ${marked.body}`.toLowerCase().includes(query);
     });
-  }, [entries, entrySearch]);
+  }, [entries, entrySearch, entryFilter, hasMarkedEntries]);
   const listItems = useMemo(() => {
     const items: EntryListItem[] = [];
     for (const group of groupEntriesByDay(visibleEntries)) {
@@ -490,10 +503,12 @@ function EntriesTab({
         progressType,
         progressValue,
         rawTranscript: rawTranscripts.length > 0 ? rawTranscripts.join('\n') : null,
+        kind: entryKind,
       }),
     onSuccess: () => {
       setText('');
       setRawTranscripts([]);
+      setEntryKind('note');
       setFormError(null);
       onComposerModeChange(null);
       showToast('Entry saved.', 'success');
@@ -559,6 +574,31 @@ function EntriesTab({
           </Pressable>
         </View>
 
+        {/* One choice per entry: plain note, quote log, or important moment
+            (D-039 free feeders — never paywalled per D-012). */}
+        <View style={styles.kindRow}>
+          {(
+            [
+              ['note', 'Note'],
+              ['quote', 'Quote'],
+              ['important', 'Important'],
+            ] as const
+          ).map(([kind, label]) => (
+            <Pressable
+              key={kind}
+              style={[styles.kindChip, entryKind === kind && styles.kindChipActive]}
+              onPress={() => setEntryKind(kind)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: entryKind === kind }}
+              accessibilityLabel={`Save this entry as a ${label.toLowerCase()}`}
+            >
+              <Text style={[styles.kindChipText, entryKind === kind && styles.kindChipTextActive]}>
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
         <View style={styles.segmentRow}>
           {(['page', 'chapter'] as const).map((type) => (
             <Pressable
@@ -592,9 +632,13 @@ function EntriesTab({
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder={
-            mentionTargets.length > 0
-              ? 'One line is plenty - type @ to mention a character.'
-              : 'One line is plenty - what just happened?'
+            entryKind === 'quote'
+              ? "Copy the line just as it's written - your quote log keeps it."
+              : entryKind === 'important'
+                ? 'What happened that matters? One line is plenty.'
+                : mentionTargets.length > 0
+                  ? 'One line is plenty - type @ to mention a character.'
+                  : 'One line is plenty - what just happened?'
           }
           placeholderTextColor={colors.muted}
           value={text}
@@ -708,6 +752,35 @@ function EntriesTab({
               onChangeText={setEntrySearch}
             />
           ) : null}
+          {hasMarkedEntries ? (
+            <View style={styles.filterRow}>
+              {(
+                [
+                  ['all', 'All'],
+                  ['quote', 'Quotes'],
+                  ['important', 'Important'],
+                ] as const
+              ).map(([filter, label]) => (
+                <Pressable
+                  key={filter}
+                  style={[styles.filterChip, entryFilter === filter && styles.filterChipActive]}
+                  onPress={() => setEntryFilter(filter)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: entryFilter === filter }}
+                  accessibilityLabel={`Show ${label.toLowerCase()} entries`}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      entryFilter === filter && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
           {entriesQuery.isPending ? (
             <LoadingState label="Loading entries…" />
           ) : entriesQuery.isError ? (
@@ -719,7 +792,15 @@ function EntriesTab({
           ) : entries.length === 0 ? (
             <EmptyState message="No entries yet. One line about where you are is a perfect start." />
           ) : visibleEntries.length === 0 ? (
-            <EmptyState message="No entries match your search." />
+            <EmptyState
+              message={
+                entrySearch.trim()
+                  ? 'No entries match your search.'
+                  : entryFilter === 'quote'
+                    ? 'No quotes logged yet.'
+                    : 'No important moments flagged yet.'
+              }
+            />
           ) : null}
         </View>
       }
@@ -822,6 +903,7 @@ function EntryCard({
   const [draft, setDraft] = useState(entry.text);
   const [error, setError] = useState<string | null>(null);
   const parts = splitEntryText(entry.text);
+  const marked = parseEntryKind(parts.body);
 
   // Same one-tap @mention chips as the composer, for edits (D-045).
   const editMentionQuery = editing ? findActiveMentionQuery(draft) : null;
@@ -908,16 +990,48 @@ function EntryCard({
         </>
       ) : (
         <>
-          {parts.boundaryLabel ? (
-            <View style={styles.entryChip}>
-              <Text style={styles.entryChipText}>
-                {renderHighlighted(parts.boundaryLabel, highlight)}
-              </Text>
+          {parts.boundaryLabel || marked.kind !== 'note' ? (
+            <View style={styles.entryChipRow}>
+              {parts.boundaryLabel ? (
+                <View style={styles.entryChip}>
+                  <Text style={styles.entryChipText}>
+                    {renderHighlighted(parts.boundaryLabel, highlight)}
+                  </Text>
+                </View>
+              ) : null}
+              {marked.kind === 'quote' ? (
+                <View style={styles.entryChip}>
+                  <Text style={styles.entryChipText}>Quote</Text>
+                </View>
+              ) : null}
+              {marked.kind === 'important' ? (
+                <View style={styles.importantChip}>
+                  <Text style={styles.importantChipText}>Important</Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
-          <Text style={styles.cardText}>
-            {renderEntryBody(parts.body || entry.text, highlight, mentionTargets, onOpenCharacter)}
-          </Text>
+          {marked.kind === 'quote' ? (
+            <View style={styles.quoteBlock}>
+              <Text style={styles.quoteText}>
+                {renderEntryBody(
+                  marked.body || parts.body || entry.text,
+                  highlight,
+                  mentionTargets,
+                  onOpenCharacter,
+                )}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.cardText}>
+              {renderEntryBody(
+                marked.body || parts.body || entry.text,
+                highlight,
+                mentionTargets,
+                onOpenCharacter,
+              )}
+            </Text>
+          )}
           <Text style={styles.cardDate}>{formatRecordTimestamp(entry)}</Text>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.cardActions}>
@@ -1002,7 +1116,7 @@ function CharactersTab({
   const suggestions = useMemo(
     () =>
       suggestCharacterNames(
-        entries.map((entry) => splitEntryText(entry.text).body || entry.text),
+        entries.map((entry) => parseEntryKind(splitEntryText(entry.text).body).body || entry.text),
         characters.map((character) => character.name),
       ),
     [entries, characters],
@@ -1938,6 +2052,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
+  entryChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
   entryChip: {
     alignSelf: 'flex-start',
     backgroundColor: colors.accentSoft,
@@ -1950,6 +2069,83 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '700',
     fontSize: 11,
+  },
+  // Gold is reserved for celebration/premium markers (D-040); a flagged
+  // important moment earns it.
+  importantChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: gold.glowSoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  importantChipText: {
+    color: gold.deep,
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  quoteBlock: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+    paddingLeft: 10,
+    marginVertical: 2,
+  },
+  quoteText: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 23,
+    fontFamily: fonts.serif,
+    fontStyle: 'italic',
+  },
+  kindRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  kindChip: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  kindChipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  kindChipText: {
+    color: colors.muted,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  kindChipTextActive: {
+    color: colors.background,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  filterChip: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: colors.card,
+  },
+  filterChipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  filterChipText: {
+    color: colors.muted,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  filterChipTextActive: {
+    color: colors.background,
   },
   captureCard: {
     backgroundColor: colors.card,

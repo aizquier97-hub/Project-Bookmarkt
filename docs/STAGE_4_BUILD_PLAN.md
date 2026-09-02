@@ -92,9 +92,13 @@ Build order within the phase:
        *Done 2026-09-02: the locked teaser became the live RecapCard —
        brief/detailed toggle, stored newest recap (reopening costs
        nothing), boundary + provenance chips (D-049).*
-3. [ ] **Free-tier feeders (D-039)**: Quote Logs and manual important event
+3. [x] **Free-tier feeders (D-039)**: Quote Logs and manual important event
        flags (ship with or before the subscription so beta readers exercise
        them).
+       *Done 2026-09-02: the composer gained a Note / Quote / Important
+       selector; quotes render serif-italic with an accent rule, important
+       moments earn a gold chip, and All/Quotes/Important filters appear
+       once any exist (D-050).*
 4. [ ] Remaining companion feature set (D-039): cue cards, character-map
        quizzes, semantic search with premium onboarding explainer,
        book-club prep from the reader's own entries, the level- and
