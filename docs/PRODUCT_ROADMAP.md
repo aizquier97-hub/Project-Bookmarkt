@@ -884,9 +884,10 @@ and journey-by-journey status in
       minutes.
 - [x] Search-first add-book powered by Google Books (D-042): one search
       field with live results and one-tap add; the barcode scan adds the
-      matched book immediately; manual entry stays as the fallback; Open
-      Library remains the cover picker and silent fallback. The competitor
-      reference set is documented in
+      matched book immediately; manual entry stays as the fallback; the
+      cover picker is Google-first too (D-043), with Open Library as the
+      silent fallback everywhere. The competitor reference set is
+      documented in
       [COMPETITOR_REFERENCES.md](COMPETITOR_REFERENCES.md).
 
 ### Stage 3 exit gate
