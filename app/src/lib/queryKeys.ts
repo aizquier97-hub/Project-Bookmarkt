@@ -18,4 +18,6 @@ export const queryKeys = {
   bookmarks: ['bookmarks'] as const,
   bookmark: (code: string) => ['bookmark', code] as const,
   issueReports: ['issue-reports'] as const,
+  companionEntitlement: ['companion-entitlement'] as const,
+  companionMessages: (bookId: number) => ['companion-messages', bookId] as const,
 };

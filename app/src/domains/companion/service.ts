@@ -1,5 +1,8 @@
 import { requireUserId } from '@/domains/auth/service';
-import { assertCompanionEntitled } from '@/domains/companion/entitlement';
+import {
+  assertCompanionEntitled,
+  fetchCompanionEntitlement,
+} from '@/domains/companion/entitlement';
 import {
   assembleCompanionContext,
   type CompanionContext,
@@ -9,10 +12,11 @@ import { supabase } from '@/lib/supabase';
 /**
  * Companion retrieval service. The entitlement gate is the FIRST statement:
  * a denied request performs no retrieval and could never reach an AI
- * provider. Stage 2 ships retrieval only — there is no generation call.
+ * provider. (The companion Edge Function independently re-checks the same
+ * row server-side, so this client gate is UX, not security.)
  */
 export async function getCompanionContext(bookId: number): Promise<CompanionContext> {
-  assertCompanionEntitled();
+  assertCompanionEntitled(await fetchCompanionEntitlement());
 
   const userId = await requireUserId();
 

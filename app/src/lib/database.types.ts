@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       ai_feedback_reports: {
@@ -419,6 +394,157 @@ export type Database = {
           },
         ]
       }
+      companion_entitlements: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          source: string
+          status: string
+          trial_expires_at: string | null
+          trial_started_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          source?: string
+          status?: string
+          trial_expires_at?: string | null
+          trial_started_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          source?: string
+          status?: string
+          trial_expires_at?: string | null
+          trial_started_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      companion_messages: {
+        Row: {
+          content: string
+          created_at: string
+          feature: string
+          id: number
+          provenance: Json
+          role: string
+          topic_id: number
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          feature?: string
+          id?: number
+          provenance?: Json
+          role: string
+          topic_id: number
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          feature?: string
+          id?: number
+          provenance?: Json
+          role?: string
+          topic_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companion_messages_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companion_usage_events: {
+        Row: {
+          audit_id: string | null
+          completed_at: string | null
+          duration_ms: number | null
+          entitlement_decision: string
+          error_code: string | null
+          error_message: string | null
+          feature: string
+          grounding_characters: number | null
+          grounding_entries: number | null
+          http_status: number | null
+          id: number
+          model: string | null
+          output_tokens: number | null
+          prompt_tokens: number | null
+          quota_scope: string | null
+          started_at: string
+          status: string
+          topic_id: number | null
+          upstream_status: number | null
+          user_id: string
+        }
+        Insert: {
+          audit_id?: string | null
+          completed_at?: string | null
+          duration_ms?: number | null
+          entitlement_decision?: string
+          error_code?: string | null
+          error_message?: string | null
+          feature: string
+          grounding_characters?: number | null
+          grounding_entries?: number | null
+          http_status?: number | null
+          id?: number
+          model?: string | null
+          output_tokens?: number | null
+          prompt_tokens?: number | null
+          quota_scope?: string | null
+          started_at?: string
+          status?: string
+          topic_id?: number | null
+          upstream_status?: number | null
+          user_id: string
+        }
+        Update: {
+          audit_id?: string | null
+          completed_at?: string | null
+          duration_ms?: number | null
+          entitlement_decision?: string
+          error_code?: string | null
+          error_message?: string | null
+          feature?: string
+          grounding_characters?: number | null
+          grounding_entries?: number | null
+          http_status?: number | null
+          id?: number
+          model?: string | null
+          output_tokens?: number | null
+          prompt_tokens?: number | null
+          quota_scope?: string | null
+          started_at?: string
+          status?: string
+          topic_id?: number | null
+          upstream_status?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companion_usage_events_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entries: {
         Row: {
           created_at: string | null
@@ -572,6 +698,7 @@ export type Database = {
           cover_url: string | null
           created_at: string | null
           finished_at: string | null
+          genre: string | null
           id: number
           isbn: string | null
           name: string
@@ -585,6 +712,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string | null
           finished_at?: string | null
+          genre?: string | null
           id?: never
           isbn?: string | null
           name: string
@@ -598,6 +726,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string | null
           finished_at?: string | null
+          genre?: string | null
           id?: never
           isbn?: string | null
           name?: string
@@ -659,6 +788,28 @@ export type Database = {
           user_used: number
         }[]
       }
+      consume_companion_quota: {
+        Args: {
+          p_audit_id: string
+          p_feature: string
+          p_project_daily_limit: number
+          p_topic_id: number
+          p_user_daily_limit: number
+          p_user_id: string
+        }
+        Returns: {
+          allowed: boolean
+          event_id: number
+          project_limit: number
+          project_remaining: number
+          project_used: number
+          quota_scope: string
+          reset_at: string
+          user_limit: number
+          user_remaining: number
+          user_used: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
@@ -677,12 +828,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -706,11 +857,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -731,11 +882,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -756,11 +907,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -773,11 +924,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -787,9 +938,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

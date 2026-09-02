@@ -1,7 +1,7 @@
 # Stage 4 Build Plan - AI Reading Companion
 
-**Status:** Approved plan, not yet started (recorded 2026-09-02, at Stage 4
-entry per D-046). This document sequences the
+**Status:** Phase 1 complete (2026-09-02, D-047); Phase 2 in progress. This
+document sequences the
 [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) §13 work plan into build phases; the
 roadmap remains the authoritative scope list. Revisit and refine before each
 phase begins.
@@ -40,23 +40,35 @@ Do these before or alongside Phase 1; none require code.
 The entitlement and cost-control skeleton. Nothing user-visible ships, but
 every later phase depends on it.
 
-- [ ] Server-authoritative **entitlement model in Supabase** (tables +
+- [x] Server-authoritative **entitlement model in Supabase** (tables +
       RLS): subscription state, trial state, and per-feature usage quotas
       (for example dialogue turns and recap/quiz generations per day).
-- [ ] The **gatekeeper Edge Function** path: every AI request validates the
+      *Done 2026-09-02: `companion_entitlements` table + `consume_companion_quota`
+      RPC (per-user-per-feature daily caps plus a project-wide cap), D-047.*
+- [x] The **gatekeeper Edge Function** path: every AI request validates the
       authenticated user, the active companion entitlement, and the
       applicable quota **before** any provider call. Authorization failure
       returns a clear subscription-offer response and consumes neither
       quota nor provider cost.
-- [ ] **Companion session auditing**: entitlement decision, feature, quota
+      *Done 2026-09-02: `companion` Edge Function deployed (auth → entitlement
+      → quota → provider), D-047.*
+- [x] **Companion session auditing**: entitlement decision, feature, quota
       outcome, provider cost, latency, and grounding source counts - without
       logging unnecessary entry content.
-- [ ] **Context assembly inside the user's security boundary**: entries
+      *Done 2026-09-02: `companion_usage_events` (service-role only; no entry
+      text stored), D-047.*
+- [x] **Context assembly inside the user's security boundary**: entries
       never leave user-owned RLS rows; no reader content trains models.
-- [ ] A **development "comp" entitlement** for the owner's account so the
+      *Done 2026-09-02: the function reads context with the caller's own JWT
+      (RLS enforced); Gemini API calls do not train on request data.*
+- [x] A **development "comp" entitlement** for the owner's account so the
       companion is fully testable through Phases 2-3, long before billing
       exists.
-- [ ] No client-only entitlement decisions, ever.
+      *Done 2026-09-02: migration comps all pre-existing accounts (dev_comp
+      source), revocable before external beta.*
+- [x] No client-only entitlement decisions, ever.
+      *Standing rule, now structural: the client's entitlement read is
+      render-only; the Edge Function re-checks the row on every request.*
 
 ## Phase 2 - The Companion (user-visible, ships OTA)
 
