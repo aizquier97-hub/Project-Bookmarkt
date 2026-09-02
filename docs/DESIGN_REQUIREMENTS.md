@@ -77,8 +77,13 @@ with a pointer to the replacement.
 | One paid re-entry feature | "Where you left off" (name TBD): AI-written story-so-far from the reader's own entries, story or bullets at chosen detail, never past the latest entry. | Merged free+paid concepts - a verbatim replay added too little beyond rereading notes (owner bar). | Decided; ships Stage 6 | D-022 |
 | Free tier sees a locked teaser | Teaser row present but locked until the companion exists; taps measured as buying interest. | Demand validation before build. | Shipped 2026-08-22 | D-022 |
 | Free capture is never paywalled | Notes, characters, photos, positions stay free forever. | Trust; the reader's own words are theirs. | Standing rule | D-012 |
-| Thinking-benefit claims stay mechanism-level | Socratic prompts, cue cards, continuity flags are described by mechanism, never marketed as measured outcomes. | Honest-claims rule anchored in the problem statement. | Standing rule | D-021 |
-| AI capture assist (owner idea) | The reader describes a character (or entry) by voice in their own words; AI structures it into the four-field record for the reader to review and approve before anything saves. A quality-of-life companion capability - never required, and free capture stays frictionless without it. | Voice-first structured capture reduces entry friction; review-before-save keeps the reader the author. Tension to resolve before build: D-012 says the companion never writes the record, D-016 limits cleanup to punctuation/casing - approving this means amending those boundaries by decision entry. | Proposed - awaiting owner approval | D-027, D-012, D-016 |
+| Thinking-benefit claims stay mechanism-level | Socratic prompts, cue cards, important event flags are described by mechanism, never marketed as measured outcomes. | Honest-claims rule anchored in the problem statement. | Standing rule | D-021 |
+| Companion mascot identity | A distinguished scholarly capybara: textured brown tweed jacket, muted sage waistcoat, bow tie, monocle with chain, leather-bound journal, fountain pen, gold/brass accents. Adult, dignified, anatomically grounded proportions - never chibi, oversized-eye, or glossy-sticker cartoon. Earthy warm palette harmonizing with the app's paper/leather/wood aesthetic. Strictly non-judgmental (no scolding or grading) and book-genre-neutral in appearance. | Duolingo/Finch mascot-driven retention; quirkiness from dignified seriousness (deadpan), not cartoon antics; zero-guilt philosophy carried into the character. | Decided; concept drawing exists, professional art post-validation | D-038 |
+| Dynamic mascot personality | A spider chart of intellectual archetypes (Analyst - thrillers/mystery, Empath - romance/drama, Philosopher - non-fiction/classics, World-Builder - fantasy/sci-fi) updates silently from logged genres and alters the system prompt governing the mascot's conversational flavor. Visuals never change - humor comes from deadpan contrast (a romance-heavy chart yields a Victorian sociologist analyzing love triangles). A fixed rule-set bounds the personality; the AI fits a flavor within it. | Prompt-driven personality makes dynamic character nearly free - no per-personality animation. Fixed rule-set avoids the branding risk of an off-model mascot. | Decided; ships with Stage 4 companion (text-only until final art) | D-038 |
+| Mascot delivers every premium feature | Socratic dialogue, recaps, word bank, quizzes, book-club prep, and the structuring aid are all voiced/framed by the mascot - the companion IS the character. | Single coherent premium identity; the personality is the product's differentiator. | Decided; Stage 4 | D-038, D-039 |
+| Word bank interaction | A box the mascot keeps safe, from which he pulls a word with definition, pronunciation, and an example sentence. Contents are AI-generated to the reader's level (light first-use assessment) and dominant genres, plus manually added words. | Genre-adaptive vocabulary keeps the bank relevant (cyberpunk vs Shakespeare); the box framing makes review a ritual, not a drill. | Decided; Stage 4 | D-039 |
+| Mascot art deliverables (final version) | 5 layered vector master poses (neutral scholar, reflection, note-taker, encouragement, milestone trophy) + 6 animation sequences (onboarding bow, daily greeting, note-taking loop, pondering/loading loop, action-complete nod, book-finished celebration) as Lottie JSON or Rive, rigging-ready Illustrator sources. ~$5k, artist engaged. | Mobile-ready vector animation (Lottie/Rive) is the Expo-compatible standard; layer separation enables future rigging without redraw. | Deferred until closed-beta buy-in (validation-first strategy) | D-038 |
+| Capture structuring aid (formerly "AI capture assist") | Premium: the mascot asks leading questions and helps the reader arrange their own words into a structured summary or character record. The AI never generates or summarizes content - the reader authors every saved word. Free capture stays frictionless without it. | Resolves the D-027 proposal: D-012/D-016 are amended (D-039) to permit question-asking and arrangement help, never authorship. Voice-first guidance reduces entry friction; reader-as-author preserves trust. | Decided; ships Stage 4 | D-039, D-027, D-012, D-016 |
 
 ## 5. Auth, first-run, and support
 
@@ -91,12 +96,19 @@ with a pointer to the replacement.
 
 ## 6. Open design work (not yet designed/shipped)
 
-- **AI capture assist** (owner idea, D-027): awaiting owner approval and a
-  boundary decision against D-012/D-016 before any build.
+- Companion and subscription surfaces (J8, J11) - now mascot-led per
+  D-038/D-039; MVP ships them text-only with in-house art.
+- **Pattern recognition** (D-039, backburner): the mascot noticing recurring
+  themes across a reader's entries and books and building on them in
+  dialogue. Key differentiator for a unique per-reader experience; deferred
+  until closed-beta buy-in.
+- Final-version investments awaiting beta validation (D-038): professional
+  mascot animation (~$5k, specced) and an outsourced professional UI/UX
+  redesign.
 - Onboarding polish beyond the first-run welcome (J2 shipped 2026-08-22,
-  D-036) - a fuller multi-screen welcome only if usage shows the need.
+  D-036) - a fuller multi-screen welcome only if usage shows the need;
+  premium onboarding must also explain semantic search clearly (D-039).
 - QR scan-to-book transition states (J3; full payoff with Stage 5 smart links).
-- Companion and subscription surfaces (J8, J11).
 - Empty/error/loading state polish pass across screens (J10), including
   empty-state illustrations.
 - App icon and splash screen (Stage 5 packaging).
