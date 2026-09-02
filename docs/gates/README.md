@@ -17,6 +17,10 @@ disabled flag.
 ## Records
 
 - [Stage 1 exit review](STAGE_1_REVIEW.md) - observation window active
+- [Stage 2 entry review](STAGE_2_ENTRY.md)
+- [Stage 2 exit review](STAGE_2_EXIT.md) - `GO` 2026-08-21 (D-020)
+- [Stage 3 entry review](STAGE_3_ENTRY.md)
+- [Stage 3 exit review](STAGE_3_EXIT.md) - `GO` 2026-09-02 (D-046)
 - [Gate review template](GATE_REVIEW_TEMPLATE.md)
 
 ## Process
