@@ -22,7 +22,29 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
  * always win over model knowledge (the notes-mirror stance, D-039).
  */
 
-type Feature = "dialogue" | "recap";
+type Feature =
+  | "dialogue"
+  | "recap"
+  | "cue_cards"
+  | "quiz"
+  | "club_prep"
+  | "word_bank"
+  | "structure_aid"
+  | "suggest_flags";
+
+const FEATURES: Feature[] = [
+  "dialogue",
+  "recap",
+  "cue_cards",
+  "quiz",
+  "club_prep",
+  "word_bank",
+  "structure_aid",
+  "suggest_flags",
+];
+
+/** Tools that persist their result as a companion message (revisitable). */
+const PERSISTED_TOOL_FEATURES: Feature[] = ["cue_cards", "quiz", "club_prep", "word_bank"];
 
 type RequestBody = {
   feature?: Feature;
@@ -186,12 +208,83 @@ function buildRecapPrompt(detail: string, entryCount: number): string {
   ].join("\n");
 }
 
+const REPLY_JSON_RULE =
+  'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean}.';
+
+/** Single-turn prompts for the companion tools (D-039 premium feature set). */
+function buildToolPrompt(
+  feature: Feature,
+  opts: { entryCount: number; characterCount: number; detail: string; message: string; genre: string | null },
+): string {
+  switch (feature) {
+    case "cue_cards":
+      return [
+        `The reader asks for recall cue cards drawn from their ${opts.entryCount} notes above.`,
+        "Create 4-6 cards. Each card: a numbered line 'Q: <a recall question rooted in the notes>' followed by 'A: <the answer, taken from the notes>'.",
+        "Only material from the notes; nothing past the boundary. A dry one-line sign-off is permitted.",
+        REPLY_JSON_RULE,
+      ].join("\n");
+    case "quiz":
+      return [
+        `The reader asks to be quizzed on the characters in their character map (${opts.characterCount} mapped).`,
+        "Write exactly 3 short quiz questions grounded in the reader's character map and notes - who they are, what they did, how they connect.",
+        "Number the questions. Do NOT include the answers: invite the reader to answer in the chat, and you will confirm from their notes.",
+        "Nothing past the boundary.",
+        REPLY_JSON_RULE,
+      ].join("\n");
+    case "club_prep":
+      return [
+        `The reader is preparing for a book-club discussion using their ${opts.entryCount} notes above.`,
+        "Prepare: (1) 4-5 discussion questions the reader could bring, each traceable to something in their notes; (2) 2-3 short talking points in the reader's own observations, phrased for them to voice.",
+        "Use headed sections 'Questions to bring' and 'Your talking points'. Nothing past the boundary; never invent events.",
+        REPLY_JSON_RULE,
+      ].join("\n");
+    case "word_bank": {
+      const level =
+        opts.detail === "simple"
+          ? "simple: everyday words a step above common speech"
+          : opts.detail === "scholarly"
+            ? "scholarly: rare, precise, literary words"
+            : "standard: solid vocabulary an engaged reader collects";
+      return [
+        `The reader asks for a word bank fitted to this book${opts.genre ? ` (genre: ${opts.genre})` : ""} at their chosen level (${level}).`,
+        "Assemble 6-8 words that suit the book's register and world. For each, a numbered line: the word in bold-less plain text, an em-dash, a one-line definition, then ' - e.g. ' and one context sentence tied to the book's setting or themes WITHOUT revealing any plot past the boundary.",
+        "General vocabulary knowledge is permitted here (provenance general_knowledge or mixed).",
+        REPLY_JSON_RULE,
+      ].join("\n");
+    }
+    case "structure_aid":
+      return [
+        "The reader drafted a note and asks for help arranging it. Their draft, verbatim:",
+        `"""${opts.message}"""`,
+        "Suggest a tidier arrangement USING THE READER'S OWN WORDS wherever possible - reorder, group, and trim, with only minimal connective tissue. Never add events, opinions, or details the draft does not contain.",
+        "Shape: short lines or bullets (what happened / who was involved / where they are), only as far as the draft supports.",
+        "Close with one dry line reminding them the note is theirs to edit before saving.",
+        REPLY_JSON_RULE,
+      ].join("\n");
+    case "suggest_flags":
+      return [
+        `The reader asks which of their notes read like pivotal moments worth flagging. Their notes above are numbered with [#id] markers.`,
+        "Choose up to 3 notes that record turning points: deaths, reveals, arrivals, decisions, reversals. Judge only from the notes.",
+        'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "suggestions": [{"entryId": number, "reason": string}]}.',
+        "reply is one short deadpan line introducing the suggestions. Each reason is one line naming why that note looks pivotal, in the reader's terms. If nothing qualifies, return an empty suggestions array and say so plainly.",
+      ].join("\n");
+    default:
+      return REPLY_JSON_RULE;
+  }
+}
+
 function extractGeminiText(geminiJson: any): string {
   const parts = geminiJson?.candidates?.[0]?.content?.parts ?? [];
   return parts.map((p: any) => p?.text ?? "").join("").trim();
 }
 
-function parseCompanionJson(raw: string): { reply: string; provenance: string; declined: boolean } {
+function parseCompanionJson(raw: string): {
+  reply: string;
+  provenance: string;
+  declined: boolean;
+  suggestions: { entryId: number; reason: string }[];
+} {
   try {
     const parsed = JSON.parse(raw);
     const reply = String(parsed?.reply ?? "").trim();
@@ -199,12 +292,21 @@ function parseCompanionJson(raw: string): { reply: string; provenance: string; d
       const provenance = ["your_notes", "general_knowledge", "mixed"].includes(parsed?.provenance)
         ? parsed.provenance
         : "mixed";
-      return { reply, provenance, declined: parsed?.declined === true };
+      const suggestions = Array.isArray(parsed?.suggestions)
+        ? parsed.suggestions
+            .map((s: any) => ({
+              entryId: Number(s?.entryId),
+              reason: String(s?.reason ?? "").trim().slice(0, 300),
+            }))
+            .filter((s: { entryId: number }) => Number.isFinite(s.entryId) && s.entryId > 0)
+            .slice(0, 3)
+        : [];
+      return { reply, provenance, declined: parsed?.declined === true, suggestions };
     }
   } catch {
     // fall through to raw-text fallback
   }
-  return { reply: raw.trim(), provenance: "mixed", declined: false };
+  return { reply: raw.trim(), provenance: "mixed", declined: false, suggestions: [] };
 }
 
 serve(async (req) => {
@@ -252,7 +354,9 @@ serve(async (req) => {
     return jsonResponse({ error: "Invalid request body.", code: "BAD_REQUEST" }, 400);
   }
 
-  const feature: Feature = body?.feature === "recap" ? "recap" : "dialogue";
+  const feature: Feature = FEATURES.includes(body?.feature as Feature)
+    ? (body!.feature as Feature)
+    : "dialogue";
   const bookId = Number(body?.bookId);
   if (!Number.isFinite(bookId) || bookId <= 0) {
     return jsonResponse({ error: "A book is required.", code: "BAD_REQUEST" }, 400);
@@ -261,7 +365,17 @@ serve(async (req) => {
   if (feature === "dialogue" && !message) {
     return jsonResponse({ error: "Say something to the companion first.", code: "BAD_REQUEST" }, 400);
   }
-  const detail = body?.detail === "detailed" ? "detailed" : "brief";
+  if (feature === "structure_aid" && !message) {
+    return jsonResponse({ error: "Write a draft first, then ask for help arranging it.", code: "BAD_REQUEST" }, 400);
+  }
+  const detail =
+    feature === "word_bank"
+      ? ["simple", "standard", "scholarly"].includes(String(body?.detail))
+        ? String(body?.detail)
+        : "standard"
+      : body?.detail === "detailed"
+        ? "detailed"
+        : "brief";
   const auditId = truncate(body?.auditId, 64) ?? crypto.randomUUID();
 
   const auditDenied = async (decision: "denied_unentitled", httpStatus: number) => {
@@ -313,9 +427,22 @@ serve(async (req) => {
     }
 
     // 3. Per-feature daily quota (cost control). Denials consume nothing.
-    const userDailyLimit = feature === "recap"
-      ? readPositiveLimit(Deno.env.get("COMPANION_RECAP_DAILY_LIMIT"), 10, 200)
-      : readPositiveLimit(Deno.env.get("COMPANION_DIALOGUE_DAILY_LIMIT"), 50, 1000);
+    const TOOL_LIMITS: Partial<Record<Feature, { env: string; fallback: number; max: number }>> = {
+      dialogue: { env: "COMPANION_DIALOGUE_DAILY_LIMIT", fallback: 50, max: 1000 },
+      recap: { env: "COMPANION_RECAP_DAILY_LIMIT", fallback: 10, max: 200 },
+      cue_cards: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
+      quiz: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
+      club_prep: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
+      word_bank: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
+      structure_aid: { env: "COMPANION_STRUCTURE_AID_DAILY_LIMIT", fallback: 20, max: 500 },
+      suggest_flags: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
+    };
+    const limitSpec = TOOL_LIMITS[feature] ?? TOOL_LIMITS.dialogue!;
+    const userDailyLimit = readPositiveLimit(
+      Deno.env.get(limitSpec.env),
+      limitSpec.fallback,
+      limitSpec.max,
+    );
     const projectDailyLimit = readPositiveLimit(
       Deno.env.get("COMPANION_DAILY_PROJECT_LIMIT"),
       1000,
@@ -426,15 +553,51 @@ serve(async (req) => {
         quota,
       });
     }
+    const needsEntries: Feature[] = ["cue_cards", "club_prep", "suggest_flags"];
+    if (needsEntries.includes(feature) && oldestFirst.length === 0) {
+      await finalize("succeeded", 200, { grounding_entries: 0, grounding_characters: 0 });
+      return jsonResponse({
+        code: "NO_ENTRIES",
+        reply: {
+          content:
+            "I work only from your own notes, and there are none on this book yet. Save a note or two and this will have something to stand on.",
+          provenance: "your_notes",
+          declined: false,
+        },
+        boundaryLabel: null,
+        quota,
+        suggestions: [],
+      });
+    }
+    if (feature === "quiz" && (charactersResult.data ?? []).length === 0) {
+      await finalize("succeeded", 200, { grounding_entries: oldestFirst.length, grounding_characters: 0 });
+      return jsonResponse({
+        code: "NO_CHARACTERS",
+        reply: {
+          content:
+            "Your character map for this book is empty, so a character quiz would be an exercise in silence. Add a character or two first.",
+          provenance: "your_notes",
+          declined: false,
+        },
+        boundaryLabel: null,
+        quota,
+      });
+    }
 
     let contextChars = 0;
     const entryLines: string[] = [];
+    const contextEntryIds = new Set<number>();
+    // suggest_flags numbers each note so the model can point back at it.
+    const includeIds = feature === "suggest_flags";
     for (const entry of oldestFirst) {
       const text = String(entry.text ?? "").trim();
       if (!text) continue;
       if (contextChars + text.length > MAX_CONTEXT_CHARS) break;
       contextChars += text.length;
-      entryLines.push(`- ${text.replace(/\n+/g, " / ")}`);
+      contextEntryIds.add(Number(entry.id));
+      entryLines.push(
+        `-${includeIds ? ` [#${entry.id}]` : ""} ${text.replace(/\n+/g, " / ")}`,
+      );
     }
     const characterRows = charactersResult.data ?? [];
     const charactersBlock = characterRows
@@ -468,8 +631,23 @@ serve(async (req) => {
         });
       }
       contents.push({ role: "user", parts: [{ text: message }] });
-    } else {
+    } else if (feature === "recap") {
       contents.push({ role: "user", parts: [{ text: buildRecapPrompt(detail, entryLines.length) }] });
+    } else {
+      contents.push({
+        role: "user",
+        parts: [
+          {
+            text: buildToolPrompt(feature, {
+              entryCount: entryLines.length,
+              characterCount: characterRows.length,
+              detail,
+              message,
+              genre: book.genre ?? null,
+            }),
+          },
+        ],
+      });
     }
 
     // 5. The provider call - reachable only past every gate above.
@@ -506,7 +684,14 @@ serve(async (req) => {
     }
     const usage = geminiJson?.usageMetadata ?? {};
 
+    // suggest_flags: keep only suggestions that point at real context entries.
+    const suggestions =
+      feature === "suggest_flags"
+        ? parsed.suggestions.filter((s) => contextEntryIds.has(s.entryId))
+        : [];
+
     // Persist the exchange under the user's JWT so RLS owns the rows.
+    // structure_aid and suggest_flags are transient aids - nothing is saved.
     const provenanceMeta = {
       sources: parsed.provenance,
       declined: parsed.declined,
@@ -526,23 +711,27 @@ serve(async (req) => {
       }
       savedMessages.push(readerRow);
     }
-    const { data: companionRow, error: companionError } = await userClient
-      .from("companion_messages")
-      .insert({
-        user_id: userId,
-        topic_id: bookId,
-        role: "companion",
-        feature,
-        content: parsed.reply,
-        provenance: provenanceMeta,
-      })
-      .select("id, role, feature, content, provenance, created_at")
-      .single();
-    if (companionError) {
-      await finalize("failed", 503, { error_code: "PERSIST_FAILED", error_message: truncate(companionError.message, 300) });
-      return jsonResponse({ error: "The conversation could not be saved. Please try again.", code: "PERSIST_FAILED" }, 503);
+    const persistReply =
+      feature === "dialogue" || feature === "recap" || PERSISTED_TOOL_FEATURES.includes(feature);
+    if (persistReply) {
+      const { data: companionRow, error: companionError } = await userClient
+        .from("companion_messages")
+        .insert({
+          user_id: userId,
+          topic_id: bookId,
+          role: "companion",
+          feature,
+          content: parsed.reply,
+          provenance: provenanceMeta,
+        })
+        .select("id, role, feature, content, provenance, created_at")
+        .single();
+      if (companionError) {
+        await finalize("failed", 503, { error_code: "PERSIST_FAILED", error_message: truncate(companionError.message, 300) });
+        return jsonResponse({ error: "The conversation could not be saved. Please try again.", code: "PERSIST_FAILED" }, 503);
+      }
+      savedMessages.push(companionRow);
     }
-    savedMessages.push(companionRow);
 
     await finalize("succeeded", 200, {
       prompt_tokens: Number(usage.promptTokenCount ?? 0) || null,
@@ -556,6 +745,7 @@ serve(async (req) => {
       boundaryLabel,
       quota,
       messages: savedMessages,
+      ...(feature === "suggest_flags" ? { suggestions } : {}),
     });
   } catch (error) {
     console.error("companion unhandled error", error);

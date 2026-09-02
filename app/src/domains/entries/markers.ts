@@ -22,9 +22,23 @@ export function encodeEntryBody(kind: EntryKind, body: string): string {
 }
 
 /**
- * Split a header-stripped entry body into its kind and the reader's words.
- * Unmarked bodies (all pre-existing entries) are plain notes.
+ * Flag a full stored entry text (header line included) as an important
+ * moment. Used when the reader confirms an AI-suggested flag — the reader
+ * decides; this only inserts the same marker the composer writes.
+ * Already-marked entries are returned unchanged.
  */
+export function flagEntryTextImportant(text: string): string {
+  const value = String(text ?? '');
+  const lines = value.split('\n');
+  const hasHeader = /^\[manual entry\b[^\]]*\]$/i.test((lines[0] ?? '').trim());
+  const body = hasHeader ? lines.slice(1).join('\n') : value;
+  if (parseEntryKind(body).kind !== 'note') {
+    return value;
+  }
+  return hasHeader
+    ? `${lines[0]}\n${MARKERS.important}\n${body}`
+    : `${MARKERS.important}\n${value}`;
+}
 export function parseEntryKind(body: string | null | undefined): {
   kind: EntryKind;
   body: string;

@@ -1,4 +1,8 @@
-import { encodeEntryBody, parseEntryKind } from '@/domains/entries/markers';
+import {
+  encodeEntryBody,
+  flagEntryTextImportant,
+  parseEntryKind,
+} from '@/domains/entries/markers';
 
 describe('entry kind markers (D-039 free feeders)', () => {
   it('round-trips a quote', () => {
@@ -45,5 +49,22 @@ describe('entry kind markers (D-039 free feeders)', () => {
   it('handles a marker with no body and null input', () => {
     expect(parseEntryKind('[Important]')).toEqual({ kind: 'important', body: '' });
     expect(parseEntryKind(null)).toEqual({ kind: 'note', body: '' });
+  });
+
+  it('flags a full stored entry text as important', () => {
+    expect(flagEntryTextImportant('[Manual Entry - page 12]\nThe duel begins.')).toBe(
+      '[Manual Entry - page 12]\n[Important]\nThe duel begins.',
+    );
+  });
+
+  it('flags a headerless legacy entry by prepending the marker', () => {
+    expect(flagEntryTextImportant('The duel begins.')).toBe('[Important]\nThe duel begins.');
+  });
+
+  it('leaves already-marked entries unchanged when flagging', () => {
+    const quote = '[Manual Entry - page 3]\n[Quote]\nA line.';
+    const important = '[Manual Entry - page 3]\n[Important]\nA moment.';
+    expect(flagEntryTextImportant(quote)).toBe(quote);
+    expect(flagEntryTextImportant(important)).toBe(important);
   });
 });

@@ -46,8 +46,19 @@ import {
   splitEntryText,
   splitTextForHighlight,
 } from '@/domains/entries/display';
+import {
+  CompanionRequestError,
+  requestFlagSuggestions,
+  requestStructureAid,
+  type CompanionFlagSuggestion,
+} from '@/domains/companion/api';
+import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
 import { getLatestProgressBoundary, type ProgressType } from '@/domains/entries/progress';
-import { parseEntryKind, type EntryKind } from '@/domains/entries/markers';
+import {
+  flagEntryTextImportant,
+  parseEntryKind,
+  type EntryKind,
+} from '@/domains/entries/markers';
 import { groupEntriesByDay } from '@/domains/entries/timeline';
 import {
   addEntry,
@@ -496,8 +507,7 @@ function EntriesTab({
     return items;
   }, [visibleEntries]);
 
-  const addEntryMutation = useMutation({
-    mutationFn: () =>
+  const addEntryMutation = useMutation({    mutationFn: () =>
       addEntry(bookId, {
         text,
         progressType,
@@ -517,6 +527,77 @@ function EntriesTab({
     },
     onError: (err) => {
       setFormError(err instanceof Error ? err.message : 'Could not save the entry.');
+    },
+  });
+
+  // Companion aids on this tab (D-039, premium): the capture structuring aid
+  // in the composer and AI-suggested important flags over the timeline. Both
+  // are transient - the reader authors and confirms every saved word (D-012).
+  const entitlementQuery = useQuery({
+    queryKey: queryKeys.companionEntitlement,
+    queryFn: fetchCompanionEntitlement,
+    staleTime: 60_000,
+  });
+  const companionEntitled = entitlementQuery.data?.entitled === true;
+
+  const [structureSuggestion, setStructureSuggestion] = useState<string | null>(null);
+  const [structureError, setStructureError] = useState<string | null>(null);
+  const structureMutation = useMutation({
+    mutationFn: () => requestStructureAid(bookId, text),
+    onMutate: () => {
+      setStructureError(null);
+      setStructureSuggestion(null);
+    },
+    onSuccess: (result) => {
+      setStructureSuggestion(result.reply.content || null);
+      trackAnalyticsEvent('companion_tool_used', { tool: 'structure_aid', status: 'succeeded' }, bookId);
+    },
+    onError: (err) => {
+      const status = err instanceof CompanionRequestError ? err.code : 'error';
+      trackAnalyticsEvent('companion_tool_used', { tool: 'structure_aid', status }, bookId);
+      setStructureError(
+        err instanceof CompanionRequestError
+          ? err.message
+          : 'The companion could not help just now.',
+      );
+    },
+  });
+
+  const [flagSuggestions, setFlagSuggestions] = useState<CompanionFlagSuggestion[] | null>(null);
+  const [flagsIntro, setFlagsIntro] = useState<string | null>(null);
+  const [flagsError, setFlagsError] = useState<string | null>(null);
+  const flagsMutation = useMutation({
+    mutationFn: () => requestFlagSuggestions(bookId),
+    onMutate: () => {
+      setFlagsError(null);
+      setFlagSuggestions(null);
+      setFlagsIntro(null);
+    },
+    onSuccess: (result) => {
+      setFlagSuggestions(result.suggestions);
+      setFlagsIntro(result.reply.content || null);
+      trackAnalyticsEvent('companion_tool_used', { tool: 'suggest_flags', status: 'succeeded' }, bookId);
+    },
+    onError: (err) => {
+      const status = err instanceof CompanionRequestError ? err.code : 'error';
+      trackAnalyticsEvent('companion_tool_used', { tool: 'suggest_flags', status }, bookId);
+      setFlagsError(
+        err instanceof CompanionRequestError
+          ? err.message
+          : 'The companion could not help just now.',
+      );
+    },
+  });
+  const applyFlagMutation = useMutation({
+    mutationFn: (entry: Entry) => updateEntry(entry.id, bookId, flagEntryTextImportant(entry.text)),
+    onSuccess: (_data, entry) => {
+      setFlagSuggestions((prev) => (prev ?? []).filter((s) => s.entryId !== entry.id));
+      trackAnalyticsEvent('entry_flag_applied', { source: 'suggestion' }, bookId);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
+    },
+    onError: () => {
+      setFlagsError('The flag could not be saved. Please try again.');
     },
   });
 
@@ -716,6 +797,50 @@ function EntriesTab({
 
       {dictation.error ? <Text style={styles.error}>{dictation.error}</Text> : null}
 
+      {companionEntitled && text.trim().length >= 20 ? (
+        <View>
+          {structureMutation.isPending ? (
+            <View style={styles.aidPendingRow}>
+              <ActivityIndicator size="small" color={colors.muted} />
+              <Text style={styles.aidPendingText}>Arranging your words…</Text>
+            </View>
+          ) : structureSuggestion === null ? (
+            <Pressable
+              style={styles.dictateButton}
+              onPress={() => structureMutation.mutate()}
+              accessibilityRole="button"
+              accessibilityLabel="Ask the companion to suggest a structure for this note"
+            >
+              <Ionicons name="color-wand-outline" size={15} color={colors.text} />
+              <Text style={styles.dictateButtonText}>Suggest a structure</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.aidCard}>
+              <Text style={styles.aidLabel}>A suggested arrangement — yours to edit</Text>
+              <Text style={styles.aidSuggestion}>{structureSuggestion}</Text>
+              <View style={styles.cardActions}>
+                <Pressable
+                  style={styles.smallButton}
+                  onPress={() => {
+                    setText(structureSuggestion);
+                    setStructureSuggestion(null);
+                  }}
+                >
+                  <Text style={styles.smallButtonText}>Use it</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.smallButtonGhost}
+                  onPress={() => setStructureSuggestion(null)}
+                >
+                  <Text style={styles.smallButtonGhostText}>Keep mine</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+          {structureError ? <Text style={styles.error}>{structureError}</Text> : null}
+        </View>
+      ) : null}
+
       {formError ? <Text style={styles.error}>{formError}</Text> : null}
 
         <Pressable
@@ -779,6 +904,87 @@ function EntriesTab({
                   </Text>
                 </Pressable>
               ))}
+            </View>
+          ) : null}
+          {companionEntitled && entries.length >= 3 ? (
+            <View>
+              {flagsMutation.isPending ? (
+                <View style={styles.aidPendingRow}>
+                  <ActivityIndicator size="small" color={colors.muted} />
+                  <Text style={styles.aidPendingText}>Reading your notes…</Text>
+                </View>
+              ) : flagSuggestions === null ? (
+                <Pressable
+                  style={styles.flagsRow}
+                  onPress={() => flagsMutation.mutate()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ask the companion which moments look important"
+                >
+                  <Ionicons name="flag-outline" size={14} color={colors.accent} />
+                  <Text style={styles.flagsRowText}>Which moments look important?</Text>
+                </Pressable>
+              ) : (
+                <View style={styles.aidCard}>
+                  <View style={styles.flagsHeader}>
+                    <Text style={styles.aidLabel}>
+                      {flagsIntro ?? 'Moments that read like turning points'}
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        setFlagSuggestions(null);
+                        setFlagsIntro(null);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Close the suggestions"
+                      style={styles.composerClose}
+                    >
+                      <Text style={styles.composerCloseText}>✕</Text>
+                    </Pressable>
+                  </View>
+                  {flagSuggestions.length === 0 ? (
+                    <Text style={styles.aidSuggestion}>
+                      Nothing stands out as a turning point yet. You decide, of course.
+                    </Text>
+                  ) : (
+                    flagSuggestions.map((suggestion) => {
+                      const entry = entries.find((e) => e.id === suggestion.entryId);
+                      if (!entry) {
+                        return null;
+                      }
+                      const preview = parseEntryKind(splitEntryText(entry.text).body).body;
+                      return (
+                        <View key={suggestion.entryId} style={styles.flagSuggestion}>
+                          <Text style={styles.flagPreview} numberOfLines={2}>
+                            “{preview}”
+                          </Text>
+                          <Text style={styles.flagReason}>{suggestion.reason}</Text>
+                          <View style={styles.cardActions}>
+                            <Pressable
+                              style={styles.smallButton}
+                              onPress={() => applyFlagMutation.mutate(entry)}
+                              disabled={applyFlagMutation.isPending}
+                            >
+                              <Text style={styles.smallButtonText}>Flag as important</Text>
+                            </Pressable>
+                            <Pressable
+                              style={styles.smallButtonGhost}
+                              onPress={() =>
+                                setFlagSuggestions(
+                                  (prev) =>
+                                    (prev ?? []).filter((s) => s.entryId !== suggestion.entryId),
+                                )
+                              }
+                            >
+                              <Text style={styles.smallButtonGhostText}>Skip</Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              )}
+              {flagsError ? <Text style={styles.error}>{flagsError}</Text> : null}
             </View>
           ) : null}
           {entriesQuery.isPending ? (
@@ -2147,6 +2353,54 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: colors.background,
   },
+  aidPendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  aidPendingText: { color: colors.muted, fontSize: 13 },
+  aidCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    gap: 8,
+    ...cardShadow,
+  },
+  aidLabel: {
+    flex: 1,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  aidSuggestion: { color: colors.text, fontSize: 14, lineHeight: 21 },
+  flagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    marginBottom: 12,
+  },
+  flagsRowText: { color: colors.text, fontSize: 13, fontWeight: '600' },
+  flagsHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  flagSuggestion: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: 8,
+    gap: 4,
+  },
+  flagPreview: { color: colors.text, fontSize: 13, fontStyle: 'italic' },
+  flagReason: { color: colors.muted, fontSize: 12, lineHeight: 17 },
   captureCard: {
     backgroundColor: colors.card,
     borderColor: colors.border,

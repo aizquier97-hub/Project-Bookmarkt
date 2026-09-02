@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams } from 'expo-router';
@@ -8,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,9 +21,12 @@ import { ErrorState, LoadingState } from '@/components/states';
 import {
   CompanionRequestError,
   fetchCompanionMessages,
+  runCompanionTool,
   sendCompanionMessage,
   type CompanionChatMessage,
   type CompanionProvenance,
+  type CompanionToolFeature,
+  type WordBankLevel,
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
 import { getBook } from '@/domains/library/service';
@@ -44,6 +49,29 @@ const PROVENANCE_LABELS: Record<CompanionProvenance, string> = {
   general_knowledge: 'From my knowledge',
   mixed: 'Your notes + my knowledge',
 };
+
+// The companion's study tools (D-039 premium feature set). Each runs once
+// per tap and posts its result into the conversation.
+const TOOLS: { key: CompanionToolFeature; label: string; icon: 'albums-outline' | 'help-circle-outline' | 'people-outline' | 'book-outline' }[] = [
+  { key: 'cue_cards', label: 'Cue cards', icon: 'albums-outline' },
+  { key: 'quiz', label: 'Quiz me', icon: 'help-circle-outline' },
+  { key: 'club_prep', label: 'Club prep', icon: 'people-outline' },
+  { key: 'word_bank', label: 'Word bank', icon: 'book-outline' },
+];
+
+const TOOL_LABELS: Record<string, string> = {
+  cue_cards: 'Cue cards',
+  quiz: 'Character quiz',
+  club_prep: 'Book-club prep',
+  word_bank: 'Word bank',
+};
+
+const WORD_BANK_LEVEL_KEY = 'companion_word_bank_level';
+const WORD_BANK_LEVELS: { key: WordBankLevel; label: string; hint: string }[] = [
+  { key: 'simple', label: 'Approachable', hint: 'everyday words, a step up' },
+  { key: 'standard', label: 'Standard', hint: 'solid words worth keeping' },
+  { key: 'scholarly', label: 'Scholarly', hint: 'rare and precise' },
+];
 
 export default function CompanionScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -188,10 +216,79 @@ function CompanionChat({ bookId }: { bookId: number }) {
     },
   });
 
-  const canSend = draft.trim().length > 0 && !sendMutation.isPending;
+  // Study tools post their result straight into the conversation. The word
+  // bank remembers the reader's chosen level after a one-time first pick.
+  const [levelPickerOpen, setLevelPickerOpen] = useState(false);
+  const toolMutation = useMutation({
+    mutationFn: ({ tool, level }: { tool: CompanionToolFeature; level?: WordBankLevel }) =>
+      runCompanionTool(bookId, tool, level),
+    onMutate: () => {
+      setSendError(null);
+      setQuotaNotice(null);
+    },
+    onSuccess: (result, variables) => {
+      if (result.boundaryLabel) {
+        setLatestBoundary(result.boundaryLabel);
+      }
+      if (result.messages.length > 0) {
+        queryClient.setQueryData<CompanionChatMessage[]>(
+          queryKeys.companionMessages(bookId),
+          (old) => [...(old ?? []), ...result.messages],
+        );
+      } else if (result.reply.content) {
+        // Empty-context short-circuits (NO_ENTRIES / NO_CHARACTERS) are not
+        // persisted; show the companion's line as a notice instead.
+        setQuotaNotice(result.reply.content);
+      }
+      trackAnalyticsEvent('companion_tool_used', { tool: variables.tool, status: 'succeeded' }, bookId);
+    },
+    onError: (err, variables) => {
+      const status = err instanceof CompanionRequestError ? err.code : 'error';
+      trackAnalyticsEvent('companion_tool_used', { tool: variables.tool, status }, bookId);
+      if (err instanceof CompanionRequestError) {
+        if (err.subscriptionRequired) {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
+          return;
+        }
+        if (err.quotaExceeded) {
+          setQuotaNotice(err.message);
+          return;
+        }
+        setSendError(err.message);
+        return;
+      }
+      setSendError('The companion could not respond. Please try again.');
+    },
+  });
+
+  const busy = sendMutation.isPending || toolMutation.isPending;
+  const handleTool = (tool: CompanionToolFeature) => {
+    if (busy) {
+      return;
+    }
+    if (tool !== 'word_bank') {
+      toolMutation.mutate({ tool });
+      return;
+    }
+    void AsyncStorage.getItem(WORD_BANK_LEVEL_KEY).then((stored) => {
+      const level = WORD_BANK_LEVELS.find((l) => l.key === stored)?.key;
+      if (level) {
+        toolMutation.mutate({ tool: 'word_bank', level });
+      } else {
+        setLevelPickerOpen(true);
+      }
+    });
+  };
+  const handleLevelPick = (level: WordBankLevel) => {
+    setLevelPickerOpen(false);
+    void AsyncStorage.setItem(WORD_BANK_LEVEL_KEY, level);
+    toolMutation.mutate({ tool: 'word_bank', level });
+  };
+
+  const canSend = draft.trim().length > 0 && !busy;
   const handleSend = () => {
     const message = draft.trim();
-    if (!message || sendMutation.isPending) {
+    if (!message || busy) {
       return;
     }
     sendMutation.mutate(message);
@@ -254,10 +351,12 @@ function CompanionChat({ bookId }: { bookId: number }) {
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => <MessageBubble message={item} />}
         ListHeaderComponent={
-          sendMutation.isPending ? (
+          busy ? (
             <View style={[styles.bubble, styles.companionBubble, styles.thinkingBubble]}>
               <ActivityIndicator size="small" color={colors.muted} />
-              <Text style={styles.thinkingText}>Consulting your notes…</Text>
+              <Text style={styles.thinkingText}>
+                {toolMutation.isPending ? 'Preparing…' : 'Consulting your notes…'}
+              </Text>
             </View>
           ) : null
         }
@@ -300,6 +399,52 @@ function CompanionChat({ bookId }: { bookId: number }) {
         </View>
       ) : null}
 
+      {levelPickerOpen ? (
+        <View style={styles.levelCard}>
+          <Text style={styles.levelTitle}>How do you like your words?</Text>
+          <Text style={styles.levelBody}>
+            A one-time choice for the word bank — it also adapts to each book&apos;s genre. You can
+            change it by asking the companion.
+          </Text>
+          <View style={styles.levelRow}>
+            {WORD_BANK_LEVELS.map((level) => (
+              <Pressable
+                key={level.key}
+                style={styles.levelChip}
+                onPress={() => handleLevelPick(level.key)}
+                accessibilityRole="button"
+                accessibilityLabel={`Choose ${level.label}: ${level.hint}`}
+              >
+                <Text style={styles.levelChipLabel}>{level.label}</Text>
+                <Text style={styles.levelChipHint}>{level.hint}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.toolBar}
+        contentContainerStyle={styles.toolBarContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {TOOLS.map((tool) => (
+          <Pressable
+            key={tool.key}
+            style={[styles.toolChip, busy && styles.toolChipDisabled]}
+            onPress={() => handleTool(tool.key)}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={tool.label}
+          >
+            <Ionicons name={tool.icon} size={13} color={colors.accent} />
+            <Text style={styles.toolChipText}>{tool.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
       <View style={[styles.composerRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <TextInput
           style={styles.input}
@@ -335,7 +480,11 @@ function MessageBubble({ message }: { message: CompanionChatMessage }) {
   }
   return (
     <View style={styles.companionGroup}>
-      <Text style={styles.speakerLabel}>Companion</Text>
+      <Text style={styles.speakerLabel}>
+        {TOOL_LABELS[message.feature]
+          ? `Companion · ${TOOL_LABELS[message.feature]}`
+          : 'Companion'}
+      </Text>
       <View
         style={[styles.bubble, styles.companionBubble, message.declined && styles.declinedBubble]}
       >
@@ -399,6 +548,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   boundaryText: { fontSize: 11, color: colors.muted },
+
+  toolBar: { flexGrow: 0 },
+  toolBarContent: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  toolChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.card,
+  },
+  toolChipDisabled: { opacity: 0.5 },
+  toolChipText: { color: colors.text, fontSize: 12, fontWeight: '600' },
+
+  levelCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+    ...cardShadow,
+  },
+  levelTitle: {
+    fontFamily: fonts.serif,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  levelBody: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  levelRow: { flexDirection: 'row', gap: 8 },
+  levelChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    gap: 2,
+  },
+  levelChipLabel: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  levelChipHint: { color: colors.muted, fontSize: 10, textAlign: 'center' },
 
   listContent: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
 
