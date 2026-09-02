@@ -49,7 +49,10 @@ with a pointer to the replacement.
 > as the primary look (a flat painted cover remains the placeholder), the
 > pull-out animation, the QR ribbon, and the settings gear (bookmarks and
 > settings are now bottom tabs). The current library is specified in the
-> **Clean library (D-040)** table at the end of this section.
+> **Clean library (D-040)** table at the end of this section. The add-book
+> flow was later rebuilt search-first (D-042): the "Scan to add a book" and
+> "Minimal book details" rows below describe the pre-D-042 flow; the current
+> flow lives in the Clean library table.
 
 | Requirement | Look and feel | Research / proven pattern | Status | Refs |
 | --- | --- | --- | --- | --- |
@@ -81,6 +84,7 @@ with a pointer to the replacement.
 | Sectioned cover grid | Flat 3-across grid of covers under "Currently reading" and "Finished" section headers; recency order carries over; stats chips ("X reading · Y finished") and the Continue Reading hero sit above the grid; bottom-right FAB adds a book. | Cover-first grids at 3-across are the shipped norm (StoryGraph library, Goodreads shelves, Kindle); section headers replace physical shelf rows. | Shipped 2026-09-01 | D-040 |
 | Flat book cards | 2:3 cover with an 8pt radius; real art full-bleed; placeholder is a flat per-book color with the word-safe title typography; finished covers wear a small gold check badge; title, author, and a slim progress bar render below the cover; press feedback is a gentle opacity change (reduce-motion safe). | Flat cards with metadata below the cover match every current competitor; the gold badge keeps the celebration language without skeuomorphism. | Shipped 2026-09-01 | D-040 |
 | Offline-aware error states | Every query screen distinguishes "you're offline" (cloud icon, friendly copy, retry) from other errors (alert icon, plain-language message, retry); retry buttons carry accessibility roles and labels. | Kindle/Goodreads degrade gracefully offline; NN/g error-message guidance (say what happened, in plain words, with a way forward). | Shipped 2026-09-01 | D-040 |
+| Search-first add | The add-book screen leads with one search field (title, author, or a pasted ISBN) and a barcode-scan button beside it; results appear as you type - cover thumbnail, title, author · year · pages - and one tap adds the book (cover, author, and pages included) and returns to the library with a confirmation toast. A successful scan adds the matched book immediately; a miss opens the manual form with the ISBN kept. "Can't find it? Add it manually" reveals the previous three-field form with the cover picker. Google Books powers search and scan; Open Library remains the cover-picker source and the silent fallback; attribution for both shows in the form. | Search-first one-tap add is the shipped norm in Goodreads, StoryGraph, Fable, Bookmory, and Bookly - all lead with search, keep scan adjacent, and tuck manual entry behind a fallback link. Owner: "Adding books is not an easy process." Reference set: [COMPETITOR_REFERENCES.md](COMPETITOR_REFERENCES.md). | Shipped 2026-09-02 | D-042 |
 
 ## 3. The book screen
 

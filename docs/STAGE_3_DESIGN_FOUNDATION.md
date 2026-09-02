@@ -343,6 +343,7 @@ this record.
 | Offline-aware error states: connectivity failures render friendly "you're offline" messaging with retry on every query screen | J10 | D-040 |
 | Device automation: Maestro flows for sign-in, add-book, and log-entry with an owner-run guide (`.maestro/`) | testing | D-040 |
 | RLS hardening and isolation evidence: content writes now require topic ownership; a simulated two-user probe passes 13 cross-account checks against the live project | security | D-041 |
+| Search-first add-book: Google Books-powered live search with one-tap add, scan adds the match immediately, manual entry as fallback; Open Library stays as cover picker and silent fallback | J4 | D-042 |
 
 Still open in Stage 3 (all owner-run): the WCAG 2.2 AA audit checklist
 results, the dogfooding log review, moderated usability tests with
