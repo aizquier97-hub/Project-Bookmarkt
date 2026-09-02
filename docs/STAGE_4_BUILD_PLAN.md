@@ -1,9 +1,10 @@
 # Stage 4 Build Plan - AI Reading Companion
 
 **Status:** Phases 1-2 complete (2026-09-02, D-047..D-052) - the full
-companion feature set is live OTA. Phase 3 (billing; owner decisions
-pending) and Phase 4 (hardening, export/deletion foundations) remain. This
-document sequences the
+companion feature set is live OTA. Phase 4's non-billing items (account
+self-service foundations, dispute procedures) are done (D-053). Remaining:
+Phase 0 owner decisions, Phase 3 billing, and the billing-dependent Phase 4
+items. This document sequences the
 [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) §13 work plan into build phases; the
 roadmap remains the authoritative scope list. Revisit and refine before each
 phase begins.
@@ -137,10 +138,18 @@ Build order within the phase:
 - [ ] Sandbox purchase test matrix: duplicate events, delayed webhooks,
       refunds, revocations, offline receipts, cross-platform restoration.
 - [ ] Subscription analytics without exposing payment details.
-- [ ] Account email/password recovery and secure sensitive-account changes.
-- [ ] Data export and account-deletion foundations (entries, character
+- [x] Account email/password recovery and secure sensitive-account changes.
+      *Done 2026-09-02: recovery (forgot/reset password deep-link flow)
+      shipped in Stage 3; Settings gained a Change password row that sends
+      the same email-verified reset link (D-053).*
+- [x] Data export and account-deletion foundations (entries, character
       maps, images, voice transcripts).
-- [ ] Customer-support procedures for billing disputes.
+      *Done 2026-09-02: Settings → Your data — JSON export via the share
+      sheet, and two-confirmation account deletion through the
+      `delete-account` Edge Function (D-053).*
+- [x] Customer-support procedures for billing disputes.
+      *Done 2026-09-02: [SUPPORT_BILLING_DISPUTES.md](SUPPORT_BILLING_DISPUTES.md);
+      revisit alongside the Phase 3 billing integration.*
 - [ ] Walk the Stage 4 exit gate (roadmap §13) and record the review in
       `gates/STAGE_4_EXIT.md`.
 

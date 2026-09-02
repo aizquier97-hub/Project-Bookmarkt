@@ -1,12 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
+import * as Linking from 'expo-linking';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
+import { deleteAccount } from '@/domains/account/service';
+import { fetchExportPayload, serializeExport } from '@/domains/account/export';
 import { useAuth } from '@/domains/auth/AuthProvider';
-import { signOut } from '@/domains/auth/service';
+import { requestPasswordReset, signOut } from '@/domains/auth/service';
 import { colors } from '@/lib/theme';
 
 /**
@@ -23,6 +35,93 @@ export default function SettingsScreen() {
 
   const email = session?.user?.email ?? 'Signed in';
   const version = Constants.expoConfig?.version ?? '1.0.0';
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleChangePassword = () => {
+    const address = session?.user?.email;
+    if (!address) {
+      setError('No account email found. Sign in again first.');
+      return;
+    }
+    Alert.alert('Change password', `Send a password-reset link to ${address}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Send link',
+        onPress: async () => {
+          try {
+            setError(null);
+            await requestPasswordReset(address, Linking.createURL('/reset-password'));
+            Alert.alert('Check your email', 'The reset link opens back in Bookmarkt.');
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'The reset email could not be sent.');
+          }
+        },
+      },
+    ]);
+  };
+
+  // Data export (Stage 4 Phase 4): the reader's books, entries, character
+  // maps, voice transcripts, and bookmark codes as JSON via the share sheet.
+  const handleExport = async () => {
+    if (exporting) {
+      return;
+    }
+    setError(null);
+    setExporting(true);
+    try {
+      const payload = await fetchExportPayload();
+      await Share.share({ title: 'Bookmarkt export', message: serializeExport(payload) });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The export could not be prepared.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Account deletion (Stage 4 Phase 4): two explicit confirmations, then the
+  // server erases everything and releases the bookmark codes.
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete your account?',
+      'This permanently erases your books, entries, character maps, images, and voice transcripts, and releases your QR bookmark codes. Consider exporting your data first.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('This cannot be undone', 'Delete your Bookmarkt account forever?', [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete forever',
+                style: 'destructive',
+                onPress: async () => {
+                  setError(null);
+                  setDeleting(true);
+                  try {
+                    await deleteAccount();
+                    try {
+                      await signOut();
+                    } catch {
+                      // The server session is already gone; local state follows.
+                    }
+                    queryClient.clear();
+                  } catch (err) {
+                    setError(
+                      err instanceof Error ? err.message : 'Your account could not be deleted.',
+                    );
+                  } finally {
+                    setDeleting(false);
+                  }
+                },
+              },
+            ]);
+          },
+        },
+      ],
+    );
+  };
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Sign out of Bookmarkt on this device?', [
@@ -49,13 +148,26 @@ export default function SettingsScreen() {
 
       <Text style={styles.sectionLabel}>Account</Text>
       <View style={styles.group}>
-        <View style={styles.row}>
+        <View style={[styles.row, styles.rowDivider]}>
           <Ionicons name="person-circle-outline" size={22} color={colors.accent} />
           <View style={styles.rowTextWrap}>
             <Text style={styles.rowTitle}>{email}</Text>
             <Text style={styles.rowSub}>Your entries and maps sync to this account.</Text>
           </View>
         </View>
+        <Pressable
+          style={styles.row}
+          onPress={handleChangePassword}
+          accessibilityRole="button"
+          accessibilityLabel="Change password"
+        >
+          <Ionicons name="key-outline" size={22} color={colors.accent} />
+          <View style={styles.rowTextWrap}>
+            <Text style={styles.rowTitle}>Change password</Text>
+            <Text style={styles.rowSub}>We email you a secure reset link.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </Pressable>
       </View>
 
       <Text style={styles.sectionLabel}>Your library</Text>
@@ -72,6 +184,44 @@ export default function SettingsScreen() {
             <Text style={styles.rowSub}>Link a bookmark to jump straight to a book.</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </Pressable>
+      </View>
+
+      <Text style={styles.sectionLabel}>Your data</Text>
+      <View style={styles.group}>
+        <Pressable
+          style={[styles.row, styles.rowDivider]}
+          onPress={() => void handleExport()}
+          disabled={exporting}
+          accessibilityRole="button"
+          accessibilityLabel="Export your data"
+        >
+          <Ionicons name="download-outline" size={22} color={colors.accent} />
+          <View style={styles.rowTextWrap}>
+            <Text style={styles.rowTitle}>Export your data</Text>
+            <Text style={styles.rowSub}>
+              Books, entries, character maps, and transcripts as JSON.
+            </Text>
+          </View>
+          {exporting ? (
+            <ActivityIndicator size="small" color={colors.muted} />
+          ) : (
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          )}
+        </Pressable>
+        <Pressable
+          style={styles.row}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+          accessibilityRole="button"
+          accessibilityLabel="Delete account"
+        >
+          <Ionicons name="trash-outline" size={22} color={colors.danger} />
+          <View style={styles.rowTextWrap}>
+            <Text style={[styles.rowTitle, styles.dangerText]}>Delete account</Text>
+            <Text style={styles.rowSub}>Permanently erase everything. Cannot be undone.</Text>
+          </View>
+          {deleting ? <ActivityIndicator size="small" color={colors.muted} /> : null}
         </Pressable>
       </View>
 
@@ -162,6 +312,9 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12.5,
     marginTop: 1,
+  },
+  dangerText: {
+    color: colors.danger,
   },
   error: {
     color: colors.danger,
