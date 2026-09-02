@@ -52,14 +52,14 @@ screen using only TalkBack.
 
 ### 3. Library home (TalkBack on)
 
-- [ ] Each book cover in the grid announces at least its title.
-- [ ] The three bottom tabs - Library, Bookmarks, Settings - are clearly
+- [x] Each book cover in the grid announces at least its title.
+- [x] The three bottom tabs - Library, Bookmarks, Settings - are clearly
       labeled and announce which one is selected.
-- [ ] The stats chips and the Continue Reading card read sensibly.
-- [ ] On a brand-new account: the welcome text and the "Add your first
+- [x] The stats chips and the Continue Reading card read sensibly.
+- [x] On a brand-new account: the welcome text and the "Add your first
       book" button read clearly.
 
-**Result:**
+**Result:** Confirmed all four criteria are successfully met.
 
 ### 4. Book screen - entries and characters (TalkBack on)
 

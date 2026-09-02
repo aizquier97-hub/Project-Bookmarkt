@@ -9,6 +9,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +18,7 @@ import {
   View,
 } from 'react-native';
 
-import { searchCovers } from '@/domains/library/bookSearch';
+import { enlargeCoverUrl, searchCovers } from '@/domains/library/bookSearch';
 import { lookupBookByIsbn, normalizeIsbn } from '@/domains/library/covers';
 import type { CoverCandidate } from '@/domains/library/covers';
 import { IsbnScanner, isBarcodeScannerAvailable } from '@/components/IsbnScanner';
@@ -52,6 +53,9 @@ export function CoverPicker({
   const [isbnBusy, setIsbnBusy] = useState(false);
   const [isbnNote, setIsbnNote] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  // The enlarged rendition can 404 for some volumes - fall back to the stored URL.
+  const [previewFailed, setPreviewFailed] = useState(false);
 
   const canSearch = Boolean(title.trim());
   const scannerAvailable = isbnLookup && isBarcodeScannerAvailable();
@@ -109,12 +113,21 @@ export function CoverPicker({
 
       {coverUrl ? (
         <View style={styles.currentRow}>
-          <Image
-            source={{ uri: coverUrl }}
-            style={styles.currentCover}
-            contentFit="cover"
-            accessibilityLabel="Selected book cover"
-          />
+          <Pressable
+            onPress={() => {
+              setPreviewFailed(false);
+              setPreviewOpen(true);
+            }}
+            accessibilityRole="imagebutton"
+            accessibilityLabel="View the selected cover larger"
+          >
+            <Image
+              source={{ uri: coverUrl }}
+              style={styles.currentCover}
+              contentFit="cover"
+              accessibilityLabel="Selected book cover"
+            />
+          </Pressable>
           <Pressable
             onPress={() => onChange(null)}
             hitSlop={8}
@@ -225,6 +238,31 @@ export function CoverPicker({
       ) : null}
 
       <Text style={styles.attribution}>Covers from Google Books and Open Library</Text>
+
+      {coverUrl ? (
+        <Modal
+          visible={previewOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewOpen(false)}
+        >
+          <Pressable
+            style={styles.previewBackdrop}
+            onPress={() => setPreviewOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Close the cover preview"
+          >
+            <Image
+              source={{ uri: previewFailed ? coverUrl : enlargeCoverUrl(coverUrl) }}
+              style={styles.previewImage}
+              contentFit="contain"
+              onError={() => setPreviewFailed(true)}
+              accessibilityLabel="Enlarged book cover"
+            />
+            <Text style={styles.previewHint}>Tap anywhere to close</Text>
+          </Pressable>
+        </Modal>
+      ) : null}
 
       {isbnLookup ? (
         <IsbnScanner
@@ -353,5 +391,22 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 11,
     marginTop: 10,
+  },
+  previewBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  previewImage: {
+    width: '92%',
+    aspectRatio: 2 / 3,
+    borderRadius: 8,
+  },
+  previewHint: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    marginTop: 16,
   },
 });

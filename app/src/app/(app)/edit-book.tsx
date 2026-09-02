@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { type CoverCandidate } from '@/domains/library/covers';
+import {
+  coverFillUpdates,
+  type CoverAutoFill,
+  type CoverCandidate,
+} from '@/domains/library/covers';
 import { deleteBook, getBook, updateBook, type Book } from '@/domains/library/service';
 import { CoverPicker } from '@/components/CoverPicker';
 import { ErrorState, LoadingState } from '@/components/states';
@@ -113,30 +117,38 @@ function EditBookForm({ book }: { book: Book }) {
 
   const busy = updateMutation.isPending || deleteMutation.isPending;
 
-  // Picking a cover also fills blank details from the matched edition -
-  // same fill-blanks contract as the scan, with a one-tap Undo (D-033).
+  // Picking a cover fills blank details from the matched edition; switching
+  // to another cover swaps values a previous pick supplied. Typed and stored
+  // input always wins, with a one-tap Undo (D-033, D-044).
+  const coverAutoFillRef = useRef<CoverAutoFill>({ author: null, pages: null });
   const handleCoverCandidate = (candidate: CoverCandidate) => {
-    const fillAuthor = !author.trim() && candidate.author ? candidate.author : null;
-    const fillPages =
-      !totalPages.trim() && candidate.pagesMedian !== null ? String(candidate.pagesMedian) : null;
-    if (!fillAuthor && !fillPages) {
+    const updates = coverFillUpdates(candidate, { author, totalPages }, coverAutoFillRef.current);
+    if (!updates.author && !updates.pages) {
       return;
     }
     const prevAuthor = author;
     const prevPages = totalPages;
-    if (fillAuthor) setAuthor(fillAuthor);
-    if (fillPages) setTotalPages(fillPages);
+    const prevAuto = { ...coverAutoFillRef.current };
+    if (updates.author) {
+      setAuthor(updates.author);
+      coverAutoFillRef.current.author = updates.author;
+    }
+    if (updates.pages) {
+      setTotalPages(updates.pages);
+      coverAutoFillRef.current.pages = updates.pages;
+    }
     const message =
-      fillAuthor && fillPages
-        ? 'Author and pages filled from the cover match - pages vary by edition.'
-        : fillAuthor
-          ? 'Author filled from the cover match.'
-          : 'Pages filled from the cover match - pages vary by edition.';
+      updates.author && updates.pages
+        ? 'Author and pages updated from the cover match - pages vary by edition.'
+        : updates.author
+          ? 'Author updated from the cover match.'
+          : 'Pages updated from the cover match - pages vary by edition.';
     showToast(message, 'info', {
       label: 'Undo',
       onPress: () => {
-        if (fillAuthor) setAuthor(prevAuthor);
-        if (fillPages) setTotalPages(prevPages);
+        if (updates.author) setAuthor(prevAuthor);
+        if (updates.pages) setTotalPages(prevPages);
+        coverAutoFillRef.current = prevAuto;
       },
     });
   };

@@ -145,6 +145,40 @@ export interface CoverCandidate {
   pagesMedian: number | null;
 }
 
+/** What a picked cover last auto-filled, so a later pick may swap it. */
+export interface CoverAutoFill {
+  author: string | null;
+  pages: string | null;
+}
+
+/**
+ * Pure: which fields a newly picked cover candidate may set. Typed input
+ * always wins (D-033); a field is swappable when it is blank or still holds
+ * the value a previous pick supplied, so switching between covers keeps the
+ * author and pages in step with the selected cover (D-044).
+ */
+export function coverFillUpdates(
+  candidate: CoverCandidate,
+  current: { author: string; totalPages: string },
+  auto: CoverAutoFill,
+): { author: string | null; pages: string | null } {
+  const authorSwappable =
+    !current.author.trim() || (auto.author !== null && current.author === auto.author);
+  const pagesSwappable =
+    !current.totalPages.trim() || (auto.pages !== null && current.totalPages === auto.pages);
+  const candidatePages = candidate.pagesMedian !== null ? String(candidate.pagesMedian) : null;
+  return {
+    author:
+      authorSwappable && candidate.author && candidate.author !== current.author
+        ? candidate.author
+        : null,
+    pages:
+      pagesSwappable && candidatePages !== null && candidatePages !== current.totalPages
+        ? candidatePages
+        : null,
+  };
+}
+
 interface CoverSearchDoc {
   cover_i?: unknown;
   title?: unknown;

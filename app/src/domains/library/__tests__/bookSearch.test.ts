@@ -1,5 +1,6 @@
 import {
   coverCandidatesFromSearchResults,
+  enlargeCoverUrl,
   isbn10To13,
   joinTitleAndSubtitle,
   lookupPagesForTitle,
@@ -92,6 +93,24 @@ describe('pickPagesForTitle', () => {
 
   it('ignores matches without a page count', () => {
     expect(pickPagesForTitle([result({ title: 'Dune' })], 'Dune')).toBeNull();
+  });
+});
+
+describe('enlargeCoverUrl', () => {
+  it('bumps a Google thumbnail to the medium rendition', () => {
+    expect(enlargeCoverUrl('https://books.google.com/books/content?id=x&zoom=1&img=1')).toBe(
+      'https://books.google.com/books/content?id=x&zoom=2&img=1',
+    );
+    expect(enlargeCoverUrl('https://books.google.com/books/content?id=x&img=1&zoom=1')).toBe(
+      'https://books.google.com/books/content?id=x&img=1&zoom=2',
+    );
+  });
+
+  it('passes non-Google and non-thumbnail URLs through unchanged', () => {
+    const openLibrary = 'https://covers.openlibrary.org/b/id/123-L.jpg';
+    expect(enlargeCoverUrl(openLibrary)).toBe(openLibrary);
+    const alreadyMedium = 'https://books.google.com/books/content?id=x&zoom=2';
+    expect(enlargeCoverUrl(alreadyMedium)).toBe(alreadyMedium);
   });
 });
 
