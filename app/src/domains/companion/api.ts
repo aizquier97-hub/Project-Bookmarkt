@@ -218,10 +218,30 @@ export async function fetchCompanionMessages(bookId: number): Promise<CompanionC
     .from('companion_messages')
     .select('id, role, feature, content, provenance, created_at')
     .eq('topic_id', bookId)
+    .eq('feature', 'dialogue')
     .order('created_at', { ascending: false })
     .limit(MESSAGE_PAGE_SIZE);
   if (error) {
     throw error;
   }
   return (data ?? []).reverse().map(mapCompanionMessageRow);
+}
+
+/** The most recent stored recap for a book, if one exists. */
+export async function fetchLatestCompanionRecap(
+  bookId: number,
+): Promise<CompanionChatMessage | null> {
+  const { data, error } = await supabase
+    .from('companion_messages')
+    .select('id, role, feature, content, provenance, created_at')
+    .eq('topic_id', bookId)
+    .eq('feature', 'recap')
+    .eq('role', 'companion')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data ? mapCompanionMessageRow(data) : null;
 }

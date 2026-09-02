@@ -66,6 +66,7 @@ import { getBook, setBookFinished } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
 import { useDictation } from '@/domains/voice/useDictation';
+import { RecapCard } from '@/components/RecapCard';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
@@ -504,22 +505,11 @@ function EntriesTab({
     },
   });
 
-  // "Where you left off" (working name, D-022): a paid Companion feature -
-  // an AI-written recap of the reader's entries up to their latest one,
-  // story or bullets at a reader-chosen level of detail. Until the
-  // Companion ships, this is a locked teaser; taps are counted as a
-  // buying-interest signal (ids and counts only, never content).
-  const [teaserOpen, setTeaserOpen] = useState(false);
+  // "Where you left off" (D-022): the companion's recap of the reader's own
+  // entries, never past the latest one. RecapCard renders the real feature
+  // for entitled readers and the teaser copy for everyone else.
   const latestEntry = entries[0] ?? null;
   const latestRelative = latestEntry ? formatRelativeTime(latestEntry.created_at) : null;
-
-  const toggleTeaser = () => {
-    const opening = !teaserOpen;
-    setTeaserOpen(opening);
-    if (opening) {
-      trackAnalyticsEvent('recap_teaser_tapped', { entryCount: entries.length }, bookId);
-    }
-  };
 
   // An "@..." being typed at the end of the composer surfaces matching
   // character names as one-tap chips (D-045).
@@ -551,31 +541,7 @@ function EntriesTab({
   );
 
   const recapTeaser = latestEntry ? (
-    <View>
-      <Pressable
-        style={styles.teaserRow}
-        onPress={toggleTeaser}
-        accessibilityRole="button"
-        accessibilityLabel="Where you left off, coming with the Companion"
-      >
-        <View style={styles.teaserTitleRow}>
-          <Ionicons name="lock-closed" size={13} color={gold.deep} />
-          <Text style={styles.teaserTitle}>Where you left off</Text>
-        </View>
-        <View style={styles.teaserPill}>
-          <Text style={styles.teaserPillText}>{teaserOpen ? '✕' : 'Companion'}</Text>
-        </View>
-      </Pressable>
-      {teaserOpen ? (
-        <View style={styles.teaserCard}>
-          <Text style={styles.teaserBody}>
-            A Companion feature in the works: it will retell the story so far from your own
-            entries — a short story or quick bullets, your choice — and it never reads past
-            your latest entry{latestRelative ? ` (${latestRelative})` : ''}.
-          </Text>
-        </View>
-      ) : null}
-    </View>
+    <RecapCard bookId={bookId} latestEntryRelative={latestRelative} entryCount={entries.length} />
   ) : null;
 
   const composer =

@@ -16,7 +16,8 @@ export type AnalyticsEventName =
   | 'character_map_saved'
   | 'recap_teaser_tapped'
   | 'companion_opened'
-  | 'companion_message_sent';
+  | 'companion_message_sent'
+  | 'recap_requested';
 
 export function trackAnalyticsEvent(
   eventName: AnalyticsEventName,
