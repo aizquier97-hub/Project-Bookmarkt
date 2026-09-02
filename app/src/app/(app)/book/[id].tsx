@@ -4,6 +4,7 @@ import { Image as CoverImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Alert,
@@ -105,6 +106,9 @@ export default function BookScreen() {
   const addPhotosRef = useRef<(() => void) | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  // Android is edge-to-edge (SDK 54): without this, the capture bar and
+  // composer buttons render under the system navigation buttons.
+  const insets = useSafeAreaInsets();
 
   // Return-to-book journey signal (Stage 3 entry gate); ids only, no content.
   useEffect(() => {
@@ -179,7 +183,7 @@ export default function BookScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingBottom: Math.max(16, insets.bottom + 8) }]}>
         {/* Edit lives in the nav bar (platform convention); the status
             control below follows Goodreads/StoryGraph/Bookly: one prominent
             reading-status button right under the title block. */}

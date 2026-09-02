@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { requireOptionalNativeModule } from 'expo';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/lib/theme';
 
@@ -87,6 +88,8 @@ function ScannerSheet({
   const [permission, requestPermission] = api.useCameraPermissions();
   const firedRef = useRef(false);
   const [denied, setDenied] = useState(false);
+  // Edge-to-edge Android: keep Cancel above the system navigation buttons.
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (permission && !permission.granted && !denied) {
@@ -134,7 +137,7 @@ function ScannerSheet({
         </View>
 
         <Pressable
-          style={styles.closeButton}
+          style={[styles.closeButton, { bottom: insets.bottom + 32 }]}
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel="Close the scanner"
@@ -187,7 +190,6 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    bottom: 48,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',

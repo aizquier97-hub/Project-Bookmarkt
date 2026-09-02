@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   listMyIssueReports,
@@ -42,6 +43,7 @@ export default function ReportIssueScreen() {
   const [confirmation, setConfirmation] = useState<string | null>(null);
 
   const reportsQuery = useQuery({ queryKey: queryKeys.issueReports, queryFn: listMyIssueReports });
+  const insets = useSafeAreaInsets();
 
   const submitMutation = useMutation({
     mutationFn: () =>
@@ -131,7 +133,7 @@ export default function ReportIssueScreen() {
           data={reportsQuery.data}
           keyExtractor={(report) => String(report.id)}
           renderItem={({ item }) => <ReportCard report={item} />}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 24 }]}
         />
       )}
     </KeyboardAvoidingView>
