@@ -809,34 +809,13 @@ running this checklist on the Android preview build during the current
 dogfooding window; results (pass/fail per test, with notes) will be
 reviewed and any failures triaged as defects before the Stage 3 exit gate.
 
-Setup: phone Settings → Accessibility → **TalkBack** → on. Single tap
-selects and reads aloud; double-tap activates; swipe right/left moves
-between items.
-
-1. **Sign-in screen** - every field/button announces a clear label (not
-   "button" or silence); typed input is trackable; a wrong-password error
-   is read aloud automatically.
-2. **Adding a book** - the add button, scan-barcode screen, and manual
-   entry fallback are all fully usable with TalkBack alone (manual entry
-   must work completely since scanning may require sight); the cover
-   picker announces each candidate.
-3. **Library (home tab)** - each book announces at least its
-   title; the Library, Bookmarks, and Settings tabs are clearly labeled;
-   the empty-library welcome text and its button read clearly.
-4. **Book screen (entries and characters)** - Edit, the finish-status
-   pill, and the tabs are clearly labeled; typed capture works fully;
-   voice capture's recording state is announced, not shown by color
-   alone; search-highlighted text still reads as plain text.
-5. **Settings and sign-out** - every settings row is announced; the
-   sign-out confirmation dialog is read aloud automatically.
-6. **Text size** - phone Display settings set to the largest font size;
-   revisit sign-in, shelf, book screen, add-book, and settings; nothing
-   is cut off, overlapping, or untappable.
-7. **Reduce motion** - phone accessibility "remove animations" turned
-   on; cover press feedback, tab switches, and toasts degrade gracefully
-   rather than looking broken.
-8. **Color contrast** - in bright light, book titles, progress
-   percentages, entry text, and button labels all stay legible.
+The eight tests, with setup instructions and per-test result checkboxes,
+live in [ACCESSIBILITY_AUDIT_CHECKLIST.md](ACCESSIBILITY_AUDIT_CHECKLIST.md) -
+that document is the authoritative test list. In brief: (1) sign-in with
+TalkBack, (2) adding a book with TalkBack, (3) library home with TalkBack,
+(4) book screen capture with TalkBack, (5) settings and sign-out with
+TalkBack, (6) largest text size, (7) animations removed, (8) color
+contrast in bright light.
 
 Carried from Stage 2 (D-020):
 
