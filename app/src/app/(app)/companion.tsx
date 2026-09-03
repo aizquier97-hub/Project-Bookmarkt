@@ -519,13 +519,16 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                       key={stem}
                       style={styles.stemChip}
                       onPress={() => {
-                        setDraft(`${stem} `);
+                        // Seed an argument, not just grammar: the chip is an
+                        // interpretive position, "because" invites the reader
+                        // to reason it out in their own words.
+                        setDraft(`${stem} because `);
                         setComposerOpen(true);
                       }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Start your answer with: ${stem}`}
+                      accessibilityLabel={`Take this position: ${stem}`}
                     >
-                      <Text style={styles.stemChipText}>{stem}…</Text>
+                      <Text style={styles.stemChipText}>{stem}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -586,30 +589,6 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                 </View>
               ) : null}
 
-              {composerOpen || draft.length > 0 ? (
-                <View style={styles.composerCard}>
-                  <TextInput
-                    style={styles.input}
-                    value={draft}
-                    onChangeText={setDraft}
-                    placeholder="Your answer, in your own words…"
-                    placeholderTextColor={colors.muted}
-                    multiline
-                    maxLength={MAX_MESSAGE_CHARS}
-                    autoFocus
-                  />
-                  <Pressable
-                    style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-                    onPress={handleSend}
-                    disabled={!canSend}
-                    accessibilityRole="button"
-                    accessibilityLabel="Send your answer"
-                  >
-                    <Ionicons name="arrow-up" size={18} color={gold.onFill} />
-                  </Pressable>
-                </View>
-              ) : null}
-
               <Pressable
                 style={styles.ghostButton}
                 onPress={handleEndSession}
@@ -641,6 +620,32 @@ function SocraticDeck({ bookId }: { bookId: number }) {
           </View>
         ) : null}
       </ScrollView>
+
+      {phase === 'deck' && !sendMutation.isPending && (composerOpen || draft.length > 0) ? (
+        // Anchored below the scroll area (D-054 pattern) so Android's
+        // window-resize keeps it visible right above the keyboard.
+        <View style={[styles.composerBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <TextInput
+            style={styles.input}
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Your answer, in your own words…"
+            placeholderTextColor={colors.muted}
+            multiline
+            maxLength={MAX_MESSAGE_CHARS}
+            autoFocus
+          />
+          <Pressable
+            style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={!canSend}
+            accessibilityRole="button"
+            accessibilityLabel="Send your answer"
+          >
+            <Ionicons name="arrow-up" size={18} color={gold.onFill} />
+          </Pressable>
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -830,16 +835,20 @@ const styles = StyleSheet.create({
   },
   listeningStopText: { fontFamily: fonts.serif, color: gold.onFill, fontSize: 12, fontWeight: '700' },
 
-  composerCard: {
+  composerBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    borderTopWidth: 1.5,
+    borderTopColor: colors.border,
     backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 8,
-    ...cardShadow,
+    elevation: 8,
+    shadowColor: '#2a1c11',
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -3 },
   },
   input: {
     fontFamily: fonts.serif,
