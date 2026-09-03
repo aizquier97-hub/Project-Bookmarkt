@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -91,6 +92,35 @@ function CueCardDeck({ bookId }: { bookId: number }) {
   const [index, setIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // The dealt-card motion: -1 = off to the left, 0 = in hand, +1 = off to
+  // the right. The old card slides away, the new one glides in behind it.
+  const slide = useRef(new Animated.Value(0)).current;
+  const sliding = useRef(false);
+
+  const goTo = (nextIndex: number, direction: 1 | -1) => {
+    if (sliding.current || nextIndex === index) {
+      return;
+    }
+    sliding.current = true;
+    Animated.timing(slide, {
+      toValue: -direction,
+      duration: 170,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setIndex(nextIndex);
+      slide.setValue(direction);
+      Animated.spring(slide, {
+        toValue: 0,
+        friction: 9,
+        tension: 50,
+        useNativeDriver: true,
+      }).start(() => {
+        sliding.current = false;
+      });
+    });
+  };
+
   const dealMutation = useMutation({
     mutationFn: () => requestCueCards(bookId),
     onMutate: () => {
@@ -160,6 +190,12 @@ function CueCardDeck({ bookId }: { bookId: number }) {
   }
 
   const card = cards[Math.min(index, cards.length - 1)];
+  const slideX = slide.interpolate({ inputRange: [-1, 1], outputRange: [-380, 380] });
+  const slideRotate = slide.interpolate({ inputRange: [-1, 1], outputRange: ['-7deg', '7deg'] });
+  const slideOpacity = slide.interpolate({
+    inputRange: [-1, -0.4, 0, 0.4, 1],
+    outputRange: [0, 1, 1, 1, 0],
+  });
 
   return (
     <View style={styles.deckContainer}>
@@ -168,15 +204,22 @@ function CueCardDeck({ bookId }: { bookId: number }) {
         Card {Math.min(index, cards.length - 1) + 1} of {cards.length}
       </Text>
 
-      {/* Key by index so each card starts front-side up. */}
-      <FlipCard key={index} front={card.front} back={card.back} />
+      <Animated.View
+        style={[
+          styles.slideStage,
+          { opacity: slideOpacity, transform: [{ translateX: slideX }, { rotate: slideRotate }] },
+        ]}
+      >
+        {/* Key by index so each card starts front-side up. */}
+        <FlipCard key={index} front={card.front} back={card.back} />
+      </Animated.View>
 
       <Text style={styles.flipHint}>Tap the card to flip it</Text>
 
       <View style={styles.navRow}>
         <Pressable
           style={[styles.navButton, index === 0 && styles.navButtonDisabled]}
-          onPress={() => setIndex((prev) => Math.max(0, prev - 1))}
+          onPress={() => goTo(Math.max(0, index - 1), -1)}
           disabled={index === 0}
           accessibilityRole="button"
           accessibilityLabel="Previous card"
@@ -186,7 +229,7 @@ function CueCardDeck({ bookId }: { bookId: number }) {
         </Pressable>
         <Pressable
           style={[styles.navButton, index >= cards.length - 1 && styles.navButtonDisabled]}
-          onPress={() => setIndex((prev) => Math.min(cards.length - 1, prev + 1))}
+          onPress={() => goTo(Math.min(cards.length - 1, index + 1), 1)}
           disabled={index >= cards.length - 1}
           accessibilityRole="button"
           accessibilityLabel="Next card"
@@ -345,9 +388,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 14,
   },
-  cardStage: {
+  slideStage: {
     width: '100%',
     maxWidth: 340,
+  },
+  cardStage: {
+    width: '100%',
     aspectRatio: 3 / 2,
   },
   cardFace: {
