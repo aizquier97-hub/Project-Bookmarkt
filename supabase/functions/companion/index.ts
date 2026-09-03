@@ -34,7 +34,8 @@ type Feature =
   | "semantic_search"
   | "entry_summaries"
   | "observations"
-  | "observation_open";
+  | "observation_open"
+  | "insight";
 
 const FEATURES: Feature[] = [
   "dialogue",
@@ -49,6 +50,7 @@ const FEATURES: Feature[] = [
   "entry_summaries",
   "observations",
   "observation_open",
+  "insight",
 ];
 
 /**
@@ -71,6 +73,8 @@ type RequestBody = {
   /** Club snapshot (D-055): only entries logged between these ISO dates. */
   rangeStart?: string;
   rangeEnd?: string;
+  /** Session salon (D-058): scopes dialogue/observation/insight to one bounded discussion. */
+  salonId?: string;
 };
 
 const corsHeaders = {
@@ -267,6 +271,8 @@ function buildToolPrompt(
     message: string;
     genre: string | null;
     rangeLabel: string | null;
+    /** insight (D-058): the salon's exchange, oldest first. */
+    transcript?: string;
   },
 ): string {
   switch (feature) {
@@ -345,6 +351,14 @@ function buildToolPrompt(
         "If the notes are too thin for a grounded question, return fewer cards rather than inventing.",
         "reply is one short deadpan line (it is not shown prominently).",
         'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "observations": [{"prompt": string, "stems": [string]}]}.',
+      ].join("\n");
+    case "insight":
+      return [
+        "The reader is closing a Book Club discussion session. The exchange, oldest first:",
+        opts.transcript || "(nothing was said)",
+        "Distill ONE takeaway of AT MOST 35 words capturing the position the READER built across their answers - their claims, their words, their conclusion. Address them directly (\"You argued...\", \"You landed on...\").",
+        "Never add your own interpretation, never introduce plot they did not mention, never go past the boundary. No preamble, no headings, no questions.",
+        'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false}.',
       ].join("\n");
     default:
       return REPLY_JSON_RULE;
@@ -435,6 +449,66 @@ function buildEntrySummariesPrompt(notes: { id: number; text: string }[]): strin
   ].join("\n");
 }
 
+/**
+ * Best-effort JSON recovery: strip markdown fences, clamp to the outermost
+ * braces, and close a truncated document (thinking models occasionally spend
+ * the output budget mid-JSON). Returns null when nothing parseable remains.
+ */
+function coerceJsonObject(raw: string): any | null {
+  let text = raw.trim();
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced) {
+    text = fenced[1].trim();
+  }
+  const start = text.indexOf("{");
+  if (start === -1) {
+    return null;
+  }
+  const end = text.lastIndexOf("}");
+  const candidate = end > start ? text.slice(start, end + 1) : text.slice(start);
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    // Truncated mid-document: close the open string, then open braces/brackets.
+    let repaired = candidate;
+    let inString = false;
+    let escape = false;
+    const stack: string[] = [];
+    for (const ch of repaired) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (inString && ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) {
+        continue;
+      }
+      if (ch === "{") stack.push("}");
+      else if (ch === "[") stack.push("]");
+      else if (ch === "}" || ch === "]") stack.pop();
+    }
+    if (inString) {
+      repaired += '"';
+    }
+    repaired = repaired.replace(/,\s*$/, "");
+    while (stack.length) {
+      repaired += stack.pop();
+    }
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      return null;
+    }
+  }
+}
+
 function parseCompanionJson(raw: string): {
   reply: string;
   provenance: string;
@@ -444,8 +518,8 @@ function parseCompanionJson(raw: string): {
   stems: string[];
   observations: { prompt: string; stems: string[] }[];
 } {
-  try {
-    const parsed = JSON.parse(raw);
+  const parsed = coerceJsonObject(raw);
+  if (parsed) {
     const reply = String(parsed?.reply ?? "").trim();
     if (reply) {
       const provenance = ["your_notes", "general_knowledge", "mixed"].includes(parsed?.provenance)
@@ -491,10 +565,14 @@ function parseCompanionJson(raw: string): {
         : [];
       return { reply, provenance, declined: parsed?.declined === true, suggestions, cards, stems, observations };
     }
-  } catch {
-    // fall through to raw-text fallback
   }
-  return { reply: raw.trim(), provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [] };
+  // A plain-text reply is acceptable; JSON-shaped wreckage is not - an empty
+  // reply triggers a clean retry instead of a card full of braces.
+  const trimmedRaw = raw.trim();
+  if (trimmedRaw.startsWith("{") || trimmedRaw.startsWith("```")) {
+    return { reply: "", provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [] };
+  }
+  return { reply: trimmedRaw, provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [] };
 }
 
 serve(async (req) => {
@@ -588,6 +666,15 @@ serve(async (req) => {
       ? body.rangeEnd
       : null;
   const hasDateRange = feature === "club_prep" && rangeStart !== null && rangeEnd !== null;
+  // Session salon (D-058): client-generated uuid grouping one bounded discussion.
+  const rawSalonId = typeof body?.salonId === "string" ? body.salonId.trim().toLowerCase() : "";
+  const salonId =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(rawSalonId)
+      ? rawSalonId
+      : null;
+  if (feature === "insight" && !salonId) {
+    return jsonResponse({ error: "A discussion session is required.", code: "BAD_REQUEST" }, 400);
+  }
   const auditId = truncate(body?.auditId, 64) ?? crypto.randomUUID();
 
   const auditDenied = async (decision: "denied_unentitled", httpStatus: number) => {
@@ -652,6 +739,7 @@ serve(async (req) => {
       entry_summaries: { env: "COMPANION_SUMMARY_DAILY_LIMIT", fallback: 30, max: 500 },
       observations: { env: "COMPANION_OBSERVATIONS_DAILY_LIMIT", fallback: 20, max: 500 },
       observation_open: { env: "COMPANION_DIALOGUE_DAILY_LIMIT", fallback: 50, max: 1000 },
+      insight: { env: "COMPANION_INSIGHT_DAILY_LIMIT", fallback: 30, max: 500 },
     };
     const limitSpec = TOOL_LIMITS[feature] ?? TOOL_LIMITS.dialogue!;
     const userDailyLimit = readPositiveLimit(
@@ -766,6 +854,7 @@ serve(async (req) => {
           topic_id: bookId,
           role: "companion",
           feature: "observation",
+          salon_id: salonId,
           content: message.slice(0, 600),
           provenance: {
             sources: "your_notes",
@@ -774,7 +863,7 @@ serve(async (req) => {
             entryCount: newestFirst.length,
           },
         })
-        .select("id, role, feature, content, provenance, created_at")
+        .select("id, role, feature, content, provenance, created_at, salon_id")
         .single();
       if (cardError) {
         await finalize("failed", 503, { error_code: "PERSIST_FAILED", error_message: truncate(cardError.message, 300) });
@@ -1161,14 +1250,21 @@ serve(async (req) => {
     });
 
     // Conversation history keeps the dialogue coherent across sittings.
+    // With a salon (D-058) the exchange stays scoped to that one bounded
+    // discussion; legacy clients without a salonId keep the topic-wide thread.
     const contents: { role: "user" | "model"; parts: { text: string }[] }[] = [];
     if (feature === "dialogue") {
-      const { data: history } = await userClient
+      let historyQuery = userClient
         .from("companion_messages")
         .select("role, content")
         .eq("topic_id", bookId)
+        .neq("feature", "insight")
         .order("created_at", { ascending: false })
         .limit(HISTORY_MESSAGES);
+      if (salonId) {
+        historyQuery = historyQuery.eq("salon_id", salonId);
+      }
+      const { data: history } = await historyQuery;
       for (const row of (history ?? []).reverse()) {
         contents.push({
           role: row.role === "reader" ? "user" : "model",
@@ -1182,6 +1278,37 @@ serve(async (req) => {
         parts: [{ text: buildRecapPrompt(detail, entryLines.length, rangeLabel) }],
       });
     } else {
+      // insight (D-058): the model sees the salon's own exchange, not the notes list.
+      let salonTranscript = "";
+      if (feature === "insight") {
+        const { data: salonRows } = await userClient
+          .from("companion_messages")
+          .select("role, content, feature")
+          .eq("topic_id", bookId)
+          .eq("salon_id", salonId)
+          .neq("feature", "insight")
+          .order("created_at", { ascending: true })
+          .limit(40);
+        const rows = salonRows ?? [];
+        if (!rows.some((row) => row.role === "reader")) {
+          await finalize("succeeded", 200, { grounding_entries: 0, grounding_characters: 0 });
+          return jsonResponse({
+            code: "NO_EXCHANGES",
+            reply: {
+              content: "Nothing was said in this session, so there is nothing to distill. The blank page keeps its dignity.",
+              provenance: "your_notes",
+              declined: false,
+            },
+            boundaryLabel,
+            quota,
+          });
+        }
+        salonTranscript = rows
+          .map((row) =>
+            `${row.role === "reader" ? "READER" : "COMPANION"}: ${String(row.content ?? "").replace(/\n+/g, " / ").slice(0, 500)}`,
+          )
+          .join("\n");
+      }
       contents.push({
         role: "user",
         parts: [
@@ -1193,6 +1320,7 @@ serve(async (req) => {
               message,
               genre: book.genre ?? null,
               rangeLabel,
+              transcript: salonTranscript,
             }),
           },
         ],
@@ -1210,7 +1338,9 @@ serve(async (req) => {
           contents,
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 4096,
+            // Thinking tokens share this budget on 2.5 models; a tight cap
+            // is what truncated the primer JSON mid-document.
+            maxOutputTokens: 8192,
             responseMimeType: "application/json",
           },
         }),
@@ -1251,8 +1381,8 @@ serve(async (req) => {
     if (feature === "dialogue") {
       const { data: readerRow, error: readerError } = await userClient
         .from("companion_messages")
-        .insert({ user_id: userId, topic_id: bookId, role: "reader", feature: "dialogue", content: message })
-        .select("id, role, feature, content, provenance, created_at")
+        .insert({ user_id: userId, topic_id: bookId, role: "reader", feature: "dialogue", salon_id: salonId, content: message })
+        .select("id, role, feature, content, provenance, created_at, salon_id")
         .single();
       if (readerError) {
         await finalize("failed", 503, { error_code: "PERSIST_FAILED", error_message: truncate(readerError.message, 300) });
@@ -1261,7 +1391,8 @@ serve(async (req) => {
       savedMessages.push(readerRow);
     }
     const persistReply =
-      feature === "dialogue" || feature === "recap" || PERSISTED_TOOL_FEATURES.includes(feature);
+      feature === "dialogue" || feature === "recap" || feature === "insight" ||
+      PERSISTED_TOOL_FEATURES.includes(feature);
     if (persistReply) {
       const { data: companionRow, error: companionError } = await userClient
         .from("companion_messages")
@@ -1270,10 +1401,11 @@ serve(async (req) => {
           topic_id: bookId,
           role: "companion",
           feature,
+          salon_id: salonId,
           content: parsed.reply,
           provenance: provenanceMeta,
         })
-        .select("id, role, feature, content, provenance, created_at")
+        .select("id, role, feature, content, provenance, created_at, salon_id")
         .single();
       if (companionError) {
         await finalize("failed", 503, { error_code: "PERSIST_FAILED", error_message: truncate(companionError.message, 300) });

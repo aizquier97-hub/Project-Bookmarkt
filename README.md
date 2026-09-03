@@ -55,11 +55,16 @@ gold bookmark that retells any chosen stretch of entries at a chosen detail -
 all server-gated (entitlement + daily quotas) and grounded only in the
 reader's own entries (see
 [docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). The Book Club is a
-Socratic card deck (D-057): a primer card orients the reader in at most three
-bullets, then one question card at a time - answered by perspective-stem
-chips, dictation, or typing - with each companion mirror (validate, then
-probe, under 50 words) dealt as the next card, and "End session" can save the
-reader's own answers to the journal.
+Socratic card deck held in **session salons** (D-057, D-058): a returning
+reader lands on an orientation hub - last session's takeaway card, "Continue
+discussion" or "Start a new discussion", and an archive of past sessions as
+question-and-answer index cards. A fresh discussion opens on a primer card (at
+most three bullets), then one question card at a time - answered by
+perspective-stem chips, dictation, or typing - with each companion mirror
+(validate, then probe, under 50 words) dealt as the next card while answered
+cards stack behind it. "End session" (offered gently after three answers,
+never forced) distills the reader's answers into a takeaway card and can save
+their own words to the journal.
 Quiz Me and the word bank are built but hidden, on hold per the owner; the
 capture structuring aid, suggested important flags, and search by meaning
 remain live. Account self-service foundations are in place: change password,

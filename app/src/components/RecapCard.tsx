@@ -64,6 +64,7 @@ export function RecapCard({
         feature: 'recap',
         content: result.reply.content,
         createdAt: new Date().toISOString(),
+        salonId: null,
         provenance: result.reply.provenance,
         declined: result.reply.declined,
         boundaryLabel: result.boundaryLabel,

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Crypto from 'expo-crypto';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -20,12 +21,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorState, LoadingState } from '@/components/states';
 import {
   CompanionRequestError,
+  fetchCompanionMessages,
   openObservation,
   requestClubPrimer,
   requestObservations,
+  requestSalonInsight,
   sendCompanionMessage,
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
+import { buildSalons, formatSalonDate } from '@/domains/companion/salons';
 import { getLatestProgressBoundary } from '@/domains/entries/progress';
 import { addEntry, listEntries } from '@/domains/entries/service';
 import { getBook } from '@/domains/library/service';
@@ -41,8 +45,12 @@ const MAX_MESSAGE_CHARS = 2000;
 // opens with something the reader alone can answer (D-012: no plot facts).
 const FALLBACK_QUESTION = 'What struck you most in what you last read?';
 
-// The Socratic deck (D-057): primer card -> question cards -> session close.
-type DeckPhase = 'primer' | 'deck' | 'closing';
+// The Socratic deck inside session salons (D-058): a returning reader lands
+// on the orientation hub; the primer opens a first-ever or fresh discussion.
+type DeckPhase = 'hub' | 'primer' | 'deck' | 'closing';
+
+// After this many answers the deck offers - never forces - a wrap-up.
+const WRAP_UP_NUDGE_AFTER = 3;
 
 interface DeckCard {
   question: string;
@@ -141,8 +149,13 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const [phase, setPhase] = useState<DeckPhase>('primer');
+  const [phase, setPhase] = useState<DeckPhase | null>(null);
   const [card, setCard] = useState<DeckCard | null>(null);
+  // The active salon (D-058): a client-minted uuid grouping this bounded
+  // discussion's messages, so history and the archive stay per-session.
+  const [salonId, setSalonId] = useState<string | null>(null);
+  const [takeaway, setTakeaway] = useState<string | null>(null);
+  const [expandedSalonId, setExpandedSalonId] = useState<string | null>(null);
   // The reader's own submitted answers this session (D-012: only these can
   // be saved to the journal - never the companion's questions).
   const [answers, setAnswers] = useState<string[]>([]);
@@ -192,13 +205,31 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     queryFn: () => listEntries(bookId),
   });
 
+  // The stored conversation, grouped into salons for the hub and archive.
+  const messagesQuery = useQuery({
+    queryKey: queryKeys.companionMessages(bookId),
+    queryFn: () => fetchCompanionMessages(bookId),
+  });
+  const salons = useMemo(() => buildSalons(messagesQuery.data ?? []), [messagesQuery.data]);
+  const latestSalon = salons[0] ?? null;
+
+  // Land returning readers on the hub; first-timers go straight to the primer.
+  useEffect(() => {
+    if (phase !== null || messagesQuery.isPending) {
+      return;
+    }
+    setPhase(salons.length > 0 ? 'hub' : 'primer');
+  }, [phase, messagesQuery.isPending, salons]);
+
   // The primer (D-057): a max-3-bullet orientation from the last few notes.
-  // Transient - regenerated per visit, never persisted.
+  // Transient - regenerated per visit, never persisted. Only fetched when the
+  // reader is actually opening a fresh discussion (it spends quota).
   const primerQuery = useQuery({
     queryKey: queryKeys.companionPrimer(bookId),
     queryFn: () => requestClubPrimer(bookId),
     staleTime: 10 * 60_000,
     retry: false,
+    enabled: phase === 'primer',
   });
   // Observation cards (D-056): grounded openers, each now carrying stems.
   const observationsQuery = useQuery({
@@ -206,6 +237,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     queryFn: () => requestObservations(bookId),
     staleTime: 10 * 60_000,
     retry: false,
+    enabled: phase === 'primer',
   });
   const observations = observationsQuery.data?.observations ?? [];
 
@@ -247,9 +279,11 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   // Socratic thread starts from the card itself. Fire-and-forget: the deck
   // works even if this write fails.
   const openMutation = useMutation({
-    mutationFn: (prompt: string) => openObservation(bookId, prompt),
+    mutationFn: (input: { prompt: string; salonId: string }) =>
+      openObservation(bookId, input.prompt, input.salonId),
     onSuccess: () => {
       trackAnalyticsEvent('companion_tool_used', { tool: 'observation_open', status: 'succeeded' }, bookId);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.companionMessages(bookId) });
     },
     onError: (err) => {
       const status = err instanceof CompanionRequestError ? err.code : 'error';
@@ -258,7 +292,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   });
 
   const sendMutation = useMutation({
-    mutationFn: (message: string) => sendCompanionMessage(bookId, message),
+    mutationFn: (message: string) => sendCompanionMessage(bookId, message, salonId ?? undefined),
     onMutate: () => {
       setSendError(null);
       setQuotaNotice(null);
@@ -271,6 +305,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
         setLatestBoundary(result.boundaryLabel);
       }
       trackAnalyticsEvent('companion_message_sent', { status: 'succeeded' }, bookId);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.companionMessages(bookId) });
       const mirror =
         result.reply.content ||
         result.messages.filter((m) => m.role === 'companion').at(-1)?.content ||
@@ -322,11 +357,40 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     },
   });
 
+  // Closing a salon (D-058): distill the reader's answers into a takeaway,
+  // stored on the salon so the hub can re-orient them next visit.
+  const insightMutation = useMutation({
+    mutationFn: () => {
+      if (!salonId) {
+        throw new Error('No active salon.');
+      }
+      return requestSalonInsight(bookId, salonId);
+    },
+    onSuccess: (result) => {
+      setTakeaway(result.reply.content || null);
+      trackAnalyticsEvent('companion_tool_used', { tool: 'insight', status: 'succeeded' }, bookId);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.companionMessages(bookId) });
+    },
+    onError: (err) => {
+      // The closing card still shows the reader's answers; the takeaway is a
+      // bonus, not a gate.
+      const status = err instanceof CompanionRequestError ? err.code : 'error';
+      trackAnalyticsEvent('companion_tool_used', { tool: 'insight', status }, bookId);
+    },
+  });
+
   const handleStart = () => {
     setSendError(null);
+    // A fresh salon for a fresh discussion: minted client-side so every
+    // message in this session lands under one id.
+    const newSalonId = Crypto.randomUUID();
+    setSalonId(newSalonId);
+    setAnswers([]);
+    setTakeaway(null);
+    setSaved(false);
     const first = observations[0];
     if (first) {
-      openMutation.mutate(first.prompt);
+      openMutation.mutate({ prompt: first.prompt, salonId: newSalonId });
     }
     advance(() => {
       setPhase('deck');
@@ -338,9 +402,35 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     });
   };
 
+  // Re-open the latest salon: the active card is its last unanswered probe;
+  // the server already holds the salon's history for the mirror's context.
+  const handleResume = () => {
+    const probe = latestSalon?.lastProbe;
+    if (!latestSalon || !probe) {
+      return;
+    }
+    setSendError(null);
+    setSalonId(latestSalon.id);
+    setAnswers([]);
+    setTakeaway(null);
+    setSaved(false);
+    advance(() => {
+      setPhase('deck');
+      setCard({ question: probe, stems: [] });
+    });
+  };
+
+  const handleNewDiscussion = () => {
+    setSendError(null);
+    advance(() => setPhase('primer'));
+  };
+
   const handleEndSession = () => {
     if (sendMutation.isPending) {
       return;
+    }
+    if (salonId && answers.length > 0) {
+      insightMutation.mutate();
     }
     advance(() => setPhase('closing'));
   };
@@ -401,7 +491,109 @@ function SocraticDeck({ bookId }: { bookId: number }) {
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View style={[styles.slideStage, slideStyle]}>
-          {phase === 'primer' ? (
+          {phase === null ? (
+            <View style={styles.paperCard}>
+              <View style={styles.cardLoadingRow}>
+                <ActivityIndicator size="small" color={colors.muted} />
+                <Text style={styles.cardLoadingText}>Opening the club room…</Text>
+              </View>
+            </View>
+          ) : phase === 'hub' && latestSalon ? (
+            <View style={styles.hubStack}>
+              <View style={styles.paperCard}>
+                <Text style={styles.cardLabel}>
+                  {latestSalon.insight ? 'Last time, your takeaway' : 'Where you left off'}
+                </Text>
+                {latestSalon.insight ? (
+                  <View style={styles.takeawayBlock}>
+                    <Text style={styles.takeawayText}>{latestSalon.insight}</Text>
+                  </View>
+                ) : latestSalon.lastProbe ? (
+                  <Text style={styles.cardBody}>
+                    A question is still on the table: “{latestSalon.lastProbe}”
+                  </Text>
+                ) : (
+                  <Text style={styles.cardBody}>
+                    Your last discussion is here when you want it.
+                  </Text>
+                )}
+                {latestSalon.lastProbe ? (
+                  <Pressable
+                    style={styles.goldButton}
+                    onPress={handleResume}
+                    accessibilityRole="button"
+                    accessibilityLabel="Continue your last discussion"
+                  >
+                    <Ionicons name="chatbubble-ellipses" size={15} color={gold.onFill} />
+                    <Text style={styles.goldButtonText}>Continue discussion</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  style={latestSalon.lastProbe ? styles.plainButton : styles.goldButton}
+                  onPress={handleNewDiscussion}
+                  accessibilityRole="button"
+                  accessibilityLabel="Start a new discussion"
+                >
+                  <Ionicons
+                    name="add"
+                    size={15}
+                    color={latestSalon.lastProbe ? colors.text : gold.onFill}
+                  />
+                  <Text
+                    style={latestSalon.lastProbe ? styles.plainButtonText : styles.goldButtonText}
+                  >
+                    Start a new discussion
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.archiveSection}>
+                <Text style={styles.archiveHeading}>Past discussions</Text>
+                {salons.map((salon) => {
+                  const expanded = expandedSalonId === salon.id;
+                  return (
+                    <View key={salon.id} style={styles.archiveCard}>
+                      <Pressable
+                        style={styles.archiveHeader}
+                        onPress={() => setExpandedSalonId(expanded ? null : salon.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Discussion from ${formatSalonDate(salon.startedAt)}`}
+                      >
+                        <Text style={styles.archiveDate}>{formatSalonDate(salon.startedAt)}</Text>
+                        <Text style={styles.archivePreview} numberOfLines={1}>
+                          {salon.insight ?? salon.pairs[0]?.question ?? 'A quiet session.'}
+                        </Text>
+                        <Ionicons
+                          name={expanded ? 'chevron-up' : 'chevron-down'}
+                          size={14}
+                          color={colors.muted}
+                        />
+                      </Pressable>
+                      {expanded ? (
+                        <View style={styles.archiveBody}>
+                          {salon.pairs.map((pair, index) => (
+                            <View key={`${salon.id}-${index}`} style={styles.archivePair}>
+                              {pair.question ? (
+                                <Text style={styles.archiveQuestion}>{pair.question}</Text>
+                              ) : null}
+                              {pair.answer ? (
+                                <Text style={styles.archiveAnswer}>{pair.answer}</Text>
+                              ) : null}
+                            </View>
+                          ))}
+                          {salon.insight ? (
+                            <View style={styles.takeawayBlock}>
+                              <Text style={styles.takeawayText}>{salon.insight}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          ) : phase === 'primer' ? (
             <View style={styles.paperCard}>
               <Text style={styles.cardLabel}>Where you stand</Text>
               {primerQuery.isPending ? (
@@ -447,12 +639,36 @@ function SocraticDeck({ bookId }: { bookId: number }) {
               ) : null}
             </View>
           ) : phase === 'deck' && card ? (
-            <View style={styles.paperCard}>
-              <Text style={styles.cardLabel}>The companion asks</Text>
-              <Text style={styles.questionText}>{card.question}</Text>
+            <View style={styles.deckStack}>
+              {answers.length > 1 ? (
+                <View style={[styles.stackLayer, styles.stackLayerDeep]} />
+              ) : null}
+              {answers.length > 0 ? (
+                <View style={[styles.stackLayer, styles.stackLayerNear]} />
+              ) : null}
+              <View style={styles.paperCard}>
+                <View style={styles.cardLabelRow}>
+                  <Text style={styles.cardLabel}>The companion asks</Text>
+                  <Text style={styles.cardCount}>Card {answers.length + 1}</Text>
+                </View>
+                <Text style={styles.questionText}>{card.question}</Text>
+              </View>
             </View>
           ) : phase === 'closing' ? (
             <View style={styles.paperCard}>
+              {insightMutation.isPending ? (
+                <View style={styles.cardLoadingRow}>
+                  <ActivityIndicator size="small" color={colors.muted} />
+                  <Text style={styles.cardLoadingText}>Distilling your session…</Text>
+                </View>
+              ) : takeaway ? (
+                <>
+                  <Text style={styles.cardLabel}>The takeaway</Text>
+                  <View style={styles.takeawayBlock}>
+                    <Text style={styles.takeawayText}>{takeaway}</Text>
+                  </View>
+                </>
+              ) : null}
               <Text style={styles.cardLabel}>Your thinking, this session</Text>
               {answers.length > 0 ? (
                 <View style={styles.primerList}>
@@ -589,6 +805,20 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                 </View>
               ) : null}
 
+              {answers.length >= WRAP_UP_NUDGE_AFTER ? (
+                <View style={styles.nudgeRow}>
+                  <Text style={styles.nudgeText}>A natural stopping point, if you want one.</Text>
+                  <Pressable
+                    style={styles.nudgeButton}
+                    onPress={handleEndSession}
+                    accessibilityRole="button"
+                    accessibilityLabel="Wrap up this session"
+                  >
+                    <Text style={styles.nudgeButtonText}>Wrap up</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
               <Pressable
                 style={styles.ghostButton}
                 onPress={handleEndSession}
@@ -695,6 +925,119 @@ const styles = StyleSheet.create({
   deckContent: { paddingHorizontal: 16, paddingTop: 18, gap: 14 },
   slideStage: { width: '100%' },
 
+  // Answered cards collect behind the active one (D-058): paper on paper.
+  deckStack: { width: '100%' },
+  stackLayer: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    top: 8,
+    bottom: -5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  stackLayerNear: { transform: [{ rotate: '-1.2deg' }] },
+  stackLayerDeep: { transform: [{ rotate: '1.4deg' }], top: 12, bottom: -9, opacity: 0.7 },
+
+  // The orientation hub (D-058): last takeaway, two forks, and the archive.
+  hubStack: { gap: 14 },
+  takeawayBlock: {
+    borderLeftWidth: 3,
+    borderLeftColor: gold.base,
+    backgroundColor: gold.glowSoft,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  takeawayText: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 14.5,
+    lineHeight: 21,
+    fontStyle: 'italic',
+  },
+  plainButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 10,
+    ...buttonShadow,
+  },
+  plainButtonText: { fontFamily: fonts.serif, color: colors.text, fontSize: 14, fontWeight: '700' },
+
+  archiveSection: { gap: 8, marginTop: 2 },
+  archiveHeading: {
+    fontFamily: fonts.serif,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: 2,
+  },
+  archiveCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...cardShadow,
+  },
+  archiveHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  archiveDate: { fontFamily: fonts.serif, fontSize: 12.5, fontWeight: '700', color: gold.deep },
+  archivePreview: { fontFamily: fonts.serif, flex: 1, fontSize: 13, color: colors.muted },
+  archiveBody: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  archivePair: { gap: 4 },
+  archiveQuestion: {
+    fontFamily: fonts.serif,
+    fontSize: 13.5,
+    color: colors.muted,
+    fontStyle: 'italic',
+    lineHeight: 19,
+  },
+  archiveAnswer: { fontFamily: fonts.serif, fontSize: 14, color: colors.text, lineHeight: 20 },
+
+  // The wrap-up nudge (D-058): offered after a few turns, never forced.
+  nudgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: gold.glowSoft,
+    borderWidth: 1,
+    borderColor: gold.base,
+  },
+  nudgeText: { fontFamily: fonts.serif, flex: 1, fontSize: 13, color: colors.text, fontStyle: 'italic' },
+  nudgeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: gold.fill,
+    borderWidth: 1,
+    borderColor: gold.deep,
+  },
+  nudgeButtonText: { fontFamily: fonts.serif, color: gold.onFill, fontSize: 12.5, fontWeight: '700' },
+
   // The deck's cards: paper inserts resting on the desk (D-054).
   paperCard: {
     backgroundColor: colors.card,
@@ -712,6 +1055,15 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+  },
+  cardLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  // The in-deck breadcrumb (D-058): a quiet count instead of a scroll trail.
+  cardCount: {
+    fontFamily: fonts.serif,
+    fontSize: 12,
+    fontWeight: '700',
+    color: gold.deep,
+    letterSpacing: 0.4,
   },
   cardBody: { fontFamily: fonts.serif, color: colors.text, fontSize: 14.5, lineHeight: 21 },
   cardLoadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
