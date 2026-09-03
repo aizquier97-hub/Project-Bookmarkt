@@ -55,6 +55,10 @@ const WRAP_UP_NUDGE_AFTER = 3;
 interface DeckCard {
   question: string;
   stems: string[];
+  /** Convergence arc (D-059): the one-sentence validation above the question. */
+  mirror: string | null;
+  /** True when this is the synthesis card - the arc's gold "insight unlocked" close. */
+  isConvergence: boolean;
 }
 
 export default function CompanionScreen() {
@@ -159,6 +163,10 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   // The reader's own submitted answers this session (D-012: only these can
   // be saved to the journal - never the companion's questions).
   const [answers, setAnswers] = useState<string[]>([]);
+  // Convergence arc (D-059): answers within the current mini-arc (resets on
+  // "Push further") and the synthesis card's takeaway awaiting save.
+  const [arcAnswers, setArcAnswers] = useState(0);
+  const [pendingInsight, setPendingInsight] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -292,13 +300,15 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   });
 
   const sendMutation = useMutation({
-    mutationFn: (message: string) => sendCompanionMessage(bookId, message, salonId ?? undefined),
+    mutationFn: (input: { message: string; turn: number }) =>
+      sendCompanionMessage(bookId, input.message, salonId ?? undefined, input.turn),
     onMutate: () => {
       setSendError(null);
       setQuotaNotice(null);
     },
-    onSuccess: (result, message) => {
-      setAnswers((prev) => [...prev, message]);
+    onSuccess: (result, input) => {
+      setAnswers((prev) => [...prev, input.message]);
+      setArcAnswers((prev) => prev + 1);
       setDraft('');
       setComposerOpen(false);
       if (result.boundaryLabel) {
@@ -306,11 +316,25 @@ function SocraticDeck({ bookId }: { bookId: number }) {
       }
       trackAnalyticsEvent('companion_message_sent', { status: 'succeeded' }, bookId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.companionMessages(bookId) });
-      const mirror =
+      const question =
+        result.probe ||
         result.reply.content ||
         result.messages.filter((m) => m.role === 'companion').at(-1)?.content ||
         FALLBACK_QUESTION;
-      advance(() => setCard({ question: mirror, stems: result.stems }));
+      // The synthesis card (D-059): no chips, no probe - a fork instead.
+      const isConvergence =
+        result.isConvergence && Boolean(result.mirror || result.probe || result.insight);
+      if (isConvergence) {
+        setPendingInsight(result.insight || result.reply.content || null);
+      }
+      advance(() =>
+        setCard({
+          question,
+          stems: isConvergence ? [] : result.stems,
+          mirror: result.mirror || null,
+          isConvergence,
+        }),
+      );
     },
     onError: (err) => {
       if (err instanceof CompanionRequestError) {
@@ -360,11 +384,13 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   // Closing a salon (D-058): distill the reader's answers into a takeaway,
   // stored on the salon so the hub can re-orient them next visit.
   const insightMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (insightText?: string) => {
       if (!salonId) {
         throw new Error('No active salon.');
       }
-      return requestSalonInsight(bookId, salonId);
+      // With a crystallized synthesis (D-059) the takeaway saves verbatim;
+      // otherwise the companion distills the session's answers (D-058).
+      return requestSalonInsight(bookId, salonId, insightText);
     },
     onSuccess: (result) => {
       setTakeaway(result.reply.content || null);
@@ -386,6 +412,8 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     const newSalonId = Crypto.randomUUID();
     setSalonId(newSalonId);
     setAnswers([]);
+    setArcAnswers(0);
+    setPendingInsight(null);
     setTakeaway(null);
     setSaved(false);
     const first = observations[0];
@@ -396,8 +424,8 @@ function SocraticDeck({ bookId }: { bookId: number }) {
       setPhase('deck');
       setCard(
         first
-          ? { question: first.prompt, stems: first.stems }
-          : { question: FALLBACK_QUESTION, stems: [] },
+          ? { question: first.prompt, stems: first.stems, mirror: null, isConvergence: false }
+          : { question: FALLBACK_QUESTION, stems: [], mirror: null, isConvergence: false },
       );
     });
   };
@@ -412,11 +440,15 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     setSendError(null);
     setSalonId(latestSalon.id);
     setAnswers([]);
+    // A resumed probe stands in for the wedge (D-059): one answer away from
+    // the synthesis, so returning readers still converge quickly.
+    setArcAnswers(1);
+    setPendingInsight(null);
     setTakeaway(null);
     setSaved(false);
     advance(() => {
       setPhase('deck');
-      setCard({ question: probe, stems: [] });
+      setCard({ question: probe, stems: [], mirror: null, isConvergence: false });
     });
   };
 
@@ -430,9 +462,33 @@ function SocraticDeck({ bookId }: { bookId: number }) {
       return;
     }
     if (salonId && answers.length > 0) {
-      insightMutation.mutate();
+      insightMutation.mutate(pendingInsight ?? undefined);
     }
     advance(() => setPhase('closing'));
+  };
+
+  // The convergence fork (D-059): file the crystallized insight verbatim and
+  // close, or push one more bounded probe-and-converge loop.
+  const handleSaveInsightFinish = () => {
+    if (sendMutation.isPending) {
+      return;
+    }
+    if (salonId && (pendingInsight || answers.length > 0)) {
+      insightMutation.mutate(pendingInsight ?? undefined);
+    }
+    advance(() => setPhase('closing'));
+  };
+
+  const handlePushFurther = () => {
+    if (!card) {
+      return;
+    }
+    // A fresh mini-arc: the reader reacts to the synthesis, the companion
+    // wedges once more, then converges again - 1-2 extra cards, never a drift.
+    setArcAnswers(0);
+    setPendingInsight(null);
+    setCard({ ...card, isConvergence: false, stems: [] });
+    setComposerOpen(true);
   };
 
   const canSend = draft.trim().length > 0 && !sendMutation.isPending;
@@ -441,7 +497,8 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     if (!message || sendMutation.isPending) {
       return;
     }
-    sendMutation.mutate(message);
+    // Arc position (D-059): the first answer draws the wedge, the second the synthesis.
+    sendMutation.mutate({ message, turn: Math.min(arcAnswers + 2, 3) });
   };
 
   const bookName = bookQuery.data?.name ?? null;
@@ -646,12 +703,22 @@ function SocraticDeck({ bookId }: { bookId: number }) {
               {answers.length > 0 ? (
                 <View style={[styles.stackLayer, styles.stackLayerNear]} />
               ) : null}
-              <View style={styles.paperCard}>
+              <View style={[styles.paperCard, card.isConvergence && styles.convergenceCard]}>
                 <View style={styles.cardLabelRow}>
-                  <Text style={styles.cardLabel}>The companion asks</Text>
+                  <Text style={[styles.cardLabel, card.isConvergence && styles.convergenceLabel]}>
+                    {card.isConvergence ? 'Insight unlocked' : 'The companion asks'}
+                  </Text>
                   <Text style={styles.cardCount}>Card {answers.length + 1}</Text>
                 </View>
-                <Text style={styles.questionText}>{card.question}</Text>
+                {card.mirror && !card.isConvergence ? (
+                  <Text style={styles.mirrorText}>{card.mirror}</Text>
+                ) : null}
+                <Text style={styles.questionText}>
+                  {card.isConvergence && card.mirror ? card.mirror : card.question}
+                </Text>
+                {card.isConvergence && card.mirror && card.question !== card.mirror ? (
+                  <Text style={styles.affirmationText}>{card.question}</Text>
+                ) : null}
               </View>
             </View>
           ) : phase === 'closing' ? (
@@ -725,6 +792,27 @@ function SocraticDeck({ bookId }: { bookId: number }) {
             <View style={styles.thinkingRow}>
               <ActivityIndicator size="small" color={colors.muted} />
               <Text style={styles.thinkingText}>Consulting your notes…</Text>
+            </View>
+          ) : card?.isConvergence ? (
+            // The fork (D-059): the arc has landed - save it, or dig once more.
+            <View style={styles.answerArea}>
+              <Pressable
+                style={styles.goldButton}
+                onPress={handleSaveInsightFinish}
+                accessibilityRole="button"
+                accessibilityLabel="Save this insight and finish the session"
+              >
+                <Ionicons name="bookmark" size={15} color={gold.onFill} />
+                <Text style={styles.goldButtonText}>Save insight &amp; finish</Text>
+              </Pressable>
+              <Pressable
+                style={styles.ghostButton}
+                onPress={handlePushFurther}
+                accessibilityRole="button"
+                accessibilityLabel="Keep exploring this thought"
+              >
+                <Text style={styles.ghostButtonText}>Push further</Text>
+              </Pressable>
             </View>
           ) : (
             <View style={styles.answerArea}>
@@ -851,7 +939,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
         ) : null}
       </ScrollView>
 
-      {phase === 'deck' && !sendMutation.isPending && (composerOpen || draft.length > 0) ? (
+      {phase === 'deck' && !sendMutation.isPending && !card?.isConvergence && (composerOpen || draft.length > 0) ? (
         // Anchored below the scroll area (D-054 pattern) so Android's
         // window-resize keeps it visible right above the keyboard.
         <View style={[styles.composerBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -1074,6 +1162,28 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   questionText: { fontFamily: fonts.serif, color: colors.text, fontSize: 17, lineHeight: 25 },
+  // The wedge card's one-sentence validation (D-059), quiet above the probe.
+  mirrorText: {
+    fontFamily: fonts.serif,
+    fontStyle: 'italic',
+    color: colors.muted,
+    fontSize: 14.5,
+    lineHeight: 21,
+  },
+  // The synthesis card's second line: how the realization reframes the book.
+  affirmationText: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  // The gold-tinted archival treatment for the convergence card (D-059).
+  convergenceCard: {
+    backgroundColor: gold.glowSoft,
+    borderColor: gold.base,
+    borderWidth: 1.5,
+  },
+  convergenceLabel: { color: gold.deep },
 
   primerList: { gap: 8 },
   primerLineRow: { flexDirection: 'row', gap: 8 },

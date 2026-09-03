@@ -153,7 +153,19 @@ Build order within the phase:
        longer reach the primer card raw - truncated documents are repaired
        or the request fails cleanly to a retry.
        *Done 2026-09-05 (D-058).*
-9. **Backburner** - pattern recognition (embeddings + clustering) stays
+9. [x] **3-turn convergence arc (owner brief, D-059)**: each salon runs a
+       bounded three-card arc that lands on an explicit realization - the
+       opening tension, a **wedge** card (one-sentence mirror + one sharp
+       counter-question, 3 conceptual chips, under 45 words), and a
+       gold-tinted **"Insight unlocked"** synthesis card crystallizing the
+       reader's own answers. The synthesis forks: "Save insight & finish"
+       persists the crystallized takeaway verbatim (no second model call);
+       "Push further" deals 1-2 more cards before converging again. The
+       dialogue contract returns split `mirror`/`probe` fields plus
+       `is_convergence` and `insight`; clients not sending a turn keep the
+       old open-ended contract.
+       *Done 2026-09-05 (D-059).*
+10. **Backburner** - pattern recognition (embeddings + clustering) stays
        sequenced after closed-beta buy-in (D-039); not MVP scope.
 
 ## Phase 3 - Billing (requires a new EAS build, not OTA)

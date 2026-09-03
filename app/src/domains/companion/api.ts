@@ -88,6 +88,14 @@ export interface CompanionSendResult {
   stems: string[];
   /** Present only for observations: grounded conversation openers (D-056). */
   observations: CompanionObservation[];
+  /** Convergence arc (D-059), dialogue only: the one-sentence validation. */
+  mirror: string;
+  /** Convergence arc (D-059), dialogue only: the wedge question or affirmation. */
+  probe: string;
+  /** Convergence arc (D-059): true when this reply is the synthesis card. */
+  isConvergence: boolean;
+  /** Convergence arc (D-059): the stand-alone takeaway sentence, synthesis only. */
+  insight: string;
 }
 
 /** A denial or failure from the companion service, typed for the UI. */
@@ -204,6 +212,10 @@ interface RawSendResponse {
   summaries?: unknown;
   stems?: unknown;
   observations?: unknown;
+  mirror?: unknown;
+  probe?: unknown;
+  isConvergence?: unknown;
+  insight?: unknown;
 }
 
 function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
@@ -267,6 +279,10 @@ function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
       })
       .filter((item) => item.prompt.length > 0)
       .slice(0, 3),
+    mirror: typeof data.mirror === 'string' ? data.mirror.trim() : '',
+    probe: typeof data.probe === 'string' ? data.probe.trim() : '',
+    isConvergence: data.isConvergence === true,
+    insight: typeof data.insight === 'string' ? data.insight.trim() : '',
   };
 }
 
@@ -290,6 +306,8 @@ async function invokeCompanion(body: {
   rangeStart?: string;
   rangeEnd?: string;
   salonId?: string;
+  turn?: number;
+  insightText?: string;
 }): Promise<CompanionSendResult> {
   const { data, error } = await supabase.functions.invoke('companion', { body });
   if (error) {
@@ -319,8 +337,9 @@ export function sendCompanionMessage(
   bookId: number,
   message: string,
   salonId?: string,
+  turn?: number,
 ): Promise<CompanionSendResult> {
-  return invokeCompanion({ feature: 'dialogue', bookId, message: message.trim(), salonId });
+  return invokeCompanion({ feature: 'dialogue', bookId, message: message.trim(), salonId, turn });
 }
 
 export function requestCompanionRecap(
@@ -418,10 +437,21 @@ export function openObservation(
 
 /**
  * Close a salon (D-058): distill the reader's answers in one session into a
- * short takeaway, persisted as the salon's 'insight' row.
+ * short takeaway, persisted as the salon's 'insight' row. When the synthesis
+ * card already crystallized the takeaway (D-059), pass it as insightText so
+ * it is saved verbatim without a second model call.
  */
-export function requestSalonInsight(bookId: number, salonId: string): Promise<CompanionSendResult> {
-  return invokeCompanion({ feature: 'insight', bookId, salonId });
+export function requestSalonInsight(
+  bookId: number,
+  salonId: string,
+  insightText?: string,
+): Promise<CompanionSendResult> {
+  return invokeCompanion({
+    feature: 'insight',
+    bookId,
+    salonId,
+    ...(insightText && insightText.trim() ? { insightText: insightText.trim() } : {}),
+  });
 }
 
 const MESSAGE_PAGE_SIZE = 200;
