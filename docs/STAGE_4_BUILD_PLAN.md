@@ -132,7 +132,15 @@ Build order within the phase:
        feature allowlists that had silently pinned the quota RPC to the
        original nine feature names.
        *Done 2026-09-04 (D-056).*
-7. **Backburner** - pattern recognition (embeddings + clustering) stays
+7. [x] **Socratic card deck (owner brief, D-057)**: the chat transcript and
+       date-picker snapshot are gone - the Book Club opens on a primer card
+       (at most 3 bullets from the last few notes), "Start discussion" deals
+       the strongest observation as the first question card, answers come by
+       stem chips / dictation / typing, each mirror (under 50 words) slides
+       in as the next card, and "End session" can save the reader's own
+       answers to the journal (D-012).
+       *Done 2026-09-04 (D-057).*
+8. **Backburner** - pattern recognition (embeddings + clustering) stays
        sequenced after closed-beta buy-in (D-039); not MVP scope.
 
 ## Phase 3 - Billing (requires a new EAS build, not OTA)

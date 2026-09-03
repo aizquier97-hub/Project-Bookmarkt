@@ -41,9 +41,11 @@ export interface CompanionSearchResult {
   similarity: number;
 }
 
-/** An observation card: a grounded conversation opener (D-056). */
+/** An observation card: a grounded conversation opener (D-056/D-057). */
 export interface CompanionObservation {
   prompt: string;
+  /** 2-3 short perspective fragments the reader can open an answer with. */
+  stems: string[];
 }
 
 export interface CompanionQuota {
@@ -250,8 +252,14 @@ function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
       .slice(0, 3),
     observations: (Array.isArray(data.observations) ? data.observations : [])
       .map((raw) => {
-        const item = (raw ?? {}) as { prompt?: unknown };
-        return { prompt: String(item.prompt ?? '').trim() };
+        const item = (raw ?? {}) as { prompt?: unknown; stems?: unknown };
+        return {
+          prompt: String(item.prompt ?? '').trim(),
+          stems: (Array.isArray(item.stems) ? item.stems : [])
+            .map((s) => String(s ?? '').trim())
+            .filter((s) => s.length > 0)
+            .slice(0, 3),
+        };
       })
       .filter((item) => item.prompt.length > 0)
       .slice(0, 3),
@@ -326,16 +334,11 @@ export function requestRangedRecap(
 }
 
 /**
- * Club snapshot (D-055): a smooth summary of everything logged between two
- * calendar dates (ISO timestamps, inclusive), for reading before book club.
- * The result persists into the Book Club conversation.
+ * The Book Club primer (D-057): a max-3-bullet orientation drawn from the
+ * reader's last few notes. Transient - regenerated per visit, never saved.
  */
-export function requestClubSnapshot(
-  bookId: number,
-  rangeStart: string,
-  rangeEnd: string,
-): Promise<CompanionSendResult> {
-  return invokeCompanion({ feature: 'club_prep', bookId, rangeStart, rangeEnd });
+export function requestClubPrimer(bookId: number): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'club_prep', bookId });
 }
 
 /** The cue-card deck for a book, grounded only in the reader's own records. */

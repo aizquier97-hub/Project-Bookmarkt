@@ -49,15 +49,17 @@ updates.
 
 Stage 4 (Monetization and accounts) is active. The AI Reading Companion is
 built and live for entitled accounts, presented per the owner's Interface
-v2.0 brief: a **Book Club** home tab (book-scoped chat with date-ranged club
-snapshots), a **Cue Cards** home tab (flip-card decks), bookmark-ribbon entry
-timelines with one-line AI summaries, and a gold bookmark that retells any
-chosen stretch of entries at a chosen detail - all server-gated (entitlement
-+ daily quotas) and grounded only in the reader's own entries (see
-[docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). The Book Club acts
-as a Socratic facilitator (D-056): observation cards drawn from the reader's
-own notes open the conversation, replies follow a validate-then-probe mirror
-contract with tappable answer stems, and the chat composer takes dictation.
+v2.0 brief: a **Book Club** home tab, a **Cue Cards** home tab (flip-card
+decks), bookmark-ribbon entry timelines with one-line AI summaries, and a
+gold bookmark that retells any chosen stretch of entries at a chosen detail -
+all server-gated (entitlement + daily quotas) and grounded only in the
+reader's own entries (see
+[docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). The Book Club is a
+Socratic card deck (D-057): a primer card orients the reader in at most three
+bullets, then one question card at a time - answered by perspective-stem
+chips, dictation, or typing - with each companion mirror (validate, then
+probe, under 50 words) dealt as the next card, and "End session" can save the
+reader's own answers to the journal.
 Quiz Me and the word bank are built but hidden, on hold per the owner; the
 capture structuring aid, suggested important flags, and search by meaning
 remain live. Account self-service foundations are in place: change password,

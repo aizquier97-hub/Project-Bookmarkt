@@ -53,10 +53,11 @@ const FEATURES: Feature[] = [
 
 /**
  * Tools that persist their result as a companion message (revisitable).
- * cue_cards left this list in Interface v2.0 (D-055): the deck renders in
- * its own flip-card screen instead of the conversation.
+ * cue_cards left this list in Interface v2.0 (D-055); club_prep left it in
+ * the Socratic deck redesign (D-057): the primer is transient, regenerated
+ * on each Book Club visit.
  */
-const PERSISTED_TOOL_FEATURES: Feature[] = ["quiz", "club_prep", "word_bank"];
+const PERSISTED_TOOL_FEATURES: Feature[] = ["quiz", "word_bank"];
 
 type RequestBody = {
   feature?: Feature;
@@ -222,7 +223,7 @@ function buildSystemPrompt(params: {
           "THE SOCRATIC MIRROR (your strict conversational contract, D-056):",
           "- You are a mirror, not a lecturer. You never generate unearned insights, never summarize plot the reader has not logged, and never explain the book at them.",
           "- Shape every reply as: VALIDATE in one sentence (mirror what the reader just said, using their own premises and words), then PROBE in one sentence (one open-ended question that pushes their thought further, grounded in their notes).",
-          "- At most one extra sentence when strictly needed (e.g. a boundary decline). Never answer your own question.",
+          "- The ENTIRE reply stays under 50 words. Never answer your own question; a boundary decline may replace the probe.",
           "- With each reply, offer 2-3 short answer stems the reader could start their response with: first-person or claim fragments of 3-6 words in the reader's register (e.g. \"They were afraid\", \"It was strategic\"). Never full sentences, never questions.",
           "",
           'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean, "stems": [string]}.',
@@ -298,11 +299,12 @@ function buildToolPrompt(
           REPLY_JSON_RULE,
         ].join("\n");
       }
+      // Socratic deck primer (D-057): re-orient the reader in seconds.
       return [
-        `The reader is preparing for a book-club discussion using their ${opts.entryCount} notes above.`,
-        "Prepare: (1) 4-5 discussion questions the reader could bring, each traceable to something in their notes; (2) 2-3 short talking points in the reader's own observations, phrased for them to voice.",
-        "Use headed sections 'Questions to bring' and 'Your talking points'. Nothing past the boundary; never invent events.",
-        REPLY_JSON_RULE,
+        `The reader has just opened the Book Club and needs to be re-oriented in seconds. Their ${opts.entryCount} most recent notes are above.`,
+        "Write a primer of AT MOST 3 short bullet lines (each one sentence, prefixed '- ') capturing where they stand: what just happened, who is involved, what they were last thinking - their own events and names only.",
+        "No preamble, no closing line, no headings, no questions. Never invent; never go past the boundary.",
+        'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false}.',
       ].join("\n");
     case "word_bank": {
       const level =
@@ -339,9 +341,10 @@ function buildToolPrompt(
         `The reader has opened the Book Club and said nothing yet. From their ${opts.entryCount} notes and character map above, prepare 1-3 observation cards: specific, grounded conversation openers that spare them a blank page.`,
         "Each card is ONE open-ended question (at most 35 words) rooted in something concrete the reader actually wrote - a contradiction between two of their notes, a pattern or repeated theme across notes, or a shift in how they describe a character.",
         "Point at their own material (\"You noted...\", \"You've mentioned... twice\") - never at plot they did not log, never past the boundary, never generic book-club filler.",
+        "Each card also carries stems: 2-3 short perspective fragments (3-6 words each, e.g. \"She acts from pride\") the reader could open their answer with - plain claims in the reader's register, never questions.",
         "If the notes are too thin for a grounded question, return fewer cards rather than inventing.",
         "reply is one short deadpan line (it is not shown prominently).",
-        'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "observations": [{"prompt": string}]}.',
+        'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "observations": [{"prompt": string, "stems": [string]}]}.',
       ].join("\n");
     default:
       return REPLY_JSON_RULE;
@@ -439,7 +442,7 @@ function parseCompanionJson(raw: string): {
   suggestions: { entryId: number; reason: string }[];
   cards: { front: string; back: string }[];
   stems: string[];
-  observations: { prompt: string }[];
+  observations: { prompt: string; stems: string[] }[];
 } {
   try {
     const parsed = JSON.parse(raw);
@@ -474,7 +477,15 @@ function parseCompanionJson(raw: string): {
         : [];
       const observations = Array.isArray(parsed?.observations)
         ? parsed.observations
-            .map((o: any) => ({ prompt: String(o?.prompt ?? "").trim().slice(0, 400) }))
+            .map((o: any) => ({
+              prompt: String(o?.prompt ?? "").trim().slice(0, 400),
+              stems: Array.isArray(o?.stems)
+                ? o.stems
+                    .map((s: any) => String(s ?? "").trim().slice(0, 60))
+                    .filter((s: string) => s.length > 0)
+                    .slice(0, 3)
+                : [],
+            }))
             .filter((o: { prompt: string }) => o.prompt.length > 0)
             .slice(0, 3)
         : [];
@@ -633,7 +644,7 @@ serve(async (req) => {
       recap: { env: "COMPANION_RECAP_DAILY_LIMIT", fallback: 10, max: 200 },
       cue_cards: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
       quiz: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
-      club_prep: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
+      club_prep: { env: "COMPANION_PRIMER_DAILY_LIMIT", fallback: 30, max: 500 },
       word_bank: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
       structure_aid: { env: "COMPANION_STRUCTURE_AID_DAILY_LIMIT", fallback: 20, max: 500 },
       suggest_flags: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
@@ -1097,6 +1108,10 @@ serve(async (req) => {
       }
       contextRows = windowRows ?? [];
       rangeLabel = `between ${rangeStart!.slice(0, 10)} and ${rangeEnd!.slice(0, 10)}`;
+    } else if (feature === "club_prep") {
+      // Socratic deck primer (D-057): orient from the last few notes only,
+      // so the summary stays a glance, never a wall of text.
+      contextRows = oldestFirst.slice(-5);
     }
     if ((hasEntryRange || hasDateRange) && contextRows.length === 0) {
       await finalize("succeeded", 200, { grounding_entries: 0, grounding_characters: 0 });
