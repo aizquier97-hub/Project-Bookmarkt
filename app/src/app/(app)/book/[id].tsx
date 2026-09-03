@@ -11,8 +11,6 @@ import {
   Alert,
   FlatList,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -20,6 +18,7 @@ import {
   View,
 } from 'react-native';
 
+import { KeyboardPane } from '@/components/KeyboardPane';
 import {
   addCharacter,
   deleteCharacter,
@@ -216,10 +215,7 @@ export default function BookScreen() {
         : characterMode === null;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardPane style={styles.flex}>
       <View style={[styles.container, { paddingBottom: Math.max(16, insets.bottom + 8) }]}>
         {/* Edit lives in the nav bar (platform convention); the status
             control below follows Goodreads/StoryGraph/Bookly: one prominent
@@ -422,7 +418,7 @@ export default function BookScreen() {
           </View>
         ) : null}
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardPane>
   );
 }
 

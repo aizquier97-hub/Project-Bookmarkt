@@ -4,8 +4,6 @@ import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +21,7 @@ import {
 import { deleteBook, getBook, updateBook, type Book } from '@/domains/library/service';
 import { CoverPicker } from '@/components/CoverPicker';
 import { ErrorState, LoadingState } from '@/components/states';
+import { KeyboardPane } from '@/components/KeyboardPane';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
@@ -167,10 +166,7 @@ function EditBookForm({ book }: { book: Book }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardPane style={styles.flex}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
@@ -233,7 +229,7 @@ function EditBookForm({ book }: { book: Book }) {
 
         <View style={styles.footerSpace} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardPane>
   );
 }
 

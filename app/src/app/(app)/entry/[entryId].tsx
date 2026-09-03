@@ -5,8 +5,6 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +24,7 @@ import {
 } from '@/domains/entries/mentions';
 import { deleteEntry, listEntries, updateEntry } from '@/domains/entries/service';
 import { ErrorState, LoadingState } from '@/components/states';
+import { KeyboardPane } from '@/components/KeyboardPane';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
@@ -181,10 +180,7 @@ export default function EntryDetailScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardPane style={styles.flex}>
       {screenTitle}
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.paper}>
@@ -314,7 +310,7 @@ export default function EntryDetailScreen() {
           )}
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardPane>
   );
 }
 

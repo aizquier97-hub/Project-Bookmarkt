@@ -6,8 +6,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +14,7 @@ import {
   View,
 } from 'react-native';
 
+import { KeyboardPane } from '@/components/KeyboardPane';
 import {
   lookupBookSearchByIsbn,
   lookupPagesForTitle,
@@ -339,10 +338,7 @@ export default function AddBookScreen() {
     trimmedQuery.length >= MIN_QUERY_LENGTH && !searching && !results.length && !searchError;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardPane style={styles.flex}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
@@ -515,7 +511,7 @@ export default function AddBookScreen() {
         onScanned={handleScanned}
         onClose={() => setScannerOpen(false)}
       />
-    </KeyboardAvoidingView>
+    </KeyboardPane>
   );
 }
 

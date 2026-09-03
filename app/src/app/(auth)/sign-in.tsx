@@ -2,8 +2,6 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +11,7 @@ import {
 
 import { signIn } from '@/domains/auth/service';
 import { friendlyAuthMessage } from '@/domains/auth/policy';
+import { KeyboardPane } from '@/components/KeyboardPane';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 export default function SignInScreen() {
@@ -38,10 +37,7 @@ export default function SignInScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardPane style={styles.container}>
       <View style={styles.form}>
         <Text style={styles.title}>Bookmarkt</Text>
         <Text style={styles.subtitle}>Your reading, in your own words.</Text>
@@ -83,7 +79,7 @@ export default function SignInScreen() {
           Forgot your password?
         </Link>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardPane>
   );
 }
 

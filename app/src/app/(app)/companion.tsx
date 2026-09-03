@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -19,6 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ErrorState, LoadingState } from '@/components/states';
+import { KeyboardPane } from '@/components/KeyboardPane';
 import {
   CompanionRequestError,
   fetchCompanionMessages,
@@ -522,11 +522,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
-    >
+    <KeyboardPane style={styles.flex} keyboardVerticalOffset={88}>
       <Stack.Screen options={{ title: 'Book Club' }} />
       {bookName ? (
         <View style={styles.contextBar}>
@@ -964,7 +960,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
           </Pressable>
         </View>
       ) : null}
-    </KeyboardAvoidingView>
+    </KeyboardPane>
   );
 }
 

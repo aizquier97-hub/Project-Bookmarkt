@@ -3,7 +3,6 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import {
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -21,6 +20,7 @@ import {
   type IssueReport,
 } from '@/domains/reporting/service';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { KeyboardPane } from '@/components/KeyboardPane';
 import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
@@ -60,10 +60,7 @@ export default function ReportIssueScreen() {
   });
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardPane style={styles.container}>
       <Stack.Screen options={{ title: 'Report an issue' }} />
 
       <View style={styles.formCard}>
@@ -136,7 +133,7 @@ export default function ReportIssueScreen() {
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 24 }]}
         />
       )}
-    </KeyboardAvoidingView>
+    </KeyboardPane>
   );
 }
 
