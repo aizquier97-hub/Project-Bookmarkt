@@ -59,12 +59,14 @@ Socratic card deck held in **session salons** (D-057, D-058): a returning
 reader lands on an orientation hub - last session's takeaway card, "Continue
 discussion" or "Start a new discussion", and an archive of past sessions as
 question-and-answer index cards. A fresh discussion opens on a primer card (at
-most three bullets), then one question card at a time - answered by
-perspective-stem chips, dictation, or typing - with each companion mirror
-(validate, then probe, under 50 words) dealt as the next card while answered
-cards stack behind it. "End session" (offered gently after three answers,
-never forced) distills the reader's answers into a takeaway card and can save
-their own words to the journal.
+most three bullets), then runs a bounded **3-turn convergence arc** (D-059):
+the opening tension card, a wedge card (one-sentence mirror, one sharp
+counter-question, 3 conceptual chips - answered by chips, dictation, or
+typing), and a gold "Insight unlocked" synthesis card that crystallizes the
+reader's own answers into a single realization. The synthesis forks: "Save
+insight & finish" files the takeaway on the salon, "Push further" deals 1-2
+more cards. Answered cards stack behind the active one; "End session" stays
+available mid-arc and the reader can save their own words to the journal.
 Quiz Me and the word bank are built but hidden, on hold per the owner; the
 capture structuring aid, suggested important flags, and search by meaning
 remain live. Account self-service foundations are in place: change password,

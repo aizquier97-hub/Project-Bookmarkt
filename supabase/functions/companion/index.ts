@@ -75,6 +75,10 @@ type RequestBody = {
   rangeEnd?: string;
   /** Session salon (D-058): scopes dialogue/observation/insight to one bounded discussion. */
   salonId?: string;
+  /** Convergence arc (D-059): which card of the 3-turn arc this reply is (2 = wedge, 3 = synthesis). */
+  turn?: number | string;
+  /** Convergence arc (D-059): a takeaway already crystallized on-card; persist it without a model call. */
+  insightText?: string;
 };
 
 const corsHeaders = {
@@ -194,8 +198,10 @@ function buildSystemPrompt(params: {
   entryCount: number;
   /** Dialogue only (D-056): Socratic-mirror contract + perspective stems. */
   socratic?: boolean;
+  /** Convergence arc (D-059): 2 = the wedge card, 3 = the synthesis card. */
+  arcTurn?: 2 | 3 | null;
 }): string {
-  const { bookTitle, author, boundaryLabel, flavor, entriesBlock, charactersBlock, entryCount, socratic } = params;
+  const { bookTitle, author, boundaryLabel, flavor, entriesBlock, charactersBlock, entryCount, socratic, arcTurn } = params;
   const boundaryRule = boundaryLabel
     ? `The reader has read up to ${boundaryLabel} and NOT beyond. You must never reveal, hint at, foreshadow, or ask leading questions about anything in the story after ${boundaryLabel}.`
     : entryCount > 0
@@ -222,8 +228,32 @@ function buildSystemPrompt(params: {
     entriesBlock,
     charactersBlock ? `\nTHE READER'S CHARACTER MAP:\n${charactersBlock}` : "",
     "",
-    ...(socratic
+    ...(socratic && arcTurn === 2
       ? [
+          "THE CONVERGENCE ARC (D-059): this discussion is a bounded three-card arc converging on ONE core insight. This reply is CARD 2 - THE WEDGE.",
+          "- You are a mirror, not a lecturer. You never generate unearned insights, never summarize plot the reader has not logged, and never explain the book at them.",
+          "- Sentence 1, the mirror (max 20 words): validate the reader's answer in their own terms and premises (\"You see X as driven by Y\").",
+          "- Sentence 2, the wedge (max 25 words): pose ONE sharp counter-angle, trade-off, or consequence of their premise, grounded in their notes (\"If that is true, what does that mean for Z?\").",
+          "- The whole reply stays under 45 words: plain words, short clauses, no academic hedging. Never answer your own question. A boundary decline may replace the wedge.",
+          "- Offer exactly 3 perspective chips: DISTINCT interpretive positions of 3-8 words the reader might take. Each chip is a different hypothesis, a complete short claim - never a grammatical sentence starter, never a question.",
+          "",
+          'Respond ONLY with JSON: {"mirror": string, "probe": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean, "stems": [string, string, string], "is_convergence": false, "insight": ""}.',
+          'provenance is "your_notes" when the reply rests on the notes, "general_knowledge" when it rests on outside knowledge, "mixed" when both.',
+        ]
+      : socratic && arcTurn === 3
+        ? [
+            "THE CONVERGENCE ARC (D-059): this discussion is a bounded three-card arc converging on ONE core insight. This reply is CARD 3 - THE CONVERGENCE.",
+            "- You are a mirror, not a lecturer. The realization must be built ONLY from what the reader themselves said this arc - their conclusion, never yours, never new plot facts.",
+            "- Sentence 1, the synthesis (max 20 words): crystallize the reader's answers into the single realization they have been building toward.",
+            "- Sentence 2, the affirmation (max 25 words): state plainly how their realization reframes the book's central tension, using only their notes and answers.",
+            "- The whole reply stays under 45 words. No question this time. Never grade or evaluate - you are naming what they built.",
+            "- insight: ONE concise sentence (max 30 words) capturing the reader's realization, written to stand alone in their archive later.",
+            "",
+            'Respond ONLY with JSON: {"mirror": string, "probe": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean, "stems": [], "is_convergence": true, "insight": string}.',
+            'provenance is "your_notes" when the reply rests on the notes, "general_knowledge" when it rests on outside knowledge, "mixed" when both.',
+          ]
+        : socratic
+          ? [
           "THE SOCRATIC MIRROR (your strict conversational contract, D-056):",
           "- You are a mirror, not a lecturer. You never generate unearned insights, never summarize plot the reader has not logged, and never explain the book at them.",
           "- Shape every reply as: VALIDATE in one sentence (mirror what the reader just said, using their own premises and words), then PROBE in one sentence (one open-ended question that pushes their thought further, grounded in their notes).",
@@ -233,10 +263,10 @@ function buildSystemPrompt(params: {
           'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean, "stems": [string]}.',
           'provenance is "your_notes" when the reply rests on the notes, "general_knowledge" when it rests on outside knowledge, "mixed" when both.',
         ]
-      : [
-          'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean}.',
-          'provenance is "your_notes" when the reply rests on the notes, "general_knowledge" when it rests on outside knowledge, "mixed" when both.',
-        ]),
+          : [
+              'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean}.',
+              'provenance is "your_notes" when the reply rests on the notes, "general_knowledge" when it rests on outside knowledge, "mixed" when both.',
+            ]),
   ].join("\n");
 }
 
@@ -517,10 +547,21 @@ function parseCompanionJson(raw: string): {
   cards: { front: string; back: string }[];
   stems: string[];
   observations: { prompt: string; stems: string[] }[];
+  mirror: string;
+  probe: string;
+  isConvergence: boolean;
+  insight: string;
 } {
   const parsed = coerceJsonObject(raw);
   if (parsed) {
-    const reply = String(parsed?.reply ?? "").trim();
+    // Convergence arc (D-059): turn-aware replies split into mirror + probe;
+    // the composed reply keeps storage and legacy clients working unchanged.
+    const mirror = String(parsed?.mirror ?? "").trim().slice(0, 300);
+    const probe = String(parsed?.probe ?? "").trim().slice(0, 400);
+    const isConvergence = parsed?.is_convergence === true;
+    const insight = String(parsed?.insight ?? "").trim().slice(0, 400);
+    const reply =
+      String(parsed?.reply ?? "").trim() || [mirror, probe].filter(Boolean).join("\n\n");
     if (reply) {
       const provenance = ["your_notes", "general_knowledge", "mixed"].includes(parsed?.provenance)
         ? parsed.provenance
@@ -563,16 +604,16 @@ function parseCompanionJson(raw: string): {
             .filter((o: { prompt: string }) => o.prompt.length > 0)
             .slice(0, 3)
         : [];
-      return { reply, provenance, declined: parsed?.declined === true, suggestions, cards, stems, observations };
+      return { reply, provenance, declined: parsed?.declined === true, suggestions, cards, stems, observations, mirror, probe, isConvergence, insight };
     }
   }
   // A plain-text reply is acceptable; JSON-shaped wreckage is not - an empty
   // reply triggers a clean retry instead of a card full of braces.
   const trimmedRaw = raw.trim();
   if (trimmedRaw.startsWith("{") || trimmedRaw.startsWith("```")) {
-    return { reply: "", provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [] };
+    return { reply: "", provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [], mirror: "", probe: "", isConvergence: false, insight: "" };
   }
-  return { reply: trimmedRaw, provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [] };
+  return { reply: trimmedRaw, provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [], mirror: "", probe: "", isConvergence: false, insight: "" };
 }
 
 serve(async (req) => {
@@ -675,6 +716,17 @@ serve(async (req) => {
   if (feature === "insight" && !salonId) {
     return jsonResponse({ error: "A discussion session is required.", code: "BAD_REQUEST" }, 400);
   }
+  // Convergence arc (D-059): the client names which card of the bounded
+  // three-card arc this reply is. Absent -> the legacy open-ended contract.
+  const rawTurn = Number(body?.turn);
+  const arcTurn: 2 | 3 | null =
+    feature === "dialogue" && (rawTurn === 2 || rawTurn === 3) ? (rawTurn as 2 | 3) : null;
+  // Convergence arc (D-059): the synthesis card already crystallized the
+  // takeaway; saving it must not spend a second model call.
+  const insightText =
+    feature === "insight" && typeof body?.insightText === "string"
+      ? body.insightText.trim().slice(0, 400)
+      : "";
   const auditId = truncate(body?.auditId, 64) ?? crypto.randomUUID();
 
   const auditDenied = async (decision: "denied_unentitled", httpStatus: number) => {
@@ -812,6 +864,34 @@ serve(async (req) => {
 
     // 4. Context assembly under the user's own JWT: RLS scopes every row to
     // the caller, and the book lookup doubles as the ownership check.
+    // (Convergence arc D-059 exception first: a takeaway the synthesis card
+    // already produced is persisted as-is - no context, no model call.)
+    if (feature === "insight" && insightText) {
+      const { data: savedInsight, error: insightPersistError } = await userClient
+        .from("companion_messages")
+        .insert({
+          user_id: userId,
+          topic_id: bookId,
+          role: "companion",
+          feature: "insight",
+          salon_id: salonId,
+          content: insightText,
+          provenance: { sources: "your_notes", declined: false, boundaryLabel: null, entryCount: 0 },
+        })
+        .select("id, role, feature, content, provenance, created_at, salon_id")
+        .single();
+      if (insightPersistError) {
+        await finalize("failed", 503, { error_code: "PERSIST_FAILED", error_message: truncate(insightPersistError.message, 300) });
+        return jsonResponse({ error: "The insight could not be saved. Please try again.", code: "PERSIST_FAILED" }, 503);
+      }
+      await finalize("succeeded", 200, { grounding_entries: 0, grounding_characters: 0 });
+      return jsonResponse({
+        reply: { content: insightText, provenance: "your_notes", declined: false },
+        boundaryLabel: null,
+        quota,
+        messages: [savedInsight],
+      });
+    }
     const [bookResult, entriesResult, charactersResult, genresResult] = await Promise.all([
       userClient.from("topics").select("id, name, author, total_pages, genre").eq("id", bookId).maybeSingle(),
       userClient
@@ -1247,6 +1327,7 @@ serve(async (req) => {
       charactersBlock,
       entryCount: entryLines.length,
       socratic: feature === "dialogue",
+      arcTurn,
     });
 
     // Conversation history keeps the dialogue coherent across sittings.
@@ -1428,7 +1509,15 @@ serve(async (req) => {
       messages: savedMessages,
       ...(feature === "suggest_flags" ? { suggestions } : {}),
       ...(feature === "cue_cards" ? { cards: parsed.cards } : {}),
-      ...(feature === "dialogue" ? { stems: parsed.stems } : {}),
+      ...(feature === "dialogue"
+        ? {
+            stems: parsed.stems,
+            mirror: parsed.mirror,
+            probe: parsed.probe,
+            isConvergence: parsed.isConvergence,
+            insight: parsed.insight,
+          }
+        : {}),
       ...(feature === "observations" ? { observations: parsed.observations } : {}),
     });
   } catch (error) {
