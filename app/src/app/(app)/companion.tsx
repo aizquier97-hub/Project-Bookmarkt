@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,49 +20,34 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorState, LoadingState } from '@/components/states';
 import {
   CompanionRequestError,
-  fetchCompanionMessages,
   openObservation,
-  requestClubSnapshot,
+  requestClubPrimer,
   requestObservations,
   sendCompanionMessage,
-  type CompanionChatMessage,
-  type CompanionProvenance,
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
+import { getLatestProgressBoundary } from '@/domains/entries/progress';
+import { addEntry, listEntries } from '@/domains/entries/service';
 import { getBook } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
 import { useDictation } from '@/domains/voice/useDictation';
-import { DateRangePicker, rangeToIsoBounds, type DateRange } from '@/components/DateRangePicker';
 import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 const MAX_MESSAGE_CHARS = 2000;
 
-// Deadpan-scholarly openers (D-038): the companion is calm, non-judgmental,
-// and never uses emoji. These chips lower the first-message hurdle.
-const SUGGESTIONS = [
-  'What do my notes say so far?',
-  'Remind me who the characters are.',
-  'Help me think through my last entry.',
-] as const;
+// When the notes are too thin for a grounded observation, the deck still
+// opens with something the reader alone can answer (D-012: no plot facts).
+const FALLBACK_QUESTION = 'What struck you most in what you last read?';
 
-const PROVENANCE_LABELS: Record<CompanionProvenance, string> = {
-  your_notes: 'From your notes',
-  general_knowledge: 'From my knowledge',
-  mixed: 'Your notes + my knowledge',
-};
+// The Socratic deck (D-057): primer card -> question cards -> session close.
+type DeckPhase = 'primer' | 'deck' | 'closing';
 
-// The chat renders older persisted tool results with their original labels;
-// club snapshots are the one tool still run from this screen (Interface
-// v2.0: cue cards moved to their own tab, quiz and word bank are on hold).
-const TOOL_LABELS: Record<string, string> = {
-  cue_cards: 'Cue cards',
-  quiz: 'Character quiz',
-  club_prep: 'Club snapshot',
-  word_bank: 'Word bank',
-  observation: 'An observation',
-};
+interface DeckCard {
+  question: string;
+  stems: string[];
+}
 
 export default function CompanionScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -110,7 +97,7 @@ export default function CompanionScreen() {
   if (!entitlementQuery.data.entitled) {
     return <CompanionOffer />;
   }
-  return <CompanionChat bookId={bookId} />;
+  return <SocraticDeck bookId={bookId} />;
 }
 
 /**
@@ -143,18 +130,97 @@ function CompanionOffer() {
   );
 }
 
-function CompanionChat({ bookId }: { bookId: number }) {
+/**
+ * The Book Club as a Socratic card deck (D-057): a primer card orients the
+ * reader in seconds, then one question card at a time - answered by chip,
+ * voice, or typing - with the companion mirroring each answer back as the
+ * next card. No scrolling transcript, no date picker.
+ */
+function SocraticDeck({ bookId }: { bookId: number }) {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const router = useRouter();
+
+  const [phase, setPhase] = useState<DeckPhase>('primer');
+  const [card, setCard] = useState<DeckCard | null>(null);
+  // The reader's own submitted answers this session (D-012: only these can
+  // be saved to the journal - never the companion's questions).
+  const [answers, setAnswers] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
+  const [composerOpen, setComposerOpen] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [quotaNotice, setQuotaNotice] = useState<string | null>(null);
   const [latestBoundary, setLatestBoundary] = useState<string | null>(null);
-  // Perspective stems (D-056): short answer starters under the latest reply.
-  const [stems, setStems] = useState<string[]>([]);
-  // Observation cards are dismissed for the visit once tapped or waved off.
-  const [observationsHidden, setObservationsHidden] = useState(false);
-  const listRef = useRef<FlatList<CompanionChatMessage>>(null);
+  const [saved, setSaved] = useState(false);
+
+  // Card slide (PR #97 pattern): the old card exits left, the next springs
+  // in from the right - the deck should feel like paper being dealt.
+  const slide = useRef(new Animated.Value(0)).current;
+  const sliding = useRef(false);
+  const advance = (apply: () => void) => {
+    if (sliding.current) {
+      return;
+    }
+    sliding.current = true;
+    Animated.timing(slide, {
+      toValue: -1,
+      duration: 170,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      apply();
+      slide.setValue(1);
+      Animated.spring(slide, {
+        toValue: 0,
+        friction: 9,
+        tension: 50,
+        useNativeDriver: true,
+      }).start(() => {
+        sliding.current = false;
+      });
+    });
+  };
+
+  const bookQuery = useQuery({
+    queryKey: queryKeys.book(bookId),
+    queryFn: () => getBook(bookId),
+  });
+  // Entries back the save-to-journal position (the reader's latest logged
+  // boundary); usually already cached from the book screen.
+  const entriesQuery = useQuery({
+    queryKey: queryKeys.entries(bookId),
+    queryFn: () => listEntries(bookId),
+  });
+
+  // The primer (D-057): a max-3-bullet orientation from the last few notes.
+  // Transient - regenerated per visit, never persisted.
+  const primerQuery = useQuery({
+    queryKey: queryKeys.companionPrimer(bookId),
+    queryFn: () => requestClubPrimer(bookId),
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+  // Observation cards (D-056): grounded openers, each now carrying stems.
+  const observationsQuery = useQuery({
+    queryKey: queryKeys.companionObservations(bookId),
+    queryFn: () => requestObservations(bookId),
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+  const observations = observationsQuery.data?.observations ?? [];
+
+  // If the server gate disagrees with our cached entitlement, re-render as
+  // the offer instead of failing quietly.
+  const primerError = primerQuery.error;
+  const observationsError = observationsQuery.error;
+  useEffect(() => {
+    const err = primerError ?? observationsError;
+    if (err instanceof CompanionRequestError && err.subscriptionRequired) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
+    }
+  }, [primerError, observationsError, queryClient]);
+
+  const boundaryLabel = latestBoundary ?? primerQuery.data?.boundaryLabel ?? null;
 
   // Composer dictation (D-016): spoken words land in the draft verbatim,
   // with only casing/punctuation cleanup. The reader still edits and sends.
@@ -173,61 +239,48 @@ function CompanionChat({ bookId }: { bookId: number }) {
     const spoken = cleanupTranscript(confirmDictation());
     if (spoken) {
       setDraft((prev) => (prev.trim() ? `${prev.trim()} ${spoken}` : spoken));
+      setComposerOpen(true);
     }
   }, [dictationStatus, confirmDictation]);
 
-  const bookQuery = useQuery({
-    queryKey: queryKeys.book(bookId),
-    queryFn: () => getBook(bookId),
+  // Tapping "Start discussion" persists the opener server-side so the
+  // Socratic thread starts from the card itself. Fire-and-forget: the deck
+  // works even if this write fails.
+  const openMutation = useMutation({
+    mutationFn: (prompt: string) => openObservation(bookId, prompt),
+    onSuccess: () => {
+      trackAnalyticsEvent('companion_tool_used', { tool: 'observation_open', status: 'succeeded' }, bookId);
+    },
+    onError: (err) => {
+      const status = err instanceof CompanionRequestError ? err.code : 'error';
+      trackAnalyticsEvent('companion_tool_used', { tool: 'observation_open', status }, bookId);
+    },
   });
-  const messagesQuery = useQuery({
-    queryKey: queryKeys.companionMessages(bookId),
-    queryFn: () => fetchCompanionMessages(bookId),
-  });
-  const messages = useMemo(() => messagesQuery.data ?? [], [messagesQuery.data]);
-
-  // Observation cards (D-056): grounded conversation openers drawn from the
-  // reader's notes, offered instead of a blank slate. Failures stay silent -
-  // the chat works fine without them.
-  const observationsQuery = useQuery({
-    queryKey: queryKeys.companionObservations(bookId),
-    queryFn: () => requestObservations(bookId),
-    enabled: messagesQuery.isSuccess,
-    staleTime: 10 * 60_000,
-    retry: false,
-  });
-  const observations = observationsQuery.data?.observations ?? [];
-
-  // The freshest spoiler boundary: the latest reply's metadata, else the
-  // newest stored companion message that recorded one.
-  const boundaryLabel =
-    latestBoundary ??
-    [...messages].reverse().find((m) => m.role === 'companion' && m.boundaryLabel)
-      ?.boundaryLabel ??
-    null;
 
   const sendMutation = useMutation({
     mutationFn: (message: string) => sendCompanionMessage(bookId, message),
     onMutate: () => {
       setSendError(null);
       setQuotaNotice(null);
-      setStems([]);
     },
-    onSuccess: (result) => {
+    onSuccess: (result, message) => {
+      setAnswers((prev) => [...prev, message]);
       setDraft('');
-      setLatestBoundary(result.boundaryLabel);
-      setStems(result.stems);
-      queryClient.setQueryData<CompanionChatMessage[]>(
-        queryKeys.companionMessages(bookId),
-        (old) => [...(old ?? []), ...result.messages],
-      );
+      setComposerOpen(false);
+      if (result.boundaryLabel) {
+        setLatestBoundary(result.boundaryLabel);
+      }
       trackAnalyticsEvent('companion_message_sent', { status: 'succeeded' }, bookId);
+      const mirror =
+        result.reply.content ||
+        result.messages.filter((m) => m.role === 'companion').at(-1)?.content ||
+        FALLBACK_QUESTION;
+      advance(() => setCard({ question: mirror, stems: result.stems }));
     },
     onError: (err) => {
       if (err instanceof CompanionRequestError) {
         trackAnalyticsEvent('companion_message_sent', { status: err.code }, bookId);
         if (err.subscriptionRequired) {
-          // The server gate disagrees with our cached read - re-render as offer.
           void queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
           return;
         }
@@ -243,132 +296,83 @@ function CompanionChat({ bookId }: { bookId: number }) {
     },
   });
 
-  // The club snapshot (Interface v2.0): a smooth read-through of what the
-  // reader recorded between two dates, prepared for the walk to book club.
-  // Persisted into the conversation like any companion turn.
-  const [snapshotOpen, setSnapshotOpen] = useState(false);
-  const [snapshotRange, setSnapshotRange] = useState<DateRange | null>(null);
-  const snapshotMutation = useMutation({
-    mutationFn: (range: DateRange) => {
-      const bounds = rangeToIsoBounds(range);
-      return requestClubSnapshot(bookId, bounds.rangeStart, bounds.rangeEnd);
+  // End-of-session save (D-012): the entry is the reader's own answers,
+  // verbatim, filed at their latest logged position.
+  const entries = entriesQuery.data ?? [];
+  const journalBoundary =
+    getLatestProgressBoundary(entries, 'page') ?? getLatestProgressBoundary(entries, 'chapter');
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      if (!journalBoundary) {
+        throw new Error('No progress boundary to file the entry at.');
+      }
+      return addEntry(bookId, {
+        text: answers.join('\n\n'),
+        progressType: journalBoundary.progressType,
+        progressValue: journalBoundary.upper,
+      });
     },
-    onMutate: () => {
+    onSuccess: () => {
+      setSaved(true);
       setSendError(null);
-      setQuotaNotice(null);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
     },
-    onSuccess: (result) => {
-      setSnapshotOpen(false);
-      setSnapshotRange(null);
-      if (result.boundaryLabel) {
-        setLatestBoundary(result.boundaryLabel);
-      }
-      if (result.messages.length > 0) {
-        queryClient.setQueryData<CompanionChatMessage[]>(
-          queryKeys.companionMessages(bookId),
-          (old) => [...(old ?? []), ...result.messages],
-        );
-      } else if (result.reply.content) {
-        // Empty-range short-circuits are not persisted; show the line as a
-        // notice instead.
-        setQuotaNotice(result.reply.content);
-      }
-      trackAnalyticsEvent('companion_tool_used', { tool: 'club_prep', status: 'succeeded' }, bookId);
-    },
-    onError: (err) => {
-      const status = err instanceof CompanionRequestError ? err.code : 'error';
-      trackAnalyticsEvent('companion_tool_used', { tool: 'club_prep', status }, bookId);
-      if (err instanceof CompanionRequestError) {
-        if (err.subscriptionRequired) {
-          void queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
-          return;
-        }
-        if (err.quotaExceeded) {
-          setQuotaNotice(err.message);
-          return;
-        }
-        setSendError(err.message);
-        return;
-      }
-      setSendError('The companion could not respond. Please try again.');
+    onError: () => {
+      setSendError('Could not save to your journal. Please try again.');
     },
   });
 
-  // Tapping an observation card persists it as the companion's opener, so
-  // the Socratic thread starts from the card itself. No model call.
-  const observationMutation = useMutation({
-    mutationFn: (prompt: string) => openObservation(bookId, prompt),
-    onMutate: () => {
-      setSendError(null);
-      setQuotaNotice(null);
-    },
-    onSuccess: (result) => {
-      setObservationsHidden(true);
-      if (result.boundaryLabel) {
-        setLatestBoundary(result.boundaryLabel);
-      }
-      queryClient.setQueryData<CompanionChatMessage[]>(
-        queryKeys.companionMessages(bookId),
-        (old) => [...(old ?? []), ...result.messages],
+  const handleStart = () => {
+    setSendError(null);
+    const first = observations[0];
+    if (first) {
+      openMutation.mutate(first.prompt);
+    }
+    advance(() => {
+      setPhase('deck');
+      setCard(
+        first
+          ? { question: first.prompt, stems: first.stems }
+          : { question: FALLBACK_QUESTION, stems: [] },
       );
-      trackAnalyticsEvent('companion_tool_used', { tool: 'observation_open', status: 'succeeded' }, bookId);
-    },
-    onError: (err) => {
-      const status = err instanceof CompanionRequestError ? err.code : 'error';
-      trackAnalyticsEvent('companion_tool_used', { tool: 'observation_open', status }, bookId);
-      if (err instanceof CompanionRequestError) {
-        if (err.subscriptionRequired) {
-          void queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
-          return;
-        }
-        if (err.quotaExceeded) {
-          setQuotaNotice(err.message);
-          return;
-        }
-        setSendError(err.message);
-        return;
-      }
-      setSendError('The companion could not respond. Please try again.');
-    },
-  });
+    });
+  };
 
-  const busy =
-    sendMutation.isPending || snapshotMutation.isPending || observationMutation.isPending;
+  const handleEndSession = () => {
+    if (sendMutation.isPending) {
+      return;
+    }
+    advance(() => setPhase('closing'));
+  };
 
-  const canSend = draft.trim().length > 0 && !busy;
+  const canSend = draft.trim().length > 0 && !sendMutation.isPending;
   const handleSend = () => {
     const message = draft.trim();
-    if (!message || busy) {
+    if (!message || sendMutation.isPending) {
       return;
     }
     sendMutation.mutate(message);
   };
 
-  // Inverted list: newest first in data, rendered bottom-up like every chat.
-  const inverted = useMemo(() => [...messages].reverse(), [messages]);
-
-  if (messagesQuery.isPending) {
-    return (
-      <View style={styles.stateContainer}>
-        <Stack.Screen options={{ title: 'Book Club' }} />
-        <LoadingState label="Opening your conversation…" />
-      </View>
-    );
-  }
-  if (messagesQuery.isError) {
-    return (
-      <View style={styles.stateContainer}>
-        <Stack.Screen options={{ title: 'Book Club' }} />
-        <ErrorState
-          error={messagesQuery.error}
-          fallback="Could not load the conversation."
-          onRetry={() => void messagesQuery.refetch()}
-        />
-      </View>
-    );
-  }
-
   const bookName = bookQuery.data?.name ?? null;
+  const primer = primerQuery.data ?? null;
+  const noEntries = primer?.code === 'NO_ENTRIES';
+  const primerLines = (primer?.reply.content ?? '')
+    .split('\n')
+    .map((line) => line.replace(/^[-•*]\s*/, '').trim())
+    .filter((line) => line.length > 0)
+    .slice(0, 3);
+
+  const slideX = slide.interpolate({ inputRange: [-1, 1], outputRange: [-380, 380] });
+  const slideRotate = slide.interpolate({ inputRange: [-1, 1], outputRange: ['-7deg', '7deg'] });
+  const slideOpacity = slide.interpolate({
+    inputRange: [-1, -0.4, 0, 0.4, 1],
+    outputRange: [0, 1, 1, 1, 0],
+  });
+  const slideStyle = {
+    opacity: slideOpacity,
+    transform: [{ translateX: slideX }, { rotate: slideRotate }],
+  };
 
   return (
     <KeyboardAvoidingView
@@ -391,271 +395,253 @@ function CompanionChat({ bookId }: { bookId: number }) {
         </View>
       ) : null}
 
-      <FlatList
-        ref={listRef}
+      <ScrollView
         style={styles.flex}
-        data={inverted}
-        inverted
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.deckContent, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
         keyboardShouldPersistTaps="handled"
-        renderItem={({ item }) => <MessageBubble message={item} />}
-        ListHeaderComponent={
-          busy ? (
-            <View style={[styles.bubble, styles.companionBubble, styles.thinkingBubble]}>
-              <ActivityIndicator size="small" color={colors.muted} />
-              <Text style={styles.thinkingText}>
-                {snapshotMutation.isPending
-                  ? 'Reading that stretch…'
-                  : observationMutation.isPending
-                    ? 'Opening that thread…'
-                    : 'Consulting your notes…'}
-              </Text>
-            </View>
-          ) : !observationsHidden && observations.length > 0 ? (
-            <View style={styles.observationBlock}>
-              <Text style={styles.observationHeading}>Noticed in your notes</Text>
-              {observations.map((card) => (
+      >
+        <Animated.View style={[styles.slideStage, slideStyle]}>
+          {phase === 'primer' ? (
+            <View style={styles.paperCard}>
+              <Text style={styles.cardLabel}>Where you stand</Text>
+              {primerQuery.isPending ? (
+                <View style={styles.cardLoadingRow}>
+                  <ActivityIndicator size="small" color={colors.muted} />
+                  <Text style={styles.cardLoadingText}>Reading your recent notes…</Text>
+                </View>
+              ) : primerQuery.isError ? (
+                <Text style={styles.cardBody}>
+                  {primerError instanceof CompanionRequestError && primerError.quotaExceeded
+                    ? primerError.message
+                    : 'I could not prepare your primer just now — we can still talk.'}
+                </Text>
+              ) : noEntries ? (
+                <Text style={styles.cardBody}>{primer?.reply.content}</Text>
+              ) : (
+                <View style={styles.primerList}>
+                  {primerLines.map((line) => (
+                    <View key={line} style={styles.primerLineRow}>
+                      <Text style={styles.primerBullet}>•</Text>
+                      <Text style={styles.primerLineText}>{line}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {!primerQuery.isPending && !noEntries ? (
                 <Pressable
-                  key={card.prompt}
-                  style={styles.observationCard}
-                  onPress={() => observationMutation.mutate(card.prompt)}
+                  style={[styles.goldButton, observationsQuery.isPending && styles.goldButtonDisabled]}
+                  onPress={handleStart}
+                  disabled={observationsQuery.isPending}
                   accessibilityRole="button"
-                  accessibilityLabel={`Take up this observation: ${card.prompt}`}
+                  accessibilityLabel="Start the discussion"
                 >
-                  <Text style={styles.observationText}>{card.prompt}</Text>
-                  <View style={styles.observationFooter}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={12} color={gold.deep} />
-                    <Text style={styles.observationFooterText}>Take this up</Text>
-                  </View>
+                  {observationsQuery.isPending ? (
+                    <ActivityIndicator size="small" color={gold.onFill} />
+                  ) : (
+                    <>
+                      <Ionicons name="chatbubble-ellipses" size={15} color={gold.onFill} />
+                      <Text style={styles.goldButtonText}>Start discussion</Text>
+                    </>
+                  )}
                 </Pressable>
-              ))}
+              ) : null}
+            </View>
+          ) : phase === 'deck' && card ? (
+            <View style={styles.paperCard}>
+              <Text style={styles.cardLabel}>The companion asks</Text>
+              <Text style={styles.questionText}>{card.question}</Text>
+            </View>
+          ) : phase === 'closing' ? (
+            <View style={styles.paperCard}>
+              <Text style={styles.cardLabel}>Your thinking, this session</Text>
+              {answers.length > 0 ? (
+                <View style={styles.primerList}>
+                  {answers.map((answer, index) => (
+                    <View key={`${index}-${answer.slice(0, 24)}`} style={styles.primerLineRow}>
+                      <Text style={styles.primerBullet}>•</Text>
+                      <Text style={styles.primerLineText}>{answer}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.cardBody}>
+                  You kept your counsel this session — nothing to save yet.
+                </Text>
+              )}
+              {saved ? (
+                <View style={styles.savedRow}>
+                  <Ionicons name="checkmark-circle" size={15} color={gold.deep} />
+                  <Text style={styles.savedText}>Saved to your journal.</Text>
+                </View>
+              ) : null}
+              {answers.length > 0 && journalBoundary && !saved ? (
+                <Pressable
+                  style={[styles.goldButton, saveMutation.isPending && styles.goldButtonDisabled]}
+                  onPress={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save your answers to the journal"
+                >
+                  {saveMutation.isPending ? (
+                    <ActivityIndicator size="small" color={gold.onFill} />
+                  ) : (
+                    <>
+                      <Ionicons name="bookmark" size={15} color={gold.onFill} />
+                      <Text style={styles.goldButtonText}>Save to journal</Text>
+                    </>
+                  )}
+                </Pressable>
+              ) : null}
               <Pressable
-                style={styles.observationDismiss}
-                onPress={() => setObservationsHidden(true)}
+                style={styles.ghostButton}
+                onPress={() => router.back()}
                 accessibilityRole="button"
-                accessibilityLabel="Dismiss the observations"
-                hitSlop={8}
+                accessibilityLabel="Close the Book Club"
               >
-                <Text style={styles.observationDismissText}>Not now</Text>
+                <Text style={styles.ghostButtonText}>Done</Text>
               </Pressable>
             </View>
-          ) : null
-        }
-        ListFooterComponent={
-          messages.length === 0 ? (
-            <View style={styles.introCard}>
-              <Text style={styles.introTitle}>At your service</Text>
-              <Text style={styles.introBody}>
-                I have read your notes on this book — nothing further, I assure you. Ask about
-                what you&apos;ve recorded, or think out loud; I shall keep the thread.
-              </Text>
-              <View style={styles.suggestionWrap}>
-                {SUGGESTIONS.map((suggestion) => (
-                  <Pressable
-                    key={suggestion}
-                    style={styles.suggestionChip}
-                    onPress={() => setDraft(suggestion)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Use suggestion: ${suggestion}`}
-                  >
-                    <Text style={styles.suggestionText}>{suggestion}</Text>
-                  </Pressable>
-                ))}
-              </View>
+          ) : null}
+        </Animated.View>
+
+        {phase === 'deck' ? (
+          sendMutation.isPending ? (
+            <View style={styles.thinkingRow}>
+              <ActivityIndicator size="small" color={colors.muted} />
+              <Text style={styles.thinkingText}>Consulting your notes…</Text>
             </View>
-          ) : null
-        }
-      />
+          ) : (
+            <View style={styles.answerArea}>
+              {card && card.stems.length > 0 ? (
+                <View style={styles.stemRow}>
+                  {card.stems.map((stem) => (
+                    <Pressable
+                      key={stem}
+                      style={styles.stemChip}
+                      onPress={() => {
+                        setDraft(`${stem} `);
+                        setComposerOpen(true);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Start your answer with: ${stem}`}
+                    >
+                      <Text style={styles.stemChipText}>{stem}…</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
 
-      {quotaNotice ? (
-        <View style={styles.noticeBanner}>
-          <Ionicons name="hourglass-outline" size={14} color={colors.muted} />
-          <Text style={styles.noticeText}>{quotaNotice}</Text>
-        </View>
-      ) : null}
-      {sendError ? (
-        <View style={[styles.noticeBanner, styles.errorBanner]}>
-          <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
-          <Text style={[styles.noticeText, styles.errorText]}>{sendError}</Text>
-        </View>
-      ) : null}
-      {dictationError ? (
-        <View style={[styles.noticeBanner, styles.errorBanner]}>
-          <Ionicons name="mic-off-outline" size={14} color={colors.danger} />
-          <Text style={[styles.noticeText, styles.errorText]}>{dictationError}</Text>
-        </View>
-      ) : null}
+              <View style={styles.answerActionsRow}>
+                {dictationStatus !== 'unavailable' ? (
+                  <Pressable
+                    style={[
+                      styles.micButton,
+                      dictationStatus === 'recording' && styles.micButtonActive,
+                    ]}
+                    onPress={() => {
+                      if (dictationStatus === 'recording') {
+                        stopDictation();
+                      } else {
+                        void startDictation();
+                      }
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      dictationStatus === 'recording' ? 'Finish dictating' : 'Speak your answer'
+                    }
+                  >
+                    <Ionicons
+                      name={dictationStatus === 'recording' ? 'stop' : 'mic'}
+                      size={18}
+                      color={dictationStatus === 'recording' ? gold.onFill : colors.text}
+                    />
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  style={styles.typeButton}
+                  onPress={() => setComposerOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Type your own thought"
+                >
+                  <Ionicons name="pencil" size={14} color={colors.text} />
+                  <Text style={styles.typeButtonText}>Type my own thought</Text>
+                </Pressable>
+              </View>
 
-      {snapshotOpen ? (
-        <View style={styles.snapshotCard}>
-          <View style={styles.snapshotHeader}>
-            <Text style={styles.snapshotTitle}>Club snapshot</Text>
-            <Pressable
-              onPress={() => setSnapshotOpen(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Close the snapshot picker"
-              hitSlop={8}
-            >
-              <Ionicons name="close" size={18} color={colors.muted} />
-            </Pressable>
-          </View>
-          <Text style={styles.snapshotBody}>
-            A smooth read-through of everything you recorded between two dates - made for the walk
-            to book club. Pick the stretch:
-          </Text>
-          <DateRangePicker value={snapshotRange} onChange={setSnapshotRange} />
-          <Pressable
-            style={[
-              styles.snapshotButton,
-              (!snapshotRange || busy) && styles.snapshotButtonDisabled,
-            ]}
-            onPress={() => snapshotRange && snapshotMutation.mutate(snapshotRange)}
-            disabled={!snapshotRange || busy}
-            accessibilityRole="button"
-            accessibilityLabel="Prepare the club snapshot for the chosen dates"
-          >
-            {snapshotMutation.isPending ? (
-              <ActivityIndicator size="small" color={gold.onFill} />
-            ) : (
-              <>
-                <Ionicons name="people" size={15} color={gold.onFill} />
-                <Text style={styles.snapshotButtonText}>Prepare my snapshot</Text>
-              </>
-            )}
-          </Pressable>
-        </View>
-      ) : (
-        <View style={styles.toolBarRow}>
-          <Pressable
-            style={[styles.toolChip, busy && styles.toolChipDisabled]}
-            onPress={() => setSnapshotOpen(true)}
-            disabled={busy}
-            accessibilityRole="button"
-            accessibilityLabel="Prepare a club snapshot for a range of dates"
-          >
-            <Ionicons name="people-outline" size={13} color={colors.accent} />
-            <Text style={styles.toolChipText}>Club snapshot</Text>
-          </Pressable>
-        </View>
-      )}
+              {dictationStatus === 'recording' ? (
+                <View style={styles.listeningRow}>
+                  <Ionicons name="mic" size={14} color={gold.deep} />
+                  <Text style={styles.listeningText} numberOfLines={1}>
+                    {dictationPartial || 'Listening…'}
+                  </Text>
+                  <Pressable
+                    style={styles.listeningStop}
+                    onPress={stopDictation}
+                    accessibilityRole="button"
+                    accessibilityLabel="Finish dictating"
+                    hitSlop={8}
+                  >
+                    <Text style={styles.listeningStopText}>Done</Text>
+                  </Pressable>
+                </View>
+              ) : null}
 
-      {stems.length > 0 && !busy ? (
-        <View style={styles.stemRow}>
-          {stems.map((stem) => (
-            <Pressable
-              key={stem}
-              style={styles.stemChip}
-              onPress={() => setDraft(`${stem} `)}
-              accessibilityRole="button"
-              accessibilityLabel={`Start your answer with: ${stem}`}
-            >
-              <Text style={styles.stemChipText}>{stem}…</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
+              {composerOpen || draft.length > 0 ? (
+                <View style={styles.composerCard}>
+                  <TextInput
+                    style={styles.input}
+                    value={draft}
+                    onChangeText={setDraft}
+                    placeholder="Your answer, in your own words…"
+                    placeholderTextColor={colors.muted}
+                    multiline
+                    maxLength={MAX_MESSAGE_CHARS}
+                    autoFocus
+                  />
+                  <Pressable
+                    style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+                    onPress={handleSend}
+                    disabled={!canSend}
+                    accessibilityRole="button"
+                    accessibilityLabel="Send your answer"
+                  >
+                    <Ionicons name="arrow-up" size={18} color={gold.onFill} />
+                  </Pressable>
+                </View>
+              ) : null}
 
-      {dictationStatus === 'recording' ? (
-        <View style={styles.listeningRow}>
-          <Ionicons name="mic" size={14} color={gold.deep} />
-          <Text style={styles.listeningText} numberOfLines={1}>
-            {dictationPartial || 'Listening…'}
-          </Text>
-          <Pressable
-            style={styles.listeningStop}
-            onPress={stopDictation}
-            accessibilityRole="button"
-            accessibilityLabel="Finish dictating"
-            hitSlop={8}
-          >
-            <Text style={styles.listeningStopText}>Done</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      <View style={[styles.composerRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        {dictationStatus !== 'unavailable' ? (
-          <Pressable
-            style={[styles.micButton, dictationStatus === 'recording' && styles.micButtonActive]}
-            onPress={() => {
-              if (dictationStatus === 'recording') {
-                stopDictation();
-              } else {
-                void startDictation();
-              }
-            }}
-            disabled={busy}
-            accessibilityRole="button"
-            accessibilityLabel={
-              dictationStatus === 'recording' ? 'Finish dictating' : 'Dictate your message'
-            }
-          >
-            <Ionicons
-              name={dictationStatus === 'recording' ? 'stop' : 'mic-outline'}
-              size={18}
-              color={dictationStatus === 'recording' ? gold.onFill : colors.text}
-            />
-          </Pressable>
+              <Pressable
+                style={styles.ghostButton}
+                onPress={handleEndSession}
+                accessibilityRole="button"
+                accessibilityLabel="End this discussion session"
+              >
+                <Text style={styles.ghostButtonText}>End session</Text>
+              </Pressable>
+            </View>
+          )
         ) : null}
-        <TextInput
-          style={styles.input}
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="Ask about your notes…"
-          placeholderTextColor={colors.muted}
-          multiline
-          maxLength={MAX_MESSAGE_CHARS}
-          editable={!sendMutation.isPending}
-        />
-        <Pressable
-          style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={!canSend}
-          accessibilityRole="button"
-          accessibilityLabel="Send message to the companion"
-        >
-          <Ionicons name="arrow-up" size={18} color={gold.onFill} />
-        </Pressable>
-      </View>
+
+        {quotaNotice ? (
+          <View style={styles.noticeBanner}>
+            <Ionicons name="hourglass-outline" size={14} color={colors.muted} />
+            <Text style={styles.noticeText}>{quotaNotice}</Text>
+          </View>
+        ) : null}
+        {sendError ? (
+          <View style={[styles.noticeBanner, styles.errorBanner]}>
+            <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
+            <Text style={[styles.noticeText, styles.errorText]}>{sendError}</Text>
+          </View>
+        ) : null}
+        {dictationError ? (
+          <View style={[styles.noticeBanner, styles.errorBanner]}>
+            <Ionicons name="mic-off-outline" size={14} color={colors.danger} />
+            <Text style={[styles.noticeText, styles.errorText]}>{dictationError}</Text>
+          </View>
+        ) : null}
+      </ScrollView>
     </KeyboardAvoidingView>
-  );
-}
-
-function MessageBubble({ message }: { message: CompanionChatMessage }) {
-  if (message.role === 'reader') {
-    return (
-      <View style={[styles.bubble, styles.readerBubble]}>
-        <Text style={styles.readerText}>{message.content}</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.companionGroup}>
-      <Text style={styles.speakerLabel}>
-        {TOOL_LABELS[message.feature]
-          ? `Companion · ${TOOL_LABELS[message.feature]}`
-          : 'Companion'}
-      </Text>
-      <View
-        style={[styles.bubble, styles.companionBubble, message.declined && styles.declinedBubble]}
-      >
-        <Text style={styles.companionText}>{message.content}</Text>
-      </View>
-      <View style={styles.metaRow}>
-        {message.provenance ? (
-          <View style={styles.provenanceChip}>
-            <Text style={styles.provenanceText}>{PROVENANCE_LABELS[message.provenance]}</Text>
-          </View>
-        ) : null}
-        {message.declined ? (
-          <View style={[styles.provenanceChip, styles.declinedChip]}>
-            <Ionicons name="shield-checkmark-outline" size={11} color={gold.deep} />
-            <Text style={[styles.provenanceText, styles.declinedChipText]}>Spoiler held back</Text>
-          </View>
-        ) : null}
-      </View>
-    </View>
   );
 }
 
@@ -701,52 +687,49 @@ const styles = StyleSheet.create({
   },
   boundaryText: { fontFamily: fonts.serif, fontSize: 11, color: colors.muted },
 
-  toolBarRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 2,
-  },
-  toolChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: colors.card,
-    ...buttonShadow,
-  },
-  toolChipDisabled: { opacity: 0.5 },
-  toolChipText: { fontFamily: fonts.serif, color: colors.text, fontSize: 12, fontWeight: '600' },
+  deckContent: { paddingHorizontal: 16, paddingTop: 18, gap: 14 },
+  slideStage: { width: '100%' },
 
-  snapshotCard: {
-    marginHorizontal: 16,
-    marginTop: 8,
+  // The deck's cards: paper inserts resting on the desk (D-054).
+  paperCard: {
     backgroundColor: colors.card,
-    borderColor: colors.border,
+    borderRadius: 16,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    gap: 8,
+    borderColor: colors.border,
+    padding: 18,
+    gap: 12,
     ...cardShadow,
   },
-  snapshotHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  snapshotTitle: {
+  cardLabel: {
     fontFamily: fonts.serif,
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
-  snapshotBody: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13, lineHeight: 18 },
-  snapshotButton: {
+  cardBody: { fontFamily: fonts.serif, color: colors.text, fontSize: 14.5, lineHeight: 21 },
+  cardLoadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardLoadingText: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  questionText: { fontFamily: fonts.serif, color: colors.text, fontSize: 17, lineHeight: 25 },
+
+  primerList: { gap: 8 },
+  primerLineRow: { flexDirection: 'row', gap: 8 },
+  primerBullet: { fontFamily: fonts.serif, color: gold.deep, fontSize: 14.5, lineHeight: 21 },
+  primerLineText: {
+    fontFamily: fonts.serif,
+    flex: 1,
+    color: colors.text,
+    fontSize: 14.5,
+    lineHeight: 21,
+  },
+
+  goldButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -759,166 +742,31 @@ const styles = StyleSheet.create({
     marginTop: 4,
     ...buttonShadow,
   },
-  snapshotButtonDisabled: { opacity: 0.5 },
-  snapshotButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  goldButtonDisabled: { opacity: 0.5 },
+  goldButtonText: { fontFamily: fonts.serif, color: gold.onFill, fontSize: 14, fontWeight: '700' },
 
-  listContent: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+  ghostButton: { alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 8 },
+  ghostButtonText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13, fontWeight: '600' },
 
-  bubble: {
-    maxWidth: '86%',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  readerBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: colors.accentSoft,
-    borderBottomRightRadius: 4,
-  },
-  readerText: { fontFamily: fonts.serif, color: colors.text, fontSize: 15, lineHeight: 21 },
-  companionGroup: { alignSelf: 'flex-start', maxWidth: '92%', gap: 4 },
-  speakerLabel: {
-    fontFamily: fonts.serif,
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.muted,
-    marginLeft: 4,
-  },
-  companionBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderBottomLeftRadius: 4,
-    ...cardShadow,
-  },
-  companionText: { fontFamily: fonts.serif, color: colors.text, fontSize: 15, lineHeight: 22 },
-  declinedBubble: { borderColor: gold.base, backgroundColor: gold.glowSoft },
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginLeft: 4 },
-  provenanceChip: {
+  savedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  savedText: { fontFamily: fonts.serif, color: gold.deep, fontSize: 13.5, fontWeight: '700' },
+
+  thinkingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  provenanceText: { fontFamily: fonts.serif, fontSize: 10.5, color: colors.muted, fontWeight: '600' },
-  declinedChip: { borderColor: gold.base, backgroundColor: gold.glowSoft },
-  declinedChipText: { fontFamily: fonts.serif, color: gold.deep },
-
-  thinkingBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    marginBottom: 10,
+    paddingVertical: 12,
   },
   thinkingText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 14, fontStyle: 'italic' },
 
-  // Observation cards (D-056): paper inserts offering grounded openers,
-  // dealt at the bottom of the thread instead of a blank slate.
-  observationBlock: { gap: 8, marginBottom: 10 },
-  observationHeading: {
-    fontFamily: fonts.serif,
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.muted,
-    marginLeft: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  observationCard: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 8,
-    ...cardShadow,
-  },
-  observationText: { fontFamily: fonts.serif, color: colors.text, fontSize: 14.5, lineHeight: 21 },
-  observationFooter: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  observationFooterText: {
-    fontFamily: fonts.serif,
-    color: gold.deep,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  observationDismiss: { alignSelf: 'flex-start', marginLeft: 4, paddingVertical: 2 },
-  observationDismissText: {
-    fontFamily: fonts.serif,
-    color: colors.muted,
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
+  answerArea: { gap: 10 },
 
-  introCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 18,
-    marginBottom: 12,
-    gap: 10,
-    ...cardShadow,
-  },
-  introTitle: {
-    fontFamily: fonts.serif,
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  introBody: { fontFamily: fonts.serif, color: colors.muted, fontSize: 14, lineHeight: 21 },
-  suggestionWrap: { gap: 8, marginTop: 2 },
-  suggestionChip: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    backgroundColor: colors.card,
-    ...buttonShadow,
-  },
-  suggestionText: { fontFamily: fonts.serif, color: colors.accent, fontSize: 13, fontWeight: '600' },
-
-  noticeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  noticeText: { fontFamily: fonts.serif, flex: 1, fontSize: 13, color: colors.muted, lineHeight: 18 },
-  errorBanner: { borderColor: colors.danger },
-  errorText: { fontFamily: fonts.serif, color: colors.danger },
-
-  // Perspective stems (D-056): answer starters under the latest question.
-  stemRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
+  // Perspective stems (D-056/D-057): answer starters under the question.
+  stemRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   stemChip: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -927,12 +775,37 @@ const styles = StyleSheet.create({
   },
   stemChipText: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontWeight: '600' },
 
+  answerActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  micButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...buttonShadow,
+  },
+  micButtonActive: { backgroundColor: gold.fill, borderColor: gold.deep },
+  typeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    ...buttonShadow,
+  },
+  typeButtonText: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontWeight: '600' },
+
   listeningRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginHorizontal: 16,
-    marginBottom: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
@@ -957,22 +830,16 @@ const styles = StyleSheet.create({
   },
   listeningStopText: { fontFamily: fonts.serif, color: gold.onFill, fontSize: 12, fontWeight: '700' },
 
-  // The composer anchors solidly to the bottom edge (D-054): card fill,
-  // firm top border, and an upward shadow separating it from the chat.
-  composerRow: {
+  composerCard: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    borderTopWidth: 1.5,
-    borderTopColor: colors.border,
     backgroundColor: colors.card,
-    elevation: 8,
-    shadowColor: '#2a1c11',
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: -3 },
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 8,
+    ...cardShadow,
   },
   input: {
     fontFamily: fonts.serif,
@@ -981,7 +848,7 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 21,
+    borderRadius: 12,
     backgroundColor: colors.background,
     paddingHorizontal: 14,
     paddingTop: Platform.OS === 'ios' ? 11 : 8,
@@ -1001,21 +868,21 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   sendButtonDisabled: { opacity: 0.35 },
-  micButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderWidth: 1.5,
+
+  noticeBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    ...buttonShadow,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  micButtonActive: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-  },
+  noticeText: { fontFamily: fonts.serif, flex: 1, fontSize: 13, color: colors.muted, lineHeight: 18 },
+  errorBanner: { borderColor: colors.danger },
+  errorText: { fontFamily: fonts.serif, color: colors.danger },
 
   offerContainer: {
     flex: 1,
