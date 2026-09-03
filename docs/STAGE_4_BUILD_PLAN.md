@@ -122,7 +122,17 @@ Build order within the phase:
        bookmarks at Brief/Standard/Detailed. Quiz Me and the word bank UI
        are hidden (on hold per the owner; Edge Function paths intact).
        *Done 2026-09-03 (D-055).*
-6. **Backburner** - pattern recognition (embeddings + clustering) stays
+6. [x] **Socratic facilitator redesign (owner brief, D-056)**: observation
+       cards greet the reader with 1-3 grounded openers drawn from their
+       own notes (tap to start the thread; nothing invented, nothing past
+       the boundary); dialogue replies follow the mirror contract -
+       validate in one sentence, probe with one open question - with 2-3
+       tappable perspective stems above the composer; the composer gains
+       dictation (D-016 cleanup). A migration widened the companion
+       feature allowlists that had silently pinned the quota RPC to the
+       original nine feature names.
+       *Done 2026-09-04 (D-056).*
+7. **Backburner** - pattern recognition (embeddings + clustering) stays
        sequenced after closed-beta buy-in (D-039); not MVP scope.
 
 ## Phase 3 - Billing (requires a new EAS build, not OTA)

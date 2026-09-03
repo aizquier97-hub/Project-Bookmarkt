@@ -21,4 +21,5 @@ export const queryKeys = {
   companionEntitlement: ['companion-entitlement'] as const,
   companionMessages: (bookId: number) => ['companion-messages', bookId] as const,
   companionRecap: (bookId: number) => ['companion-recap', bookId] as const,
+  companionObservations: (bookId: number) => ['companion-observations', bookId] as const,
 };

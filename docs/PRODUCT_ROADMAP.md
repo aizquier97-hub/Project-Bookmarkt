@@ -990,7 +990,7 @@ operations, and app-store distribution.
       StoreKit and Google Play Billing with a shared entitlement provider such as
       RevenueCat. Do not add web purchase flows without a separate approved
       product and store-policy decision.
-- [ ] Verify current Apple and Google rules for digital subscriptions; do not
+- [x] Verify current Apple and Google rules for digital subscriptions; do not
       route native users around required in-app purchase mechanisms.
 - [x] Create a server-authoritative entitlement model in Supabase.
       *(Done 2026-09-02, D-047.)*
