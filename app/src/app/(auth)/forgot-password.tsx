@@ -3,8 +3,6 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +12,7 @@ import {
 
 import { requestPasswordReset } from '@/domains/auth/service';
 import { friendlyAuthMessage } from '@/domains/auth/policy';
+import { KeyboardPane } from '@/components/KeyboardPane';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 export default function ForgotPasswordScreen() {
@@ -38,10 +37,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardPane style={styles.container}>
       <Stack.Screen options={{ title: 'Reset password' }} />
       <View style={styles.form}>
         <Text style={styles.title}>Reset your password</Text>
@@ -91,7 +87,7 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.link}>Back to sign in</Text>
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardPane>
   );
 }
 
