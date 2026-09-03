@@ -12,7 +12,7 @@ import { BookCard } from '@/components/BookCard';
 import { ContinueReadingCard } from '@/components/ContinueReadingCard';
 import { ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors } from '@/lib/theme';
+import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 // Three covers across, the grid density StoryGraph/Goodreads/Kindle use.
 // Without the old bookcase borders the full content width is available, so
@@ -107,7 +107,7 @@ export default function LibraryScreen() {
               accessibilityRole="button"
               accessibilityLabel="Add your first book"
             >
-              <Ionicons name="add" size={20} color={colors.card} />
+              <Ionicons name="add" size={20} color={gold.onFill} />
               <Text style={styles.welcomeButtonText}>Add your first book</Text>
             </Pressable>
           </Link>
@@ -147,7 +147,7 @@ export default function LibraryScreen() {
           zone (Material FAB), sitting just above the tab bar. */}
       <Link href="/add-book" asChild>
         <Pressable style={styles.fab} accessibilityRole="button" accessibilityLabel="Add a book">
-          <Ionicons name="add" size={30} color={colors.card} />
+          <Ionicons name="add" size={30} color={gold.onFill} />
         </Pressable>
       </Link>
     </View>
@@ -184,6 +184,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   chipText: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 12,
     fontWeight: '600',
@@ -196,11 +197,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
   },
   sectionCount: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 13,
     fontWeight: '600',
@@ -213,6 +216,7 @@ const styles = StyleSheet.create({
   spacer: {
     flex: 1,
   },
+  // The one primary action on the shelf: a physical gold button (D-054).
   fab: {
     position: 'absolute',
     right: 18,
@@ -220,12 +224,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 20,
     elevation: 5,
-    shadowColor: '#3a3125',
+    shadowColor: '#2a1c11',
     shadowOpacity: 0.3,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
@@ -238,11 +244,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   welcomeTitle: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 22,
     fontWeight: '700',
   },
   welcomeBody: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
@@ -252,18 +260,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 12,
     paddingHorizontal: 18,
     paddingVertical: 12,
     marginTop: 6,
+    ...buttonShadow,
   },
   welcomeButtonText: {
-    color: colors.card,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontSize: 16,
     fontWeight: '700',
   },
   welcomeHint: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     textAlign: 'center',

@@ -22,7 +22,7 @@ import {
 } from '@/domains/bookmarks/service';
 import { listBooks } from '@/domains/library/service';
 import { queryKeys } from '@/lib/queryKeys';
-import { cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold, spineColorFor } from '@/lib/theme';
 
 export default function BookmarkScanScreen() {
   const params = useLocalSearchParams<{ code: string }>();
@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   hint: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 15,
     lineHeight: 21,
@@ -267,6 +268,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   error: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     textAlign: 'center',
     marginTop: 8,
@@ -275,16 +277,20 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   primaryButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 22,
     alignItems: 'center',
     marginTop: 10,
     alignSelf: 'stretch',
+    ...buttonShadow,
   },
   primaryButtonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 15,
   },
@@ -326,6 +332,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   linkAction: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '700',
     fontSize: 14,

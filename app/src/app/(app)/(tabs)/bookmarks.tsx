@@ -25,7 +25,7 @@ import { listBooks } from '@/domains/library/service';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
-import { cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold, spineColorFor } from '@/lib/theme';
 
 export default function BookmarksScreen() {
   const queryClient = useQueryClient();
@@ -252,20 +252,25 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   lede: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
   },
   registerButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingVertical: 13,
     alignItems: 'center',
     marginBottom: 14,
+    ...buttonShadow,
   },
   registerButtonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 15,
   },
@@ -273,6 +278,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   empty: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
@@ -280,6 +286,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   error: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     marginTop: 6,
     marginBottom: 4,
@@ -300,6 +307,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardCode: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 17,
     fontWeight: '700',
@@ -313,6 +321,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   cardUnlinked: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 13,
     fontStyle: 'italic',
@@ -333,11 +342,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   actionText: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 13,
     fontWeight: '600',
   },
   actionDangerText: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     fontSize: 13,
     fontWeight: '600',
@@ -351,11 +362,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   qrHint: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 11,
     textAlign: 'center',
   },
   qrNote: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
@@ -372,6 +385,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pickerTitle: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
@@ -409,6 +423,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   pickerAction: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '700',
     fontSize: 13,

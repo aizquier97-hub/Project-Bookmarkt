@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ToastProvider } from '@/components/toast';
 import { AuthProvider } from '@/domains/auth/AuthProvider';
 import { installGlobalCrashReporter, reportAppError } from '@/lib/crashReporting';
-import { colors } from '@/lib/theme';
+import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 // Record unhandled JS errors from the very first render.
 installGlobalCrashReporter();
@@ -60,17 +60,20 @@ const boundaryStyles = StyleSheet.create({
     gap: 12,
   },
   title: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 20,
     fontWeight: '700',
   },
   message: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
   },
   detail: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     fontSize: 12,
     lineHeight: 17,
@@ -78,13 +81,17 @@ const boundaryStyles = StyleSheet.create({
   },
   button: {
     marginTop: 8,
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingHorizontal: 22,
     paddingVertical: 12,
+    ...buttonShadow,
   },
   buttonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 15,
   },

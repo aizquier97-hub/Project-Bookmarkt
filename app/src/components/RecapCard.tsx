@@ -13,7 +13,7 @@ import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import { queryKeys } from '@/lib/queryKeys';
-import { cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { cardShadow, buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 type Detail = 'brief' | 'detailed';
 
@@ -183,7 +183,7 @@ export function RecapCard({
                   accessibilityLabel="Retell the story so far"
                 >
                   {recapMutation.isPending ? (
-                    <ActivityIndicator size="small" color={colors.background} />
+                    <ActivityIndicator size="small" color={gold.onFill} />
                   ) : (
                     <Text style={styles.retellText}>{recap ? 'Retell afresh' : 'Retell'}</Text>
                   )}
@@ -203,13 +203,14 @@ export function RecapCard({
 }
 
 const styles = StyleSheet.create({
-  // Companion-branded surface, matching the former teaser (D-040 accents).
+  // A physical paper insert (D-054): cream card stock, slight border, real
+  // shadow, with a gold spine marking the Companion surface.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
@@ -231,25 +232,28 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   pillText: {
+    fontFamily: fonts.serif,
     color: colors.background,
     fontWeight: '700',
     fontSize: 11,
     letterSpacing: 0.5,
   },
   card: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderLeftWidth: 4,
+    borderLeftColor: gold.base,
     borderRadius: 12,
     padding: 14,
     marginTop: -8,
     marginBottom: 14,
+    ...cardShadow,
   },
-  body: { color: colors.text, fontSize: 14, lineHeight: 21 },
+  body: { fontFamily: fonts.serif, color: colors.text, fontSize: 14, lineHeight: 21 },
   recapArea: { gap: 12 },
   recapBlock: { gap: 8 },
-  recapText: { color: colors.text, fontSize: 14.5, lineHeight: 22 },
+  recapText: { fontFamily: fonts.serif, color: colors.text, fontSize: 14.5, lineHeight: 22 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   metaChip: {
     flexDirection: 'row',
@@ -262,8 +266,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  metaChipText: { fontSize: 10.5, color: colors.muted, fontWeight: '600' },
-  metaTime: { fontSize: 11, color: colors.muted },
+  metaChipText: { fontFamily: fonts.serif, fontSize: 10.5, color: colors.muted, fontWeight: '600' },
+  metaTime: { fontFamily: fonts.serif, fontSize: 11, color: colors.muted },
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,25 +277,28 @@ const styles = StyleSheet.create({
   segment: {
     flexDirection: 'row',
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.accent,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     overflow: 'hidden',
     backgroundColor: colors.card,
   },
   segmentItem: { paddingHorizontal: 12, paddingVertical: 6 },
-  segmentItemActive: { backgroundColor: colors.accent },
-  segmentText: { fontSize: 12.5, fontWeight: '600', color: colors.accent },
-  segmentTextActive: { color: colors.background },
+  segmentItemActive: { backgroundColor: gold.fill },
+  segmentText: { fontFamily: fonts.serif, fontSize: 12.5, fontWeight: '600', color: colors.muted },
+  segmentTextActive: { fontFamily: fonts.serif, color: gold.onFill, fontWeight: '700' },
   retellButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 999,
     paddingHorizontal: 16,
     paddingVertical: 8,
     minWidth: 88,
     alignItems: 'center',
+    ...buttonShadow,
   },
   retellDisabled: { opacity: 0.6 },
-  retellText: { color: colors.background, fontWeight: '700', fontSize: 13 },
-  workingText: { color: colors.muted, fontSize: 13, fontStyle: 'italic' },
-  errorText: { color: colors.danger, fontSize: 13, lineHeight: 19 },
+  retellText: { fontFamily: fonts.serif, color: gold.onFill, fontWeight: '700', fontSize: 13 },
+  workingText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13, fontStyle: 'italic' },
+  errorText: { fontFamily: fonts.serif, color: colors.danger, fontSize: 13, lineHeight: 19 },
 });

@@ -19,7 +19,7 @@ import { deleteAccount } from '@/domains/account/service';
 import { fetchExportPayload, serializeExport } from '@/domains/account/export';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { requestPasswordReset, signOut } from '@/domains/auth/service';
-import { colors } from '@/lib/theme';
+import { cardShadow, colors, fonts } from '@/lib/theme';
 
 /**
  * Settings home (J9): account, library shortcuts, and support in one
@@ -273,6 +273,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   sectionLabel: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
@@ -288,6 +289,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
+    ...cardShadow,
   },
   row: {
     flexDirection: 'row',
@@ -304,19 +306,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowTitle: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 15,
     fontWeight: '600',
   },
   rowSub: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12.5,
     marginTop: 1,
   },
   dangerText: {
+    fontFamily: fonts.serif,
     color: colors.danger,
   },
   error: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     marginTop: 14,
     textAlign: 'center',
@@ -331,6 +337,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signOutText: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     fontSize: 15,
     fontWeight: '700',

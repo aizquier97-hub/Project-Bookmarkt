@@ -22,7 +22,7 @@ import { enlargeCoverUrl, searchCovers } from '@/domains/library/bookSearch';
 import { lookupBookByIsbn, normalizeIsbn } from '@/domains/library/covers';
 import type { CoverCandidate } from '@/domains/library/covers';
 import { IsbnScanner, isBarcodeScannerAvailable } from '@/components/IsbnScanner';
-import { colors, gold } from '@/lib/theme';
+import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 interface CoverPickerProps {
   title: string;
@@ -277,6 +277,7 @@ export function CoverPicker({
 
 const styles = StyleSheet.create({
   label: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 13,
     fontWeight: '600',
@@ -296,11 +297,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   removeText: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     fontWeight: '600',
     fontSize: 14,
   },
   noneText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
@@ -321,6 +324,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   isbnInput: {
+    fontFamily: fonts.serif,
     flex: 1,
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -332,17 +336,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   lookupButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingHorizontal: 14,
     justifyContent: 'center',
+    ...buttonShadow,
   },
   lookupButtonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 13,
   },
   isbnNote: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
@@ -362,6 +371,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   searchButtonText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '700',
     fontSize: 14,
@@ -382,12 +392,14 @@ const styles = StyleSheet.create({
     borderColor: gold.base,
   },
   candidateYear: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 11,
     textAlign: 'center',
     marginTop: 3,
   },
   attribution: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 11,
     marginTop: 10,
@@ -405,6 +417,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   previewHint: {
+    fontFamily: fonts.serif,
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 13,
     marginTop: 16,

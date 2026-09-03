@@ -1,28 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
-import { colors, fonts } from '@/lib/theme';
+import { colors, fonts, gold } from '@/lib/theme';
 
 // Bottom tabs (D-040): the primary-destination pattern every reading app in
 // this space uses (StoryGraph, Goodreads, Fable, Kindle). Library is home;
 // QR bookmarks and settings are one thumb-tap away instead of hiding behind
-// header icons.
+// header icons. The walnut frame (D-054) makes the chrome read as the
+// bookcase around the paper surfaces.
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
-        headerTintColor: colors.text,
+        headerStyle: { backgroundColor: colors.walnut },
+        headerTintColor: colors.onWalnut,
         headerTitleStyle: { fontWeight: '700', fontFamily: fonts.serif },
         headerShadowVisible: false,
         sceneStyle: { backgroundColor: colors.background },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.muted,
+        tabBarActiveTintColor: gold.base,
+        tabBarInactiveTintColor: colors.onWalnutMuted,
         tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
+          backgroundColor: colors.walnut,
+          borderTopColor: colors.walnutBorder,
+          borderTopWidth: 1,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', fontFamily: fonts.serif },
       }}
     >
       <Tabs.Screen

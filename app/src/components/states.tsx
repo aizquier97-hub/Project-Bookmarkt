@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 
 import { isLikelyNetworkError } from '@/lib/networkErrors';
-import { colors } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 
 /**
  * Shared request-state components (roadmap §11 "standardize loading, empty,
@@ -75,12 +75,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   mutedText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
   },
   errorText: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     fontSize: 15,
     lineHeight: 22,
@@ -95,6 +97,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   retryText: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontWeight: '600',
   },

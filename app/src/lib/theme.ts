@@ -1,33 +1,43 @@
 import { Platform } from 'react-native';
 
-// Stage 3 design system (D-040): a clean, warm-neutral palette in the flat,
-// cover-first style of StoryGraph / Goodreads / Fable / Kindle. Paper-white
-// surfaces, warm ink text, one terracotta accent. Book covers supply the
-// color; the chrome stays quiet. All text tokens pass WCAG AA (4.5:1) on
-// their intended surfaces.
+// Stage 4 tactile redesign (D-054): layered physical materials in place of
+// the flat Stage 3 chrome - dark-walnut wood for the app frame, deep
+// leather for accents, warm cream paper for reading surfaces. Ink-dark
+// text for contrast; gold is bold and reserved for active states, primary
+// actions, and celebration. All text tokens pass WCAG AA (4.5:1) on their
+// intended surfaces.
 export const colors = {
-  background: '#faf7f2',
-  card: '#ffffff',
-  border: '#e7dfd3',
-  text: '#28221a',
-  muted: '#756958',
-  accent: '#a1471f',
-  accentSoft: '#f6e7dc',
-  danger: '#b0342b',
+  background: '#f0e6d2',
+  card: '#faf4e6',
+  border: '#c8b48d',
+  text: '#191008',
+  muted: '#5a4a38',
+  accent: '#7d3417',
+  accentSoft: '#eedac6',
+  danger: '#9d271f',
+  // The wooden frame: headers, tab bar, and other structural chrome.
+  walnut: '#2a1c11',
+  walnutBorder: '#4a301c',
+  onWalnut: '#f2e7ce',
+  onWalnutMuted: '#b7a17f',
 } as const;
 
-// Gold is reserved for celebration and premium markers only: the finished
-// checkmark badge, the premium lock, the selected-cover ring. Never used
-// for general chrome (the amber-star pattern Goodreads/StoryGraph use).
+// Gold carries the app's active states and primary highlights (D-054):
+// the primary action fill, the active tab tint, selection rings, plus the
+// celebration markers it always owned (finished badge, premium lock).
 export const gold = {
   base: '#c9962f',
   deep: '#8a660f',
+  // Soft gold fill for tactile primary buttons; ink-on-gold text passes AA.
+  fill: '#dcae45',
+  onFill: '#2a1c05',
   glow: 'rgba(201, 150, 47, 0.28)',
   glowSoft: 'rgba(201, 150, 47, 0.12)',
 } as const;
 
-// Serif for book titles and screen headers keeps the literary identity
-// (Fable/Goodreads use serif display type); everything else is system sans.
+// The literary serif carries all reading-surface type (D-054) - titles,
+// body copy, buttons - not just display headers. RN has no global text
+// default, so styles opt in via `fontFamily: fonts.serif`.
 export const fonts = {
   serif: Platform.select({ ios: 'Georgia', default: 'serif' }),
 } as const;
@@ -40,11 +50,21 @@ export function spineColorFor(id: number): string {
   return spineColors[Math.abs(id) % spineColors.length];
 }
 
-// One quiet elevation for cards; elevation covers Android, shadow* iOS.
+// Physical-depth elevation tokens (D-054). Cards read as paper inserts
+// resting on the desk; buttons read as objects that can be pressed.
+// elevation covers Android, shadow* covers iOS.
 export const cardShadow = {
-  elevation: 1,
-  shadowColor: '#3a3125',
-  shadowOpacity: 0.08,
-  shadowRadius: 6,
+  elevation: 3,
+  shadowColor: '#2a1c11',
+  shadowOpacity: 0.18,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+} as const;
+
+export const buttonShadow = {
+  elevation: 2,
+  shadowColor: '#2a1c11',
+  shadowOpacity: 0.22,
+  shadowRadius: 4,
   shadowOffset: { width: 0, height: 2 },
 } as const;

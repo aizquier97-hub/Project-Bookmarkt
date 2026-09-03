@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 
 interface BarcodeScanEvent {
   data?: string;
@@ -168,6 +168,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   hint: {
+    fontFamily: fonts.serif,
     color: '#fffdf6',
     fontSize: 14,
     fontWeight: '600',
@@ -183,6 +184,7 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   permissionText: {
+    fontFamily: fonts.serif,
     color: '#fffdf6',
     fontSize: 15,
     lineHeight: 21,
@@ -202,6 +204,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   closeText: {
+    fontFamily: fonts.serif,
     color: '#fffdf6',
     fontWeight: '700',
     fontSize: 15,

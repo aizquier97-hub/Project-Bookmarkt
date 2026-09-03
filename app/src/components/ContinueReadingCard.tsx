@@ -131,6 +131,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eyebrow: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontSize: 10,
     fontWeight: '800',
@@ -168,12 +169,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   progressText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   subLine: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 11,
     marginTop: 2,

@@ -25,7 +25,7 @@ import { CoverPicker } from '@/components/CoverPicker';
 import { ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors } from '@/lib/theme';
+import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 export default function EditBookScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -256,6 +256,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   label: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 13,
     fontWeight: '600',
@@ -263,6 +264,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   input: {
+    fontFamily: fonts.serif,
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
@@ -273,18 +275,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   error: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     marginTop: 12,
   },
   saveButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 24,
+    ...buttonShadow,
   },
   saveButtonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 16,
   },
@@ -297,6 +304,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   deleteButtonText: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     fontWeight: '600',
     fontSize: 15,
