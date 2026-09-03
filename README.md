@@ -54,9 +54,12 @@ snapshots), a **Cue Cards** home tab (flip-card decks), bookmark-ribbon entry
 timelines with one-line AI summaries, and a gold bookmark that retells any
 chosen stretch of entries at a chosen detail - all server-gated (entitlement
 + daily quotas) and grounded only in the reader's own entries (see
-[docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). Quiz Me and the
-word bank are built but hidden, on hold per the owner; the capture
-structuring aid, suggested important flags, and search by meaning remain
-live. Account self-service foundations are in place: change password, JSON
-data export, and permanent account deletion from Settings. Remaining Stage 4
-work: native billing integration and pricing decisions.
+[docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). The Book Club acts
+as a Socratic facilitator (D-056): observation cards drawn from the reader's
+own notes open the conversation, replies follow a validate-then-probe mirror
+contract with tappable answer stems, and the chat composer takes dictation.
+Quiz Me and the word bank are built but hidden, on hold per the owner; the
+capture structuring aid, suggested important flags, and search by meaning
+remain live. Account self-service foundations are in place: change password,
+JSON data export, and permanent account deletion from Settings. Remaining
+Stage 4 work: native billing integration and pricing decisions.

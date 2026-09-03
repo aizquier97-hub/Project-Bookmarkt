@@ -32,7 +32,9 @@ type Feature =
   | "structure_aid"
   | "suggest_flags"
   | "semantic_search"
-  | "entry_summaries";
+  | "entry_summaries"
+  | "observations"
+  | "observation_open";
 
 const FEATURES: Feature[] = [
   "dialogue",
@@ -45,6 +47,8 @@ const FEATURES: Feature[] = [
   "suggest_flags",
   "semantic_search",
   "entry_summaries",
+  "observations",
+  "observation_open",
 ];
 
 /**
@@ -183,8 +187,10 @@ function buildSystemPrompt(params: {
   entriesBlock: string;
   charactersBlock: string;
   entryCount: number;
+  /** Dialogue only (D-056): Socratic-mirror contract + perspective stems. */
+  socratic?: boolean;
 }): string {
-  const { bookTitle, author, boundaryLabel, flavor, entriesBlock, charactersBlock, entryCount } = params;
+  const { bookTitle, author, boundaryLabel, flavor, entriesBlock, charactersBlock, entryCount, socratic } = params;
   const boundaryRule = boundaryLabel
     ? `The reader has read up to ${boundaryLabel} and NOT beyond. You must never reveal, hint at, foreshadow, or ask leading questions about anything in the story after ${boundaryLabel}.`
     : entryCount > 0
@@ -211,8 +217,21 @@ function buildSystemPrompt(params: {
     entriesBlock,
     charactersBlock ? `\nTHE READER'S CHARACTER MAP:\n${charactersBlock}` : "",
     "",
-    'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean}.',
-    'provenance is "your_notes" when the reply rests on the notes, "general_knowledge" when it rests on outside knowledge, "mixed" when both.',
+    ...(socratic
+      ? [
+          "THE SOCRATIC MIRROR (your strict conversational contract, D-056):",
+          "- You are a mirror, not a lecturer. You never generate unearned insights, never summarize plot the reader has not logged, and never explain the book at them.",
+          "- Shape every reply as: VALIDATE in one sentence (mirror what the reader just said, using their own premises and words), then PROBE in one sentence (one open-ended question that pushes their thought further, grounded in their notes).",
+          "- At most one extra sentence when strictly needed (e.g. a boundary decline). Never answer your own question.",
+          "- With each reply, offer 2-3 short answer stems the reader could start their response with: first-person or claim fragments of 3-6 words in the reader's register (e.g. \"They were afraid\", \"It was strategic\"). Never full sentences, never questions.",
+          "",
+          'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean, "stems": [string]}.',
+          'provenance is "your_notes" when the reply rests on the notes, "general_knowledge" when it rests on outside knowledge, "mixed" when both.',
+        ]
+      : [
+          'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes" | "general_knowledge" | "mixed", "declined": boolean}.',
+          'provenance is "your_notes" when the reply rests on the notes, "general_knowledge" when it rests on outside knowledge, "mixed" when both.',
+        ]),
   ].join("\n");
 }
 
@@ -315,6 +334,15 @@ function buildToolPrompt(
         'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "suggestions": [{"entryId": number, "reason": string}]}.',
         "reply is one short deadpan line introducing the suggestions. Each reason is one line naming why that note looks pivotal, in the reader's terms. If nothing qualifies, return an empty suggestions array and say so plainly.",
       ].join("\n");
+    case "observations":
+      return [
+        `The reader has opened the Book Club and said nothing yet. From their ${opts.entryCount} notes and character map above, prepare 1-3 observation cards: specific, grounded conversation openers that spare them a blank page.`,
+        "Each card is ONE open-ended question (at most 35 words) rooted in something concrete the reader actually wrote - a contradiction between two of their notes, a pattern or repeated theme across notes, or a shift in how they describe a character.",
+        "Point at their own material (\"You noted...\", \"You've mentioned... twice\") - never at plot they did not log, never past the boundary, never generic book-club filler.",
+        "If the notes are too thin for a grounded question, return fewer cards rather than inventing.",
+        "reply is one short deadpan line (it is not shown prominently).",
+        'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "observations": [{"prompt": string}]}.',
+      ].join("\n");
     default:
       return REPLY_JSON_RULE;
   }
@@ -410,6 +438,8 @@ function parseCompanionJson(raw: string): {
   declined: boolean;
   suggestions: { entryId: number; reason: string }[];
   cards: { front: string; back: string }[];
+  stems: string[];
+  observations: { prompt: string }[];
 } {
   try {
     const parsed = JSON.parse(raw);
@@ -436,12 +466,24 @@ function parseCompanionJson(raw: string): {
             .filter((c: { front: string; back: string }) => c.front && c.back)
             .slice(0, 10)
         : [];
-      return { reply, provenance, declined: parsed?.declined === true, suggestions, cards };
+      const stems = Array.isArray(parsed?.stems)
+        ? parsed.stems
+            .map((s: any) => String(s ?? "").trim().slice(0, 60))
+            .filter((s: string) => s.length > 0)
+            .slice(0, 3)
+        : [];
+      const observations = Array.isArray(parsed?.observations)
+        ? parsed.observations
+            .map((o: any) => ({ prompt: String(o?.prompt ?? "").trim().slice(0, 400) }))
+            .filter((o: { prompt: string }) => o.prompt.length > 0)
+            .slice(0, 3)
+        : [];
+      return { reply, provenance, declined: parsed?.declined === true, suggestions, cards, stems, observations };
     }
   } catch {
     // fall through to raw-text fallback
   }
-  return { reply: raw.trim(), provenance: "mixed", declined: false, suggestions: [], cards: [] };
+  return { reply: raw.trim(), provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [] };
 }
 
 serve(async (req) => {
@@ -505,6 +547,9 @@ serve(async (req) => {
   }
   if (feature === "semantic_search" && !message) {
     return jsonResponse({ error: "Type what you are looking for first.", code: "BAD_REQUEST" }, 400);
+  }
+  if (feature === "observation_open" && !message) {
+    return jsonResponse({ error: "An observation card is required.", code: "BAD_REQUEST" }, 400);
   }
   const detail =
     feature === "word_bank"
@@ -594,6 +639,8 @@ serve(async (req) => {
       suggest_flags: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
       semantic_search: { env: "COMPANION_SEARCH_DAILY_LIMIT", fallback: 20, max: 500 },
       entry_summaries: { env: "COMPANION_SUMMARY_DAILY_LIMIT", fallback: 30, max: 500 },
+      observations: { env: "COMPANION_OBSERVATIONS_DAILY_LIMIT", fallback: 20, max: 500 },
+      observation_open: { env: "COMPANION_DIALOGUE_DAILY_LIMIT", fallback: 50, max: 1000 },
     };
     const limitSpec = TOOL_LIMITS[feature] ?? TOOL_LIMITS.dialogue!;
     const userDailyLimit = readPositiveLimit(
@@ -697,6 +744,40 @@ serve(async (req) => {
     const boundaryLabel = boundary ? `${boundary.type} ${boundary.upper}` : null;
     const oldestFirst = [...newestFirst].reverse();
 
+    // observation_open (D-056): the reader tapped an observation card. Persist
+    // it as a companion-authored message so the Socratic thread starts from it.
+    // No model call - the card text was already generated by 'observations'.
+    if (feature === "observation_open") {
+      const { data: cardRow, error: cardError } = await userClient
+        .from("companion_messages")
+        .insert({
+          user_id: userId,
+          topic_id: bookId,
+          role: "companion",
+          feature: "observation",
+          content: message.slice(0, 600),
+          provenance: {
+            sources: "your_notes",
+            declined: false,
+            boundaryLabel,
+            entryCount: newestFirst.length,
+          },
+        })
+        .select("id, role, feature, content, provenance, created_at")
+        .single();
+      if (cardError) {
+        await finalize("failed", 503, { error_code: "PERSIST_FAILED", error_message: truncate(cardError.message, 300) });
+        return jsonResponse({ error: "The conversation could not be saved. Please try again.", code: "PERSIST_FAILED" }, 503);
+      }
+      await finalize("succeeded", 200, { grounding_entries: newestFirst.length, grounding_characters: 0 });
+      return jsonResponse({
+        reply: { content: message.slice(0, 600), provenance: "your_notes", declined: false },
+        boundaryLabel,
+        quota,
+        messages: [cardRow],
+      });
+    }
+
     if (feature === "recap" && oldestFirst.length === 0) {
       await finalize("succeeded", 200, { grounding_entries: 0, grounding_characters: 0 });
       return jsonResponse({
@@ -711,7 +792,7 @@ serve(async (req) => {
         quota,
       });
     }
-    const needsEntries: Feature[] = ["cue_cards", "club_prep", "suggest_flags"];
+    const needsEntries: Feature[] = ["cue_cards", "club_prep", "suggest_flags", "observations"];
     if (needsEntries.includes(feature) && oldestFirst.length === 0) {
       await finalize("succeeded", 200, { grounding_entries: 0, grounding_characters: 0 });
       return jsonResponse({
@@ -725,6 +806,7 @@ serve(async (req) => {
         boundaryLabel: null,
         quota,
         suggestions: [],
+        ...(feature === "observations" ? { observations: [] } : {}),
       });
     }
     if (feature === "quiz" && (charactersResult.data ?? []).length === 0) {
@@ -1060,6 +1142,7 @@ serve(async (req) => {
       entriesBlock: entryLines.join("\n") || "(none)",
       charactersBlock,
       entryCount: entryLines.length,
+      socratic: feature === "dialogue",
     });
 
     // Conversation history keeps the dialogue coherent across sittings.
@@ -1198,6 +1281,8 @@ serve(async (req) => {
       messages: savedMessages,
       ...(feature === "suggest_flags" ? { suggestions } : {}),
       ...(feature === "cue_cards" ? { cards: parsed.cards } : {}),
+      ...(feature === "dialogue" ? { stems: parsed.stems } : {}),
+      ...(feature === "observations" ? { observations: parsed.observations } : {}),
     });
   } catch (error) {
     console.error("companion unhandled error", error);

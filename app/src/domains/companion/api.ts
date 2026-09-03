@@ -41,6 +41,11 @@ export interface CompanionSearchResult {
   similarity: number;
 }
 
+/** An observation card: a grounded conversation opener (D-056). */
+export interface CompanionObservation {
+  prompt: string;
+}
+
 export interface CompanionQuota {
   used: number;
   remaining: number;
@@ -75,6 +80,10 @@ export interface CompanionSendResult {
   cards: CompanionCueCard[];
   /** Present only for entry_summaries: the ribbon labels just refreshed. */
   summaries: CompanionEntrySummary[];
+  /** Present only for dialogue: short answer stems for the reply (D-056). */
+  stems: string[];
+  /** Present only for observations: grounded conversation openers (D-056). */
+  observations: CompanionObservation[];
 }
 
 /** A denial or failure from the companion service, typed for the UI. */
@@ -187,6 +196,8 @@ interface RawSendResponse {
   results?: unknown;
   cards?: unknown;
   summaries?: unknown;
+  stems?: unknown;
+  observations?: unknown;
 }
 
 function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
@@ -233,6 +244,17 @@ function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
         return { entryId: Number(item.entryId), summary: String(item.summary ?? '').trim() };
       })
       .filter((item) => Number.isFinite(item.entryId) && item.entryId > 0 && item.summary.length > 0),
+    stems: (Array.isArray(data.stems) ? data.stems : [])
+      .map((raw) => String(raw ?? '').trim())
+      .filter((stem) => stem.length > 0)
+      .slice(0, 3),
+    observations: (Array.isArray(data.observations) ? data.observations : [])
+      .map((raw) => {
+        const item = (raw ?? {}) as { prompt?: unknown };
+        return { prompt: String(item.prompt ?? '').trim() };
+      })
+      .filter((item) => item.prompt.length > 0)
+      .slice(0, 3),
   };
 }
 
@@ -244,7 +266,9 @@ async function invokeCompanion(body: {
     | 'structure_aid'
     | 'suggest_flags'
     | 'semantic_search'
-    | 'entry_summaries';
+    | 'entry_summaries'
+    | 'observations'
+    | 'observation_open';
   bookId: number;
   message?: string;
   detail?: string;
@@ -357,6 +381,22 @@ export function searchEntriesByMeaning(
   query: string,
 ): Promise<CompanionSendResult> {
   return invokeCompanion({ feature: 'semantic_search', bookId, message: query.trim() });
+}
+
+/**
+ * Observation cards (D-056): 1-3 grounded conversation openers drawn from
+ * the reader's own notes. Transient - nothing is saved until one is tapped.
+ */
+export function requestObservations(bookId: number): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'observations', bookId });
+}
+
+/**
+ * The reader tapped an observation card (D-056): persist it as the
+ * companion's opener so the Socratic thread starts from it. No model call.
+ */
+export function openObservation(bookId: number, prompt: string): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'observation_open', bookId, message: prompt.trim() });
 }
 
 const MESSAGE_PAGE_SIZE = 200;
