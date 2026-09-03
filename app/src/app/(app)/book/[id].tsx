@@ -85,7 +85,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
 import { formatRelativeTime } from '@/lib/relativeTime';
-import { cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 // Capture composer states: closed (bar only), opened for typing, or opened
 // with dictation auto-started (J6: voice as prominent as typing).
@@ -370,7 +370,17 @@ export default function BookScreen() {
             FAB-per-context): Entries saves an entry, Characters adds a
             character, Photos opens the picker. */}
         {captureBarVisible ? (
-          <View style={styles.captureBar}>
+          <View
+            style={[
+              styles.captureBar,
+              // Cancel the container's safe-area padding so the bar anchors
+              // to the true screen edge, then re-pad inside it.
+              {
+                marginBottom: -Math.max(16, insets.bottom + 8),
+                paddingBottom: Math.max(14, insets.bottom + 10),
+              },
+            ]}
+          >
             {tab === 'photos' ? (
               <Pressable
                 style={styles.captureAction}
@@ -378,7 +388,7 @@ export default function BookScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Add photos"
               >
-                <Ionicons name="images-outline" size={16} color={colors.accent} />
+                <Ionicons name="images-outline" size={16} color={gold.onFill} />
                 <Text style={styles.captureActionText}>Add photos</Text>
               </Pressable>
             ) : (
@@ -393,7 +403,7 @@ export default function BookScreen() {
                     tab === 'characters' ? 'Add a character' : 'Write an entry'
                   }
                 >
-                  <Ionicons name="create-outline" size={16} color={colors.accent} />
+                  <Ionicons name="create-outline" size={16} color={gold.onFill} />
                   <Text style={styles.captureActionText}>
                     {tab === 'characters' ? 'Add character' : 'Write'}
                   </Text>
@@ -408,7 +418,7 @@ export default function BookScreen() {
                     tab === 'characters' ? 'Speak a character' : 'Speak an entry'
                   }
                 >
-                  <Ionicons name="mic-outline" size={16} color={colors.accent} />
+                  <Ionicons name="mic-outline" size={16} color={gold.onFill} />
                   <Text style={styles.captureActionText}>
                     {tab === 'characters' ? 'Speak character' : 'Speak'}
                   </Text>
@@ -2168,6 +2178,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   meta: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 13,
     marginTop: 2,
@@ -2180,6 +2191,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   headerEditText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '700',
     fontSize: 15,
@@ -2196,17 +2208,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 16,
     paddingVertical: 8,
+    ...buttonShadow,
   },
   finishButtonDone: {
     backgroundColor: gold.base,
     borderColor: gold.base,
   },
   finishText: {
+    fontFamily: fonts.serif,
     color: gold.deep,
     fontWeight: '700',
     fontSize: 14,
   },
   finishTextDone: {
+    fontFamily: fonts.serif,
     color: '#fffdf6',
     fontWeight: '700',
     fontSize: 14,
@@ -2228,15 +2243,19 @@ const styles = StyleSheet.create({
   },
   tabButtonActive: {
     backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: gold.base,
     ...cardShadow,
   },
   tabText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontWeight: '600',
     fontSize: 13,
   },
   tabTextActive: {
-    color: colors.accent,
+    fontFamily: fonts.serif,
+    color: gold.deep,
     fontWeight: '700',
   },
   tabPane: {
@@ -2246,6 +2265,7 @@ const styles = StyleSheet.create({
     display: 'none',
   },
   dayHeading: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
@@ -2267,33 +2287,52 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   positionChipText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '700',
     fontSize: 12,
   },
   positionMeta: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
   },
+  // Anchored capture bar (D-054): a solid shelf fixed to the screen's bottom
+  // edge - full-bleed against the container padding, separated from the
+  // scroll by a firm top border and an upward shadow.
   captureBar: {
     flexDirection: 'row',
     gap: 10,
-    paddingTop: 10,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    backgroundColor: colors.card,
+    borderTopWidth: 1.5,
+    borderTopColor: colors.border,
+    elevation: 8,
+    shadowColor: '#2a1c11',
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -3 },
   },
+  // Primary capture actions are physical gold buttons (D-054): soft gold
+  // fill, firm dark-gold border, and real elevation.
   captureAction: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
-    borderWidth: 1,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: 'center',
+    ...buttonShadow,
   },
   captureActionText: {
-    color: colors.accent,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 15,
   },
@@ -2304,13 +2343,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   composerClose: {
+    backgroundColor: colors.card,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
+    ...buttonShadow,
   },
   composerCloseText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontWeight: '700',
     fontSize: 13,
@@ -2367,6 +2409,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   teaserPillText: {
+    fontFamily: fonts.serif,
     color: colors.background,
     fontWeight: '700',
     fontSize: 11,
@@ -2383,6 +2426,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   teaserBody: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 14,
     lineHeight: 21,
@@ -2401,12 +2445,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   entryChipText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '700',
     fontSize: 11,
   },
-  // Gold is reserved for celebration/premium markers (D-040); a flagged
-  // important moment earns it.
+  // A flagged important moment earns the gold highlight (D-054).
   importantChip: {
     alignSelf: 'flex-start',
     backgroundColor: gold.glowSoft,
@@ -2416,6 +2460,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   importantChipText: {
+    fontFamily: fonts.serif,
     color: gold.deep,
     fontWeight: '700',
     fontSize: 11,
@@ -2438,24 +2483,30 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
+  // Active selection states carry the gold highlight (D-054).
   kindChip: {
+    backgroundColor: colors.card,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 7,
+    ...buttonShadow,
   },
   kindChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
   },
   kindChipText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontWeight: '600',
     fontSize: 13,
   },
   kindChipTextActive: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
+    fontWeight: '700',
   },
   filterRow: {
     flexDirection: 'row',
@@ -2464,23 +2515,27 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 6,
     backgroundColor: colors.card,
+    ...buttonShadow,
   },
   filterChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
   },
   filterChipText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontWeight: '600',
     fontSize: 13,
   },
   filterChipTextActive: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
+    fontWeight: '700',
   },
   aidPendingRow: {
     flexDirection: 'row',
@@ -2488,7 +2543,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
-  aidPendingText: { color: colors.muted, fontSize: 13 },
+  aidPendingText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13 },
   aidCard: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -2500,6 +2555,7 @@ const styles = StyleSheet.create({
     ...cardShadow,
   },
   aidLabel: {
+    fontFamily: fonts.serif,
     flex: 1,
     color: colors.muted,
     fontSize: 12,
@@ -2507,7 +2563,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  aidSuggestion: { color: colors.text, fontSize: 14, lineHeight: 21 },
+  aidSuggestion: { fontFamily: fonts.serif, color: colors.text, fontSize: 14, lineHeight: 21 },
   flagsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2519,8 +2575,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.card,
     marginBottom: 12,
+    ...cardShadow,
   },
-  flagsRowText: { color: colors.text, fontSize: 13, fontWeight: '600' },
+  flagsRowText: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontWeight: '600' },
   meaningBlock: { marginTop: 10 },
   meaningResultRow: {
     flexDirection: 'row',
@@ -2532,9 +2589,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
+    backgroundColor: colors.card,
+    ...cardShadow,
   },
-  meaningResultText: { color: colors.text, fontSize: 13, flex: 1 },
-  meaningClearText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
+  meaningResultText: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, flex: 1 },
+  meaningClearText: { fontFamily: fonts.serif, color: colors.accent, fontSize: 13, fontWeight: '600' },
   flagsHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   flagSuggestion: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -2542,8 +2601,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     gap: 4,
   },
-  flagPreview: { color: colors.text, fontSize: 13, fontStyle: 'italic' },
-  flagReason: { color: colors.muted, fontSize: 12, lineHeight: 17 },
+  flagPreview: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontStyle: 'italic' },
+  flagReason: { fontFamily: fonts.serif, color: colors.muted, fontSize: 12, lineHeight: 17 },
   captureCard: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -2561,6 +2620,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   captureHint: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18,
@@ -2572,27 +2632,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   segment: {
+    backgroundColor: colors.card,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    ...buttonShadow,
   },
   segmentActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
   },
   segmentText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontWeight: '600',
   },
   segmentTextActive: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
+    fontWeight: '700',
   },
   progressInput: {
     flex: 1,
   },
   boundaryHint: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     marginTop: 10,
@@ -2602,14 +2668,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: colors.card,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginTop: 10,
+    ...buttonShadow,
   },
   dictateButtonText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '600',
     fontSize: 13,
@@ -2623,30 +2692,35 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   dictationLabel: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontWeight: '700',
     fontSize: 13,
     marginBottom: 6,
   },
   dictationPartial: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 14,
     fontStyle: 'italic',
     marginBottom: 8,
   },
   dictationPreview: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 15,
     lineHeight: 21,
     marginBottom: 8,
   },
   dictationRawNote: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     fontStyle: 'italic',
     marginBottom: 6,
   },
   dictationHint: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 16,
@@ -2657,18 +2731,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: colors.card,
     borderColor: colors.danger,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    ...buttonShadow,
   },
   stopButtonText: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     fontWeight: '700',
     fontSize: 13,
   },
   input: {
+    fontFamily: fonts.serif,
     backgroundColor: colors.background,
     borderColor: colors.border,
     borderWidth: 1,
@@ -2694,20 +2772,26 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   highlightMatch: {
+    fontFamily: fonts.serif,
     backgroundColor: gold.glow,
     color: colors.text,
     fontWeight: '700',
     borderRadius: 3,
   },
+  // Primary actions are physical gold buttons (D-054).
   primaryButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 12,
+    ...buttonShadow,
   },
   primaryButtonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 15,
   },
@@ -2715,10 +2799,12 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   error: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     marginTop: 8,
   },
   empty: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 14,
     marginTop: 4,
@@ -2737,11 +2823,13 @@ const styles = StyleSheet.create({
     ...cardShadow,
   },
   cardText: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 15,
     lineHeight: 21,
   },
   cardDate: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     marginTop: 8,
@@ -2752,36 +2840,46 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   smallButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    ...buttonShadow,
   },
   smallButtonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 13,
   },
   smallButtonGhost: {
+    backgroundColor: colors.card,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    ...buttonShadow,
   },
   smallButtonGhostText: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontWeight: '600',
     fontSize: 13,
   },
   smallButtonDanger: {
+    backgroundColor: colors.card,
     borderColor: colors.danger,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    ...buttonShadow,
   },
   smallButtonDangerText: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     fontWeight: '600',
     fontSize: 13,
@@ -2793,6 +2891,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   firstNotedText: {
+    fontFamily: fonts.serif,
     color: gold.deep,
     fontSize: 12,
     fontWeight: '700',
@@ -2816,6 +2915,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickAddHint: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     marginTop: 6,
@@ -2825,6 +2925,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   detailsToggleText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '700',
     fontSize: 13,
@@ -2834,6 +2935,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   suggestionLabel: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
@@ -2846,15 +2948,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  // Character quick-add chips are physical, not thin outlines (D-054).
   suggestionChip: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.card,
     borderColor: colors.accent,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    ...buttonShadow,
   },
   suggestionChipText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '700',
     fontSize: 13,
@@ -2866,6 +2971,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   mentionText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '700',
   },
@@ -2873,6 +2979,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   characterLabel: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
@@ -2881,6 +2988,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   photoStatus: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 13,
     marginTop: 8,

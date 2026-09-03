@@ -86,7 +86,14 @@ export function BookCard({
         ) : null}
       </View>
 
-      <Text style={styles.title} numberOfLines={2}>
+      {/* Single-word titles stay on one line: shrink first, ellipsize last
+          (D-054); multi-word titles wrap at spaces across two lines. */}
+      <Text
+        style={styles.title}
+        numberOfLines={book.name.trim().includes(' ') ? 2 : 1}
+        adjustsFontSizeToFit={!book.name.trim().includes(' ')}
+        minimumFontScale={0.72}
+      >
         {book.name}
       </Text>
       {book.author ? (
@@ -152,6 +159,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   placeholderAuthor: {
+    fontFamily: fonts.serif,
     color: 'rgba(255, 255, 255, 0.75)',
     fontSize: 10,
     textAlign: 'center',
@@ -176,10 +184,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     lineHeight: 17,
+    fontFamily: fonts.serif,
     fontWeight: '600',
     marginTop: 7,
   },
   author: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 11,
     lineHeight: 15,
@@ -204,17 +214,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   progressText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 10,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   finishedText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 11,
     fontWeight: '600',
   },
   positionText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 10,
     marginTop: 5,

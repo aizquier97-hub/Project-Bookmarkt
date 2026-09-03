@@ -14,7 +14,7 @@ import {
 
 import { createSessionFromRecoveryUrl, updatePassword } from '@/domains/auth/service';
 import { useAuth } from '@/domains/auth/AuthProvider';
-import { colors, fonts } from '@/lib/theme';
+import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 /**
  * Landing screen for the emailed recovery link. Lives outside the (auth)
@@ -170,12 +170,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 15,
     lineHeight: 21,
     textAlign: 'center',
   },
   input: {
+    fontFamily: fonts.serif,
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
@@ -186,28 +188,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   policyHint: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
   },
   error: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     fontSize: 14,
     textAlign: 'center',
   },
   button: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
+    ...buttonShadow,
   },
   buttonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontSize: 16,
     fontWeight: '700',
   },
   link: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     textAlign: 'center',
     marginTop: 10,

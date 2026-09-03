@@ -22,7 +22,7 @@ import {
 } from '@/domains/reporting/service';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors } from '@/lib/theme';
+import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 const KIND_OPTIONS: { value: IssueKind; label: string }[] = [
   { value: 'bug', label: 'Bug' },
@@ -175,6 +175,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   formTitle: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
@@ -194,17 +195,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   kindOptionSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
   },
   kindOptionText: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontWeight: '600',
   },
   kindOptionTextSelected: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
+    fontWeight: '700',
   },
   input: {
+    fontFamily: fonts.serif,
     backgroundColor: colors.background,
     borderColor: colors.border,
     borderWidth: 1,
@@ -215,13 +220,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   primaryButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
+    ...buttonShadow,
   },
   primaryButtonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 16,
   },
@@ -229,6 +238,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   sectionTitle: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
@@ -252,6 +262,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cardKind: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
@@ -267,35 +278,42 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   statusChipText: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 12,
     fontWeight: '600',
   },
   cardText: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 14,
     lineHeight: 20,
   },
   cardDate: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     marginTop: 6,
   },
   resolutionNotes: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 13,
     marginTop: 6,
     fontStyle: 'italic',
   },
   error: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     marginBottom: 8,
   },
   success: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     marginBottom: 8,
   },
   empty: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 14,
     textAlign: 'center',

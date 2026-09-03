@@ -35,7 +35,7 @@ import { CoverPicker } from '@/components/CoverPicker';
 import { IsbnScanner, isBarcodeScannerAvailable } from '@/components/IsbnScanner';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors } from '@/lib/theme';
+import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 const SEARCH_DEBOUNCE_MS = 400;
 const MIN_QUERY_LENGTH = 2;
@@ -548,6 +548,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   searchInput: {
+    fontFamily: fonts.serif,
     flex: 1,
     color: colors.text,
     paddingVertical: 12,
@@ -570,6 +571,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   searchingText: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 14,
   },
@@ -604,12 +606,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   resultTitle: {
+    fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 15,
     fontWeight: '600',
     lineHeight: 20,
   },
   resultSub: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     marginTop: 3,
@@ -623,11 +627,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   manualToggleText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontWeight: '600',
     fontSize: 14,
   },
   label: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 13,
     fontWeight: '600',
@@ -635,6 +641,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   input: {
+    fontFamily: fonts.serif,
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
@@ -645,28 +652,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   error: {
+    fontFamily: fonts.serif,
     color: colors.danger,
     marginTop: 12,
   },
   hint: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 14,
   },
   saveButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 24,
+    ...buttonShadow,
   },
   saveButtonText: {
-    color: colors.background,
+    fontFamily: fonts.serif,
+    color: gold.onFill,
     fontWeight: '700',
     fontSize: 16,
   },
   attribution: {
+    fontFamily: fonts.serif,
     color: colors.muted,
     fontSize: 11,
     marginTop: 26,

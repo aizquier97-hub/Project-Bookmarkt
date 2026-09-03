@@ -32,7 +32,7 @@ import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
 import { getBook } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { queryKeys } from '@/lib/queryKeys';
-import { cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 const MAX_MESSAGE_CHARS = 2000;
 
@@ -463,7 +463,7 @@ function CompanionChat({ bookId }: { bookId: number }) {
           accessibilityRole="button"
           accessibilityLabel="Send message to the companion"
         >
-          <Ionicons name="arrow-up" size={18} color="#ffffff" />
+          <Ionicons name="arrow-up" size={18} color={gold.onFill} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  stateText: { color: colors.muted, fontSize: 15 },
+  stateText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 15 },
 
   contextBar: {
     flexDirection: 'row',
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.card,
   },
-  boundaryText: { fontSize: 11, color: colors.muted },
+  boundaryText: { fontFamily: fonts.serif, fontSize: 11, color: colors.muted },
 
   toolBar: { flexGrow: 0 },
   toolBarContent: {
@@ -561,15 +561,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: colors.card,
+    ...buttonShadow,
   },
   toolChipDisabled: { opacity: 0.5 },
-  toolChipText: { color: colors.text, fontSize: 12, fontWeight: '600' },
+  toolChipText: { fontFamily: fonts.serif, color: colors.text, fontSize: 12, fontWeight: '600' },
 
   levelCard: {
     marginHorizontal: 16,
@@ -588,20 +589,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  levelBody: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  levelBody: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13, lineHeight: 18 },
   levelRow: { flexDirection: 'row', gap: 8 },
   levelChip: {
     flex: 1,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 8,
     alignItems: 'center',
     gap: 2,
+    backgroundColor: colors.background,
+    ...buttonShadow,
   },
-  levelChipLabel: { color: colors.text, fontSize: 13, fontWeight: '700' },
-  levelChipHint: { color: colors.muted, fontSize: 10, textAlign: 'center' },
+  levelChipLabel: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontWeight: '700' },
+  levelChipHint: { fontFamily: fonts.serif, color: colors.muted, fontSize: 10, textAlign: 'center' },
 
   listContent: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
 
@@ -616,7 +619,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     borderBottomRightRadius: 4,
   },
-  readerText: { color: colors.text, fontSize: 15, lineHeight: 21 },
+  readerText: { fontFamily: fonts.serif, color: colors.text, fontSize: 15, lineHeight: 21 },
   companionGroup: { alignSelf: 'flex-start', maxWidth: '92%', gap: 4 },
   speakerLabel: {
     fontFamily: fonts.serif,
@@ -633,7 +636,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
     ...cardShadow,
   },
-  companionText: { color: colors.text, fontSize: 15, lineHeight: 22 },
+  companionText: { fontFamily: fonts.serif, color: colors.text, fontSize: 15, lineHeight: 22 },
   declinedBubble: { borderColor: gold.base, backgroundColor: gold.glowSoft },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginLeft: 4 },
   provenanceChip: {
@@ -647,9 +650,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  provenanceText: { fontSize: 10.5, color: colors.muted, fontWeight: '600' },
+  provenanceText: { fontFamily: fonts.serif, fontSize: 10.5, color: colors.muted, fontWeight: '600' },
   declinedChip: { borderColor: gold.base, backgroundColor: gold.glowSoft },
-  declinedChipText: { color: gold.deep },
+  declinedChipText: { fontFamily: fonts.serif, color: gold.deep },
 
   thinkingBubble: {
     flexDirection: 'row',
@@ -657,7 +660,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
-  thinkingText: { color: colors.muted, fontSize: 14, fontStyle: 'italic' },
+  thinkingText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 14, fontStyle: 'italic' },
 
   introCard: {
     backgroundColor: colors.card,
@@ -675,18 +678,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  introBody: { color: colors.muted, fontSize: 14, lineHeight: 21 },
+  introBody: { fontFamily: fonts.serif, color: colors.muted, fontSize: 14, lineHeight: 21 },
   suggestionWrap: { gap: 8, marginTop: 2 },
   suggestionChip: {
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.accent,
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
+    ...buttonShadow,
   },
-  suggestionText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
+  suggestionText: { fontFamily: fonts.serif, color: colors.accent, fontSize: 13, fontWeight: '600' },
 
   noticeBanner: {
     flexDirection: 'row',
@@ -701,28 +705,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  noticeText: { flex: 1, fontSize: 13, color: colors.muted, lineHeight: 18 },
+  noticeText: { fontFamily: fonts.serif, flex: 1, fontSize: 13, color: colors.muted, lineHeight: 18 },
   errorBanner: { borderColor: colors.danger },
-  errorText: { color: colors.danger },
+  errorText: { fontFamily: fonts.serif, color: colors.danger },
 
+  // The composer anchors solidly to the bottom edge (D-054): card fill,
+  // firm top border, and an upward shadow separating it from the chat.
   composerRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
     paddingHorizontal: 12,
     paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1.5,
     borderTopColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
+    elevation: 8,
+    shadowColor: '#2a1c11',
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -3 },
   },
   input: {
+    fontFamily: fonts.serif,
     flex: 1,
     minHeight: 42,
     maxHeight: 120,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 21,
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
     paddingHorizontal: 14,
     paddingTop: Platform.OS === 'ios' ? 11 : 8,
     paddingBottom: Platform.OS === 'ios' ? 11 : 8,
@@ -733,9 +745,12 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: colors.accent,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+    ...buttonShadow,
   },
   sendButtonDisabled: { opacity: 0.35 },
 
@@ -769,7 +784,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  offerBody: { color: colors.muted, fontSize: 14.5, lineHeight: 22 },
+  offerBody: { fontFamily: fonts.serif, color: colors.muted, fontSize: 14.5, lineHeight: 22 },
   offerPill: {
     paddingHorizontal: 12,
     paddingVertical: 5,
@@ -778,5 +793,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: gold.base,
   },
-  offerPillText: { color: gold.deep, fontSize: 12.5, fontWeight: '700' },
+  offerPillText: { fontFamily: fonts.serif, color: gold.deep, fontSize: 12.5, fontWeight: '700' },
 });

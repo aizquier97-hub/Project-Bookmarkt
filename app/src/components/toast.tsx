@@ -11,7 +11,7 @@ import {
 import { Animated, Pressable, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 
 /**
  * Shared in-app notification system (roadmap §11 "replace developer-facing
@@ -156,12 +156,14 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   toastText: {
+    fontFamily: fonts.serif,
     flex: 1,
     color: colors.text,
     fontSize: 14,
     lineHeight: 20,
   },
   actionText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
     fontSize: 14,
     fontWeight: '800',
