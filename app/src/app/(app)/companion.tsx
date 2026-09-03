@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams } from 'expo-router';
@@ -9,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,16 +19,15 @@ import { ErrorState, LoadingState } from '@/components/states';
 import {
   CompanionRequestError,
   fetchCompanionMessages,
-  runCompanionTool,
+  requestClubSnapshot,
   sendCompanionMessage,
   type CompanionChatMessage,
   type CompanionProvenance,
-  type CompanionToolFeature,
-  type WordBankLevel,
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
 import { getBook } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
+import { DateRangePicker, rangeToIsoBounds, type DateRange } from '@/components/DateRangePicker';
 import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
@@ -50,28 +47,15 @@ const PROVENANCE_LABELS: Record<CompanionProvenance, string> = {
   mixed: 'Your notes + my knowledge',
 };
 
-// The companion's study tools (D-039 premium feature set). Each runs once
-// per tap and posts its result into the conversation.
-const TOOLS: { key: CompanionToolFeature; label: string; icon: 'albums-outline' | 'help-circle-outline' | 'people-outline' | 'book-outline' }[] = [
-  { key: 'cue_cards', label: 'Cue cards', icon: 'albums-outline' },
-  { key: 'quiz', label: 'Quiz me', icon: 'help-circle-outline' },
-  { key: 'club_prep', label: 'Club prep', icon: 'people-outline' },
-  { key: 'word_bank', label: 'Word bank', icon: 'book-outline' },
-];
-
+// The chat renders older persisted tool results with their original labels;
+// club snapshots are the one tool still run from this screen (Interface
+// v2.0: cue cards moved to their own tab, quiz and word bank are on hold).
 const TOOL_LABELS: Record<string, string> = {
   cue_cards: 'Cue cards',
   quiz: 'Character quiz',
-  club_prep: 'Book-club prep',
+  club_prep: 'Club snapshot',
   word_bank: 'Word bank',
 };
-
-const WORD_BANK_LEVEL_KEY = 'companion_word_bank_level';
-const WORD_BANK_LEVELS: { key: WordBankLevel; label: string; hint: string }[] = [
-  { key: 'simple', label: 'Approachable', hint: 'everyday words, a step up' },
-  { key: 'standard', label: 'Standard', hint: 'solid words worth keeping' },
-  { key: 'scholarly', label: 'Scholarly', hint: 'rare and precise' },
-];
 
 export default function CompanionScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -93,7 +77,7 @@ export default function CompanionScreen() {
   if (!validId) {
     return (
       <View style={styles.stateContainer}>
-        <Stack.Screen options={{ title: 'Companion' }} />
+        <Stack.Screen options={{ title: 'Book Club' }} />
         <Text style={styles.stateText}>This book link is not valid.</Text>
       </View>
     );
@@ -101,7 +85,7 @@ export default function CompanionScreen() {
   if (entitlementQuery.isPending) {
     return (
       <View style={styles.stateContainer}>
-        <Stack.Screen options={{ title: 'Companion' }} />
+        <Stack.Screen options={{ title: 'Book Club' }} />
         <LoadingState label="Checking your companion access…" />
       </View>
     );
@@ -109,7 +93,7 @@ export default function CompanionScreen() {
   if (entitlementQuery.isError) {
     return (
       <View style={styles.stateContainer}>
-        <Stack.Screen options={{ title: 'Companion' }} />
+        <Stack.Screen options={{ title: 'Book Club' }} />
         <ErrorState
           error={entitlementQuery.error}
           fallback="Could not check your companion access."
@@ -131,19 +115,19 @@ export default function CompanionScreen() {
 function CompanionOffer() {
   return (
     <View style={styles.offerContainer}>
-      <Stack.Screen options={{ title: 'Companion' }} />
+      <Stack.Screen options={{ title: 'Book Club' }} />
       <View style={styles.offerCard}>
         <View style={styles.offerLockBadge}>
           <Ionicons name="lock-closed" size={18} color={gold.deep} />
         </View>
-        <Text style={styles.offerTitle}>The reading companion</Text>
+        <Text style={styles.offerTitle}>The Book Club</Text>
         <Text style={styles.offerBody}>
-          A thoughtful conversation partner for every book on your shelf. It reads only your own
-          notes, never spoils past your latest entry, and always shows whether an answer came from
-          your notes or its general knowledge.
+          A book club of two: talk any book on your shelf over, properly. The companion reads only
+          your own notes, never spoils past your latest entry, and always shows whether an answer
+          came from your notes or its general knowledge.
         </Text>
         <Text style={styles.offerBody}>
-          The companion is part of the paid plan. Subscriptions are coming soon — your notes and
+          The Book Club is part of the paid plan. Subscriptions are coming soon — your notes and
           character maps stay free forever.
         </Text>
         <View style={styles.offerPill}>
@@ -216,17 +200,23 @@ function CompanionChat({ bookId }: { bookId: number }) {
     },
   });
 
-  // Study tools post their result straight into the conversation. The word
-  // bank remembers the reader's chosen level after a one-time first pick.
-  const [levelPickerOpen, setLevelPickerOpen] = useState(false);
-  const toolMutation = useMutation({
-    mutationFn: ({ tool, level }: { tool: CompanionToolFeature; level?: WordBankLevel }) =>
-      runCompanionTool(bookId, tool, level),
+  // The club snapshot (Interface v2.0): a smooth read-through of what the
+  // reader recorded between two dates, prepared for the walk to book club.
+  // Persisted into the conversation like any companion turn.
+  const [snapshotOpen, setSnapshotOpen] = useState(false);
+  const [snapshotRange, setSnapshotRange] = useState<DateRange | null>(null);
+  const snapshotMutation = useMutation({
+    mutationFn: (range: DateRange) => {
+      const bounds = rangeToIsoBounds(range);
+      return requestClubSnapshot(bookId, bounds.rangeStart, bounds.rangeEnd);
+    },
     onMutate: () => {
       setSendError(null);
       setQuotaNotice(null);
     },
-    onSuccess: (result, variables) => {
+    onSuccess: (result) => {
+      setSnapshotOpen(false);
+      setSnapshotRange(null);
       if (result.boundaryLabel) {
         setLatestBoundary(result.boundaryLabel);
       }
@@ -236,15 +226,15 @@ function CompanionChat({ bookId }: { bookId: number }) {
           (old) => [...(old ?? []), ...result.messages],
         );
       } else if (result.reply.content) {
-        // Empty-context short-circuits (NO_ENTRIES / NO_CHARACTERS) are not
-        // persisted; show the companion's line as a notice instead.
+        // Empty-range short-circuits are not persisted; show the line as a
+        // notice instead.
         setQuotaNotice(result.reply.content);
       }
-      trackAnalyticsEvent('companion_tool_used', { tool: variables.tool, status: 'succeeded' }, bookId);
+      trackAnalyticsEvent('companion_tool_used', { tool: 'club_prep', status: 'succeeded' }, bookId);
     },
-    onError: (err, variables) => {
+    onError: (err) => {
       const status = err instanceof CompanionRequestError ? err.code : 'error';
-      trackAnalyticsEvent('companion_tool_used', { tool: variables.tool, status }, bookId);
+      trackAnalyticsEvent('companion_tool_used', { tool: 'club_prep', status }, bookId);
       if (err instanceof CompanionRequestError) {
         if (err.subscriptionRequired) {
           void queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
@@ -261,29 +251,7 @@ function CompanionChat({ bookId }: { bookId: number }) {
     },
   });
 
-  const busy = sendMutation.isPending || toolMutation.isPending;
-  const handleTool = (tool: CompanionToolFeature) => {
-    if (busy) {
-      return;
-    }
-    if (tool !== 'word_bank') {
-      toolMutation.mutate({ tool });
-      return;
-    }
-    void AsyncStorage.getItem(WORD_BANK_LEVEL_KEY).then((stored) => {
-      const level = WORD_BANK_LEVELS.find((l) => l.key === stored)?.key;
-      if (level) {
-        toolMutation.mutate({ tool: 'word_bank', level });
-      } else {
-        setLevelPickerOpen(true);
-      }
-    });
-  };
-  const handleLevelPick = (level: WordBankLevel) => {
-    setLevelPickerOpen(false);
-    void AsyncStorage.setItem(WORD_BANK_LEVEL_KEY, level);
-    toolMutation.mutate({ tool: 'word_bank', level });
-  };
+  const busy = sendMutation.isPending || snapshotMutation.isPending;
 
   const canSend = draft.trim().length > 0 && !busy;
   const handleSend = () => {
@@ -300,7 +268,7 @@ function CompanionChat({ bookId }: { bookId: number }) {
   if (messagesQuery.isPending) {
     return (
       <View style={styles.stateContainer}>
-        <Stack.Screen options={{ title: 'Companion' }} />
+        <Stack.Screen options={{ title: 'Book Club' }} />
         <LoadingState label="Opening your conversation…" />
       </View>
     );
@@ -308,7 +276,7 @@ function CompanionChat({ bookId }: { bookId: number }) {
   if (messagesQuery.isError) {
     return (
       <View style={styles.stateContainer}>
-        <Stack.Screen options={{ title: 'Companion' }} />
+        <Stack.Screen options={{ title: 'Book Club' }} />
         <ErrorState
           error={messagesQuery.error}
           fallback="Could not load the conversation."
@@ -326,7 +294,7 @@ function CompanionChat({ bookId }: { bookId: number }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
-      <Stack.Screen options={{ title: 'Companion' }} />
+      <Stack.Screen options={{ title: 'Book Club' }} />
       {bookName ? (
         <View style={styles.contextBar}>
           <Text style={styles.contextBook} numberOfLines={1}>
@@ -355,7 +323,7 @@ function CompanionChat({ bookId }: { bookId: number }) {
             <View style={[styles.bubble, styles.companionBubble, styles.thinkingBubble]}>
               <ActivityIndicator size="small" color={colors.muted} />
               <Text style={styles.thinkingText}>
-                {toolMutation.isPending ? 'Preparing…' : 'Consulting your notes…'}
+                {snapshotMutation.isPending ? 'Reading that stretch…' : 'Consulting your notes…'}
               </Text>
             </View>
           ) : null
@@ -399,51 +367,58 @@ function CompanionChat({ bookId }: { bookId: number }) {
         </View>
       ) : null}
 
-      {levelPickerOpen ? (
-        <View style={styles.levelCard}>
-          <Text style={styles.levelTitle}>How do you like your words?</Text>
-          <Text style={styles.levelBody}>
-            A one-time choice for the word bank — it also adapts to each book&apos;s genre. You can
-            change it by asking the companion.
-          </Text>
-          <View style={styles.levelRow}>
-            {WORD_BANK_LEVELS.map((level) => (
-              <Pressable
-                key={level.key}
-                style={styles.levelChip}
-                onPress={() => handleLevelPick(level.key)}
-                accessibilityRole="button"
-                accessibilityLabel={`Choose ${level.label}: ${level.hint}`}
-              >
-                <Text style={styles.levelChipLabel}>{level.label}</Text>
-                <Text style={styles.levelChipHint}>{level.hint}</Text>
-              </Pressable>
-            ))}
+      {snapshotOpen ? (
+        <View style={styles.snapshotCard}>
+          <View style={styles.snapshotHeader}>
+            <Text style={styles.snapshotTitle}>Club snapshot</Text>
+            <Pressable
+              onPress={() => setSnapshotOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close the snapshot picker"
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={18} color={colors.muted} />
+            </Pressable>
           </View>
-        </View>
-      ) : null}
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.toolBar}
-        contentContainerStyle={styles.toolBarContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {TOOLS.map((tool) => (
+          <Text style={styles.snapshotBody}>
+            A smooth read-through of everything you recorded between two dates - made for the walk
+            to book club. Pick the stretch:
+          </Text>
+          <DateRangePicker value={snapshotRange} onChange={setSnapshotRange} />
           <Pressable
-            key={tool.key}
+            style={[
+              styles.snapshotButton,
+              (!snapshotRange || busy) && styles.snapshotButtonDisabled,
+            ]}
+            onPress={() => snapshotRange && snapshotMutation.mutate(snapshotRange)}
+            disabled={!snapshotRange || busy}
+            accessibilityRole="button"
+            accessibilityLabel="Prepare the club snapshot for the chosen dates"
+          >
+            {snapshotMutation.isPending ? (
+              <ActivityIndicator size="small" color={gold.onFill} />
+            ) : (
+              <>
+                <Ionicons name="people" size={15} color={gold.onFill} />
+                <Text style={styles.snapshotButtonText}>Prepare my snapshot</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.toolBarRow}>
+          <Pressable
             style={[styles.toolChip, busy && styles.toolChipDisabled]}
-            onPress={() => handleTool(tool.key)}
+            onPress={() => setSnapshotOpen(true)}
             disabled={busy}
             accessibilityRole="button"
-            accessibilityLabel={tool.label}
+            accessibilityLabel="Prepare a club snapshot for a range of dates"
           >
-            <Ionicons name={tool.icon} size={13} color={colors.accent} />
-            <Text style={styles.toolChipText}>{tool.label}</Text>
+            <Ionicons name="people-outline" size={13} color={colors.accent} />
+            <Text style={styles.toolChipText}>Club snapshot</Text>
           </Pressable>
-        ))}
-      </ScrollView>
+        </View>
+      )}
 
       <View style={[styles.composerRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <TextInput
@@ -549,8 +524,7 @@ const styles = StyleSheet.create({
   },
   boundaryText: { fontFamily: fonts.serif, fontSize: 11, color: colors.muted },
 
-  toolBar: { flexGrow: 0 },
-  toolBarContent: {
+  toolBarRow: {
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 16,
@@ -572,7 +546,7 @@ const styles = StyleSheet.create({
   toolChipDisabled: { opacity: 0.5 },
   toolChipText: { fontFamily: fonts.serif, color: colors.text, fontSize: 12, fontWeight: '600' },
 
-  levelCard: {
+  snapshotCard: {
     marginHorizontal: 16,
     marginTop: 8,
     backgroundColor: colors.card,
@@ -583,28 +557,38 @@ const styles = StyleSheet.create({
     gap: 8,
     ...cardShadow,
   },
-  levelTitle: {
+  snapshotHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  snapshotTitle: {
     fontFamily: fonts.serif,
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
   },
-  levelBody: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13, lineHeight: 18 },
-  levelRow: { flexDirection: 'row', gap: 8 },
-  levelChip: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+  snapshotBody: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13, lineHeight: 18 },
+  snapshotButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    backgroundColor: colors.background,
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: gold.fill,
+    borderWidth: 1.5,
+    borderColor: gold.deep,
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginTop: 4,
     ...buttonShadow,
   },
-  levelChipLabel: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontWeight: '700' },
-  levelChipHint: { fontFamily: fonts.serif, color: colors.muted, fontSize: 10, textAlign: 'center' },
+  snapshotButtonDisabled: { opacity: 0.5 },
+  snapshotButtonText: {
+    fontFamily: fonts.serif,
+    color: gold.onFill,
+    fontSize: 14,
+    fontWeight: '700',
+  },
 
   listContent: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
 

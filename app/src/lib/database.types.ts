@@ -547,6 +547,8 @@ export type Database = {
       }
       entries: {
         Row: {
+          ai_summary: string | null
+          ai_summary_hash: string | null
           created_at: string | null
           id: number
           raw_transcript: string | null
@@ -556,6 +558,8 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          ai_summary?: string | null
+          ai_summary_hash?: string | null
           created_at?: string | null
           id?: never
           raw_transcript?: string | null
@@ -565,6 +569,8 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          ai_summary?: string | null
+          ai_summary_hash?: string | null
           created_at?: string | null
           id?: never
           raw_transcript?: string | null

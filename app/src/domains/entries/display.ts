@@ -1,3 +1,4 @@
+import { parseEntryKind } from '@/domains/entries/markers';
 import {
   parseProgressBoundaryFromEntryText,
   type ProgressBoundary,
@@ -131,4 +132,87 @@ export function summarizeEntriesByBook(
     }
   }
   return map;
+}
+
+export interface BookmarkRibbonLabel {
+  /** The one line shown on the ribbon. */
+  text: string;
+  /** True when the line is a companion summary, false for a raw excerpt. */
+  fromCompanion: boolean;
+}
+
+/**
+ * The one-line label for an entry's bookmark ribbon (Interface v2.0): the
+ * companion's cached summary when present, otherwise the reader's own first
+ * words trimmed to a word boundary. Display-only.
+ */
+export function buildBookmarkLabel(
+  entry: { text: string | null; ai_summary?: string | null },
+  maxChars = 96,
+): BookmarkRibbonLabel {
+  const summary = String(entry.ai_summary ?? '').trim();
+  if (summary) {
+    return { text: summary, fromCompanion: true };
+  }
+  const { body } = splitEntryText(entry.text);
+  const plain = parseEntryKind(body).body.replace(/\s+/g, ' ').trim();
+  if (plain.length <= maxChars) {
+    return { text: plain, fromCompanion: false };
+  }
+  const slice = plain.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(' ');
+  const cut = lastSpace > maxChars / 2 ? slice.slice(0, lastSpace) : slice;
+  return { text: `${cut.trimEnd()}…`, fromCompanion: false };
+}
+
+/**
+ * The caption under a bookmark ribbon: "Page 187-192, Thursday Aug 20".
+ * Position first (when the entry carries one), then the day it was written.
+ */
+export function formatBookmarkCaption(
+  entry: { text: string | null; created_at: string | null },
+): string {
+  const { boundaryLabel } = splitEntryText(entry.text);
+  const parts: string[] = [];
+  if (boundaryLabel) {
+    parts.push(boundaryLabel);
+  }
+  if (entry.created_at) {
+    const day = new Date(entry.created_at);
+    if (!Number.isNaN(day.getTime())) {
+      parts.push(
+        day.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }),
+      );
+    }
+  }
+  return parts.join(', ');
+}
+
+/** djb2 - must mirror the companion Edge Function's hashContent exactly. */
+function hashEntryText(text: string): string {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+  }
+  return `djb2:${(hash >>> 0).toString(16)}:${text.length}`;
+}
+
+/**
+ * True when an entry's cached companion summary is missing or was computed
+ * from older text. Client-side twin of the server's staleness check, so the
+ * book screen only spends a companion call when something actually changed.
+ */
+export function entrySummaryIsStale(entry: {
+  text: string | null;
+  ai_summary?: string | null;
+  ai_summary_hash?: string | null;
+}): boolean {
+  const text = String(entry.text ?? '');
+  if (!text.trim()) {
+    return false;
+  }
+  if (!String(entry.ai_summary ?? '').trim()) {
+    return true;
+  }
+  return entry.ai_summary_hash !== hashEntryText(text);
 }
