@@ -48,11 +48,15 @@ to the owner's Android phone as an EAS preview build with over-the-air
 updates.
 
 Stage 4 (Monetization and accounts) is active. The AI Reading Companion is
-built and live for entitled accounts: book-scoped chat, "Where you left off"
-recaps, cue cards, quizzes, book-club prep, word bank, capture structuring
-aid, suggested important flags, and search by meaning - all server-gated
-(entitlement + daily quotas) and grounded only in the reader's own entries
-(see [docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). Account
-self-service foundations are in place: change password, JSON data export,
-and permanent account deletion from Settings. Remaining Stage 4 work:
-native billing integration and pricing decisions.
+built and live for entitled accounts, presented per the owner's Interface
+v2.0 brief: a **Book Club** home tab (book-scoped chat with date-ranged club
+snapshots), a **Cue Cards** home tab (flip-card decks), bookmark-ribbon entry
+timelines with one-line AI summaries, and a gold bookmark that retells any
+chosen stretch of entries at a chosen detail - all server-gated (entitlement
++ daily quotas) and grounded only in the reader's own entries (see
+[docs/STAGE_4_BUILD_PLAN.md](docs/STAGE_4_BUILD_PLAN.md)). Quiz Me and the
+word bank are built but hidden, on hold per the owner; the capture
+structuring aid, suggested important flags, and search by meaning remain
+live. Account self-service foundations are in place: change password, JSON
+data export, and permanent account deletion from Settings. Remaining Stage 4
+work: native billing integration and pricing decisions.

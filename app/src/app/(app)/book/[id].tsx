@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image as CoverImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { Link, Stack, useLocalSearchParams } from 'expo-router';
+import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -39,16 +39,18 @@ import {
   applyMentionToText,
   filterNamesForMention,
   findActiveMentionQuery,
-  splitTextForMentions,
 } from '@/domains/entries/mentions';
 import {
+  buildBookmarkLabel,
+  entrySummaryIsStale,
+  formatBookmarkCaption,
   formatBoundaryPosition,
   getCurrentPosition,
   splitEntryText,
-  splitTextForHighlight,
 } from '@/domains/entries/display';
 import {
   CompanionRequestError,
+  refreshEntrySummaries,
   requestFlagSuggestions,
   requestStructureAid,
   searchEntriesByMeaning,
@@ -61,10 +63,8 @@ import {
   parseEntryKind,
   type EntryKind,
 } from '@/domains/entries/markers';
-import { groupEntriesByDay } from '@/domains/entries/timeline';
 import {
   addEntry,
-  deleteEntry,
   listEntries,
   updateEntry,
   type Entry,
@@ -80,7 +80,7 @@ import { getBook, setBookFinished } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
 import { useDictation } from '@/domains/voice/useDictation';
-import { RecapCard } from '@/components/RecapCard';
+import { EntryBookmark } from '@/components/EntryBookmark';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
@@ -93,12 +93,6 @@ type ComposerMode = 'write' | 'speak' | null;
 
 // One-time "search by meaning" explainer flag (D-052).
 const MEANING_INTRO_KEY = 'semantic_search_intro_seen';
-
-// The entries list renders day headings between cards (Day One-style
-// timeline): a flattened FlatList keeps scroll behavior simple.
-type EntryListItem =
-  | { kind: 'heading'; key: string; heading: string }
-  | { kind: 'entry'; entry: Entry };
 
 // Matches the PWA rule: only flag "(edited)" when updated_at trails created_at
 // by more than a second.
@@ -444,6 +438,7 @@ function EntriesTab({
   onOpenCharacter: (characterId: number) => void;
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { showToast } = useToast();
   const [progressType, setProgressType] = useState<ProgressType>('page');
   const [progressValue, setProgressValue] = useState('');
@@ -520,16 +515,6 @@ function EntriesTab({
       return `${parts.boundaryLabel ?? ''} ${marked.body}`.toLowerCase().includes(query);
     });
   }, [entries, entrySearch, entryFilter, hasMarkedEntries, meaningMatches]);
-  const listItems = useMemo(() => {
-    const items: EntryListItem[] = [];
-    for (const group of groupEntriesByDay(visibleEntries)) {
-      items.push({ kind: 'heading', key: group.key, heading: group.heading });
-      for (const entry of group.entries) {
-        items.push({ kind: 'entry', entry });
-      }
-    }
-    return items;
-  }, [visibleEntries]);
 
   const addEntryMutation = useMutation({    mutationFn: () =>
       addEntry(bookId, {
@@ -671,11 +656,26 @@ function EntriesTab({
     meaningMutation.mutate(entrySearch.trim());
   };
 
-  // "Where you left off" (D-022): the companion's recap of the reader's own
-  // entries, never past the latest one. RecapCard renders the real feature
-  // for entitled readers and the teaser copy for everyone else.
-  const latestEntry = entries[0] ?? null;
-  const latestRelative = latestEntry ? formatRelativeTime(latestEntry.created_at) : null;
+  // Bookmark-ribbon summaries (Interface v2.0): when entitled and any ribbon
+  // label is missing or stale, one batched companion call refreshes them.
+  // Fire-and-forget - ribbons fall back to the reader's own first words.
+  const summariesRequestedRef = useRef(false);
+  useEffect(() => {
+    if (!companionEntitled || summariesRequestedRef.current || entries.length === 0) {
+      return;
+    }
+    if (!entries.some((entry) => entrySummaryIsStale(entry))) {
+      return;
+    }
+    summariesRequestedRef.current = true;
+    refreshEntrySummaries(bookId)
+      .then((result) => {
+        if (result.summaries.length > 0) {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
+        }
+      })
+      .catch(() => undefined);
+  }, [companionEntitled, entries, bookId, queryClient]);
 
   // An "@..." being typed at the end of the composer surfaces matching
   // character names as one-tap chips (D-045).
@@ -688,27 +688,28 @@ function EntriesTab({
         )
       : [];
 
-  // Entry point for the companion chat (Stage 4). Always visible: entitled
-  // readers land in the conversation, others see the subscription offer.
-  const companionRow = (
-    <Link href={{ pathname: '/companion', params: { id: String(bookId) } }} asChild>
+  // The gold bookmark (Interface v2.0): the premium ribbon pinned above the
+  // reader's own bookmarks. It opens the story-so-far screen, where any
+  // stretch of bookmarks becomes a story at the chosen level of detail.
+  const goldBookmark =
+    entries.length > 0 ? (
       <Pressable
-        style={styles.companionRow}
+        style={({ pressed }) => [styles.goldBookmark, pressed && styles.goldBookmarkPressed]}
+        onPress={() => router.push({ pathname: '/book-summary', params: { id: String(bookId) } })}
         accessibilityRole="button"
-        accessibilityLabel="Talk it over with the Companion"
+        accessibilityLabel="The story so far - have any stretch of your bookmarks retold"
       >
-        <View style={styles.teaserTitleRow}>
-          <Ionicons name="chatbubble-ellipses-outline" size={15} color={colors.accent} />
-          <Text style={styles.companionRowTitle}>Talk it over with the Companion</Text>
+        <Ionicons name="bookmark" size={18} color={gold.onFill} />
+        <View style={styles.goldBookmarkBody}>
+          <Text style={styles.goldBookmarkTitle}>The story so far</Text>
+          <Text style={styles.goldBookmarkSub} numberOfLines={1}>
+            Any stretch of your bookmarks, retold your way
+          </Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+        <Ionicons name="chevron-forward" size={16} color={gold.onFill} />
+        <View style={styles.goldBookmarkNotch} pointerEvents="none" />
       </Pressable>
-    </Link>
-  );
-
-  const recapTeaser = latestEntry ? (
-    <RecapCard bookId={bookId} latestEntryRelative={latestRelative} entryCount={entries.length} />
-  ) : null;
+    ) : null;
 
   const composer =
     composerMode !== null ? (
@@ -929,15 +930,14 @@ function EntriesTab({
 
   return (
     <FlatList
-      data={listItems}
-      keyExtractor={(item) => (item.kind === 'heading' ? `day-${item.key}` : String(item.entry.id))}
+      data={visibleEntries}
+      keyExtractor={(entry) => String(entry.id)}
       contentContainerStyle={styles.list}
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <View>
           {composer}
-          {companionRow}
-          {recapTeaser}
+          {goldBookmark}
           {entries.length >= 6 ? (
             <TextInput
               style={[styles.input, styles.searchInput]}
@@ -1149,259 +1149,27 @@ function EntriesTab({
           ) : null}
         </View>
       }
-      renderItem={({ item }) =>
-        item.kind === 'heading' ? (
-          <Text style={styles.dayHeading}>{item.heading}</Text>
-        ) : (
-          <EntryCard
-            entry={item.entry}
-            bookId={bookId}
-            highlight={entrySearch.trim()}
-            mentionTargets={mentionTargets}
-            onOpenCharacter={onOpenCharacter}
+      renderItem={({ item: entry }) => {
+        const kind = parseEntryKind(splitEntryText(entry.text).body).kind;
+        return (
+          <EntryBookmark
+            label={buildBookmarkLabel(entry).text}
+            caption={formatBookmarkCaption(entry)}
+            kind={kind}
+            important={kind === 'important'}
+            onPress={() =>
+              router.push({
+                pathname: '/entry/[entryId]',
+                params: { entryId: String(entry.id), book: String(bookId) },
+              })
+            }
           />
-        )
-      }
+        );
+      }}
     />
   );
 }
 
-/**
- * Wraps every case-insensitive match of the search query in a gold-marked
- * Text segment, so the reader can see where in the entry the word appears
- * (D-034) - the highlighted-hit convention of every search UI.
- */
-function renderHighlighted(text: string, query: string | undefined) {
-  if (!query || !text) {
-    return text;
-  }
-  const segments = splitTextForHighlight(text, query);
-  if (segments.length === 1 && !segments[0].match) {
-    return text;
-  }
-  return segments.map((segment, index) =>
-    segment.match ? (
-      <Text key={index} style={styles.highlightMatch}>
-        {segment.text}
-      </Text>
-    ) : (
-      segment.text
-    ),
-  );
-}
-
-/**
- * Entry body rendering: search highlighting wins when a query is active;
- * otherwise @mentions of known characters become tappable links that jump
- * to the character's card (D-045).
- */
-function renderEntryBody(
-  text: string,
-  highlight: string | undefined,
-  mentionTargets: { id: number; name: string }[],
-  onOpenCharacter: (characterId: number) => void,
-) {
-  if (highlight) {
-    return renderHighlighted(text, highlight);
-  }
-  const segments = splitTextForMentions(
-    text,
-    mentionTargets.map((target) => target.name),
-  );
-  if (segments.length === 1 && !segments[0].characterName) {
-    return text;
-  }
-  return segments.map((segment, index) => {
-    if (!segment.characterName) {
-      return segment.text;
-    }
-    const lower = segment.characterName.toLowerCase();
-    const target = mentionTargets.find((candidate) => candidate.name.toLowerCase() === lower);
-    return (
-      <Text
-        key={index}
-        style={styles.mentionText}
-        onPress={target ? () => onOpenCharacter(target.id) : undefined}
-        accessibilityRole={target ? 'link' : undefined}
-      >
-        {segment.text}
-      </Text>
-    );
-  });
-}
-
-function EntryCard({
-  entry,
-  bookId,
-  highlight,
-  mentionTargets,
-  onOpenCharacter,
-}: {
-  entry: Entry;
-  bookId: number;
-  highlight?: string;
-  mentionTargets: { id: number; name: string }[];
-  onOpenCharacter: (characterId: number) => void;
-}) {
-  const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(entry.text);
-  const [error, setError] = useState<string | null>(null);
-  const parts = splitEntryText(entry.text);
-  const marked = parseEntryKind(parts.body);
-
-  // Same one-tap @mention chips as the composer, for edits (D-045).
-  const editMentionQuery = editing ? findActiveMentionQuery(draft) : null;
-  const editMentionMatches =
-    editMentionQuery !== null
-      ? filterNamesForMention(
-          mentionTargets.map((target) => target.name),
-          editMentionQuery,
-        )
-      : [];
-
-  const updateMutation = useMutation({
-    mutationFn: () => updateEntry(entry.id, bookId, draft),
-    onSuccess: () => {
-      setEditing(false);
-      setError(null);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
-    },
-    onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Could not save the entry.');
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteEntry(entry.id, bookId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
-    },
-    onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Could not delete the entry.');
-    },
-  });
-
-  return (
-    <View style={styles.card}>
-      {editing ? (
-        <>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={draft}
-            onChangeText={setDraft}
-            multiline
-            autoFocus
-          />
-          {editMentionMatches.length > 0 ? (
-            <View style={styles.mentionRow}>
-              {editMentionMatches.map((mentionName) => (
-                <Pressable
-                  key={mentionName}
-                  style={styles.suggestionChip}
-                  onPress={() => setDraft((prev) => applyMentionToText(prev, mentionName))}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Mention ${mentionName}`}
-                >
-                  <Text style={styles.suggestionChipText}>@{mentionName}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <View style={styles.cardActions}>
-            <Pressable
-              style={styles.smallButton}
-              onPress={() => updateMutation.mutate()}
-              disabled={updateMutation.isPending}
-            >
-              <Text style={styles.smallButtonText}>
-                {updateMutation.isPending ? 'Saving...' : 'Save'}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={styles.smallButtonGhost}
-              onPress={() => {
-                setEditing(false);
-                setDraft(entry.text);
-                setError(null);
-              }}
-            >
-              <Text style={styles.smallButtonGhostText}>Cancel</Text>
-            </Pressable>
-          </View>
-        </>
-      ) : (
-        <>
-          {parts.boundaryLabel || marked.kind !== 'note' ? (
-            <View style={styles.entryChipRow}>
-              {parts.boundaryLabel ? (
-                <View style={styles.entryChip}>
-                  <Text style={styles.entryChipText}>
-                    {renderHighlighted(parts.boundaryLabel, highlight)}
-                  </Text>
-                </View>
-              ) : null}
-              {marked.kind === 'quote' ? (
-                <View style={styles.entryChip}>
-                  <Text style={styles.entryChipText}>Quote</Text>
-                </View>
-              ) : null}
-              {marked.kind === 'important' ? (
-                <View style={styles.importantChip}>
-                  <Text style={styles.importantChipText}>Important</Text>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-          {marked.kind === 'quote' ? (
-            <View style={styles.quoteBlock}>
-              <Text style={styles.quoteText}>
-                {renderEntryBody(
-                  marked.body || parts.body || entry.text,
-                  highlight,
-                  mentionTargets,
-                  onOpenCharacter,
-                )}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.cardText}>
-              {renderEntryBody(
-                marked.body || parts.body || entry.text,
-                highlight,
-                mentionTargets,
-                onOpenCharacter,
-              )}
-            </Text>
-          )}
-          <Text style={styles.cardDate}>{formatRecordTimestamp(entry)}</Text>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <View style={styles.cardActions}>
-            <Pressable style={styles.smallButtonGhost} onPress={() => setEditing(true)}>
-              <Text style={styles.smallButtonGhostText}>Edit</Text>
-            </Pressable>
-            <Pressable
-              style={styles.smallButtonDanger}
-              onPress={() =>
-                confirmDestructive('Delete entry', 'Delete this entry?', () =>
-                  deleteMutation.mutate(),
-                )
-              }
-              disabled={deleteMutation.isPending}
-            >
-              <Text style={styles.smallButtonDangerText}>
-                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-              </Text>
-            </Pressable>
-          </View>
-        </>
-      )}
-    </View>
-  );
-}
 
 function CharactersTab({
   bookId,
@@ -2371,6 +2139,56 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 14,
     ...cardShadow,
+  },
+  // The gold bookmark (Interface v2.0): premium ribbon pinned above the
+  // reader's bookmarks, notched like the entry ribbons but in gold.
+  goldBookmark: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+    borderWidth: 1.5,
+    borderRadius: 6,
+    paddingLeft: 14,
+    paddingRight: 26,
+    height: 60,
+    marginBottom: 18,
+    overflow: 'hidden',
+    ...buttonShadow,
+  },
+  goldBookmarkPressed: {
+    opacity: 0.8,
+  },
+  goldBookmarkBody: {
+    flex: 1,
+  },
+  goldBookmarkTitle: {
+    fontFamily: fonts.serif,
+    color: gold.onFill,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  goldBookmarkSub: {
+    fontFamily: fonts.serif,
+    color: gold.onFill,
+    fontSize: 12,
+    opacity: 0.85,
+    marginTop: 1,
+  },
+  goldBookmarkNotch: {
+    position: 'absolute',
+    right: -1,
+    top: '50%',
+    marginTop: -30,
+    width: 0,
+    height: 0,
+    borderTopWidth: 30,
+    borderBottomWidth: 30,
+    borderRightWidth: 13,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderRightColor: colors.background,
   },
   companionRowTitle: {
     color: colors.accent,

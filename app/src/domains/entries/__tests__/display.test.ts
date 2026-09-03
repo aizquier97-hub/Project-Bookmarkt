@@ -1,10 +1,101 @@
 import {
+  buildBookmarkLabel,
+  entrySummaryIsStale,
+  formatBookmarkCaption,
   formatBoundaryPosition,
   getCurrentPosition,
   splitEntryText,
   splitTextForHighlight,
   summarizeEntriesByBook,
 } from '@/domains/entries/display';
+
+/** Mirror of the shared djb2 contract (client display.ts / companion Edge Function). */
+function djb2(text: string): string {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+  }
+  return `djb2:${(hash >>> 0).toString(16)}:${text.length}`;
+}
+
+describe('buildBookmarkLabel', () => {
+  it('prefers the cached companion summary', () => {
+    expect(buildBookmarkLabel({ text: 'A long note', ai_summary: ' Raskolnikov confesses. ' })).toEqual({
+      text: 'Raskolnikov confesses.',
+      fromCompanion: true,
+    });
+  });
+
+  it('falls back to the entry text, collapsing whitespace', () => {
+    expect(buildBookmarkLabel({ text: 'Short  note\nwith lines', ai_summary: null })).toEqual({
+      text: 'Short note with lines',
+      fromCompanion: false,
+    });
+  });
+
+  it('strips the boundary header before excerpting', () => {
+    expect(buildBookmarkLabel({ text: '[Manual Entry - page 187]\nThe trial begins.' })).toEqual({
+      text: 'The trial begins.',
+      fromCompanion: false,
+    });
+  });
+
+  it('truncates long excerpts at a word boundary with an ellipsis', () => {
+    const label = buildBookmarkLabel({ text: 'word '.repeat(60).trim() }, 24);
+    expect(label.text.endsWith('…')).toBe(true);
+    expect(label.text.length).toBeLessThanOrEqual(25);
+    expect(label.text).toBe('word word word word…');
+  });
+});
+
+describe('formatBookmarkCaption', () => {
+  it('joins the boundary label and the written day', () => {
+    const caption = formatBookmarkCaption({
+      text: '[Manual Entry - page 187]\nBody',
+      created_at: '2026-08-20T15:00:00.000Z',
+    });
+    expect(caption.startsWith('Page 187, ')).toBe(true);
+    expect(caption).toMatch(/Aug/);
+  });
+
+  it('omits missing parts', () => {
+    expect(formatBookmarkCaption({ text: 'No header', created_at: null })).toBe('');
+    const dayOnly = formatBookmarkCaption({ text: 'No header', created_at: '2026-08-20T15:00:00.000Z' });
+    expect(dayOnly).not.toContain(',  ');
+    expect(dayOnly).toMatch(/Aug/);
+    expect(formatBookmarkCaption({ text: '[Manual Entry - chapter 7]\nBody', created_at: 'bogus' })).toBe(
+      'Chapter 7',
+    );
+  });
+});
+
+describe('entrySummaryIsStale', () => {
+  it('is false for empty entries', () => {
+    expect(entrySummaryIsStale({ text: null })).toBe(false);
+    expect(entrySummaryIsStale({ text: '   ' })).toBe(false);
+  });
+
+  it('is true when no summary is cached yet', () => {
+    expect(entrySummaryIsStale({ text: 'Some note', ai_summary: null, ai_summary_hash: null })).toBe(true);
+  });
+
+  it('is false when the cached hash matches the current text', () => {
+    const text = '[Manual Entry - page 12]\nSome note';
+    expect(
+      entrySummaryIsStale({ text, ai_summary: 'A summary.', ai_summary_hash: djb2(text) }),
+    ).toBe(false);
+  });
+
+  it('is true after the text is edited', () => {
+    expect(
+      entrySummaryIsStale({
+        text: 'Edited note',
+        ai_summary: 'A summary.',
+        ai_summary_hash: djb2('Original note'),
+      }),
+    ).toBe(true);
+  });
+});
 
 describe('splitTextForHighlight', () => {
   it('marks every case-insensitive match', () => {

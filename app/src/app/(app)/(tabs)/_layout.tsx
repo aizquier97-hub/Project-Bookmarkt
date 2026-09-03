@@ -37,6 +37,26 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="club"
+        options={{
+          title: 'Book Club',
+          tabBarLabel: 'Book Club',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="cards"
+        options={{
+          title: 'Cue Cards',
+          tabBarLabel: 'Cue Cards',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="albums-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="bookmarks"
         options={{
           title: 'My bookmarks',

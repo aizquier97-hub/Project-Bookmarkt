@@ -16,6 +16,21 @@ export type CompanionToolFeature = 'cue_cards' | 'quiz' | 'club_prep' | 'word_ba
 
 export type WordBankLevel = 'simple' | 'standard' | 'scholarly';
 
+/** Detail levels for story summaries (gold bookmark, D-055). */
+export type RecapDetail = 'brief' | 'standard' | 'detailed';
+
+/** One flip card: a terse cue on the front, the answer on the back (D-055). */
+export interface CompanionCueCard {
+  front: string;
+  back: string;
+}
+
+/** A refreshed bookmark-ribbon summary for one entry (D-055). */
+export interface CompanionEntrySummary {
+  entryId: number;
+  summary: string;
+}
+
 export interface CompanionFlagSuggestion {
   entryId: number;
   reason: string;
@@ -56,6 +71,10 @@ export interface CompanionSendResult {
   suggestions: CompanionFlagSuggestion[];
   /** Present only for semantic_search: matching entries, best first. */
   results: CompanionSearchResult[];
+  /** Present only for cue_cards: the deck, front/back per card. */
+  cards: CompanionCueCard[];
+  /** Present only for entry_summaries: the ribbon labels just refreshed. */
+  summaries: CompanionEntrySummary[];
 }
 
 /** A denial or failure from the companion service, typed for the UI. */
@@ -166,6 +185,8 @@ interface RawSendResponse {
   code?: unknown;
   suggestions?: unknown;
   results?: unknown;
+  cards?: unknown;
+  summaries?: unknown;
 }
 
 function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
@@ -200,6 +221,18 @@ function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
         return { entryId: Number(item.entryId), similarity: Number(item.similarity ?? 0) };
       })
       .filter((item) => Number.isFinite(item.entryId) && item.entryId > 0),
+    cards: (Array.isArray(data.cards) ? data.cards : [])
+      .map((raw) => {
+        const item = (raw ?? {}) as { front?: unknown; back?: unknown };
+        return { front: String(item.front ?? '').trim(), back: String(item.back ?? '').trim() };
+      })
+      .filter((item) => item.front.length > 0 && item.back.length > 0),
+    summaries: (Array.isArray(data.summaries) ? data.summaries : [])
+      .map((raw) => {
+        const item = (raw ?? {}) as { entryId?: unknown; summary?: unknown };
+        return { entryId: Number(item.entryId), summary: String(item.summary ?? '').trim() };
+      })
+      .filter((item) => Number.isFinite(item.entryId) && item.entryId > 0 && item.summary.length > 0),
   };
 }
 
@@ -210,10 +243,15 @@ async function invokeCompanion(body: {
     | CompanionToolFeature
     | 'structure_aid'
     | 'suggest_flags'
-    | 'semantic_search';
+    | 'semantic_search'
+    | 'entry_summaries';
   bookId: number;
   message?: string;
   detail?: string;
+  startEntryId?: number;
+  endEntryId?: number;
+  rangeStart?: string;
+  rangeEnd?: string;
 }): Promise<CompanionSendResult> {
   const { data, error } = await supabase.functions.invoke('companion', { body });
   if (error) {
@@ -245,9 +283,49 @@ export function sendCompanionMessage(bookId: number, message: string): Promise<C
 
 export function requestCompanionRecap(
   bookId: number,
-  detail: 'brief' | 'detailed',
+  detail: RecapDetail,
 ): Promise<CompanionSendResult> {
   return invokeCompanion({ feature: 'recap', bookId, detail });
+}
+
+/**
+ * Gold-bookmark story summary (D-055): retell the stretch between two of
+ * the reader's bookmarks at the chosen level of detail.
+ */
+export function requestRangedRecap(
+  bookId: number,
+  startEntryId: number,
+  endEntryId: number,
+  detail: RecapDetail,
+): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'recap', bookId, detail, startEntryId, endEntryId });
+}
+
+/**
+ * Club snapshot (D-055): a smooth summary of everything logged between two
+ * calendar dates (ISO timestamps, inclusive), for reading before book club.
+ * The result persists into the Book Club conversation.
+ */
+export function requestClubSnapshot(
+  bookId: number,
+  rangeStart: string,
+  rangeEnd: string,
+): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'club_prep', bookId, rangeStart, rangeEnd });
+}
+
+/** The cue-card deck for a book, grounded only in the reader's own records. */
+export function requestCueCards(bookId: number): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'cue_cards', bookId });
+}
+
+/**
+ * Refresh the one-line ribbon summaries for entries whose text changed
+ * (D-055). Fire-and-forget: the ribbons fall back to the reader's own first
+ * words until summaries land on the rows.
+ */
+export function refreshEntrySummaries(bookId: number): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'entry_summaries', bookId });
 }
 
 /** Run a persisted companion tool; its result lands in the conversation. */

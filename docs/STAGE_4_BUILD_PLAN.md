@@ -113,7 +113,16 @@ Build order within the phase:
        timeline (D-051). Semantic "search by meaning" shipped last -
        pgvector embeddings, one-time explainer, matches filter the
        timeline (D-052).*
-5. **Backburner** - pattern recognition (embeddings + clustering) stays
+5. [x] **Interface v2.0 (owner brief, D-055)**: the companion's standout
+       features move one tap from home - a **Book Club** tab (renamed chat
+       with date-ranged club snapshots) and a **Cue Cards** tab (real
+       flip-card decks); book-screen entries become horizontal bookmark
+       ribbons with cached one-line AI summaries opening a premium-paper
+       full-entry screen; a gold bookmark retells any chosen stretch of
+       bookmarks at Brief/Standard/Detailed. Quiz Me and the word bank UI
+       are hidden (on hold per the owner; Edge Function paths intact).
+       *Done 2026-09-03 (D-055).*
+6. **Backburner** - pattern recognition (embeddings + clustering) stays
        sequenced after closed-beta buy-in (D-039); not MVP scope.
 
 ## Phase 3 - Billing (requires a new EAS build, not OTA)

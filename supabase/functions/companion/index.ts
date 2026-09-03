@@ -31,7 +31,8 @@ type Feature =
   | "word_bank"
   | "structure_aid"
   | "suggest_flags"
-  | "semantic_search";
+  | "semantic_search"
+  | "entry_summaries";
 
 const FEATURES: Feature[] = [
   "dialogue",
@@ -43,17 +44,28 @@ const FEATURES: Feature[] = [
   "structure_aid",
   "suggest_flags",
   "semantic_search",
+  "entry_summaries",
 ];
 
-/** Tools that persist their result as a companion message (revisitable). */
-const PERSISTED_TOOL_FEATURES: Feature[] = ["cue_cards", "quiz", "club_prep", "word_bank"];
+/**
+ * Tools that persist their result as a companion message (revisitable).
+ * cue_cards left this list in Interface v2.0 (D-055): the deck renders in
+ * its own flip-card screen instead of the conversation.
+ */
+const PERSISTED_TOOL_FEATURES: Feature[] = ["quiz", "club_prep", "word_bank"];
 
 type RequestBody = {
   feature?: Feature;
   bookId?: number | string;
   message?: string;
-  detail?: "brief" | "detailed" | string;
+  detail?: "brief" | "standard" | "detailed" | string;
   auditId?: string;
+  /** Gold-bookmark range summary (D-055): summarize entries between these ids. */
+  startEntryId?: number | string;
+  endEntryId?: number | string;
+  /** Club snapshot (D-055): only entries logged between these ISO dates. */
+  rangeStart?: string;
+  rangeEnd?: string;
 };
 
 const corsHeaders = {
@@ -74,6 +86,8 @@ const MAX_CONTEXT_ENTRIES = 60;
 const MAX_CONTEXT_CHARS = 24000;
 const MAX_CONTEXT_CHARACTERS = 40;
 const HISTORY_MESSAGES = 12;
+/** Bookmark-ribbon summaries refreshed per entry_summaries call (D-055). */
+const MAX_SUMMARY_BATCH = 40;
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { status, headers: jsonHeaders });
@@ -202,13 +216,18 @@ function buildSystemPrompt(params: {
   ].join("\n");
 }
 
-function buildRecapPrompt(detail: string, entryCount: number): string {
+function buildRecapPrompt(detail: string, entryCount: number, rangeLabel: string | null): string {
   const shape =
     detail === "detailed"
       ? "Write a fuller recap: 2-4 short paragraphs, or headed sections if the notes span many sittings."
-      : "Write a brief recap: 3-5 sentences.";
+      : detail === "standard"
+        ? "Write a recap of 1-2 short paragraphs: the story's thread with its key turns."
+        : "Write a brief recap: 3-5 sentences.";
+  const opening = rangeLabel
+    ? `The reader chose a specific stretch of their notes (${rangeLabel}) and asks for the story of that stretch. Retell it USING ONLY the ${entryCount} notes above - their events, their names, their words where natural.`
+    : `The reader is returning to the book and asks: where did I leave off? Retell the story so far USING ONLY the ${entryCount} notes above - their events, their names, their words where natural.`;
   return [
-    `The reader is returning to the book and asks: where did I leave off? Retell the story so far USING ONLY the ${entryCount} notes above - their events, their names, their words where natural.`,
+    opening,
     shape,
     "Never add events the notes do not contain, and never go past the boundary. End with the exact position if known (e.g. \"You're at page 124.\").",
     'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false}.',
@@ -221,15 +240,25 @@ const REPLY_JSON_RULE =
 /** Single-turn prompts for the companion tools (D-039 premium feature set). */
 function buildToolPrompt(
   feature: Feature,
-  opts: { entryCount: number; characterCount: number; detail: string; message: string; genre: string | null },
+  opts: {
+    entryCount: number;
+    characterCount: number;
+    detail: string;
+    message: string;
+    genre: string | null;
+    rangeLabel: string | null;
+  },
 ): string {
   switch (feature) {
     case "cue_cards":
       return [
-        `The reader asks for recall cue cards drawn from their ${opts.entryCount} notes above.`,
-        "Create 4-6 cards. Each card: a numbered line 'Q: <a recall question rooted in the notes>' followed by 'A: <the answer, taken from the notes>'.",
-        "Only material from the notes; nothing past the boundary. A dry one-line sign-off is permitted.",
-        REPLY_JSON_RULE,
+        `The reader asks for recall cue cards drawn from their ${opts.entryCount} notes and their character map above. The cards activate active retrieval: the reader teaches the book back to themselves.`,
+        "Create 5-8 cards. Each card has a front and a back:",
+        "- front: an extremely short recall cue - a question or prompt of AT MOST 10 words, rooted in the reader's own entries or characters.",
+        "- back: the answer in AT MOST 20 words, taken from the notes or character map, in the reader's own terms.",
+        "Cards must be terse, never word-dense. Only material from the notes and character map; nothing past the boundary; never invent.",
+        "reply is one short deadpan line introducing the deck.",
+        'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "cards": [{"front": string, "back": string}]}.',
       ].join("\n");
     case "quiz":
       return [
@@ -240,6 +269,16 @@ function buildToolPrompt(
         REPLY_JSON_RULE,
       ].join("\n");
     case "club_prep":
+      if (opts.rangeLabel) {
+        return [
+          `The reader heads to book club and asks for a snapshot of everything they logged ${opts.rangeLabel} - the read-it-on-the-way summary. Their ${opts.entryCount} notes from that window are above.`,
+          "Prepare, in this order, with headed sections:",
+          "'Your snapshot' - retell what happened in those notes as 1-3 flowing short paragraphs, smooth enough to read in one pass, using the reader's own events and names.",
+          "'Questions to bring' - 3-4 discussion questions, each traceable to something in those notes.",
+          "Nothing past the boundary; never invent events.",
+          REPLY_JSON_RULE,
+        ].join("\n");
+      }
       return [
         `The reader is preparing for a book-club discussion using their ${opts.entryCount} notes above.`,
         "Prepare: (1) 4-5 discussion questions the reader could bring, each traceable to something in their notes; (2) 2-3 short talking points in the reader's own observations, phrased for them to voice.",
@@ -348,11 +387,29 @@ async function embedTexts(
   return out;
 }
 
+/**
+ * One batched call summarizes every stale note into a bookmark-ribbon label
+ * (D-055). Each summary is grounded in its own note alone.
+ */
+function buildEntrySummariesPrompt(notes: { id: number; text: string }[]): string {
+  return [
+    "The reader's app shows each of their reading notes as a slim bookmark, labeled with a one-line summary. Summarize each note below.",
+    "Rules for every summary:",
+    "- AT MOST 10 words. A fragment is fine; no trailing period needed.",
+    "- Use only that note's own content and, where natural, the reader's own words. Never add events, names, or judgments.",
+    "- Plain and factual: what the note records, not commentary about the note.",
+    "The notes, each marked with its id:",
+    ...notes.map((n) => `[#${n.id}] ${n.text.replace(/\n+/g, " / ").slice(0, 1200)}`),
+    'Respond ONLY with JSON: {"summaries": [{"entryId": number, "summary": string}]} - one item per note above.',
+  ].join("\n");
+}
+
 function parseCompanionJson(raw: string): {
   reply: string;
   provenance: string;
   declined: boolean;
   suggestions: { entryId: number; reason: string }[];
+  cards: { front: string; back: string }[];
 } {
   try {
     const parsed = JSON.parse(raw);
@@ -370,12 +427,21 @@ function parseCompanionJson(raw: string): {
             .filter((s: { entryId: number }) => Number.isFinite(s.entryId) && s.entryId > 0)
             .slice(0, 3)
         : [];
-      return { reply, provenance, declined: parsed?.declined === true, suggestions };
+      const cards = Array.isArray(parsed?.cards)
+        ? parsed.cards
+            .map((c: any) => ({
+              front: String(c?.front ?? "").trim().slice(0, 200),
+              back: String(c?.back ?? "").trim().slice(0, 300),
+            }))
+            .filter((c: { front: string; back: string }) => c.front && c.back)
+            .slice(0, 10)
+        : [];
+      return { reply, provenance, declined: parsed?.declined === true, suggestions, cards };
     }
   } catch {
     // fall through to raw-text fallback
   }
-  return { reply: raw.trim(), provenance: "mixed", declined: false, suggestions: [] };
+  return { reply: raw.trim(), provenance: "mixed", declined: false, suggestions: [], cards: [] };
 }
 
 serve(async (req) => {
@@ -445,9 +511,27 @@ serve(async (req) => {
       ? ["simple", "standard", "scholarly"].includes(String(body?.detail))
         ? String(body?.detail)
         : "standard"
-      : body?.detail === "detailed"
-        ? "detailed"
+      : ["brief", "standard", "detailed"].includes(String(body?.detail))
+        ? String(body?.detail)
         : "brief";
+  // Gold-bookmark stretch (recap) and club-snapshot window (club_prep), D-055.
+  const startEntryId = Number(body?.startEntryId);
+  const endEntryId = Number(body?.endEntryId);
+  const hasEntryRange =
+    feature === "recap" &&
+    Number.isFinite(startEntryId) &&
+    startEntryId > 0 &&
+    Number.isFinite(endEntryId) &&
+    endEntryId > 0;
+  const rangeStart =
+    typeof body?.rangeStart === "string" && !Number.isNaN(Date.parse(body.rangeStart))
+      ? body.rangeStart
+      : null;
+  const rangeEnd =
+    typeof body?.rangeEnd === "string" && !Number.isNaN(Date.parse(body.rangeEnd))
+      ? body.rangeEnd
+      : null;
+  const hasDateRange = feature === "club_prep" && rangeStart !== null && rangeEnd !== null;
   const auditId = truncate(body?.auditId, 64) ?? crypto.randomUUID();
 
   const auditDenied = async (decision: "denied_unentitled", httpStatus: number) => {
@@ -509,6 +593,7 @@ serve(async (req) => {
       structure_aid: { env: "COMPANION_STRUCTURE_AID_DAILY_LIMIT", fallback: 20, max: 500 },
       suggest_flags: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 10, max: 200 },
       semantic_search: { env: "COMPANION_SEARCH_DAILY_LIMIT", fallback: 20, max: 500 },
+      entry_summaries: { env: "COMPANION_SUMMARY_DAILY_LIMIT", fallback: 30, max: 500 },
     };
     const limitSpec = TOOL_LIMITS[feature] ?? TOOL_LIMITS.dialogue!;
     const userDailyLimit = readPositiveLimit(
@@ -657,6 +742,115 @@ serve(async (req) => {
       });
     }
 
+    // Bookmark-ribbon summaries (D-055): one batched call refreshes the
+    // one-line summary on every entry whose text changed since last time.
+    // Results land on the entry rows (under the user's JWT/RLS); nothing is
+    // persisted to the conversation.
+    if (feature === "entry_summaries") {
+      const { data: summaryRows, error: summaryFetchError } = await userClient
+        .from("entries")
+        .select("id, text, ai_summary, ai_summary_hash")
+        .eq("topic_id", bookId)
+        .order("created_at", { ascending: false })
+        .limit(MAX_SEARCH_ENTRIES);
+      if (summaryFetchError) {
+        await finalize("failed", 503, { error_code: "CONTEXT_UNAVAILABLE" });
+        return jsonResponse({ error: "Your notes could not be loaded. Please try again.", code: "CONTEXT_UNAVAILABLE" }, 503);
+      }
+      const stale = (summaryRows ?? [])
+        .filter((r) => String(r.text ?? "").trim())
+        .filter((r) => !r.ai_summary || r.ai_summary_hash !== hashContent(String(r.text)))
+        .slice(0, MAX_SUMMARY_BATCH);
+      if (stale.length === 0) {
+        await finalize("succeeded", 200, { grounding_entries: 0 });
+        return jsonResponse({
+          reply: { content: "", provenance: "your_notes", declined: false },
+          boundaryLabel,
+          quota,
+          summaries: [],
+        });
+      }
+      const summariesResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: buildEntrySummariesPrompt(
+                      stale.map((r) => ({ id: Number(r.id), text: String(r.text) })),
+                    ),
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 4096,
+              responseMimeType: "application/json",
+            },
+          }),
+        },
+      );
+      if (!summariesResponse.ok) {
+        await finalize("failed", 502, {
+          upstream_status: summariesResponse.status,
+          error_code: "PROVIDER_ERROR",
+          error_message: truncate(await summariesResponse.text(), 300),
+        });
+        return jsonResponse({ error: "The summaries could not be written just now.", code: "PROVIDER_ERROR" }, 502);
+      }
+      const summariesJson = await summariesResponse.json();
+      let parsedSummaries: { entryId: number; summary: string }[] = [];
+      try {
+        const raw = JSON.parse(extractGeminiText(summariesJson));
+        const staleById = new Map(stale.map((r) => [Number(r.id), String(r.text)]));
+        parsedSummaries = (Array.isArray(raw?.summaries) ? raw.summaries : [])
+          .map((s: any) => ({
+            entryId: Number(s?.entryId),
+            summary: String(s?.summary ?? "").trim().slice(0, 140),
+          }))
+          .filter(
+            (s: { entryId: number; summary: string }) =>
+              s.summary && staleById.has(s.entryId),
+          );
+      } catch {
+        parsedSummaries = [];
+      }
+      const staleTextById = new Map(stale.map((r) => [Number(r.id), String(r.text)]));
+      await Promise.all(
+        parsedSummaries.map(async (s) => {
+          const { error: writeError } = await userClient
+            .from("entries")
+            .update({
+              ai_summary: s.summary,
+              ai_summary_hash: hashContent(staleTextById.get(s.entryId) ?? ""),
+            })
+            .eq("id", s.entryId)
+            .eq("topic_id", bookId);
+          if (writeError) {
+            console.error("entry summary write failed", s.entryId, writeError.message);
+          }
+        }),
+      );
+      const summaryUsage = summariesJson?.usageMetadata ?? {};
+      await finalize("succeeded", 200, {
+        grounding_entries: stale.length,
+        prompt_tokens: Number(summaryUsage.promptTokenCount ?? 0) || null,
+        output_tokens: Number(summaryUsage.candidatesTokenCount ?? 0) || null,
+      });
+      return jsonResponse({
+        reply: { content: "", provenance: "your_notes", declined: false },
+        boundaryLabel,
+        quota,
+        summaries: parsedSummaries,
+      });
+    }
+
     // Semantic search: bring embeddings up to date, match, return entry ids.
     // No generative call and nothing persisted beyond the embeddings, which
     // are numerical signatures scoped by RLS like the entries themselves.
@@ -766,12 +960,83 @@ serve(async (req) => {
       }
     }
 
+    // Interface v2.0 ranges (D-055): the gold bookmark retells a chosen
+    // stretch of entries; the club snapshot covers a calendar window. Both
+    // re-scope the grounding context; the spoiler boundary stays global.
+    let contextRows: { id: number; text: string | null; created_at: string | null }[] =
+      oldestFirst;
+    let rangeLabel: string | null = null;
+    if (hasEntryRange) {
+      const { data: bounds, error: boundsError } = await userClient
+        .from("entries")
+        .select("id, text, created_at")
+        .in("id", [startEntryId, endEntryId])
+        .eq("topic_id", bookId);
+      const sortedBounds = [...(bounds ?? [])]
+        .filter((b) => b.created_at)
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+      if (boundsError || sortedBounds.length === 0) {
+        await finalize("failed", 400, { error_code: "RANGE_INVALID" });
+        return jsonResponse({ error: "Those bookmarks could not be found.", code: "RANGE_INVALID" }, 400);
+      }
+      const { data: rangedRows, error: rangedError } = await userClient
+        .from("entries")
+        .select("id, text, created_at")
+        .eq("topic_id", bookId)
+        .gte("created_at", String(sortedBounds[0].created_at))
+        .lte("created_at", String(sortedBounds[sortedBounds.length - 1].created_at))
+        .order("created_at", { ascending: true })
+        .limit(MAX_CONTEXT_ENTRIES);
+      if (rangedError) {
+        await finalize("failed", 503, { error_code: "CONTEXT_UNAVAILABLE" });
+        return jsonResponse({ error: "Your notes could not be loaded. Please try again.", code: "CONTEXT_UNAVAILABLE" }, 503);
+      }
+      contextRows = rangedRows ?? [];
+      const describe = (row: { text: string | null; created_at: string | null }) => {
+        const parsed = parseBoundary(row.text);
+        return parsed ? `${parsed.type} ${parsed.upper}` : String(row.created_at).slice(0, 10);
+      };
+      rangeLabel =
+        sortedBounds.length === 2
+          ? `from ${describe(sortedBounds[0])} to ${describe(sortedBounds[1])}`
+          : `around ${describe(sortedBounds[0])}`;
+    } else if (hasDateRange) {
+      const { data: windowRows, error: windowError } = await userClient
+        .from("entries")
+        .select("id, text, created_at")
+        .eq("topic_id", bookId)
+        .gte("created_at", rangeStart!)
+        .lte("created_at", rangeEnd!)
+        .order("created_at", { ascending: true })
+        .limit(MAX_CONTEXT_ENTRIES);
+      if (windowError) {
+        await finalize("failed", 503, { error_code: "CONTEXT_UNAVAILABLE" });
+        return jsonResponse({ error: "Your notes could not be loaded. Please try again.", code: "CONTEXT_UNAVAILABLE" }, 503);
+      }
+      contextRows = windowRows ?? [];
+      rangeLabel = `between ${rangeStart!.slice(0, 10)} and ${rangeEnd!.slice(0, 10)}`;
+    }
+    if ((hasEntryRange || hasDateRange) && contextRows.length === 0) {
+      await finalize("succeeded", 200, { grounding_entries: 0, grounding_characters: 0 });
+      return jsonResponse({
+        code: "NO_ENTRIES_IN_RANGE",
+        reply: {
+          content:
+            "You logged nothing in that stretch - the shelf between those markers is bare. Choose a wider range and I shall have something to work with.",
+          provenance: "your_notes",
+          declined: false,
+        },
+        boundaryLabel,
+        quota,
+      });
+    }
+
     let contextChars = 0;
     const entryLines: string[] = [];
     const contextEntryIds = new Set<number>();
     // suggest_flags numbers each note so the model can point back at it.
     const includeIds = feature === "suggest_flags";
-    for (const entry of oldestFirst) {
+    for (const entry of contextRows) {
       const text = String(entry.text ?? "").trim();
       if (!text) continue;
       if (contextChars + text.length > MAX_CONTEXT_CHARS) break;
@@ -814,7 +1079,10 @@ serve(async (req) => {
       }
       contents.push({ role: "user", parts: [{ text: message }] });
     } else if (feature === "recap") {
-      contents.push({ role: "user", parts: [{ text: buildRecapPrompt(detail, entryLines.length) }] });
+      contents.push({
+        role: "user",
+        parts: [{ text: buildRecapPrompt(detail, entryLines.length, rangeLabel) }],
+      });
     } else {
       contents.push({
         role: "user",
@@ -826,6 +1094,7 @@ serve(async (req) => {
               detail,
               message,
               genre: book.genre ?? null,
+              rangeLabel,
             }),
           },
         ],
@@ -928,6 +1197,7 @@ serve(async (req) => {
       quota,
       messages: savedMessages,
       ...(feature === "suggest_flags" ? { suggestions } : {}),
+      ...(feature === "cue_cards" ? { cards: parsed.cards } : {}),
     });
   } catch (error) {
     console.error("companion unhandled error", error);
