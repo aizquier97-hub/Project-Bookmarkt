@@ -140,7 +140,20 @@ Build order within the phase:
        in as the next card, and "End session" can save the reader's own
        answers to the journal (D-012).
        *Done 2026-09-04 (D-057).*
-8. **Backburner** - pattern recognition (embeddings + clustering) stays
+8. [x] **Session salons (owner brief, D-058)**: discussions become discrete,
+       bounded sessions instead of one infinite thread. A returning reader
+       lands on an **orientation hub** - the last session's takeaway card,
+       "Continue discussion" / "Start a new discussion", and a browsable
+       archive of past sessions as question-and-answer index cards. In the
+       deck, answered cards collect visibly behind the active one with a
+       "Card N" count, and after three answers a gentle "Wrap up?" nudge
+       appears (closing stays manual). "End session" distills the reader's
+       own answers into a short **takeaway card** (feature `insight`,
+       persisted on the salon). Also fixed: malformed model JSON can no
+       longer reach the primer card raw - truncated documents are repaired
+       or the request fails cleanly to a retry.
+       *Done 2026-09-05 (D-058).*
+9. **Backburner** - pattern recognition (embeddings + clustering) stays
        sequenced after closed-beta buy-in (D-039); not MVP scope.
 
 ## Phase 3 - Billing (requires a new EAS build, not OTA)

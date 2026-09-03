@@ -61,6 +61,8 @@ export interface CompanionChatMessage {
   feature: string;
   content: string;
   createdAt: string;
+  /** Session salon (D-058) the message belongs to; null for legacy rows. */
+  salonId: string | null;
   /** Companion messages carry provenance; reader messages have none. */
   provenance: CompanionProvenance | null;
   declined: boolean;
@@ -176,6 +178,7 @@ export function mapCompanionMessageRow(row: {
   content: string;
   provenance: Json | null;
   created_at: string;
+  salon_id?: string | null;
 }): CompanionChatMessage {
   const meta = parseProvenanceMeta(row.provenance);
   return {
@@ -184,6 +187,7 @@ export function mapCompanionMessageRow(row: {
     feature: row.feature,
     content: row.content,
     createdAt: row.created_at,
+    salonId: typeof row.salon_id === 'string' ? row.salon_id : null,
     ...meta,
   };
 }
@@ -276,7 +280,8 @@ async function invokeCompanion(body: {
     | 'semantic_search'
     | 'entry_summaries'
     | 'observations'
-    | 'observation_open';
+    | 'observation_open'
+    | 'insight';
   bookId: number;
   message?: string;
   detail?: string;
@@ -284,6 +289,7 @@ async function invokeCompanion(body: {
   endEntryId?: number;
   rangeStart?: string;
   rangeEnd?: string;
+  salonId?: string;
 }): Promise<CompanionSendResult> {
   const { data, error } = await supabase.functions.invoke('companion', { body });
   if (error) {
@@ -309,8 +315,12 @@ async function invokeCompanion(body: {
   return normalizeSendResponse((data ?? {}) as RawSendResponse);
 }
 
-export function sendCompanionMessage(bookId: number, message: string): Promise<CompanionSendResult> {
-  return invokeCompanion({ feature: 'dialogue', bookId, message: message.trim() });
+export function sendCompanionMessage(
+  bookId: number,
+  message: string,
+  salonId?: string,
+): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'dialogue', bookId, message: message.trim(), salonId });
 }
 
 export function requestCompanionRecap(
@@ -398,8 +408,20 @@ export function requestObservations(bookId: number): Promise<CompanionSendResult
  * The reader tapped an observation card (D-056): persist it as the
  * companion's opener so the Socratic thread starts from it. No model call.
  */
-export function openObservation(bookId: number, prompt: string): Promise<CompanionSendResult> {
-  return invokeCompanion({ feature: 'observation_open', bookId, message: prompt.trim() });
+export function openObservation(
+  bookId: number,
+  prompt: string,
+  salonId?: string,
+): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'observation_open', bookId, message: prompt.trim(), salonId });
+}
+
+/**
+ * Close a salon (D-058): distill the reader's answers in one session into a
+ * short takeaway, persisted as the salon's 'insight' row.
+ */
+export function requestSalonInsight(bookId: number, salonId: string): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'insight', bookId, salonId });
 }
 
 const MESSAGE_PAGE_SIZE = 200;
@@ -408,7 +430,7 @@ const MESSAGE_PAGE_SIZE = 200;
 export async function fetchCompanionMessages(bookId: number): Promise<CompanionChatMessage[]> {
   const { data, error } = await supabase
     .from('companion_messages')
-    .select('id, role, feature, content, provenance, created_at')
+    .select('id, role, feature, content, provenance, created_at, salon_id')
     .eq('topic_id', bookId)
     .neq('feature', 'recap')
     .order('created_at', { ascending: false })

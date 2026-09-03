@@ -435,6 +435,7 @@ export type Database = {
           id: number
           provenance: Json
           role: string
+          salon_id: string | null
           topic_id: number
           user_id: string
         }
@@ -445,6 +446,7 @@ export type Database = {
           id?: number
           provenance?: Json
           role: string
+          salon_id?: string | null
           topic_id: number
           user_id: string
         }
@@ -455,6 +457,7 @@ export type Database = {
           id?: number
           provenance?: Json
           role?: string
+          salon_id?: string | null
           topic_id?: number
           user_id?: string
         }

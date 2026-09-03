@@ -61,10 +61,24 @@ describe('mapCompanionMessageRow', () => {
       feature: 'dialogue',
       content: 'Your notes place Kvothe at the university.',
       createdAt: '2026-09-02T12:00:00Z',
+      salonId: null,
       provenance: 'your_notes',
       declined: false,
       boundaryLabel: 'page 120',
     });
+  });
+
+  it('carries the salon id when present (D-058)', () => {
+    const inSalon = mapCompanionMessageRow({
+      id: 9,
+      role: 'companion',
+      feature: 'observation',
+      content: 'You noted a change in Denna.',
+      provenance: null,
+      created_at: '2026-09-05T09:00:00Z',
+      salon_id: '3f2b6c1a-8f4d-4e2a-9c7b-1d5e6f7a8b9c',
+    });
+    expect(inSalon.salonId).toBe('3f2b6c1a-8f4d-4e2a-9c7b-1d5e6f7a8b9c');
   });
 
   it('treats reader rows and malformed provenance as unlabeled', () => {
