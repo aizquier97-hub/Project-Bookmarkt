@@ -44,3 +44,10 @@ entrypoint = "./functions/ai-bookmate/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/companion/index.ts"
+
+# RevenueCat calls this server-to-server with its own shared-secret
+# Authorization header (checked inside the function), not a Supabase JWT.
+[functions.revenuecat-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/revenuecat-webhook/index.ts"

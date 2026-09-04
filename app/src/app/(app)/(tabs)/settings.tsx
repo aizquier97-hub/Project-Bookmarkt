@@ -170,6 +170,23 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
+      <Text style={styles.sectionLabel}>Subscription</Text>
+      <View style={styles.group}>
+        <Pressable
+          style={styles.row}
+          onPress={() => router.push('/subscription')}
+          accessibilityRole="button"
+          accessibilityLabel="Companion subscription"
+        >
+          <Ionicons name="sparkles-outline" size={22} color={colors.accent} />
+          <View style={styles.rowTextWrap}>
+            <Text style={styles.rowTitle}>Book Club subscription</Text>
+            <Text style={styles.rowSub}>Plans, status, and restoring purchases.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </Pressable>
+      </View>
+
       <Text style={styles.sectionLabel}>Your library</Text>
       <View style={styles.group}>
         <Pressable
