@@ -20,21 +20,25 @@ part - proceeds in parallel without blocking companion development.
 
 Do these before or alongside Phase 1; none require code.
 
-- [ ] **Open the Google Play Console account** ($25 one-time) and the
+- [x] **Open the Google Play Console account** ($25 one-time) and the
       **Apple Developer account** ($99/year). Approval can take days to
       weeks; Stage 5 needs both regardless. (Roadmap: "Open Apple Developer
       and Google Play Console accounts early.")
+      *Play Console opened 2026-09-03; the Apple account is deliberately
+      deferred to Stage 5 (Android-first, D-020).*
 - [ ] **Financial model**: AI cost per companion session (provider pricing x
       expected usage), infrastructure, app-store commission (~15% small
       business tier), taxes, refunds, support, and target margin.
 - [ ] **Set the price, billing period, and introductory offer.** The trial
       is server-authorized, time-bound, one per account, and begins only
       after the qualifying number of entries exists.
-- [ ] **Billing architecture decision**: evaluate StoreKit and Google Play
+- [x] **Billing architecture decision**: evaluate StoreKit and Google Play
       Billing with a shared entitlement provider (RevenueCat is the leading
       candidate - free at MVP scale, handles receipts, webhooks, and
       cross-platform restore). Record the choice as a decision-log entry.
       No web purchase flows without a separate approved decision.
+      *Done 2026-09-06: RevenueCat chosen (D-061); development runs against
+      its Test Store until pricing and the Play product exist.*
 - [ ] **Verify current Apple and Google digital-subscription rules**; native
       users are never routed around required in-app purchase mechanisms.
 
@@ -170,18 +174,29 @@ Build order within the phase:
 
 ## Phase 3 - Billing (requires a new EAS build, not OTA)
 
-- [ ] Integrate the chosen billing SDK (native module - new preview build).
+- [x] Integrate the chosen billing SDK (native module - new preview build).
+      *Done 2026-09-06: react-native-purchases in the 1.0.1 binary, lazy-loaded
+      with graceful degradation on older runtimes (D-061).*
 - [ ] Create the subscription product in the Play Console; Apple's side
-      waits for Stage 5's iOS builds.
-- [ ] Webhooks -> Supabase entitlement activation: idempotent, signed, with
+      waits for Stage 5's iOS builds. *Blocked on the pricing decision
+      (Phase 0); development runs against RevenueCat's Test Store meanwhile.*
+- [x] Webhooks -> Supabase entitlement activation: idempotent, signed, with
       transaction reconciliation.
+      *Done 2026-09-06: `revenuecat-webhook` Edge Function - shared-secret
+      auth, absolute idempotent upserts, dev_comp rows preserved (D-061).*
 - [ ] Purchase, restore, cancellation, grace period, expiry, refund, and
       billing-retry states; a declined/canceled/abandoned purchase returns
       safely to capture without losing work.
-- [ ] Server-verified purchase state required before companion access.
+- [x] Server-verified purchase state required before companion access.
+      *Structural since D-047: the Edge Function re-checks the entitlement
+      row on every request; the webhook is that row's only store writer.*
 - [ ] Subscription and account-management screens (Settings gains a
       subscription row); the companion offer appears only after a few
       entries exist, matching the trial rule.
+      *Partially done 2026-09-06: Subscription screen (plans, purchase,
+      restore) + Settings row + the offer's View plans button shipped
+      (D-061). The entries-before-offer rule and the trial itself follow
+      with the pricing decision.*
 - [ ] Free capture is never paywalled and never degraded by subscription
       state.
 

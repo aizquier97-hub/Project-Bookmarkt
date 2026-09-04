@@ -113,10 +113,11 @@ export default function CompanionScreen() {
 }
 
 /**
- * The subscription-offer state (server said not entitled). Billing arrives
- * in Phase 3; until then this explains the companion without a buy button.
+ * The subscription-offer state (server said not entitled): explains the
+ * companion and routes to the subscription screen (Stage 4 Phase 3).
  */
 function CompanionOffer() {
+  const router = useRouter();
   return (
     <View style={styles.offerContainer}>
       <Stack.Screen options={{ title: 'Book Club' }} />
@@ -131,12 +132,16 @@ function CompanionOffer() {
           came from your notes or its general knowledge.
         </Text>
         <Text style={styles.offerBody}>
-          The Book Club is part of the paid plan. Subscriptions are coming soon — your notes and
-          character maps stay free forever.
+          The Book Club is part of the paid plan — your notes and character maps stay free forever.
         </Text>
-        <View style={styles.offerPill}>
-          <Text style={styles.offerPillText}>Coming soon</Text>
-        </View>
+        <Pressable
+          style={styles.offerButton}
+          onPress={() => router.push('/subscription')}
+          accessibilityRole="button"
+          accessibilityLabel="View subscription plans"
+        >
+          <Text style={styles.offerButtonText}>View plans</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -1382,13 +1387,15 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   offerBody: { fontFamily: fonts.serif, color: colors.muted, fontSize: 14.5, lineHeight: 22 },
-  offerPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: gold.glowSoft,
+  offerButton: {
+    marginTop: 4,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: gold.fill,
     borderWidth: 1,
-    borderColor: gold.base,
+    borderColor: gold.deep,
+    ...buttonShadow,
   },
-  offerPillText: { fontFamily: fonts.serif, color: gold.deep, fontSize: 12.5, fontWeight: '700' },
+  offerButtonText: { fontFamily: fonts.serif, color: gold.onFill, fontSize: 15, fontWeight: '700' },
 });
