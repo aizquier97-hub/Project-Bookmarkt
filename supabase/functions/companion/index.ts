@@ -105,9 +105,21 @@ const HISTORY_MESSAGES = 12;
 const MAX_SUMMARY_BATCH = 40;
 /** Comprehension rubric (D-065): most recent note material, by characters. */
 const COMPREHENSION_MAX_CHARS = 24000;
-/** Rubric weights: recall and interpretation are the core of comprehension. */
-const COMPREHENSION_WEIGHTS = { recall: 0.3, interpretation: 0.3, connection: 0.2, evaluation: 0.2 } as const;
+/**
+ * Rubric weights (D-066). Accurate, specific recall is literal comprehension
+ * and anchors half the grade: a reader who tracks the plot faithfully but
+ * never interprets lands at 0.5, the blend's neutral point, so plain
+ * note-taking is never marked down. Interpretation is the inferential
+ * half; connection and evaluation are the higher-order quarter.
+ */
+const COMPREHENSION_WEIGHTS = { recall: 0.5, interpretation: 0.25, connection: 0.125, evaluation: 0.125 } as const;
 const COMPREHENSION_MARK_MAX = 4;
+/**
+ * Rubric revision, appended to the material hash so a change to the
+ * weights or the prompt invalidates every cached grade without a migration.
+ * Mirrored by app/src/domains/fitness/comprehension.ts.
+ */
+const COMPREHENSION_RUBRIC_VERSION = "r2";
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { status, headers: jsonHeaders });
@@ -315,11 +327,12 @@ function buildToolPrompt(
   switch (feature) {
     case "cue_cards":
       return [
-        `The reader asks for recall cue cards drawn from their ${opts.entryCount} notes and their character map above. The cards activate active retrieval: the reader teaches the book back to themselves.`,
-        "Create 5-8 cards. Each card has a front and a back:",
-        "- front: an extremely short recall cue - a question or prompt of AT MOST 10 words, rooted in the reader's own entries or characters.",
-        "- back: the answer in AT MOST 20 words, taken from the notes or character map, in the reader's own terms.",
-        "Cards must be terse, never word-dense. Only material from the notes and character map; nothing past the boundary; never invent.",
+        `The reader asks for recall cue cards drawn from their ${opts.entryCount} notes and their character map above. The cards seed a memory-match game: each card's front and back become two tiles the reader must pair, so every card must be precise, distinct, and unambiguous.`,
+        "Create 6-8 cards. Each card has a front and a back:",
+        "- front: one short recall question of AT MOST 10 words, rooted in a specific person, event, place, or idea from the reader's own entries or characters (who / what / where / why). Never a yes-no question.",
+        "- back: the specific answer in AT MOST 12 words, in the reader's own terms - a name, an event, a reason, an idea. Never a vague gesture like 'something happens' or 'a character'.",
+        "Every card tests a different fact; no two fronts may share an answer and no two backs may be interchangeable, or the pairs cannot be told apart. Prefer the most memorable, concrete material in the notes.",
+        "Only material from the notes and character map; nothing past the boundary; never invent.",
         "reply is one short deadpan line introducing the deck.",
         'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "cards": [{"front": string, "back": string}]}.',
       ].join("\n");
@@ -461,6 +474,11 @@ function comprehensionScore(marks: ComprehensionMarks): number {
   return Math.round((total / COMPREHENSION_MARK_MAX) * 1000) / 1000;
 }
 
+/** Material hash plus the rubric revision: a new rubric regrades every book. */
+function comprehensionHash(material: string): string {
+  return `${hashContent(material)}:${COMPREHENSION_RUBRIC_VERSION}`;
+}
+
 function buildComprehensionPrompt(params: {
   bookTitle: string;
   author: string | null;
@@ -468,16 +486,16 @@ function buildComprehensionPrompt(params: {
   material: string;
 }): string {
   return [
-    `You grade how deeply a reader understands a book, using ONLY the reader's own notes below. Book: "${params.bookTitle}"${params.author ? ` by ${params.author}` : ""}. ${params.entryCount} notes, oldest first, one per line; a leading "page N" or "chapter N" is where the note was made.`,
+    `You assess how well a reader has understood a book, judging ONLY from the reader's own notes below. Book: "${params.bookTitle}"${params.author ? ` by ${params.author}` : ""}. ${params.entryCount} notes, oldest first, one per line; a leading "page N" or "chapter N" is where the note was made.`,
     "Lines marked [Quote] are passages copied from the book: they show attention, not understanding, unless the reader adds a Reflection. Lines marked [Important] are moments the reader flagged.",
-    "Give four marks, each an integer 0-4:",
-    "- recall: do the notes track specific people, events, places, or ideas accurately and in sequence? 0 none, 2 some specifics, 4 precise and sustained.",
-    "- interpretation: do they explain why - motives, causes, themes, meaning - rather than only what happened? 0 never, 2 occasionally, 4 habitually.",
-    "- connection: do they relate parts of the book to each other, to other books, or to the reader's own life? 0 none, 2 a few, 4 rich and frequent.",
-    "- evaluation: do they weigh, question, or judge the book with reasons? 0 none, 2 some opinions with reasons, 4 sustained critical judgement.",
-    "Judge the notes as written. Do not reward length for its own sake; do not penalise brevity when brief notes are precise. Never use your own knowledge of the book to fill gaps: a note that merely names something that happens is recall, not interpretation.",
+    "Give four marks, each an integer 0-4. They measure what the notes DEMONSTRATE about the reader's understanding, not how the notes are written:",
+    "- recall: literal comprehension. Do the notes track specific people, events, places, and ideas accurately, with the right relations and order? 4 = precise and consistent throughout; 2 = some specifics but vague or muddled in places; 0 = nothing specific or clearly wrong. If you know this book, use that knowledge ONLY to check whether what the reader states is accurate - never to credit anything they did not write. If you do not know the book, judge specificity and internal consistency.",
+    "- interpretation: inferential comprehension. Do the notes show the reader grasps WHY - motives, causes, consequences, what a passage means, a theme? 4 = habitually; 2 = occasionally; 0 = the notes only record what happened.",
+    "- connection: do the notes relate parts of the book to each other, to other books, or to the reader's own life? 4 = rich and frequent; 2 = a few; 0 = none.",
+    "- evaluation: do the notes weigh, question, or judge the book with reasons? 4 = sustained; 2 = some opinions with reasons; 0 = none.",
+    "A reader who follows the plot accurately but never interprets is reading soundly: give recall 4 and the other marks 0 rather than marking recall down. Do not reward length; do not penalise brevity when brief notes are precise. Many short factual notes can earn recall 4.",
     'confidence: "high" with 8 or more substantive notes, "medium" with 3-7, "low" with fewer or when most lines are copied quotes.',
-    'rationale: ONE sentence of at most 200 characters addressed to the reader ("Your notes ..."), naming the strongest and the weakest mark.',
+    'rationale: ONE sentence of at most 200 characters addressed to the reader ("Your notes ..."), naming what the notes show best and what they could show more of.',
     "NOTES:",
     params.material,
     'Respond ONLY with JSON: {"recall": number, "interpretation": number, "connection": number, "evaluation": number, "confidence": "high" | "medium" | "low", "rationale": string}.',
@@ -911,7 +929,7 @@ serve(async (req) => {
           comprehension: null,
         });
       }
-      const hash = hashContent(built.material);
+      const hash = comprehensionHash(built.material);
       const cachedBook = bookRow.data as {
         comprehension_score: number | string | null;
         comprehension_confidence: string | null;
@@ -1667,7 +1685,10 @@ serve(async (req) => {
           systemInstruction: { parts: [{ text: systemPrompt }] },
           contents,
           generationConfig: {
-            temperature: 0.7,
+            // Cue cards (D-066) run cooler: the match game needs precise,
+            // distinct pairs more than it needs variety, and 0.5 still
+            // varies the deck enough for "New cards" to differ.
+            temperature: feature === "cue_cards" ? 0.5 : 0.7,
             // Thinking tokens share this budget on 2.5 models; a tight cap
             // is what truncated the primer JSON mid-document.
             maxOutputTokens: 8192,

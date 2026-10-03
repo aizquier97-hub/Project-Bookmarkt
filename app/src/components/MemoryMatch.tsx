@@ -1,16 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { CompanionCueCard } from '@/domains/companion/api';
 import {
   applyFlip,
   buildBoard,
+  formatClock,
   hideMismatch,
   isFaceUp,
   isWon,
   MISMATCH_LINGER_MS,
   pairCount,
+  type GameResult,
   type MemoryBoard,
   type MemoryTile,
 } from '@/domains/cueCards/memoryGame';
@@ -18,18 +20,24 @@ import { cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 interface MemoryMatchProps {
   cards: readonly CompanionCueCard[];
-  onWon: (moves: number) => void;
+  /** The book's best clear at this board size, shown beside the clock. */
+  best: GameResult | null;
+  onWon: (result: GameResult) => void;
 }
 
 /**
- * The memory-match board (D-065): cue and answer faces of the reader's
- * own cue cards, face down in a three-across grid. Matched pairs stay up
- * in gold; a wrong pair lingers a moment, then turns back. The parent
- * re-keys the component for a fresh board.
+ * The Recall match board (D-065; D-066 made it the whole game): cue and
+ * answer faces of the reader's own cue cards, face down two across, against
+ * a clock that starts on the first turn. Matched pairs stay up in gold; a
+ * wrong pair lingers a moment, then turns back. The status row stays put
+ * while a tall board scrolls beneath it. The parent re-keys the component
+ * for a fresh board.
  */
-export function MemoryMatch({ cards, onWon }: MemoryMatchProps) {
+export function MemoryMatch({ cards, best, onWon }: MemoryMatchProps) {
   const [board, setBoard] = useState<MemoryBoard>(() => buildBoard(cards));
-  const [announced, setAnnounced] = useState(false);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const announced = useRef(false);
 
   useEffect(() => {
     if (!board.mismatch) {
@@ -40,12 +48,34 @@ export function MemoryMatch({ cards, onWon }: MemoryMatchProps) {
   }, [board.mismatch]);
 
   const won = isWon(board);
+
+  // The clock ticks only while a game is under way.
   useEffect(() => {
-    if (won && !announced) {
-      setAnnounced(true);
-      onWon(board.moves);
+    if (startedAt === null || won) {
+      return;
     }
-  }, [won, announced, board.moves, onWon]);
+    const interval = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(interval);
+  }, [startedAt, won]);
+
+  useEffect(() => {
+    if (won && !announced.current) {
+      announced.current = true;
+      const seconds = startedAt === null ? 0 : Math.round((Date.now() - startedAt) / 1000);
+      onWon({ seconds, turns: board.moves, pairs: pairCount(board) });
+    }
+  }, [won, startedAt, board, onWon]);
+
+  const elapsedSeconds = startedAt === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
+
+  const turn = (tileId: number) => {
+    if (startedAt === null) {
+      const started = Date.now();
+      setStartedAt(started);
+      setNow(started);
+    }
+    setBoard((current) => applyFlip(current, tileId));
+  };
 
   return (
     <View style={styles.wrapper}>
@@ -56,8 +86,13 @@ export function MemoryMatch({ cards, onWon }: MemoryMatchProps) {
         <Text style={styles.status}>
           {board.moves} {board.moves === 1 ? 'turn' : 'turns'}
         </Text>
+        <View style={styles.clock} accessibilityLabel={`Elapsed ${formatClock(elapsedSeconds)}`}>
+          <Ionicons name="stopwatch-outline" size={15} color={gold.deep} />
+          <Text style={styles.clockText}>{formatClock(elapsedSeconds)}</Text>
+          {best ? <Text style={styles.best}>best {formatClock(best.seconds)}</Text> : null}
+        </View>
       </View>
-      <View style={styles.grid} accessibilityRole="none">
+      <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
         {board.tiles.map((tile) => (
           <Tile
             key={tile.id}
@@ -65,10 +100,10 @@ export function MemoryMatch({ cards, onWon }: MemoryMatchProps) {
             faceUp={isFaceUp(board, tile)}
             matched={board.matched.includes(tile.pairId)}
             disabled={won || board.mismatch}
-            onPress={() => setBoard((current) => applyFlip(current, tile.id))}
+            onPress={() => turn(tile.id)}
           />
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -104,21 +139,19 @@ function Tile({
       accessibilityState={{ disabled: disabled || faceUp, selected: matched }}
     >
       {faceUp ? (
-        <>
+        <View style={styles.tileFace}>
           <Text style={[styles.tileTag, tile.face === 'answer' && styles.tileTagAnswer]}>
             {tile.face === 'cue' ? 'CUE' : 'FROM YOUR RECORDS'}
           </Text>
           <Text
             style={[styles.tileText, tile.face === 'answer' && styles.tileTextAnswer]}
-            numberOfLines={5}
-            adjustsFontSizeToFit
-            minimumFontScale={0.7}
+            numberOfLines={6}
           >
             {tile.text}
           </Text>
-        </>
+        </View>
       ) : (
-        <Ionicons name="bookmark-outline" size={22} color={colors.onWalnutMuted} />
+        <Ionicons name="bookmark-outline" size={30} color={colors.onWalnutMuted} />
       )}
     </Pressable>
   );
@@ -126,14 +159,17 @@ function Tile({
 
 const styles = StyleSheet.create({
   wrapper: {
+    flex: 1,
     width: '100%',
-    maxWidth: 380,
-    gap: 10,
+    maxWidth: 420,
+    alignSelf: 'center',
   },
   statusRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    paddingBottom: 10,
   },
   status: {
     fontFamily: fonts.serif,
@@ -141,23 +177,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  clock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  clockText: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  best: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
+    rowGap: 12,
+    paddingBottom: 24,
   },
   tile: {
-    // Three across with two 8pt gutters: (100% - 16) / 3.
-    width: '31.5%',
-    flexGrow: 1,
-    aspectRatio: 0.85,
-    borderRadius: 12,
+    // Two across (D-066): a tile wide enough for a twelve-word answer at
+    // body size, no font shrinking.
+    width: '48.5%',
+    minHeight: 136,
+    borderRadius: 14,
     borderWidth: 1,
-    padding: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
     ...cardShadow,
+  },
+  tileFace: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   tileDown: {
     backgroundColor: colors.walnut,
@@ -181,19 +243,21 @@ const styles = StyleSheet.create({
   tileTag: {
     fontFamily: fonts.serif,
     color: colors.muted,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
+    textAlign: 'center',
   },
   tileTagAnswer: {
     color: gold.onFill,
     opacity: 0.8,
   },
   tileText: {
+    width: '100%',
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: '600',
     textAlign: 'center',
   },

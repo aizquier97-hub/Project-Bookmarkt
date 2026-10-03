@@ -1184,6 +1184,50 @@ work. Drop 1 (D-064) is the eight notes that are pure client; Drop 2
       book shows "understanding N%" on Profile, and a dealt deck's Match
       tab plays through to the win panel.
 
+#### Feedback round 3 - comprehension r2 and Recall (D-066, added 2026-10-04)
+
+The owner's third round after Drop 2: a ×1.07 comprehension factor on a
+well-noted book looked wrong and R.I.C.E. wanted explaining; the Cue Cards
+tab should become a game outright with a timer and bigger tiles; tile text
+was not centred; the cards read worse than before. Investigation first
+(numbers only, from the owner's four graded books): every book earned
+recall 4, the other marks sat at 0-2, and the D-065 equal-ish weights plus
+the equal-weight blend pulled a faithful plot-tracker *below* the behaviour
+proxy. The cue-card prompt had not changed since D-055 - the "worse" cards
+were sampling variance plus tiles small enough to shrink text to 70%.
+
+- [x] Rubric r2 on the server: `m = (0.5R + 0.25I + 0.125C + 0.125E) / 4`
+      so accurate literal recall is half the grade (plot notes = 0.5,
+      neutral); prompt rewritten to grade what the notes demonstrate, use
+      the model's own knowledge only to check accuracy, and never mark
+      recall down for absent interpretation; material hash suffixed `:r2`
+      on both sides so every r1 grade is re-assessed (≤4 per launch).
+- [x] Client: confidence weighting `m' = 0.5 + (m − 0.5)·w` (1 / 0.75 / 0.5)
+      and the lift-form blend `C = clamp(0.6 + (Cb − 0.6)(0.5 + m'))` -
+      neutral grade passes the proxy through, silent days stay 0.6; Profile
+      reads "comprehension N%, deep / reflective / factual / thin" and the
+      explainer is rewritten. READING_METRICS.md §3 updated to v2.1.
+- [x] Cards tab → **Recall** (puzzle-piece icon); flip-card deck retired;
+      `/cue-cards` → `/match` deals straight onto the board: up to 5 pairs,
+      two across at body size (no font shrinking - fixes centring on
+      Android too), stopwatch from the first turn, pinned status row with
+      best time, win card with time / turns / best and "New record"
+      (on-device `cueCards/records.ts`); run-dry and quota fallbacks kept.
+- [x] Cue-card generation: 6-8 cards, fronts ≤10 words, backs ≤12 words
+      and specific, every card a different fact, temperature 0.5.
+- [x] `companion` redeployed 2026-10-04; live smoke tests: Karamazov notes
+      graded R4 I4 C3 E3 → 0.938 with hash `djb2:6c2c609c:690:r2` and a
+      cache hit on the repeat; a cue-card deal returned 7 distinct cards.
+- [x] Tests: blend / damping / grade words, hash `:r2` pins, MAX_PAIRS,
+      `formatClock`, `betterResult`; 332 tests across 28 suites.
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #PRNUM,
+      published 2026-10-04 to `preview`: runtime 1.0.1 group
+      `GROUP101`, runtime 1.0.0 group `GROUP100`.
+- [ ] Owner on-device check (close and reopen the app twice): the tab bar
+      reads Recall; a dealt board is two across with a running clock; the
+      Profile's graded books re-grade over the next launches and read
+      "comprehension N%, word".
+
 ### Stage 4 exit gate
 
 - Entitlements are consistent across iOS and Android test contexts and the

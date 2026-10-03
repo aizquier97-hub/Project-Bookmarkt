@@ -8,7 +8,7 @@ import { colors, fonts, spineColorFor } from '@/lib/theme';
 
 /**
  * One book as a tappable paper row (Interface v2.0): the pick-a-book step
- * both the Book Club and Cue Cards tabs lead with, since both features are
+ * both the Book Club and Recall tabs lead with, since both features are
  * grounded in a single book's records. Cover thumb, title, author, chevron.
  */
 export function BookPickerRow({ book, onPress }: { book: Book; onPress: () => void }) {

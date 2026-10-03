@@ -287,11 +287,13 @@ Monsterholic 4.9, all "Moderate". Root cause and method in
 - [ ] Owner confirms the three flagged books re-rate (Edit book shows
       "Bookmarkt's estimate").
 
-### Phase 5c - Profile home and feedback round 2 (added 2026-10-04, D-064 / D-065)
+### Phase 5c - Profile home and feedback rounds 2-3 (added 2026-10-04, D-064 / D-065 / D-066)
 
-Eleven owner notes after a week on the D-062/D-063 build; see
-[PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) §13 for the product framing.
-Split into a device-only drop and a server drop.
+Eleven owner notes after a week on the D-062/D-063 build, then four more
+after Drop 2; see [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) §13 for the
+product framing. Split into a device-only drop, a server drop, and a
+third drop that corrects the comprehension rubric and turns the cue cards
+into the Recall match.
 
 **Drop 1 (D-064) - pure client, OTA.**
 
@@ -364,6 +366,46 @@ Split into a device-only drop and a server drop.
       2026-10-04 to `preview`: runtime 1.0.1 group
       `9c522575-37b0-40f4-98fd-d022ace6183e`, runtime 1.0.0 group
       `4dff8505-a016-493e-b19b-d3e97e6d47dd`.
+
+**Drop 3 (D-066) - feedback round 3: rubric r2 and Recall.**
+
+- [x] Server (`supabase/functions/companion/index.ts`): `COMPREHENSION_WEIGHTS`
+      0.5 / 0.25 / 0.125 / 0.125, `COMPREHENSION_RUBRIC_VERSION = "r2"`,
+      `comprehensionHash()` = `hashContent(material) + ":r2"` (the shared
+      `hashContent` is untouched - embeddings and summaries still use it);
+      `buildComprehensionPrompt` rewritten (grade what the notes
+      demonstrate; own knowledge only to check accuracy; plot-only notes →
+      recall 4, others 0, never mark recall down); `cue_cards` prompt asks
+      for 6-8 cards, fronts ≤10 words, backs ≤12 words, distinct facts;
+      provider temperature 0.5 for `cue_cards`, 0.7 otherwise.
+- [x] Client metric: `activity.ts` `blendComprehensionFactor` lift form,
+      `dampComprehensionByConfidence`, `describeComprehensionGrade`;
+      `model.ts` reads `comprehension_confidence` and stores the damped
+      grade in `comprehensionByBook`; `fitness/comprehension.ts`
+      `COMPREHENSION_RUBRIC_VERSION` + `:r2` hash suffix; Profile `BookRow`
+      "comprehension N%, word" and the rewritten Explainer paragraph.
+- [x] Recall: `(tabs)/cards.tsx` → `(tabs)/recall.tsx` (lede, pushes
+      `/match`), `(tabs)/_layout.tsx` entry `recall` / "Recall" /
+      `extension-puzzle-outline`; `(app)/cue-cards.tsx` → `(app)/match.tsx`
+      (game only: intro → deal → board → win card; `records.ts` best time;
+      overlap / quota fallbacks); `components/MemoryMatch.tsx` two across,
+      `minHeight` 136, text 15/21 centred without `adjustsFontSizeToFit`,
+      pinned status row with stopwatch (250 ms tick from the first turn)
+      and best, `onWon(GameResult)`; `memoryGame.ts` `MAX_PAIRS` 5,
+      `formatClock`, `GameResult`, `betterResult`; copy touch-ups in
+      `subscription.tsx`, `PremiumOffer.tsx`, `BookPickerRow.tsx`.
+- [x] Tests: `comprehension.test.ts` (hash `:r2` pins incl. the live
+      `djb2:6c2c609c:690:r2`, lift blend, neutral pass-through, floor,
+      damping, grade words), `memoryGame.test.ts` (`MAX_PAIRS` 5,
+      `formatClock`, `betterResult`). 332 tests / 28 suites; tsc and lint
+      clean.
+- [x] `companion` deployed 2026-10-04; smoke tests (throwaway comped user,
+      deleted afterwards): comprehension R4 I4 C3 E3 → 0.938 medium, hash
+      `...:690:r2`, repeat from cache, one usage event; cue cards 7
+      distinct, backs ≤5 words.
+- [x] Ship the OTA for both runtimes; record group IDs - PR #PRNUM, published
+      2026-10-04 to `preview`: runtime 1.0.1 group `GROUP101`, runtime
+      1.0.0 group `GROUP100`.
 
 ---
 

@@ -11,6 +11,7 @@ import { parseProgressBoundaryFromEntryText } from '@/domains/entries/progress';
 import {
   aggregateDailyLoad,
   buildBookDayActivity,
+  dampComprehensionByConfidence,
   type ActivityEntry,
   type ActivitySession,
   type BookDayActivity,
@@ -51,6 +52,8 @@ export interface ModelBook {
   difficulty_estimate_confidence: string | null;
   /** Companion rubric score in [0, 1] (D-065); undefined/null until assessed. */
   comprehension_score?: number | null;
+  /** The grader's confidence, which damps how far the score moves the factor (D-066). */
+  comprehension_confidence?: string | null;
 }
 
 export interface BookFitness<TBook extends ModelBook = ModelBook> {
@@ -199,7 +202,10 @@ export function buildReadingModel<TBook extends ModelBook>(
     difficultyByBook.set(book.id, result.score);
     const assessed = Number(book.comprehension_score);
     if (book.comprehension_score !== null && book.comprehension_score !== undefined && Number.isFinite(assessed)) {
-      comprehensionByBook.set(book.id, assessed);
+      comprehensionByBook.set(
+        book.id,
+        dampComprehensionByConfidence(assessed, book.comprehension_confidence),
+      );
     }
   }
 

@@ -102,26 +102,54 @@ export function computeComprehensionFactor(input: {
 }
 
 /**
- * Comprehension factor v2 (D-065): blends the behavioural proxy with the
- * companion's rubric score m in [0, 1] when one exists. Both are mapped to
- * the unit interval and averaged with equal weight, then stretched back to
- * [0.6, 1.4]:
+ * Comprehension factor v2.1 (D-066): the companion's rubric grade m in
+ * [0, 1] scales the credit the day's writing earned above the silent floor.
+ * A grade of 0.5 - what accurate, literal note-taking earns - leaves the
+ * behaviour proxy unchanged; a stronger grade adds up to half again; a
+ * weaker one can take away up to half. The floor itself never moves, so a
+ * silent session stays at 0.6 whatever the book's grade:
  *
- *   b = (Cb - 0.6) / 0.8
- *   C = 0.6 + 0.8 x (0.5 x b + 0.5 x m)
+ *   C = 0.6 + (Cb - 0.6) x (0.5 + m)       clamped to [0.6, 1.4]
  *
- * Without a rubric score the v1 factor Cb is returned unchanged, so books
- * that have not been assessed (or readers without the companion) keep the
- * deterministic value.
+ * (D-065's equal-weight average let a missing interpretation mark drag a
+ * faithful plot-tracker below the proxy; this form cannot.) Without a
+ * grade the v1 factor Cb is returned unchanged, so books that have not
+ * been assessed (or readers without the companion) keep the deterministic
+ * value.
  */
 export function blendComprehensionFactor(behavioural: number, model: number | null): number {
   if (model === null || !Number.isFinite(model)) {
     return behavioural;
   }
-  const span = COMPREHENSION_MAX - COMPREHENSION_MIN;
-  const b = Math.min(1, Math.max(0, (behavioural - COMPREHENSION_MIN) / span));
+  const credit = Math.max(0, behavioural - COMPREHENSION_MIN);
   const m = Math.min(1, Math.max(0, model));
-  return round2(COMPREHENSION_MIN + span * (0.5 * b + 0.5 * m));
+  const blended = COMPREHENSION_MIN + credit * (0.5 + m);
+  return round2(Math.min(COMPREHENSION_MAX, Math.max(COMPREHENSION_MIN, blended)));
+}
+
+export type ComprehensionConfidence = 'high' | 'medium' | 'low';
+
+/**
+ * How far a grade is allowed to move the factor, by the grader's own
+ * confidence (D-066): a two-note book is a weak witness. The grade is pulled
+ * toward the neutral 0.5 - fully trusted at high confidence, three quarters
+ * at medium, half at low.
+ */
+export function dampComprehensionByConfidence(
+  model: number,
+  confidence: ComprehensionConfidence | string | null | undefined,
+): number {
+  const weight = confidence === 'high' ? 1 : confidence === 'medium' ? 0.75 : 0.5;
+  const m = Math.min(1, Math.max(0, model));
+  return 0.5 + (m - 0.5) * weight;
+}
+
+/** The one-word reading of a grade shown beside its percentage on the Profile. */
+export function describeComprehensionGrade(model: number): 'deep' | 'reflective' | 'factual' | 'thin' {
+  if (model >= 0.85) return 'deep';
+  if (model >= 0.65) return 'reflective';
+  if (model >= 0.45) return 'factual';
+  return 'thin';
 }
 
 /** Session Effort E = pages x (D / 5) x C. */
@@ -251,7 +279,7 @@ export interface BuildActivityInput {
   sessions: readonly ActivitySession[];
   /** Difficulty Index per book id; books missing here use the neutral 5.0. */
   difficultyByBook: ReadonlyMap<number, number>;
-  /** Model-assessed comprehension in [0, 1] per book id (D-065); absent books use the v1 proxy alone. */
+  /** Model-assessed comprehension in [0, 1] per book id (D-065), already damped by confidence (D-066); absent books use the v1 proxy alone. */
   comprehensionByBook?: ReadonlyMap<number, number>;
 }
 
