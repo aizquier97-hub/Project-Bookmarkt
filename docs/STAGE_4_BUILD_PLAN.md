@@ -256,6 +256,37 @@ before any social feature; see roadmap §13 "Beta engagement layer" and
       companion-only day.
 - [ ] Next binary build: `expo-keep-awake` during the glass.
 
+### Phase 5b - Difficulty Index v2 (added 2026-10-03, D-063)
+
+Owner feedback after the OTA: Karamazov 5.2 / Dungeon Crawler Carl 4.9 /
+Monsterholic 4.9, all "Moderate". Root cause and method in
+[READING_METRICS.md](READING_METRICS.md) §2.0-2.1.
+
+- [x] `supabase/functions/book-difficulty/` (Gemini 2.5 Flash rubric
+      rating, cached on `topics`, per-user daily cap, RLS write) +
+      `config.toml` entry. *Deployed 2026-10-03.*
+- [x] Migration `20261003210000_add_difficulty_estimate.sql`
+      (`difficulty_estimate`, `_confidence`, `_rationale`, `_estimated_at`).
+      *Applied 2026-10-03; remote history 22/22; `database.types.ts`
+      updated by hand to match.*
+- [x] Domain: `difficulty.ts` precedence override → knowledge → fallback,
+      sources `override | knowledge | measured | metadata`; `model.ts`
+      passes the cached columns through; 8 new tests (293 total).
+- [x] Client: `difficultyEstimate.ts` (invoke + sequential backfill, 8 per
+      launch, once per book per launch) mounted as `DifficultyBackfill` in
+      `(app)/_layout.tsx`; Add book requests a rating on success; Edit book
+      clears the rating when title/author change and shows the estimate +
+      rationale; Progress explainer and book-screen comments updated.
+- [x] Live test with a throwaway account against the deployed function
+      (6 books, cache hit verified, rows persisted under RLS, account
+      deleted - 0 topics left).
+- [x] Ship the OTA for runtimes 1.0.1 and 1.0.0. *Done 2026-10-03 from
+      commit `576a861`: groups `74615eaf-4899-454a-90d8-199b2c190996`
+      (1.0.1) and `93d8e897-89af-4f74-97da-e40e8b8d49a1` (1.0.0), android +
+      ios.*
+- [ ] Owner confirms the three flagged books re-rate (Edit book shows
+      "Bookmarkt's estimate").
+
 ---
 
 ## Distribution notes

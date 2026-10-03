@@ -97,10 +97,18 @@ Policy:
 
 1. PR to `main` must pass CI (typecheck, lint, jest, Android export sanity,
    migration checks; the live 410 probe guards `main`).
-2. Apply any migration first (additive), then release the client change: OTA
-   (`eas update --channel <env>`) for JS-only changes, or `eas build` for
-   runtime changes.
-3. Verify on-device against the release checklist (§6).
+2. Apply any migration first (additive), then deploy any changed Edge
+   Function (`npx --yes supabase@latest functions deploy <name>
+   --project-ref bfallxtcxxyykcnkedom`; `supabase/config.toml` carries each
+   function's `verify_jwt`/entrypoint - `companion`, `book-difficulty`,
+   `delete-account`, `revenuecat-webhook`, `ai-bookmate`), then release the
+   client change: OTA (`eas update --channel <env>`) for JS-only changes, or
+   `eas build` for runtime changes. Functions are deployed before the OTA so
+   the first updated client never calls a missing endpoint.
+3. Verify on-device against the release checklist (§6). For functions, a
+   throwaway account created through the Auth admin API (and deleted
+   afterwards) exercises the live endpoint without touching reader data -
+   first done for `book-difficulty` (D-063).
 
 ### Application rollback
 

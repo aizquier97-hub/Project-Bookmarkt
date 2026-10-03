@@ -2,6 +2,7 @@ import { Redirect, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { useAuth } from '@/domains/auth/AuthProvider';
+import { DifficultyBackfill } from '@/domains/fitness/DifficultyBackfill';
 import { colors, fonts } from '@/lib/theme';
 
 export default function AppLayout() {
@@ -18,6 +19,7 @@ export default function AppLayout() {
     <>
       {/* Light status-bar icons over the dark walnut headers (D-054). */}
       <StatusBar style="light" />
+      <DifficultyBackfill />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.walnut },

@@ -83,6 +83,14 @@ export async function updateBook(bookId: number, input: BookInput): Promise<Book
   if (input.difficultyOverride !== undefined) {
     patch.difficulty_override = normalizeDifficultyOverride(input.difficultyOverride);
   }
+  // A new title or author is a different book as far as the knowledge
+  // estimate is concerned (D-063): clear it so the backfill rates it again.
+  if (input.resetDifficultyEstimate) {
+    patch.difficulty_estimate = null;
+    patch.difficulty_estimate_confidence = null;
+    patch.difficulty_rationale = null;
+    patch.difficulty_estimated_at = null;
+  }
   const { data, error } = await supabase
     .from('topics')
     .update(patch)
@@ -214,6 +222,8 @@ export interface BookInput {
   genre?: string | null;
   /** Reader-set Difficulty Index 1-10 (D-062); null returns to Auto, undefined leaves it alone. */
   difficultyOverride?: number | null;
+  /** Clear the cached knowledge estimate (D-063), e.g. after a title/author change. */
+  resetDifficultyEstimate?: boolean;
 }
 
 function normalizeOptionalInt(

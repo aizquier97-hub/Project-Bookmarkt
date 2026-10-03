@@ -45,6 +45,12 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/companion/index.ts"
 
+# Difficulty Index v2 (D-063): one rubric call per book, cached on the topic.
+[functions.book-difficulty]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/book-difficulty/index.ts"
+
 # RevenueCat calls this server-to-server with its own shared-secret
 # Authorization header (checked inside the function), not a Supabase JWT.
 [functions.revenuecat-webhook]

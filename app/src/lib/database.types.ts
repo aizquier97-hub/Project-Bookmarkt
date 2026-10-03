@@ -762,7 +762,11 @@ export type Database = {
           author: string | null
           cover_url: string | null
           created_at: string | null
+          difficulty_estimate: number | null
+          difficulty_estimate_confidence: string | null
+          difficulty_estimated_at: string | null
           difficulty_override: number | null
+          difficulty_rationale: string | null
           finished_at: string | null
           genre: string | null
           id: number
@@ -777,7 +781,11 @@ export type Database = {
           author?: string | null
           cover_url?: string | null
           created_at?: string | null
+          difficulty_estimate?: number | null
+          difficulty_estimate_confidence?: string | null
+          difficulty_estimated_at?: string | null
           difficulty_override?: number | null
+          difficulty_rationale?: string | null
           finished_at?: string | null
           genre?: string | null
           id?: never
@@ -792,7 +800,11 @@ export type Database = {
           author?: string | null
           cover_url?: string | null
           created_at?: string | null
+          difficulty_estimate?: number | null
+          difficulty_estimate_confidence?: string | null
+          difficulty_estimated_at?: string | null
           difficulty_override?: number | null
+          difficulty_rationale?: string | null
           finished_at?: string | null
           genre?: string | null
           id?: never

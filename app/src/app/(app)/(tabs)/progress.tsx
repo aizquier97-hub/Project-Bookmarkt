@@ -406,10 +406,11 @@ function Explainer({ model }: { model: ReadingModel<Book> }) {
         <View style={styles.explainer}>
           <Text style={styles.explainerHeading}>Difficulty Index (1-10)</Text>
           <Text style={styles.explainerBody}>
-            Measured from the quotes you log: a Flesch-Kincaid grade of the quoted prose, mapped onto
-            1-10 and blended with a prior from the book’s genre, era, and length. The more quoted
-            words, the more the measurement counts (full weight at 150 words). Set your own in Edit
-            book and yours wins.
+            Each book is rated once from what is known about it - prose, structure, and ideas - on
+            a fixed scale: a light adventure sits near 3, a literary novel near 6, and The Brothers
+            Karamazov near 8. Only the title, author, and catalog details are used, never your
+            notes. Until a rating arrives, a quick estimate from genre, era, and length (plus the
+            quotes you log) stands in. Set your own in Edit book and yours wins.
           </Text>
           <Text style={styles.explainerHeading}>Comprehension factor (x0.6 - x1.4)</Text>
           <Text style={styles.explainerBody}>

@@ -1,21 +1,30 @@
 /**
- * Text Difficulty Index (D-062) - a standardized 1-10 rating for every book,
- * computed on-device with no provider call so it is free, instant, and
- * explainable. Full method in docs/READING_METRICS.md.
+ * Difficulty Index (D-062, revised D-063) - a standardized 1-10 rating for
+ * every book. Full method in docs/READING_METRICS.md.
  *
- *   difficulty = c * measured + (1 - c) * prior
+ *   difficulty = override                         when the reader set one
+ *              = knowledge estimate               when the book has been rated
+ *              = c * measured + (1 - c) * prior   until then (fallback)
  *
+ * - knowledge estimate: the book-difficulty Edge Function rates the title
+ *   once against a rubric with anchor books (The Brothers Karamazov 8.5,
+ *   Dungeon Crawler Carl 3) and caches it on the topic row. This is what
+ *   the D-062 metadata prior could not do: catalog genres are usually just
+ *   "Fiction" and the stored year is the edition's, so every novel landed
+ *   near 5 ("Moderate").
  * - measured: Flesch-Kincaid grade level of the reader's VERBATIM quote
- *   logs for the book (quotes are the book's own prose, so they sample its
- *   real sentence length and word complexity), mapped onto 1-10.
- * - prior: 5.0 adjusted by genre, publication era, and length - the
- *   estimate available the moment a book is added, before any quote exists.
+ *   logs for the book, mapped onto 1-10. Quotes are a small, hand-picked
+ *   sample, so this only stands in while no estimate exists.
+ * - prior: 5.0 adjusted by genre, publication era, and length - the value
+ *   available the moment a book is added.
  * - c: confidence in the measurement, 0 until 20 quoted words, 1 at 150.
  * - A reader-set override always wins (the feedback asked for editable
  *   tags); its provenance is shown as "set by you".
  */
 
-export type DifficultySource = 'override' | 'measured' | 'estimated';
+export type DifficultySource = 'override' | 'knowledge' | 'measured' | 'metadata';
+
+export type EstimateConfidence = 'high' | 'medium' | 'low';
 
 export interface DifficultyInput {
   genre: string | null | undefined;
@@ -25,13 +34,16 @@ export interface DifficultyInput {
   quoteTexts: readonly string[];
   /** Reader-set 1-10 override; null/undefined falls back to the computation. */
   override?: number | null;
+  /** Cached knowledge estimate from the book-difficulty function (D-063). */
+  estimate?: number | null;
+  estimateConfidence?: EstimateConfidence | string | null;
 }
 
 export interface DifficultyResult {
   /** 1.0-10.0, one decimal. */
   score: number;
   source: DifficultySource;
-  /** Weight placed on the measured text (0-1). */
+  /** Weight placed on the measured text (0-1) in the fallback blend. */
   confidence: number;
   /** Flesch-Kincaid grade level of the sampled quotes, when any were sampled. */
   textGrade: number | null;
@@ -39,6 +51,8 @@ export interface DifficultyResult {
   sampledWords: number;
   /** The metadata-only estimate. */
   prior: number;
+  /** How sure the knowledge estimate was; null when there is none. */
+  estimateConfidence: EstimateConfidence | null;
   label: DifficultyLabel;
 }
 
@@ -213,36 +227,47 @@ export function difficultyLabel(score: number): DifficultyLabel {
   return 'Dense';
 }
 
+function normalizeEstimateConfidence(
+  value: EstimateConfidence | string | null | undefined,
+): EstimateConfidence {
+  return value === 'high' || value === 'medium' ? value : 'low';
+}
+
 export function computeDifficulty(input: DifficultyInput): DifficultyResult {
   const prior = estimatePrior(input);
   const sample = measureReadability(input.quoteTexts.join('\n'));
   const confidence =
     sample.words >= MIN_SAMPLE_WORDS ? clamp(sample.words / FULL_CONFIDENCE_WORDS, 0, 1) : 0;
   const textGrade = confidence > 0 ? sample.grade : null;
+  const hasEstimate = typeof input.estimate === 'number' && Number.isFinite(input.estimate);
+  const estimateConfidence = hasEstimate
+    ? normalizeEstimateConfidence(input.estimateConfidence)
+    : null;
+  const base = {
+    confidence,
+    textGrade,
+    sampledWords: sample.words,
+    prior: round1(prior),
+    estimateConfidence,
+  };
 
   if (typeof input.override === 'number' && Number.isFinite(input.override)) {
     const score = round1(clamp(input.override, DIFFICULTY_MIN, DIFFICULTY_MAX));
-    return {
-      score,
-      source: 'override',
-      confidence,
-      textGrade,
-      sampledWords: sample.words,
-      prior: round1(prior),
-      label: difficultyLabel(score),
-    };
+    return { ...base, score, source: 'override', label: difficultyLabel(score) };
+  }
+
+  if (hasEstimate) {
+    const score = round1(clamp(input.estimate as number, DIFFICULTY_MIN, DIFFICULTY_MAX));
+    return { ...base, score, source: 'knowledge', label: difficultyLabel(score) };
   }
 
   const measured = textGrade !== null ? gradeToDifficulty(textGrade) : prior;
   const blended = confidence * measured + (1 - confidence) * prior;
   const score = round1(clamp(blended, DIFFICULTY_MIN, DIFFICULTY_MAX));
   return {
+    ...base,
     score,
-    source: confidence > 0 ? 'measured' : 'estimated',
-    confidence,
-    textGrade,
-    sampledWords: sample.words,
-    prior: round1(prior),
+    source: confidence > 0 ? 'measured' : 'metadata',
     label: difficultyLabel(score),
   };
 }
@@ -257,6 +282,10 @@ export function describeDifficultySource(result: DifficultyResult): string {
   switch (result.source) {
     case 'override':
       return 'set by you';
+    case 'knowledge':
+      return result.estimateConfidence === 'low'
+        ? 'rough estimate - little is known about this book'
+        : 'from what is known about this book';
     case 'measured':
       return `measured from ${result.sampledWords} quoted words`;
     default:

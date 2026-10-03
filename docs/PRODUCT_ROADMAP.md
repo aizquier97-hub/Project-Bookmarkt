@@ -1057,7 +1057,8 @@ retention in beta. Formulas live in [READING_METRICS.md](READING_METRICS.md).
 - [x] Quotes tab: all `[Quote]` entries with favorites, written reflections,
       and a personal-analysis header.
 - [x] Difficulty Index per book (quote readability blended with a
-      genre/era/length prior; reader override in Edit book).
+      genre/era/length prior; reader override in Edit book). *Revised by
+      D-063 below.*
 - [x] Paper palette lightened toward white under the unchanged dark-walnut
       chrome; six-tab shelf (Library, Progress, Quotes, Club, Cards,
       Settings); My bookmarks reached from Settings.
@@ -1077,6 +1078,36 @@ retention in beta. Formulas live in [READING_METRICS.md](READING_METRICS.md).
       binary build.
 - [ ] Post-beta: model-scored reflection quality as the comprehension
       factor's v2; vocabulary-richness metric once note volume supports it.
+
+#### Difficulty Index v2 (D-063, added 2026-10-03 from owner feedback)
+
+The first live libraries rated *The Brothers Karamazov* 5.2, *Dungeon
+Crawler Carl* 4.9, and *Monsterholic* 4.9 - all "Moderate" - because the
+catalog genre is usually just "Fiction" and the stored year is the
+edition's, not the original's. The index is now a **knowledge rating**:
+one rubric call per book, cached on the topic, with the old formula as the
+fallback. Method and anchors in [READING_METRICS.md](READING_METRICS.md) §2.
+
+- [x] `book-difficulty` Edge Function (Gemini 2.5 Flash, temperature 0,
+      JSON, anchor rubric; catalog fields only; per-user 60/day cap; RLS
+      write to `topics`).
+- [x] Migration `20261003210000_add_difficulty_estimate.sql` (four cached
+      columns on `topics`). *(Applied 2026-10-03; remote history 22/22.)*
+- [x] Client precedence override → knowledge → fallback; estimate requested
+      after Add book; `DifficultyBackfill` rates up to 8 unrated books per
+      launch; title/author edits clear the rating; Edit book shows the
+      estimate and rationale; explainer copy updated.
+- [x] Live calibration with a throwaway account (Karamazov 8.5, DCC 3.0,
+      Monsterholic 3.0 low, Harry Potter 1 3.0, Critique of Pure Reason
+      10.0, Atomic Habits 4.0); account deleted afterwards.
+- [x] Ship the OTA for both runtimes. *(Done 2026-10-03 from commit
+      `576a861`: runtime 1.0.1 group `74615eaf-4899-454a-90d8-199b2c190996`,
+      runtime 1.0.0 group `93d8e897-89af-4f74-97da-e40e8b8d49a1`.)*
+- [ ] Owner confirms the three flagged books re-rate on device (open the
+      app twice; ratings arrive within a few seconds of the library loading
+      and Edit book shows "Bookmarkt's estimate").
+- [ ] Post-beta: blend quote readability back in for low-confidence
+      ratings; shared ISBN-keyed rating cache if cost ever matters.
 
 ### Stage 4 exit gate
 
