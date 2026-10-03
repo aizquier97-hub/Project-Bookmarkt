@@ -1100,9 +1100,12 @@ fallback. Method and anchors in [READING_METRICS.md](READING_METRICS.md) §2.
 - [x] Live calibration with a throwaway account (Karamazov 8.5, DCC 3.0,
       Monsterholic 3.0 low, Harry Potter 1 3.0, Critique of Pure Reason
       10.0, Atomic Habits 4.0); account deleted afterwards.
-- [ ] Ship the OTA for both runtimes and confirm the three flagged books
-      re-rate on the owner's device (open the app twice; ratings arrive
-      within a few seconds of the library loading).
+- [x] Ship the OTA for both runtimes. *(Done 2026-10-03 from commit
+      `576a861`: runtime 1.0.1 group `74615eaf-4899-454a-90d8-199b2c190996`,
+      runtime 1.0.0 group `93d8e897-89af-4f74-97da-e40e8b8d49a1`.)*
+- [ ] Owner confirms the three flagged books re-rate on device (open the
+      app twice; ratings arrive within a few seconds of the library loading
+      and Edit book shows "Bookmarkt's estimate").
 - [ ] Post-beta: blend quote readability back in for low-confidence
       ratings; shared ISBN-keyed rating cache if cost ever matters.
 

@@ -280,8 +280,12 @@ Monsterholic 4.9, all "Moderate". Root cause and method in
 - [x] Live test with a throwaway account against the deployed function
       (6 books, cache hit verified, rows persisted under RLS, account
       deleted - 0 topics left).
-- [ ] Ship the OTA for runtimes 1.0.1 and 1.0.0; owner confirms the three
-      flagged books re-rate (Edit book shows "Bookmarkt's estimate").
+- [x] Ship the OTA for runtimes 1.0.1 and 1.0.0. *Done 2026-10-03 from
+      commit `576a861`: groups `74615eaf-4899-454a-90d8-199b2c190996`
+      (1.0.1) and `93d8e897-89af-4f74-97da-e40e8b8d49a1` (1.0.0), android +
+      ios.*
+- [ ] Owner confirms the three flagged books re-rate (Edit book shows
+      "Bookmarkt's estimate").
 
 ---
 
