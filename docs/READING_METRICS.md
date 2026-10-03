@@ -1,14 +1,17 @@
-# Bookmarkt Reading Metrics (D-062, D-063, D-064)
+# Bookmarkt Reading Metrics (D-062, D-063, D-064, D-065)
 
 This document is the reference for every number on the Profile tab (the
 home tab since D-064; "Progress" until then), the reading calendar, the
 book screen's difficulty chip and trophy strip, and the Sandglass session
 wrap-up. All metrics are computed **on the device** from the reader's own
-entries and timed sessions (`app/src/domains/fitness/`). The one exception
-is the Difficulty Index's knowledge rating (D-063): the `book-difficulty`
+entries and timed sessions (`app/src/domains/fitness/`). Two inputs come
+from a model call, each made once per book and cached on the `topics` row:
+the Difficulty Index's knowledge rating (D-063), where the `book-difficulty`
 Edge Function sends a book's **catalog details only** (title, author,
-edition year, genre, page count - never a note, quote, or reflection) to
-the model once per book and caches the result on the `topics` row.
+edition year, genre, page count - never a note, quote, or reflection); and
+the comprehension grade (D-065, companion subscribers), where the
+`companion` Edge Function reads the reader's **own notes on that book** and
+nothing else.
 
 Design goals, in order: honest with sparse data, cheap to compute, and
 explainable in one sentence inside the app ("How these are calculated").
@@ -174,21 +177,93 @@ face value; a 10/10 book doubles them; a 1/10 book counts a fifth).
 
 ## 3. Comprehension factor `C` (0.6-1.4)
 
-A deterministic proxy for engagement with the text, per book per day. v1
-deliberately uses no model: it rewards the behaviours Bookmarkt already
-asks for.
+Per book per day. Since D-065 the factor has two parts: a deterministic
+**behaviour proxy** `Cb` that every reader gets, and a **model grade** `m`
+of how deeply the notes understand the book, blended in for companion
+subscribers. A book without a grade uses `Cb` unchanged.
+
+### 3.1 Behaviour proxy `Cb` (v1, D-062)
+
+Rewards the behaviours Bookmarkt already asks for; no model involved.
 
 ```
-C = 0.6
-  + 0.4  if at least one entry was logged that day
-  + 0.2 * min(1, note_words / 80)
-  + 0.1  if any entry that day carries [Important]
-  + 0.1  if any quote that day has a written reflection
-C = min(C, 1.4)
+Cb = 0.6
+   + 0.4  if at least one entry was logged that day
+   + 0.2 * min(1, note_words / 80)
+   + 0.1  if any entry that day carries [Important]
+   + 0.1  if any quote that day has a written reflection
+Cb = min(Cb, 1.4)
 ```
 
 `note_words` counts the reader's own words: note bodies and quote
 reflections. Quoted passages are the author's words and do not count.
+
+### 3.2 Model grade `m` (v2, D-065)
+
+The owner's round-2 feedback: the factor should also judge the *depth* of
+what was written, not just that something was. The `companion` Edge
+Function's `comprehension` feature grades one book's notes against a
+four-mark rubric. Each mark is an integer 0-4:
+
+| Mark | Weight | What earns it |
+| --- | --- | --- |
+| recall `R` | 0.3 | Specific people, events, places, ideas tracked accurately and in sequence (0 none, 2 some specifics, 4 precise and sustained) |
+| interpretation `I` | 0.3 | Explains *why* - motives, causes, themes, meaning - rather than only what happened |
+| connection `C` | 0.2 | Relates parts of the book to each other, to other books, or to the reader's own life |
+| evaluation `E` | 0.2 | Weighs, questions, or judges the book with reasons |
+
+```
+m = (0.3 R + 0.3 I + 0.2 C + 0.2 E) / 4        in [0, 1], three decimals
+```
+
+Rules the grader is given: judge the notes as written; do not reward
+length or penalise precise brevity; `[Quote]` lines are attention, not
+understanding, unless a Reflection follows; never fill gaps from the
+model's own knowledge of the book (naming something that happens is
+recall, not interpretation). Confidence is `high` with 8+ substantive
+notes, `medium` with 3-7, `low` otherwise or when most lines are copied
+quotes. A one-sentence rationale (≤240 chars, "Your notes ...") names the
+strongest and weakest mark.
+
+**Material.** Only that book's entries: oldest first, one per line, the
+note text with whitespace collapsed and ` || Reflection: ...` appended
+when a quote has one; the newest 400 entries, and within them the newest
+lines that fit 24 000 characters. Nothing from other books, the catalog,
+or the companion's chat history is sent.
+
+**Caching and cost.** The grade (`comprehension_score`, `_confidence`,
+`_rationale`, `_marks`, `_scored_at`) is stored on the `topics` row with a
+djb2 `comprehension_hash` of the material. The function rebuilds the
+material under the caller's RLS and, if the hash matches, answers from the
+cache **before** the quota gate - no model call, no quota. A book with no
+notes answers `NO_ENTRIES` the same way. Only a changed book spends one of
+the 20 daily grades (`COMPANION_COMPREHENSION_DAILY_LIMIT`). Gemini 2.5
+Flash, temperature 0, thinking off, JSON output; roughly 600 prompt tokens
+for five notes.
+
+**Gating.** The standard companion entitlement (comped / trial / active;
+`402 COMPANION_SUBSCRIPTION_REQUIRED` otherwise). The owner's dev comp
+passes today. The client (`ComprehensionBackfill`, signed-in shell)
+mirrors the material builder and hash exactly - a unit test pins the live
+hash `djb2:6c2c609c:690` from the deploy-day smoke test - and grades up to
+four stale books per launch, one at a time, for entitled readers only.
+
+### 3.3 Blend
+
+Both parts are mapped to the unit interval, averaged with equal weight,
+and stretched back to the factor's range:
+
+```
+b = (Cb - 0.6) / 0.8
+C = 0.6 + 0.8 * (0.5 b + 0.5 m)       when the book has a grade
+C = Cb                                 otherwise
+```
+
+Worked example: a day with one 60-word note on a book graded
+R4 I4 C4 E2 (`m` = 0.9): `Cb` = 0.6 + 0.4 + 0.15 = 1.15, `b` = 0.6875,
+`C` = 0.6 + 0.8 × 0.79375 = 1.235 → **1.23** (rounded to two decimals as
+the code does). The same day on an ungraded book stays at 1.15. The
+Profile shows the grade on each book's row as "understanding 90%".
 
 ## 4. Session Effort `E` and daily load
 
@@ -311,8 +386,14 @@ action.
 - Ratings are per topic row, so two readers of the same book each spend a
   call; a shared `book_difficulty` cache keyed by ISBN would cut cost if the
   per-book spend ever matters (today ≈ US$0.0002).
-- Comprehension is a behavioural proxy. A model-scored reflection quality
-  (companion feature, quota-gated) is the natural v2.
+- The comprehension grade (D-065) is per topic row and per reader by
+  design - it grades *this reader's* notes, so no shared cache applies. The
+  client only sees entries from the last 400 days, so a book with older
+  notes can hash differently from the server's view and trigger one cached
+  (free) call per launch; harmless, but a `since` cursor would remove it.
+- The rubric treats a very short set of notes honestly (`low` confidence),
+  but confidence does not yet soften the blend; weighting `m` by confidence
+  is the obvious refinement once real distributions are seen.
 - Vocabulary richness (type-token ratio of the reader's notes) was
   considered and deferred - too noisy below ~500 words.
 - Pages estimated from minutes use the reader's own median pace; before any

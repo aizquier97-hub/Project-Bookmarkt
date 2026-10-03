@@ -48,6 +48,8 @@ export interface BookDayActivity {
   hasQuoteReflection: boolean;
   /** Comprehension factor C in [0.6, 1.4]. */
   comprehension: number;
+  /** Model-assessed understanding of this book's notes in [0, 1] (D-065), when graded. */
+  modelComprehension: number | null;
   /** Difficulty Index D (1-10) used for this book. */
   difficulty: number;
   /** Session Effort: pages x (D / 5) x C. */
@@ -97,6 +99,29 @@ export function computeComprehensionFactor(input: {
     factor += 0.1;
   }
   return round2(Math.min(COMPREHENSION_MAX, factor));
+}
+
+/**
+ * Comprehension factor v2 (D-065): blends the behavioural proxy with the
+ * companion's rubric score m in [0, 1] when one exists. Both are mapped to
+ * the unit interval and averaged with equal weight, then stretched back to
+ * [0.6, 1.4]:
+ *
+ *   b = (Cb - 0.6) / 0.8
+ *   C = 0.6 + 0.8 x (0.5 x b + 0.5 x m)
+ *
+ * Without a rubric score the v1 factor Cb is returned unchanged, so books
+ * that have not been assessed (or readers without the companion) keep the
+ * deterministic value.
+ */
+export function blendComprehensionFactor(behavioural: number, model: number | null): number {
+  if (model === null || !Number.isFinite(model)) {
+    return behavioural;
+  }
+  const span = COMPREHENSION_MAX - COMPREHENSION_MIN;
+  const b = Math.min(1, Math.max(0, (behavioural - COMPREHENSION_MIN) / span));
+  const m = Math.min(1, Math.max(0, model));
+  return round2(COMPREHENSION_MIN + span * (0.5 * b + 0.5 * m));
 }
 
 /** Session Effort E = pages x (D / 5) x C. */
@@ -226,6 +251,8 @@ export interface BuildActivityInput {
   sessions: readonly ActivitySession[];
   /** Difficulty Index per book id; books missing here use the neutral 5.0. */
   difficultyByBook: ReadonlyMap<number, number>;
+  /** Model-assessed comprehension in [0, 1] per book id (D-065); absent books use the v1 proxy alone. */
+  comprehensionByBook?: ReadonlyMap<number, number>;
 }
 
 /** One row per (book, day), newest day last. */
@@ -250,6 +277,7 @@ export function buildBookDayActivity(input: BuildActivityInput): BookDayActivity
         hasImportant: false,
         hasQuoteReflection: false,
         comprehension: COMPREHENSION_MIN,
+        modelComprehension: input.comprehensionByBook?.get(bookId) ?? null,
         difficulty: input.difficultyByBook.get(bookId) ?? DIFFICULTY_NEUTRAL,
         effort: 0,
       };
@@ -289,7 +317,10 @@ export function buildBookDayActivity(input: BuildActivityInput): BookDayActivity
       pages = NOTE_ONLY_PAGE_CREDIT;
     }
     row.pages = pages;
-    row.comprehension = computeComprehensionFactor(row);
+    row.comprehension = blendComprehensionFactor(
+      computeComprehensionFactor(row),
+      row.modelComprehension,
+    );
     row.effort = computeEffort(row.pages, row.difficulty, row.comprehension);
     result.push(row);
   }

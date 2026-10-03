@@ -75,7 +75,8 @@ export default function CueCardsTab() {
           <Text style={styles.lede}>
             A deck of real cue cards - terse on the front, the answer on the back, press to flip.
             Every card is drawn from your own entries and character maps, nothing else. The small
-            effort of recalling is what makes a book stay with you.
+            effort of recalling is what makes a book stay with you. Any deck also deals a
+            memory-match board: find each cue’s answer among the face-down tiles.
           </Text>
           <Text style={styles.pickHeading}>Which book should the deck cover?</Text>
         </View>

@@ -56,8 +56,8 @@ Policy:
   `eas update --channel preview` as-is, then temporarily set `expo.version`
   to the older value, publish again, and `git checkout -- app.json`. Code
   that touches the newer module must degrade when it is absent (D-061's lazy
-  import does). First done for D-062 on 2026-10-03; repeated for D-063 and
-  D-064.
+  import does). First done for D-062 on 2026-10-03; repeated for D-063,
+  D-064, and D-065.
 - **Local prerequisites for `eas update`:** `npx --yes eas-cli@latest`
   authenticates from the EAS login in `~/.expo/state.json`; the bundle reads
   `app/.env` (gitignored) for the `EXPO_PUBLIC_*` values, which must mirror
@@ -109,7 +109,14 @@ Policy:
 3. Verify on-device against the release checklist (§6). For functions, a
    throwaway account created through the Auth admin API (and deleted
    afterwards) exercises the live endpoint without touching reader data -
-   first done for `book-difficulty` (D-063).
+   first done for `book-difficulty` (D-063), repeated for the companion's
+   `comprehension` feature (D-065: fresh call, cached call, persisted grade,
+   single usage row, then the account removed).
+4. Companion quotas are per-feature daily limits read from function env at
+   request time; each has a built-in default and an override secret
+   (`COMPANION_*_DAILY_LIMIT`) - `comprehension` defaults to 20/day under
+   `COMPANION_COMPREHENSION_DAILY_LIMIT` (D-065). A cache hit or an empty
+   book is served before the quota gate and never consumes a unit.
 
 ### Application rollback
 

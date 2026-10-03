@@ -19,7 +19,15 @@ import {
   type CompanionCueCard,
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
+import {
+  DECK_OVERLAP_CEILING,
+  deckOverlap,
+  hasEnoughForBoard,
+  MIN_PAIRS,
+  NEED_MORE_MATERIAL,
+} from '@/domains/cueCards/memoryGame';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
+import { MemoryMatch } from '@/components/MemoryMatch';
 import { PremiumOffer } from '@/components/PremiumOffer';
 import { ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
@@ -30,6 +38,8 @@ import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
  * cue on the front, the answer on the back, press to flip. Grounded only in
  * the reader's own entries and character maps; recalling before rereading is
  * the point (reconsolidation), so the front never gives the answer away.
+ * The same deck also deals a memory-match board (D-065): cue and answer
+ * faces shuffled face down, pairs to be found.
  */
 export default function CueCardsScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -91,6 +101,14 @@ function CueCardDeck({ bookId }: { bookId: number }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Memory match (D-065): which face of the deck is showing, a counter that
+  // re-keys the board for a reshuffle, the last board's result, and whether
+  // the deal in flight was asked for by the board (so a near-copy of the
+  // current deck can be recognised).
+  const [mode, setMode] = useState<'cards' | 'match'>('cards');
+  const [boardKey, setBoardKey] = useState(0);
+  const [wonMoves, setWonMoves] = useState<number | null>(null);
+  const redealForMatch = useRef(false);
 
   // The dealt-card motion: -1 = off to the left, 0 = in hand, +1 = off to
   // the right. The old card slides away, the new one glides in behind it.
@@ -128,9 +146,16 @@ function CueCardDeck({ bookId }: { bookId: number }) {
       setNotice(null);
     },
     onSuccess: (result) => {
+      const forMatch = redealForMatch.current;
+      redealForMatch.current = false;
       trackAnalyticsEvent(
         'companion_tool_used',
-        { tool: 'cue_cards', status: 'succeeded', cards: result.cards.length },
+        {
+          tool: 'cue_cards',
+          status: 'succeeded',
+          cards: result.cards.length,
+          mode: forMatch ? 'match' : 'cards',
+        },
         bookId,
       );
       if (result.cards.length === 0) {
@@ -139,14 +164,49 @@ function CueCardDeck({ bookId }: { bookId: number }) {
             'Not enough in your records for a deck yet. A few more entries will do it.',
         );
         setCards(null);
+        setMode('cards');
         return;
+      }
+      if (forMatch && cards) {
+        // A fresh board after a win: the companion varies its decks, so a
+        // near-copy of the last one means the records have run dry.
+        if (
+          !hasEnoughForBoard(result.cards) ||
+          deckOverlap(cards, result.cards) >= DECK_OVERLAP_CEILING
+        ) {
+          setNotice(NEED_MORE_MATERIAL);
+          setCards(result.cards);
+          setIndex(0);
+          setWonMoves(null);
+          if (hasEnoughForBoard(result.cards)) {
+            setBoardKey((key) => key + 1);
+          } else {
+            setMode('cards');
+          }
+          return;
+        }
       }
       setCards(result.cards);
       setIndex(0);
+      setWonMoves(null);
+      setBoardKey((key) => key + 1);
     },
     onError: (err) => {
+      const forMatch = redealForMatch.current;
+      redealForMatch.current = false;
       const status = err instanceof CompanionRequestError ? err.code : 'error';
-      trackAnalyticsEvent('companion_tool_used', { tool: 'cue_cards', status }, bookId);
+      trackAnalyticsEvent(
+        'companion_tool_used',
+        { tool: 'cue_cards', status, mode: forMatch ? 'match' : 'cards' },
+        bookId,
+      );
+      if (forMatch && cards && err instanceof CompanionRequestError && err.quotaExceeded) {
+        // Out of deals for today: the same cards, reshuffled, still make a game.
+        setNotice("Today's deals are used up, so here is the same deck reshuffled.");
+        setWonMoves(null);
+        setBoardKey((key) => key + 1);
+        return;
+      }
       setError(
         err instanceof CompanionRequestError
           ? err.message
@@ -154,6 +214,36 @@ function CueCardDeck({ bookId }: { bookId: number }) {
       );
     },
   });
+
+  const canPlayMatch = cards !== null && hasEnoughForBoard(cards);
+
+  const switchMode = (next: 'cards' | 'match') => {
+    if (next === mode) {
+      return;
+    }
+    if (next === 'match' && !canPlayMatch) {
+      setNotice(
+        `A memory-match board needs at least ${MIN_PAIRS} cards. ${NEED_MORE_MATERIAL}`,
+      );
+      return;
+    }
+    setNotice(null);
+    setMode(next);
+    if (next === 'match') {
+      trackAnalyticsEvent('companion_tool_used', { tool: 'cue_cards', mode: 'match' }, bookId);
+    }
+  };
+
+  const reshuffle = () => {
+    setNotice(null);
+    setWonMoves(null);
+    setBoardKey((key) => key + 1);
+  };
+
+  const dealFreshBoard = () => {
+    redealForMatch.current = true;
+    dealMutation.mutate();
+  };
 
   if (!cards) {
     return (
@@ -164,7 +254,8 @@ function CueCardDeck({ bookId }: { bookId: number }) {
           <Text style={styles.introTitle}>Deal yourself a deck</Text>
           <Text style={styles.introBody}>
             Each card carries a cue from your own entries and character maps - nothing from outside
-            your records, nothing past your latest page. Recall first, then flip.
+            your records, nothing past your latest page. Recall first, then flip - or turn the deck
+            into a memory-match board and pair each cue with its answer.
           </Text>
           <Pressable
             style={styles.goldButton}
@@ -197,9 +288,117 @@ function CueCardDeck({ bookId }: { bookId: number }) {
     outputRange: [0, 1, 1, 1, 0],
   });
 
+  const modeToggle = (
+    <View style={styles.modeRow} accessibilityRole="tablist">
+      <Pressable
+        style={[styles.modeButton, mode === 'cards' && styles.modeButtonActive]}
+        onPress={() => switchMode('cards')}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: mode === 'cards' }}
+      >
+        <Ionicons
+          name="albums-outline"
+          size={14}
+          color={mode === 'cards' ? gold.onFill : colors.muted}
+        />
+        <Text style={[styles.modeText, mode === 'cards' && styles.modeTextActive]}>Cards</Text>
+      </Pressable>
+      <Pressable
+        style={[
+          styles.modeButton,
+          mode === 'match' && styles.modeButtonActive,
+          !canPlayMatch && styles.modeButtonDisabled,
+        ]}
+        onPress={() => switchMode('match')}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: mode === 'match', disabled: !canPlayMatch }}
+      >
+        <Ionicons
+          name="grid-outline"
+          size={14}
+          color={mode === 'match' ? gold.onFill : colors.muted}
+        />
+        <Text style={[styles.modeText, mode === 'match' && styles.modeTextActive]}>Match</Text>
+      </Pressable>
+    </View>
+  );
+
+  if (mode === 'match' && canPlayMatch) {
+    return (
+      <ScrollView contentContainerStyle={styles.matchContainer}>
+        <Stack.Screen options={{ title: 'Cue cards' }} />
+        {modeToggle}
+        {wonMoves !== null ? (
+          <View style={styles.winCard}>
+            <Ionicons name="ribbon-outline" size={26} color={gold.deep} />
+            <Text style={styles.winTitle}>Every pair found</Text>
+            <Text style={styles.winBody}>
+              {wonMoves} {wonMoves === 1 ? 'turn' : 'turns'} to clear the board. Deal fresh cues
+              from your records, or play these again in a new order.
+            </Text>
+            <Pressable
+              style={styles.goldButton}
+              onPress={dealFreshBoard}
+              disabled={dealMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Deal a fresh board from new cards"
+            >
+              {dealMutation.isPending ? (
+                <ActivityIndicator size="small" color={gold.onFill} />
+              ) : (
+                <>
+                  <Ionicons name="sparkles" size={15} color={gold.onFill} />
+                  <Text style={styles.goldButtonText}>New cards</Text>
+                </>
+              )}
+            </Pressable>
+            <Pressable
+              style={styles.navButton}
+              onPress={reshuffle}
+              disabled={dealMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Play the same cards again, reshuffled"
+            >
+              <Ionicons name="shuffle" size={16} color={colors.text} />
+              <Text style={styles.navButtonText}>Same cards, reshuffled</Text>
+            </Pressable>
+            {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+          </View>
+        ) : (
+          <>
+            <Text style={styles.flipHint}>Turn two tiles; pair each cue with its answer</Text>
+            <MemoryMatch
+              key={boardKey}
+              cards={cards}
+              onWon={(moves) => {
+                setWonMoves(moves);
+                trackAnalyticsEvent(
+                  'companion_tool_used',
+                  { tool: 'cue_cards', mode: 'match', status: 'won', moves },
+                  bookId,
+                );
+              }}
+            />
+            {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+            <Pressable
+              style={styles.newDeckButton}
+              onPress={reshuffle}
+              accessibilityRole="button"
+              accessibilityLabel="Reshuffle the board"
+            >
+              <Text style={styles.newDeckText}>Reshuffle</Text>
+            </Pressable>
+          </>
+        )}
+      </ScrollView>
+    );
+  }
+
   return (
     <View style={styles.deckContainer}>
       <Stack.Screen options={{ title: 'Cue cards' }} />
+      {modeToggle}
       <Text style={styles.counter}>
         Card {Math.min(index, cards.length - 1) + 1} of {cards.length}
       </Text>
@@ -244,12 +443,15 @@ function CueCardDeck({ bookId }: { bookId: number }) {
         onPress={() => {
           setCards(null);
           setIndex(0);
+          setMode('cards');
+          setWonMoves(null);
         }}
         accessibilityRole="button"
         accessibilityLabel="Put the deck away and deal a new one"
       >
         <Text style={styles.newDeckText}>New deck</Text>
       </Pressable>
+      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
     </View>
   );
 }
@@ -492,5 +694,69 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 14,
     fontWeight: '700',
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
+  modeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 9,
+  },
+  modeButtonActive: {
+    backgroundColor: gold.fill,
+  },
+  modeButtonDisabled: {
+    opacity: 0.45,
+  },
+  modeText: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modeTextActive: {
+    color: gold.onFill,
+  },
+  matchContainer: {
+    flexGrow: 1,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  winCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 22,
+    alignItems: 'center',
+    gap: 12,
+    ...cardShadow,
+  },
+  winTitle: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 19,
+    fontWeight: '700',
+  },
+  winBody: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
   },
 });
