@@ -18,6 +18,15 @@ export const colors = {
   accent: '#7d3417',
   accentSoft: '#f1e4d8',
   danger: '#9d271f',
+  // Trend ink (D-064): a rising number is set in gold ink - the colour the
+  // app already uses for celebration - and a dip in cool slate ink, so
+  // gains and losses stay legible without the traffic-light green/red that
+  // fought the walnut-and-paper palette. Both pass AA on paper (5.2:1 and
+  // 8.7:1); `danger` stays reserved for destructive actions and errors.
+  rise: '#8a660f',
+  riseSoft: '#f3ead3',
+  fall: '#3f4a63',
+  fallSoft: '#e7eaf1',
   // The wooden frame: headers, tab bar, and other structural chrome.
   walnut: '#2a1c11',
   walnutBorder: '#4a301c',

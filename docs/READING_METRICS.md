@@ -1,6 +1,7 @@
-# Bookmarkt Reading Metrics (D-062, D-063)
+# Bookmarkt Reading Metrics (D-062, D-063, D-064)
 
-This document is the reference for every number on the Progress tab, the
+This document is the reference for every number on the Profile tab (the
+home tab since D-064; "Progress" until then), the reading calendar, the
 book screen's difficulty chip and trophy strip, and the Sandglass session
 wrap-up. All metrics are computed **on the device** from the reader's own
 entries and timed sessions (`app/src/domains/fitness/`). The one exception
@@ -220,26 +221,43 @@ F_d = F_(d-1) + (L_d - F_(d-1)) / 42
 A 42-day exponentially weighted moving average of daily load, the same
 construction Strava's Fitness uses for training load. A quiet day lowers F
 by about 2.4%; a steady habit lifts it toward the reader's typical daily
-effort. The Progress tab shows the current value and the % change over
+effort. The Profile tab shows the current value and the % change over
 1M / 3M / 6M / 1Y (null until the series is at least 0.5 at the start of
-the range).
+the range). Since D-064 a rising value is set in gold ink and a falling one
+in slate ink (`colors.rise` / `colors.fall`) rather than green/red.
 
 Reading Fitness therefore realizes the brief's **Pace x Difficulty x
 Comprehension**: pace and volume enter as pages per day, difficulty as
 `D / 5`, comprehension as `C`, smoothed so one heroic Sunday does not
 outrank a month of evenings.
 
-## 6. Secondary metrics (Progress tab)
+## 6. Secondary metrics (Profile tab)
 
 | Metric | Definition |
 | --- | --- |
 | Volume | Pages this week vs the average of the previous 4 weeks (`+X%`); 12 weekly bars |
-| Pace | Pages per hour across timed sessions ≥ 60 s with a page range, last 28 days (all-time fallback) |
+| Pace | **Pages per minute** (two decimals) across timed sessions ≥ 60 s with a page range, last 28 days (all-time fallback). Was pages per hour until D-064; the timer's wrap-up reports the same unit for the single sitting (`sessionPacePagesPerMinute`) |
 | Endurance | Mean timed session length, minutes |
 | Consistency | Read days per week over the last 28 days |
 | Difficulty | Pages-weighted mean `D`, last 28 days |
 | Comprehension | Pages-weighted mean `C`, last 28 days |
-| Reading days | 16-week heatmap; level 0-4 by load quartile |
+| Reading days | 16-week heatmap; level 0-4 by load quartile. Tapping it opens the **reading calendar** (D-064) |
+
+### 6.1 Reading calendar (D-064)
+
+`computeCalendarMonth` lays one month out Monday-first (nulls pad the first
+and last week). Each day is one of:
+
+| Kind | Rule | Drawn as |
+| --- | --- | --- |
+| `read` | the day's `DailyLoad` has pages, entries, or sessions > 0 | gold disc |
+| `current` | not read, but an engagement day (§7) | dashed leather ring ("Reading Current") |
+| `quiet` | neither | plain |
+
+Today is ringed in walnut; future days are muted and not tappable. Month
+totals are reading days, pages, timed minutes, and (when > 0) Reading
+Current days. Tapping a day shows its pages, minutes, entries, and
+sessions. The forward arrow stops at the current month.
 
 ## 7. Streaks and "Reading Current"
 
@@ -261,8 +279,27 @@ Each book with a page count `P` has four pieces at thresholds
 `ceil(P * k / 4)` for `k = 1..4`. The reader's furthest page (max of entry
 boundaries and session end pages) unlocks pieces; marking the book finished
 completes the trophy. Books without a page count are ineligible until
-finished, when the trophy completes outright. Completed trophies fill the
-Progress tab's trophy case; pieces in progress list beneath it.
+finished, when the trophy completes outright.
+
+Completed trophies fill the Profile tab's **trophy case, shelved by
+difficulty band** (D-064): four fixed shelves - Light (D < 3.5), Moderate
+(3.5-5.4), Demanding (5.5-7.4), Dense (≥ 7.5), the same bands as
+`difficultyLabel` - each showing its count; empty shelves stay visible so
+the case reads as something to fill. Tapping a shelf lists its books
+(newest finished first); tapping a book opens it. Beneath the shelves,
+**Pieces in progress** previews up to four part-built trophies and expands
+to **every unfinished book** (`booksInProgress`, most recently active
+first), each with its trophy strip and `n/4` count.
+
+### 8.1 After the glass: the entry handoff (D-064)
+
+When a Sandglass sitting is saved without the optional note, the summary
+screen leads with a "Now, one line about it" prompt. Its primary action
+opens the book at `/book/[id]?compose=write&page=<end page>`: the entry
+composer is already open and focused with the stopping page prefilled, so
+the entry that lifts the sitting's comprehension factor is one tap and a
+sentence away. Sittings saved with a note keep the plain "Open the book"
+action.
 
 ## 9. Known limits and follow-ups
 

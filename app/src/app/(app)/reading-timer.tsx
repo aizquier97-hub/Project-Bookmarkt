@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addEntry } from '@/domains/entries/service';
 import { computeComprehensionFactor, computeEffort } from '@/domains/fitness/activity';
 import { countWords } from '@/domains/fitness/difficulty';
+import { sessionPacePagesPerMinute } from '@/domains/fitness/fitness';
 import type { BookFitness } from '@/domains/fitness/model';
 import { createReadingSession } from '@/domains/fitness/service';
 import {
@@ -48,10 +49,12 @@ interface SavedSummary {
   minutes: number;
   pages: number | null;
   effort: number | null;
-  pacePagesPerHour: number | null;
+  pacePagesPerMinute: number | null;
   unlocked: TrophySegment[];
   noteSaved: boolean;
   noteError: string | null;
+  /** Page the reader stopped on, when they told us. */
+  endPage: number | null;
 }
 
 /**
@@ -266,9 +269,7 @@ function TimerFlow({
         hasQuoteReflection: false,
       });
       const effort = pages !== null ? computeEffort(pages, fitness.difficulty.score, comprehension) : null;
-      const hours = session.duration_seconds / 3600;
-      const pacePagesPerHour =
-        pages !== null && pages > 0 && hours > 0 ? Math.round((pages / hours) * 10) / 10 : null;
+      const pacePagesPerMinute = sessionPacePagesPerMinute(pages, session.duration_seconds);
 
       const after = computeTrophyProgress({
         totalPages: book.total_pages,
@@ -284,10 +285,11 @@ function TimerFlow({
         minutes: Math.round(session.duration_seconds / 60),
         pages,
         effort,
-        pacePagesPerHour,
+        pacePagesPerMinute,
         unlocked,
         noteSaved,
         noteError,
+        endPage: endValue,
       };
     },
     onSuccess: (summary) => {
@@ -417,6 +419,20 @@ function TimerFlow({
   }
 
   if (phase === 'saved' && saved) {
+    const openBook = () =>
+      router.replace({ pathname: '/book/[id]', params: { id: String(book.id) } });
+    // The sitting is logged; the next step is the entry (D-064). A sitting
+    // without a note hands off straight into the book's composer with the
+    // stopping page already filled in, before the thought fades.
+    const writeEntry = () =>
+      router.replace({
+        pathname: '/book/[id]',
+        params: {
+          id: String(book.id),
+          compose: 'write',
+          ...(saved.endPage !== null ? { page: String(saved.endPage) } : {}),
+        },
+      });
     return (
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <Stack.Screen options={{ title: 'Session saved', headerShown: true, gestureEnabled: true }} />
@@ -427,7 +443,7 @@ function TimerFlow({
             <Stat label="Pages" value={saved.pages !== null ? String(saved.pages) : '-'} />
             <Stat
               label="Pace"
-              value={saved.pacePagesPerHour !== null ? `${saved.pacePagesPerHour}/hr` : '-'}
+              value={saved.pacePagesPerMinute !== null ? `${saved.pacePagesPerMinute}/min` : '-'}
             />
             <Stat label="Effort" value={saved.effort !== null ? String(Math.round(saved.effort)) : '-'} />
           </View>
@@ -448,6 +464,30 @@ function TimerFlow({
           </View>
         ) : null}
 
+        {!saved.noteSaved ? (
+          <View style={[styles.card, styles.promptCard]}>
+            <View style={styles.wrapHeader}>
+              <Ionicons name="create-outline" size={26} color={colors.accent} />
+              <View style={styles.flex}>
+                <Text style={styles.cardTitle}>Now, one line about it</Text>
+                <Text style={styles.cardBody}>
+                  {saved.pages !== null && saved.pages > 0
+                    ? `What happened in those ${saved.pages} pages? An entry lifts this sitting’s comprehension factor and keeps the thread for later.`
+                    : 'What happened while you read? An entry lifts this sitting’s comprehension factor and keeps the thread for later.'}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              style={styles.primaryButton}
+              onPress={writeEntry}
+              accessibilityRole="button"
+              accessibilityLabel="Write an entry about this session"
+            >
+              <Text style={styles.primaryButtonText}>Write an entry</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{book.name}</Text>
           <TrophyStrip
@@ -459,19 +499,21 @@ function TimerFlow({
           />
         </View>
 
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => router.replace({ pathname: '/book/[id]', params: { id: String(book.id) } })}
-          accessibilityRole="button"
-        >
-          <Text style={styles.primaryButtonText}>Open the book</Text>
-        </Pressable>
+        {saved.noteSaved ? (
+          <Pressable style={styles.primaryButton} onPress={openBook} accessibilityRole="button">
+            <Text style={styles.primaryButtonText}>Open the book</Text>
+          </Pressable>
+        ) : (
+          <Pressable style={styles.secondaryButton} onPress={openBook} accessibilityRole="button">
+            <Text style={styles.secondaryButtonText}>Open the book without an entry</Text>
+          </Pressable>
+        )}
         <Pressable
           style={styles.secondaryButton}
-          onPress={() => router.replace('/progress')}
+          onPress={() => router.replace('/')}
           accessibilityRole="button"
         >
-          <Text style={styles.secondaryButtonText}>See my progress</Text>
+          <Text style={styles.secondaryButtonText}>See my profile</Text>
         </Pressable>
       </ScrollView>
     );
@@ -827,7 +869,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderColor: gold.base,
-    backgroundColor: '#fff8e6',
+    backgroundColor: colors.riseSoft,
+  },
+  promptCard: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
   },
   celebrationText: {
     flex: 1,

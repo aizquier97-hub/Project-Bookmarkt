@@ -2,8 +2,9 @@
  * Segment Trophy System (D-062): every book with a page count is split into
  * four equal segments; crossing each quarter unlocks one trophy piece, and
  * finishing the book completes the trophy and places it in the reader's
- * trophy case on the Progress tab. Position comes from the same entry
- * boundaries and Sandglass sessions the rest of the app already trusts.
+ * trophy case on the Profile tab, shelved by difficulty band (D-064).
+ * Position comes from the same entry boundaries and Sandglass sessions the
+ * rest of the app already trusts.
  */
 
 export const TROPHY_SEGMENTS = 4;

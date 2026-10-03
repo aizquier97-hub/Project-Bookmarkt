@@ -38,7 +38,7 @@ service, never raw table access from screens.
 | entries | typed and voice entries, raw transcripts, quote favorites and reflections | Raw transcript stored beside cleaned text (D-016); `is_favorite` / `reflection` feed the Quotes tab (D-062) |
 | voice capture | recording, on-device transcription, review | Produces entries; never stores audio server-side |
 | companion | retrieval, session contract, provenance, audit | Behind entitlement; see sections 3-4 |
-| fitness | `reading_sessions`, Difficulty Index, Reading Fitness, streaks, trophies | D-062; on-device derivation from sessions + entries + analytics days, no server aggregation ([READING_METRICS.md](READING_METRICS.md)). D-063: the Difficulty Index's knowledge rating is the one server call - `book-difficulty` Edge Function, catalog fields only, cached on `topics`, no entitlement gate |
+| fitness | `reading_sessions`, Difficulty Index, Reading Fitness, streaks, trophies, reading calendar | D-062; on-device derivation from sessions + entries + analytics days, no server aggregation ([READING_METRICS.md](READING_METRICS.md)). D-063: the Difficulty Index's knowledge rating is the one server call - `book-difficulty` Edge Function, catalog fields only, cached on `topics`, no entitlement gate. D-064: the model also yields trophy shelves by difficulty band, the books-in-progress list, and the day sets behind `/reading-calendar`; the Profile tab that renders it is the app's home route |
 | characters | manual character maps | |
 | images | private Storage objects, signed URLs | Legacy-path compatibility until migration completes |
 | bookmarks | ID registry, claim, link, unlink, relink, history | D-015; scanning is an accelerator, never a capture gate |

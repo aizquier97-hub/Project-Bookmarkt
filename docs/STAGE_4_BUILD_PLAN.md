@@ -287,6 +287,48 @@ Monsterholic 4.9, all "Moderate". Root cause and method in
 - [ ] Owner confirms the three flagged books re-rate (Edit book shows
       "Bookmarkt's estimate").
 
+### Phase 5c - Profile home and feedback round 2 (added 2026-10-04, D-064 / D-065)
+
+Eleven owner notes after a week on the D-062/D-063 build; see
+[PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) §13 for the product framing.
+Split into a device-only drop and a server drop.
+
+**Drop 1 (D-064) - pure client, OTA.**
+
+- [x] `(tabs)/progress.tsx` → `(tabs)/index.tsx` (**Profile**, home) and
+      `(tabs)/index.tsx` → `(tabs)/library.tsx`; tab bar reordered
+      (Profile, Library, Quotes, Club, Cards, Settings); Edit book's delete
+      returns to `/library`.
+- [x] `theme.ts` trend ink `rise` / `riseSoft` / `fall` / `fallSoft`;
+      hero and volume deltas use it.
+- [x] `model.ts`: `trophyGroups` (`groupTrophyCase`, four fixed bands),
+      `booksInProgress`, `readDays`, `engagementDays`. `fitness.ts`:
+      `pacePagesPerMinute` (+ `roundPace`, `sessionPacePagesPerMinute`),
+      `computeCalendarMonth`, `shiftMonth`.
+- [x] Profile UI: `TrophyCase` shelves with inline book lists, expandable
+      "Pieces in progress", two-column metric grid with shrink-to-fit
+      labels, pressable "Reading days" card.
+- [x] New `(app)/reading-calendar.tsx` Stack screen.
+- [x] `reading-timer.tsx` saved phase: pace `/min`, "Write an entry" prompt
+      → `/book/[id]?compose=write&page=N`; `book/[id].tsx` honours
+      `compose` and `page` (composer opens, progress page prefilled).
+- [x] Tests: new `model.test.ts`; calendar / pace cases in
+      `fitness.test.ts`. `tsc`, `jest` (26 suites / 300 tests), `expo lint`
+      clean.
+- [ ] Ship the OTA for runtimes 1.0.1 and 1.0.0; record group IDs.
+
+**Drop 2 (D-065) - companion feature + client.**
+
+- [ ] `comprehension` companion feature (scores note depth per book,
+      0-1, cached in a new owner-RLS table); widen the feature allowlist and
+      quota RPC; client blend into `C`; backfill capped per launch;
+      READING_METRICS §3 formula update; live throwaway-user test.
+- [ ] Cue-card memory-match game in `(app)/cue-cards.tsx` / `(tabs)/cards.tsx`
+      (pairs from generated cards and characters; regenerate on win;
+      "add more entries or characters" floor).
+- [ ] Deploy function, apply migration, ship the OTA for both runtimes;
+      record group IDs.
+
 ---
 
 ## Distribution notes

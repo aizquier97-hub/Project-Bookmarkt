@@ -120,7 +120,9 @@ function EditBookForm({ book }: { book: Book }) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.books });
       showToast('Book deleted.', 'success');
-      router.dismissTo('/');
+      // Back to the shelf the book came from (Library lives at /library
+      // since Profile became the home tab, D-064).
+      router.dismissTo('/library');
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Could not delete the book.');

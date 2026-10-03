@@ -1109,6 +1109,55 @@ fallback. Method and anchors in [READING_METRICS.md](READING_METRICS.md) §2.
 - [ ] Post-beta: blend quote readability back in for low-confidence
       ratings; shared ISBN-keyed rating cache if cost ever matters.
 
+#### Profile home and feedback round 2 (D-064 / D-065, added 2026-10-04)
+
+A week of the owner using the D-062/D-063 build produced eleven notes. They
+ship in two drops so the device-only work is not held behind the server
+work. Drop 1 (D-064) is the eight notes that are pure client; Drop 2
+(D-065) is the three that need a new companion feature and quota plumbing.
+
+**Drop 1 - Profile home (D-064).**
+
+- [x] "Progress" is renamed **Profile** and is the **home tab**: the tabs
+      route `/` now renders the profile and the Library lives at
+      `/library`, second in the bar (`person-circle-outline` /
+      `library-outline`). Sign-in, password reset, and the timer's "See my
+      profile" all land there; deleting a book returns to `/library`.
+- [x] Trend ink: gains in gold (`colors.rise`), dips in slate
+      (`colors.fall`); no more green/red against the paper palette.
+- [x] Trophy case shelved by difficulty band (Light / Moderate / Demanding
+      / Dense) with counts, tap-through to the books on a shelf, and
+      tap-through from a book to its screen. "Pieces in progress" expands
+      to every book being read.
+- [x] "Reading days" opens the full **reading calendar**
+      (`/reading-calendar`): month grid, read / Reading Current / quiet
+      days, month totals, per-day detail.
+- [x] Two-column metric grid with shrink-before-wrap labels (fixes the
+      split "Comprehension"); pace in **pages per minute** on the grid and
+      the timer wrap-up.
+- [x] Sandglass wrap-up prompts "Write an entry" when the sitting was saved
+      without a note and opens the book's composer with the stopping page
+      prefilled.
+- [x] Tests: `model.test.ts` (trophy grouping, books in progress, day
+      sets) and calendar / pace cases in `fitness.test.ts`; 300 tests
+      across 26 suites.
+- [ ] Ship the OTA for both runtimes and record the group IDs here and in
+      the decision log.
+
+**Drop 2 - Comprehension v2 and the cue-card game (D-065).**
+
+- [ ] Model-assessed comprehension: a `comprehension` companion feature
+      scores the depth of a book's notes, insights, and reflections
+      (0-1) and the client blends it with the behavioural factor
+      (`C = 0.6 + 0.8 × (0.5·behavioural + 0.5·model)`). Premium-gated via
+      the standard companion entitlement so the owner's dev comp can test it
+      today; cached per book, re-scored when entries change.
+- [ ] Cue cards become a **memory-match game** built from the reader's own
+      entries and characters, regenerating a fresh board after each win and
+      telling the reader to add more entries or characters once the pool
+      is too small for a board.
+- [ ] Ship the OTA for both runtimes; record the group IDs.
+
 ### Stage 4 exit gate
 
 - Entitlements are consistent across iOS and Android test contexts and the
