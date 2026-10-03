@@ -49,6 +49,8 @@ export interface ModelBook {
   difficulty_override: number | null;
   difficulty_estimate: number | null;
   difficulty_estimate_confidence: string | null;
+  /** Companion rubric score in [0, 1] (D-065); undefined/null until assessed. */
+  comprehension_score?: number | null;
 }
 
 export interface BookFitness<TBook extends ModelBook = ModelBook> {
@@ -190,16 +192,22 @@ export function buildReadingModel<TBook extends ModelBook>(
 
   const difficultyByBook = new Map<number, number>();
   const difficultyResults = new Map<number, DifficultyResult>();
+  const comprehensionByBook = new Map<number, number>();
   for (const book of input.books) {
     const result = difficultyForBook(book, quoteTexts.get(book.id) ?? []);
     difficultyResults.set(book.id, result);
     difficultyByBook.set(book.id, result.score);
+    const assessed = Number(book.comprehension_score);
+    if (book.comprehension_score !== null && book.comprehension_score !== undefined && Number.isFinite(assessed)) {
+      comprehensionByBook.set(book.id, assessed);
+    }
   }
 
   const activity = buildBookDayActivity({
     entries: input.entries,
     sessions: input.sessions,
     difficultyByBook,
+    comprehensionByBook,
   });
   const loads = aggregateDailyLoad(activity);
   const series = computeFitnessSeries(loads, today);

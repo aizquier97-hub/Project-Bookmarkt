@@ -96,6 +96,29 @@ export interface CompanionSendResult {
   isConvergence: boolean;
   /** Convergence arc (D-059): the stand-alone takeaway sentence, synthesis only. */
   insight: string;
+  /** Present only for comprehension (D-065): the rubric assessment, or null when unassessed. */
+  comprehension: CompanionComprehension | null;
+}
+
+/** Comprehension rubric marks (D-065), each 0-4. */
+export interface CompanionComprehensionMarks {
+  recall: number;
+  interpretation: number;
+  connection: number;
+  evaluation: number;
+}
+
+/** The model-assessed comprehension of one book's notes (D-065). */
+export interface CompanionComprehension {
+  /** Weighted rubric score in [0, 1]. */
+  score: number;
+  confidence: 'high' | 'medium' | 'low';
+  rationale: string;
+  marks: CompanionComprehensionMarks | null;
+  /** Hash of the assessed material; equal hashes mean the notes have not changed. */
+  hash: string | null;
+  /** True when the score came from the cache on the book row (no quota spent). */
+  cached: boolean;
 }
 
 /** A denial or failure from the companion service, typed for the UI. */
@@ -216,6 +239,49 @@ interface RawSendResponse {
   probe?: unknown;
   isConvergence?: unknown;
   insight?: unknown;
+  comprehension?: unknown;
+}
+
+function clampMark(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(4, Math.max(0, Math.round(n)));
+}
+
+function parseComprehension(raw: unknown): CompanionComprehension | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const item = raw as {
+    score?: unknown;
+    confidence?: unknown;
+    rationale?: unknown;
+    marks?: unknown;
+    hash?: unknown;
+    cached?: unknown;
+  };
+  const score = Number(item.score);
+  if (!Number.isFinite(score)) return null;
+  const confidenceRaw = String(item.confidence ?? 'low');
+  const confidence: CompanionComprehension['confidence'] =
+    confidenceRaw === 'high' || confidenceRaw === 'medium' ? confidenceRaw : 'low';
+  const marksRaw =
+    item.marks && typeof item.marks === 'object'
+      ? (item.marks as Record<string, unknown>)
+      : null;
+  return {
+    score: Math.min(1, Math.max(0, score)),
+    confidence,
+    rationale: String(item.rationale ?? '').trim(),
+    marks: marksRaw
+      ? {
+          recall: clampMark(marksRaw.recall),
+          interpretation: clampMark(marksRaw.interpretation),
+          connection: clampMark(marksRaw.connection),
+          evaluation: clampMark(marksRaw.evaluation),
+        }
+      : null,
+    hash: typeof item.hash === 'string' ? item.hash : null,
+    cached: item.cached === true,
+  };
 }
 
 function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
@@ -283,6 +349,7 @@ function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
     probe: typeof data.probe === 'string' ? data.probe.trim() : '',
     isConvergence: data.isConvergence === true,
     insight: typeof data.insight === 'string' ? data.insight.trim() : '',
+    comprehension: parseComprehension(data.comprehension),
   };
 }
 
@@ -297,7 +364,8 @@ async function invokeCompanion(body: {
     | 'entry_summaries'
     | 'observations'
     | 'observation_open'
-    | 'insight';
+    | 'insight'
+    | 'comprehension';
   bookId: number;
   message?: string;
   detail?: string;
@@ -373,6 +441,16 @@ export function requestClubPrimer(bookId: number): Promise<CompanionSendResult> 
 /** The cue-card deck for a book, grounded only in the reader's own records. */
 export function requestCueCards(bookId: number): Promise<CompanionSendResult> {
   return invokeCompanion({ feature: 'cue_cards', bookId });
+}
+
+/**
+ * Comprehension assessment (D-065): asks the companion to grade the book's
+ * notes against the four-mark rubric. The service answers from its cache
+ * (no quota) when the notes have not changed since the last grading, and
+ * returns `comprehension: null` with code NO_ENTRIES for an unwritten book.
+ */
+export function requestComprehensionScore(bookId: number): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'comprehension', bookId });
 }
 
 /**

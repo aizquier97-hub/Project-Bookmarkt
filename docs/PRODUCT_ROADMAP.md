@@ -1151,17 +1151,38 @@ work. Drop 1 (D-064) is the eight notes that are pure client; Drop 2
 
 **Drop 2 - Comprehension v2 and the cue-card game (D-065).**
 
-- [ ] Model-assessed comprehension: a `comprehension` companion feature
-      scores the depth of a book's notes, insights, and reflections
-      (0-1) and the client blends it with the behavioural factor
-      (`C = 0.6 + 0.8 × (0.5·behavioural + 0.5·model)`). Premium-gated via
-      the standard companion entitlement so the owner's dev comp can test it
-      today; cached per book, re-scored when entries change.
-- [ ] Cue cards become a **memory-match game** built from the reader's own
-      entries and characters, regenerating a fresh board after each win and
-      telling the reader to add more entries or characters once the pool
-      is too small for a board.
-- [ ] Ship the OTA for both runtimes; record the group IDs.
+- [x] Model-assessed comprehension: the `comprehension` companion feature
+      grades a book's notes and reflections against a four-mark rubric
+      (recall, interpretation, connection, evaluation; each 0-4;
+      `m = (0.3R + 0.3I + 0.2C + 0.2E) / 4`) and the client blends it with
+      the behavioural factor (`C = 0.6 + 0.8 × (0.5·b + 0.5·m)`).
+      Premium-gated via the standard companion entitlement so the owner's
+      dev comp can test it today; cached per book by material hash and
+      answered from cache before the quota gate; re-graded only when the
+      notes change; 20/day (`COMPANION_COMPREHENSION_DAILY_LIMIT`).
+      `ComprehensionBackfill` grades up to four stale books per launch;
+      the Profile shows "understanding N%" per graded book and explains
+      the rubric. Formulas in READING_METRICS.md §3.
+- [x] Cue cards become a **memory-match game**: a Cards / Match toggle on
+      any dealt deck pairs each cue with its answer (3-6 pairs, three
+      across). A win offers "New cards" (fresh companion deal) or "Same
+      cards, reshuffled"; a deck under three playable cards, or a re-deal
+      that repeats ≥80% of the last one, tells the reader to add more
+      entries or characters; a quota denial falls back to a reshuffle.
+- [x] Backend: migration `20261004090000_add_comprehension_score.sql`
+      applied (history 23/23) and `companion` redeployed 2026-10-04; live
+      smoke test with a throwaway comped user graded five notes 0.9 and
+      served the repeat from cache with a single usage event.
+- [x] Tests: `comprehension.test.ts` (material builder, hash parity with
+      the live server hash, backfill, blend) and `memoryGame.test.ts`
+      (board, flips, mismatch, win, overlap); 320 tests across 28 suites.
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #108,
+      published 2026-10-04 to `preview`: runtime 1.0.1 group
+      `9c522575-37b0-40f4-98fd-d022ace6183e`, runtime 1.0.0 group
+      `4dff8505-a016-493e-b19b-d3e97e6d47dd`.
+- [ ] Owner on-device check (close and reopen the app twice): a graded
+      book shows "understanding N%" on Profile, and a dealt deck's Match
+      tab plays through to the win panel.
 
 ### Stage 4 exit gate
 

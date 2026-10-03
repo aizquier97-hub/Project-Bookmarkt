@@ -35,7 +35,8 @@ type Feature =
   | "entry_summaries"
   | "observations"
   | "observation_open"
-  | "insight";
+  | "insight"
+  | "comprehension";
 
 const FEATURES: Feature[] = [
   "dialogue",
@@ -51,6 +52,7 @@ const FEATURES: Feature[] = [
   "observations",
   "observation_open",
   "insight",
+  "comprehension",
 ];
 
 /**
@@ -101,6 +103,11 @@ const MAX_CONTEXT_CHARACTERS = 40;
 const HISTORY_MESSAGES = 12;
 /** Bookmark-ribbon summaries refreshed per entry_summaries call (D-055). */
 const MAX_SUMMARY_BATCH = 40;
+/** Comprehension rubric (D-065): most recent note material, by characters. */
+const COMPREHENSION_MAX_CHARS = 24000;
+/** Rubric weights: recall and interpretation are the core of comprehension. */
+const COMPREHENSION_WEIGHTS = { recall: 0.3, interpretation: 0.3, connection: 0.2, evaluation: 0.2 } as const;
+const COMPREHENSION_MARK_MAX = 4;
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { status, headers: jsonHeaders });
@@ -407,6 +414,98 @@ function hashContent(text: string): string {
     hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
   }
   return `djb2:${(hash >>> 0).toString(16)}:${text.length}`;
+}
+
+/**
+ * Comprehension material (D-065): the reader's notes on one book, oldest
+ * first, one line each, reflections appended; the most recent lines win
+ * when the cap bites. The client builds the identical string
+ * (app/src/domains/fitness/comprehension.ts) so its hash can tell a stale
+ * score from a fresh one without a round trip.
+ */
+function buildComprehensionMaterial(
+  rows: { text: string | null; created_at: string | null; reflection?: string | null }[],
+): { material: string; entryCount: number } {
+  const sorted = [...rows].sort((a, b) => {
+    const left = String(a.created_at ?? "");
+    const right = String(b.created_at ?? "");
+    if (left !== right) return left < right ? -1 : 1;
+    return String(a.text ?? "") < String(b.text ?? "") ? -1 : 1;
+  });
+  const lines: string[] = [];
+  for (const row of sorted) {
+    const text = String(row.text ?? "").trim().replace(/\s+/g, " ");
+    const reflection = String(row.reflection ?? "").trim().replace(/\s+/g, " ");
+    if (!text && !reflection) continue;
+    lines.push(reflection ? `${text} || Reflection: ${reflection}` : text);
+  }
+  let chars = 0;
+  let start = lines.length;
+  while (start > 0 && chars + lines[start - 1].length + 1 <= COMPREHENSION_MAX_CHARS) {
+    chars += lines[start - 1].length + 1;
+    start -= 1;
+  }
+  const kept = lines.slice(start);
+  return { material: kept.join("\n"), entryCount: kept.length };
+}
+
+type ComprehensionMarks = { recall: number; interpretation: number; connection: number; evaluation: number };
+
+/** Weighted rubric total, 0-1 to three decimals. */
+function comprehensionScore(marks: ComprehensionMarks): number {
+  const total =
+    COMPREHENSION_WEIGHTS.recall * marks.recall +
+    COMPREHENSION_WEIGHTS.interpretation * marks.interpretation +
+    COMPREHENSION_WEIGHTS.connection * marks.connection +
+    COMPREHENSION_WEIGHTS.evaluation * marks.evaluation;
+  return Math.round((total / COMPREHENSION_MARK_MAX) * 1000) / 1000;
+}
+
+function buildComprehensionPrompt(params: {
+  bookTitle: string;
+  author: string | null;
+  entryCount: number;
+  material: string;
+}): string {
+  return [
+    `You grade how deeply a reader understands a book, using ONLY the reader's own notes below. Book: "${params.bookTitle}"${params.author ? ` by ${params.author}` : ""}. ${params.entryCount} notes, oldest first, one per line; a leading "page N" or "chapter N" is where the note was made.`,
+    "Lines marked [Quote] are passages copied from the book: they show attention, not understanding, unless the reader adds a Reflection. Lines marked [Important] are moments the reader flagged.",
+    "Give four marks, each an integer 0-4:",
+    "- recall: do the notes track specific people, events, places, or ideas accurately and in sequence? 0 none, 2 some specifics, 4 precise and sustained.",
+    "- interpretation: do they explain why - motives, causes, themes, meaning - rather than only what happened? 0 never, 2 occasionally, 4 habitually.",
+    "- connection: do they relate parts of the book to each other, to other books, or to the reader's own life? 0 none, 2 a few, 4 rich and frequent.",
+    "- evaluation: do they weigh, question, or judge the book with reasons? 0 none, 2 some opinions with reasons, 4 sustained critical judgement.",
+    "Judge the notes as written. Do not reward length for its own sake; do not penalise brevity when brief notes are precise. Never use your own knowledge of the book to fill gaps: a note that merely names something that happens is recall, not interpretation.",
+    'confidence: "high" with 8 or more substantive notes, "medium" with 3-7, "low" with fewer or when most lines are copied quotes.',
+    'rationale: ONE sentence of at most 200 characters addressed to the reader ("Your notes ..."), naming the strongest and the weakest mark.',
+    "NOTES:",
+    params.material,
+    'Respond ONLY with JSON: {"recall": number, "interpretation": number, "connection": number, "evaluation": number, "confidence": "high" | "medium" | "low", "rationale": string}.',
+  ].join("\n");
+}
+
+function parseComprehensionJson(raw: string): {
+  marks: ComprehensionMarks;
+  confidence: "high" | "medium" | "low";
+  rationale: string;
+} | null {
+  const data = coerceJsonObject(raw);
+  if (!data) return null;
+  const mark = (value: unknown) => {
+    const n = Math.round(Number(value));
+    return Number.isFinite(n) ? Math.min(COMPREHENSION_MARK_MAX, Math.max(0, n)) : null;
+  };
+  const recall = mark(data.recall);
+  const interpretation = mark(data.interpretation);
+  const connection = mark(data.connection);
+  const evaluation = mark(data.evaluation);
+  if (recall === null || interpretation === null || connection === null || evaluation === null) {
+    return null;
+  }
+  const confidence =
+    data.confidence === "high" || data.confidence === "medium" ? data.confidence : "low";
+  const rationale = String(data.rationale ?? "").trim().slice(0, 240);
+  return { marks: { recall, interpretation, connection, evaluation }, confidence, rationale };
 }
 
 /** Re-normalize: sub-3072-dim Gemini embeddings are not unit vectors. */
@@ -778,6 +877,65 @@ serve(async (req) => {
     }
 
     // 3. Per-feature daily quota (cost control). Denials consume nothing.
+    // Comprehension (D-065) first checks its cache under the user's JWT:
+    // an unchanged book, or one with nothing written yet, costs no quota
+    // and no provider call.
+    let comprehensionMaterial: { material: string; entryCount: number; hash: string } | null = null;
+    if (feature === "comprehension") {
+      const [bookRow, entryRows] = await Promise.all([
+        userClient
+          .from("topics")
+          .select("id, comprehension_score, comprehension_confidence, comprehension_rationale, comprehension_marks, comprehension_hash")
+          .eq("id", bookId)
+          .maybeSingle(),
+        userClient
+          .from("entries")
+          .select("text, created_at, reflection")
+          .eq("topic_id", bookId)
+          .order("created_at", { ascending: false })
+          .limit(MAX_SEARCH_ENTRIES),
+      ]);
+      if (bookRow.error || entryRows.error) {
+        return jsonResponse({ error: "Your notes could not be loaded. Please try again.", code: "CONTEXT_UNAVAILABLE" }, 503);
+      }
+      if (!bookRow.data) {
+        return jsonResponse({ error: "That book is not on your shelf.", code: "BOOK_NOT_FOUND" }, 404);
+      }
+      const built = buildComprehensionMaterial(entryRows.data ?? []);
+      if (built.entryCount === 0) {
+        return jsonResponse({
+          code: "NO_ENTRIES",
+          reply: { content: "Nothing written on this book yet, so there is nothing to assess.", provenance: "your_notes", declined: false },
+          boundaryLabel: null,
+          quota: null,
+          comprehension: null,
+        });
+      }
+      const hash = hashContent(built.material);
+      const cachedBook = bookRow.data as {
+        comprehension_score: number | string | null;
+        comprehension_confidence: string | null;
+        comprehension_rationale: string | null;
+        comprehension_marks: unknown;
+        comprehension_hash: string | null;
+      };
+      if (cachedBook.comprehension_hash === hash && cachedBook.comprehension_score !== null) {
+        return jsonResponse({
+          reply: { content: cachedBook.comprehension_rationale ?? "", provenance: "your_notes", declined: false },
+          boundaryLabel: null,
+          quota: null,
+          comprehension: {
+            score: Number(cachedBook.comprehension_score),
+            confidence: cachedBook.comprehension_confidence ?? "low",
+            rationale: cachedBook.comprehension_rationale ?? "",
+            marks: cachedBook.comprehension_marks ?? null,
+            hash,
+            cached: true,
+          },
+        });
+      }
+      comprehensionMaterial = { ...built, hash };
+    }
     const TOOL_LIMITS: Partial<Record<Feature, { env: string; fallback: number; max: number }>> = {
       dialogue: { env: "COMPANION_DIALOGUE_DAILY_LIMIT", fallback: 50, max: 1000 },
       recap: { env: "COMPANION_RECAP_DAILY_LIMIT", fallback: 10, max: 200 },
@@ -792,6 +950,7 @@ serve(async (req) => {
       observations: { env: "COMPANION_OBSERVATIONS_DAILY_LIMIT", fallback: 20, max: 500 },
       observation_open: { env: "COMPANION_DIALOGUE_DAILY_LIMIT", fallback: 50, max: 1000 },
       insight: { env: "COMPANION_INSIGHT_DAILY_LIMIT", fallback: 30, max: 500 },
+      comprehension: { env: "COMPANION_COMPREHENSION_DAILY_LIMIT", fallback: 20, max: 500 },
     };
     const limitSpec = TOOL_LIMITS[feature] ?? TOOL_LIMITS.dialogue!;
     const userDailyLimit = readPositiveLimit(
@@ -864,7 +1023,97 @@ serve(async (req) => {
 
     // 4. Context assembly under the user's own JWT: RLS scopes every row to
     // the caller, and the book lookup doubles as the ownership check.
-    // (Convergence arc D-059 exception first: a takeaway the synthesis card
+    // (Comprehension D-065 first: its material was assembled before the
+    // quota gate; one rubric call, result cached on the topic row.)
+    if (feature === "comprehension" && comprehensionMaterial) {
+      const { data: bookRow } = await userClient
+        .from("topics")
+        .select("id, name, author")
+        .eq("id", bookId)
+        .maybeSingle();
+      const rubricResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: buildComprehensionPrompt({
+                      bookTitle: String(bookRow?.name ?? "this book"),
+                      author: bookRow?.author ?? null,
+                      entryCount: comprehensionMaterial.entryCount,
+                      material: comprehensionMaterial.material,
+                    }),
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0,
+              maxOutputTokens: 512,
+              responseMimeType: "application/json",
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          }),
+        },
+      );
+      if (!rubricResponse.ok) {
+        await finalize("failed", 502, {
+          upstream_status: rubricResponse.status,
+          error_code: "PROVIDER_ERROR",
+          error_message: truncate(await rubricResponse.text(), 300),
+        });
+        return jsonResponse({ error: "Your notes could not be assessed just now.", code: "PROVIDER_ERROR" }, 502);
+      }
+      const rubricJson = await rubricResponse.json();
+      const graded = parseComprehensionJson(extractGeminiText(rubricJson));
+      if (!graded) {
+        await finalize("failed", 502, { error_code: "EMPTY_REPLY" });
+        return jsonResponse({ error: "Your notes could not be assessed just now.", code: "PROVIDER_ERROR" }, 502);
+      }
+      const score = comprehensionScore(graded.marks);
+      const scoredAt = new Date().toISOString();
+      const { error: writeError } = await userClient
+        .from("topics")
+        .update({
+          comprehension_score: score,
+          comprehension_confidence: graded.confidence,
+          comprehension_rationale: graded.rationale || null,
+          comprehension_marks: graded.marks,
+          comprehension_hash: comprehensionMaterial.hash,
+          comprehension_scored_at: scoredAt,
+        })
+        .eq("id", bookId);
+      if (writeError) {
+        await finalize("failed", 503, { error_code: "PERSIST_FAILED", error_message: truncate(writeError.message, 300) });
+        return jsonResponse({ error: "The assessment could not be saved. Please try again.", code: "PERSIST_FAILED" }, 503);
+      }
+      const rubricUsage = rubricJson?.usageMetadata ?? {};
+      await finalize("succeeded", 200, {
+        grounding_entries: comprehensionMaterial.entryCount,
+        grounding_characters: 0,
+        prompt_tokens: Number(rubricUsage.promptTokenCount ?? 0) || null,
+        output_tokens: Number(rubricUsage.candidatesTokenCount ?? 0) || null,
+      });
+      return jsonResponse({
+        reply: { content: graded.rationale, provenance: "your_notes", declined: false },
+        boundaryLabel: null,
+        quota,
+        comprehension: {
+          score,
+          confidence: graded.confidence,
+          rationale: graded.rationale,
+          marks: graded.marks,
+          hash: comprehensionMaterial.hash,
+          cached: false,
+        },
+      });
+    }
+    // (Convergence arc D-059 exception next: a takeaway the synthesis card
     // already produced is persisted as-is - no context, no model call.)
     if (feature === "insight" && insightText) {
       const { data: savedInsight, error: insightPersistError } = await userClient

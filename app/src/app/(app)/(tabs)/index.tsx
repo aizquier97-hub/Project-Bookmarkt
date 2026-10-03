@@ -508,6 +508,9 @@ function BookRow({ item, onPress }: { item: BookFitness<Book>; onPress: () => vo
         {item.pages > 0 ? ` - ${item.pages} pages` : ''}
         {item.minutes > 0 ? `, ${item.minutes} timed min` : ''}
         {item.streak.current > 0 ? ` - ${item.streak.current}-day streak` : ''}
+        {typeof item.book.comprehension_score === 'number'
+          ? ` - understanding ${Math.round(item.book.comprehension_score * 100)}%`
+          : ''}
       </Text>
       <TrophyStrip progress={item.trophy} compact />
     </Pressable>
@@ -540,7 +543,11 @@ function Explainer({ model }: { model: ReadingModel<Book> }) {
           <Text style={styles.explainerHeading}>Comprehension factor (x0.6 - x1.4)</Text>
           <Text style={styles.explainerBody}>
             Silent timed reading earns x0.6. Any bookmark that day adds +0.4; up to 80 words of notes
-            add +0.2; an Important flag +0.1; reflecting on a quote +0.1.
+            add +0.2; an Important flag +0.1; reflecting on a quote +0.1. With the companion, your
+            notes on each book are also graded for understanding - recall, interpretation,
+            connection, and evaluation, each 0-4 - and that grade (shown as “understanding N%” on
+            the book) counts for half the factor: C = 0.6 + 0.8 x (half the behaviour score + half
+            the grade). Books are regraded only when you write something new.
           </Text>
           <Text style={styles.explainerHeading}>Session Effort</Text>
           <Text style={styles.explainerBody}>

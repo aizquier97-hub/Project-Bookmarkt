@@ -760,6 +760,12 @@ export type Database = {
       topics: {
         Row: {
           author: string | null
+          comprehension_confidence: string | null
+          comprehension_hash: string | null
+          comprehension_marks: Json | null
+          comprehension_rationale: string | null
+          comprehension_score: number | null
+          comprehension_scored_at: string | null
           cover_url: string | null
           created_at: string | null
           difficulty_estimate: number | null
@@ -779,6 +785,12 @@ export type Database = {
         }
         Insert: {
           author?: string | null
+          comprehension_confidence?: string | null
+          comprehension_hash?: string | null
+          comprehension_marks?: Json | null
+          comprehension_rationale?: string | null
+          comprehension_score?: number | null
+          comprehension_scored_at?: string | null
           cover_url?: string | null
           created_at?: string | null
           difficulty_estimate?: number | null
@@ -798,6 +810,12 @@ export type Database = {
         }
         Update: {
           author?: string | null
+          comprehension_confidence?: string | null
+          comprehension_hash?: string | null
+          comprehension_marks?: Json | null
+          comprehension_rationale?: string | null
+          comprehension_score?: number | null
+          comprehension_scored_at?: string | null
           cover_url?: string | null
           created_at?: string | null
           difficulty_estimate?: number | null

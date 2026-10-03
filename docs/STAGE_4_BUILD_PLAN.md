@@ -323,15 +323,47 @@ Split into a device-only drop and a server drop.
 
 **Drop 2 (D-065) - companion feature + client.**
 
-- [ ] `comprehension` companion feature (scores note depth per book,
-      0-1, cached in a new owner-RLS table); widen the feature allowlist and
-      quota RPC; client blend into `C`; backfill capped per launch;
-      READING_METRICS §3 formula update; live throwaway-user test.
-- [ ] Cue-card memory-match game in `(app)/cue-cards.tsx` / `(tabs)/cards.tsx`
-      (pairs from generated cards and characters; regenerate on win;
-      "add more entries or characters" floor).
-- [ ] Deploy function, apply migration, ship the OTA for both runtimes;
-      record group IDs.
+- [x] `comprehension` companion feature in `supabase/functions/companion/index.ts`:
+      four-mark rubric prompt (recall / interpretation / connection /
+      evaluation, 0-4 each; `m = (0.3R + 0.3I + 0.2C + 0.2E) / 4`), Gemini
+      at temperature 0 / thinking off / JSON; material = that book's
+      entries + reflections only; result cached on `topics`
+      (`comprehension_score`, `_confidence`, `_rationale`, `_marks`,
+      `_hash`, `_scored_at`) and served from cache **before** the quota
+      gate; `NO_ENTRIES` short-circuit; `TOOL_LIMITS.comprehension` 20/day
+      (`COMPANION_COMPREHENSION_DAILY_LIMIT`). Migration
+      `20261004090000_add_comprehension_score.sql` adds the columns and
+      widens the usage-events CHECK and `consume_companion_quota`.
+- [x] Client: `database.types.ts`; `companion/api.ts`
+      (`requestComprehensionScore`, `CompanionComprehension`);
+      `fitness/comprehension.ts` (material builder + djb2 hash mirroring
+      the server, `booksNeedingComprehension`, backfill ≤4 per launch,
+      `useComprehensionBackfill`); `ComprehensionBackfill` mounted in the
+      signed-in shell next to `DifficultyBackfill`, skipped when not
+      entitled; `activity.ts` `blendComprehensionFactor` +
+      `comprehensionByBook`, `BookDayActivity.modelComprehension`;
+      `model.ts` passes `comprehension_score`; Profile `BookRow`
+      "understanding N%" and the Explainer paragraph.
+- [x] Cue-card memory match: `domains/cueCards/memoryGame.ts` (pure:
+      `playableCards`, `buildBoard`, `applyFlip`, `hideMismatch`, `isWon`,
+      `deckOverlap`, `MIN_PAIRS` 3 / `MAX_PAIRS` 6), `components/MemoryMatch.tsx`
+      (three-across face-down grid, 0.9 s mismatch linger), Cards / Match
+      toggle and win panel in `(app)/cue-cards.tsx` ("New cards" re-deals
+      via the companion; "Same cards, reshuffled" re-keys the board; <3
+      playable cards or ≥80% overlap → "add more entries or characters";
+      quota 429 → reshuffle), `(tabs)/cards.tsx` lede.
+- [x] Tests: `fitness/__tests__/comprehension.test.ts`,
+      `cueCards/__tests__/memoryGame.test.ts`; `difficultyEstimate.test.ts`
+      fixture gains the new columns. 320 tests / 28 suites; tsc and lint
+      clean.
+- [x] Migration applied (`db push`, history 23/23) and `companion`
+      deployed 2026-10-04; live smoke test (throwaway comped user, five
+      notes → 0.9 medium, repeat served from cache, one usage event, user
+      deleted) passed; client hash parity pinned in a unit test.
+- [x] Ship the OTA for both runtimes; record group IDs - PR #108, published
+      2026-10-04 to `preview`: runtime 1.0.1 group
+      `9c522575-37b0-40f4-98fd-d022ace6183e`, runtime 1.0.0 group
+      `4dff8505-a016-493e-b19b-d3e97e6d47dd`.
 
 ---
 
