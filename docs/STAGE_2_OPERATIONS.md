@@ -56,7 +56,8 @@ Policy:
   `eas update --channel preview` as-is, then temporarily set `expo.version`
   to the older value, publish again, and `git checkout -- app.json`. Code
   that touches the newer module must degrade when it is absent (D-061's lazy
-  import does). First done for D-062 on 2026-10-03.
+  import does). First done for D-062 on 2026-10-03; repeated for D-063 and
+  D-064.
 - **Local prerequisites for `eas update`:** `npx --yes eas-cli@latest`
   authenticates from the EAS login in `~/.expo/state.json`; the bundle reads
   `app/.env` (gitignored) for the `EXPO_PUBLIC_*` values, which must mirror

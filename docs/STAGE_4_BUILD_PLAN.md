@@ -315,7 +315,11 @@ Split into a device-only drop and a server drop.
 - [x] Tests: new `model.test.ts`; calendar / pace cases in
       `fitness.test.ts`. `tsc`, `jest` (26 suites / 300 tests), `expo lint`
       clean.
-- [ ] Ship the OTA for runtimes 1.0.1 and 1.0.0; record group IDs.
+- [x] Ship the OTA for runtimes 1.0.1 and 1.0.0. *Done 2026-10-04 from commit
+      `c93b3e0`: groups `06a9ba6e-e792-4a46-badb-64b6fc25fceb` (1.0.1) and
+      `41198a21-1716-44af-903c-398c8aba8ab7` (1.0.0), android + ios.*
+- [ ] Owner confirms on device (Profile opens first; shelves, calendar,
+      entry prompt).
 
 **Drop 2 (D-065) - companion feature + client.**
 

@@ -1141,8 +1141,13 @@ work. Drop 1 (D-064) is the eight notes that are pure client; Drop 2
 - [x] Tests: `model.test.ts` (trophy grouping, books in progress, day
       sets) and calendar / pace cases in `fitness.test.ts`; 300 tests
       across 26 suites.
-- [ ] Ship the OTA for both runtimes and record the group IDs here and in
-      the decision log.
+- [x] Ship the OTA for both runtimes. *(Done 2026-10-04 from commit
+      `c93b3e0`: runtime 1.0.1 group `06a9ba6e-e792-4a46-badb-64b6fc25fceb`,
+      runtime 1.0.0 group `41198a21-1716-44af-903c-398c8aba8ab7`.)*
+- [ ] Owner on-device check (close and reopen the app twice): the app opens
+      on Profile, a trophy shelf expands to its books, the calendar pages
+      back a month, and a timer sitting saved without a note offers "Write
+      an entry" with the page prefilled.
 
 **Drop 2 - Comprehension v2 and the cue-card game (D-065).**
 
