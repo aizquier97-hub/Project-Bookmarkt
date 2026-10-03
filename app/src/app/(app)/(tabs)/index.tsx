@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { describeComprehensionGrade } from '@/domains/fitness/activity';
+import { comprehensionPercent, describeComprehensionGrade } from '@/domains/fitness/activity';
 import { describeDifficultySource, difficultyLabel } from '@/domains/fitness/difficulty';
 import {
   describeFitnessTrend,
@@ -214,10 +214,14 @@ export default function ProfileScreen() {
             label="Comprehension"
             value={
               model.summary.averageComprehension !== null
-                ? `x${model.summary.averageComprehension.toFixed(2)}`
+                ? `${comprehensionPercent(model.summary.averageComprehension)}%`
                 : '-'
             }
-            unit="factor"
+            unit={
+              model.summary.averageComprehension !== null
+                ? comprehensionWord(model.summary.averageComprehension)
+                : 'of 100'
+            }
             hint="notes & reflections"
           />
           <Metric
@@ -510,7 +514,7 @@ function BookRow({ item, onPress }: { item: BookFitness<Book>; onPress: () => vo
         {item.minutes > 0 ? `, ${item.minutes} timed min` : ''}
         {item.streak.current > 0 ? ` - ${item.streak.current}-day streak` : ''}
         {typeof item.book.comprehension_score === 'number'
-          ? ` - comprehension ${Math.round(item.book.comprehension_score * 100)}%, ${describeComprehensionGrade(item.book.comprehension_score)}`
+          ? ` - notes graded ${Math.round(item.book.comprehension_score * 100)}%, ${describeComprehensionGrade(item.book.comprehension_score)}`
           : ''}
       </Text>
       <TrophyStrip progress={item.trophy} compact />
@@ -541,17 +545,20 @@ function Explainer({ model }: { model: ReadingModel<Book> }) {
             notes. Until a rating arrives, a quick estimate from genre, era, and length (plus the
             quotes you log) stands in. Set your own in Edit book and yours wins.
           </Text>
-          <Text style={styles.explainerHeading}>Comprehension factor (x0.6 - x1.4)</Text>
+          <Text style={styles.explainerHeading}>Comprehension (0-100%)</Text>
           <Text style={styles.explainerBody}>
-            Silent timed reading earns x0.6. Any bookmark that day adds +0.4; up to 80 words of notes
-            add +0.2; an Important flag +0.1; reflecting on a quote +0.1. With the companion, each
-            book’s notes are also graded for what they show you understood: recall (half the grade -
+            Scored per book per day from what your reading leaves behind. Silent timed reading
+            scores 0. Any bookmark that day earns 50 points; up to 80 words of notes add 25; an
+            Important flag and reflecting on a quote add 12.5 each. With the companion, each book’s
+            notes are also graded for what they show you understood: recall (half the grade -
             specific, accurate tracking of people, events, and ideas), interpretation (a quarter -
             the why), connection and evaluation (an eighth each), each marked 0-4. The grade scales
-            the credit your writing earned that day: C = 0.6 + (behaviour score - 0.6) x (0.5 +
-            grade). Accurate, factual notes grade 50% and leave the credit as it is; reflective
-            notes add up to half again; thin notes take some away. A grade from only a few notes
-            counts for less. Books are regraded only when you write something new.
+            the points your writing earned that day: accurate, factual notes grade 50% and leave
+            them as they are; reflective notes add up to half again; thin notes take some away. A
+            grade from only a few notes counts for less, and books are regraded only when you write
+            something new. The tile averages the last 28 days, weighted by pages; each graded
+            book’s row shows the notes grade itself. Inside Session Effort the same score is the
+            multiplier x0.6 (0%) to x1.4 (100%).
           </Text>
           <Text style={styles.explainerHeading}>Session Effort</Text>
           <Text style={styles.explainerBody}>
@@ -601,6 +608,12 @@ function sortBooks(books: readonly BookFitness<Book>[]): BookFitness<Book>[] {
 
 function formatFitness(value: number): string {
   return value >= 100 ? String(Math.round(value)) : value.toFixed(1);
+}
+
+/** "Reflective" for a comprehension factor - the tile's unit line, capitalised like the Difficulty band. */
+function comprehensionWord(factor: number): string {
+  const word = describeComprehensionGrade(comprehensionPercent(factor) / 100);
+  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 function monthLabel(day: string): string {

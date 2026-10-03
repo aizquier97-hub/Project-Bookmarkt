@@ -397,7 +397,7 @@ function TimerFlow({
             placeholderTextColor={colors.muted}
           />
           <Text style={styles.hint}>
-            Saved as a bookmark entry at the page above. Notes lift your comprehension factor.
+            Saved as a bookmark entry at the page above. Notes lift your comprehension score.
           </Text>
 
           <Pressable
@@ -472,8 +472,8 @@ function TimerFlow({
                 <Text style={styles.cardTitle}>Now, one line about it</Text>
                 <Text style={styles.cardBody}>
                   {saved.pages !== null && saved.pages > 0
-                    ? `What happened in those ${saved.pages} pages? An entry lifts this sitting’s comprehension factor and keeps the thread for later.`
-                    : 'What happened while you read? An entry lifts this sitting’s comprehension factor and keeps the thread for later.'}
+                    ? `What happened in those ${saved.pages} pages? An entry lifts this sitting’s comprehension score and keeps the thread for later.`
+                    : 'What happened while you read? An entry lifts this sitting’s comprehension score and keeps the thread for later.'}
                 </Text>
               </View>
             </View>

@@ -1226,7 +1226,35 @@ were sampling variance plus tiles small enough to shrink text to 70%.
 - [ ] Owner on-device check (close and reopen the app twice): the tab bar
       reads Recall; a dealt board is two across with a running clock; the
       Profile's graded books re-grade over the next launches and read
-      "comprehension N%, word".
+      "notes graded N%, word".
+
+#### Feedback round 3 follow-up - comprehension as a score (D-067, added 2026-10-04)
+
+On the D-066 build the owner judged Reading Fitness good but asked that
+comprehension be "shown as a percent /100 - better understood by users":
+the Profile tile printed the 28-day comprehension factor as `x1.07 factor`,
+a coefficient from the Effort formula rather than a number a reader can
+place. Display only; no formula, stored value, or server code changes.
+
+- [x] `comprehensionPercent()` in `fitness/activity.ts`:
+      `S = round((C − 0.6) / 0.8 × 100)` - silent floor 0, neutral x1.0 =
+      50, ceiling 100 (x1.07 → 59%, x1.20 → 75%, x1.33 → 91%).
+- [x] Profile tile reads "59%" with the band word (Deep / Reflective /
+      Factual / Thin) in place of "x1.07 factor"; the per-book meta line is
+      relabelled "notes graded N%, word" so the notes grade and the month's
+      score cannot be mistaken for each other; explainer rewritten in
+      points (bookmark 50, notes up to 25, Important 12.5, reflection 12.5)
+      and ends by naming the x0.6-x1.4 multiplier Effort still uses.
+- [x] Timer and Quotes copy say "comprehension score"; the Effort formula
+      line keeps "factor" because there it is one.
+- [x] Tests pin 0 / 50 / 59 / 75 / 91 / 100 and the clamp; 335 tests across
+      28 suites. READING_METRICS.md §3.4 + §6 row; DESIGN_REQUIREMENTS.md
+      dashboard and grade rows; DECISION_LOG D-067.
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #PRNUM,
+      published 2026-10-04 to `preview`: runtime 1.0.1 group `GROUP101`,
+      runtime 1.0.0 group `GROUP100`.
+- [ ] Owner on-device check: the Comprehension tile shows a percentage with
+      a word under it; book rows read "notes graded N%".
 
 ### Stage 4 exit gate
 

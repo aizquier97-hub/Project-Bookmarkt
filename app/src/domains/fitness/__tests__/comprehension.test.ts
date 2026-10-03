@@ -11,6 +11,7 @@ import {
   buildBookDayActivity,
   COMPREHENSION_MAX,
   COMPREHENSION_MIN,
+  comprehensionPercent,
   computeComprehensionFactor,
   dampComprehensionByConfidence,
   describeComprehensionGrade,
@@ -260,5 +261,28 @@ describe('describeComprehensionGrade', () => {
     expect(describeComprehensionGrade(0.5)).toBe('factual');
     expect(describeComprehensionGrade(0.45)).toBe('factual');
     expect(describeComprehensionGrade(0.3)).toBe('thin');
+  });
+});
+
+describe('comprehensionPercent', () => {
+  it('rescales the factor onto 0-100 with the neutral x1.0 at 50', () => {
+    expect(comprehensionPercent(COMPREHENSION_MIN)).toBe(0);
+    expect(comprehensionPercent(1)).toBe(50);
+    expect(comprehensionPercent(1.07)).toBe(59);
+    expect(comprehensionPercent(1.2)).toBe(75);
+    expect(comprehensionPercent(1.33)).toBe(91);
+    expect(comprehensionPercent(COMPREHENSION_MAX)).toBe(100);
+  });
+
+  it('clamps anything outside the factor range', () => {
+    expect(comprehensionPercent(0)).toBe(0);
+    expect(comprehensionPercent(2)).toBe(100);
+  });
+
+  it('shares the grade words with the per-book grade', () => {
+    expect(describeComprehensionGrade(comprehensionPercent(1) / 100)).toBe('factual');
+    expect(describeComprehensionGrade(comprehensionPercent(1.2) / 100)).toBe('reflective');
+    expect(describeComprehensionGrade(comprehensionPercent(1.33) / 100)).toBe('deep');
+    expect(describeComprehensionGrade(comprehensionPercent(0.8) / 100)).toBe('thin');
   });
 });
