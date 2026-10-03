@@ -1176,7 +1176,10 @@ work. Drop 1 (D-064) is the eight notes that are pure client; Drop 2
 - [x] Tests: `comprehension.test.ts` (material builder, hash parity with
       the live server hash, backfill, blend) and `memoryGame.test.ts`
       (board, flips, mismatch, win, overlap); 320 tests across 28 suites.
-- [ ] Ship the OTA for both runtimes; record the group IDs.
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #108,
+      published 2026-10-04 to `preview`: runtime 1.0.1 group
+      `9c522575-37b0-40f4-98fd-d022ace6183e`, runtime 1.0.0 group
+      `4dff8505-a016-493e-b19b-d3e97e6d47dd`.
 - [ ] Owner on-device check (close and reopen the app twice): a graded
       book shows "understanding N%" on Profile, and a dealt deck's Match
       tab plays through to the win panel.

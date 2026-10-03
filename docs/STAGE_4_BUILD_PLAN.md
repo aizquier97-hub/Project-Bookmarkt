@@ -360,7 +360,10 @@ Split into a device-only drop and a server drop.
       deployed 2026-10-04; live smoke test (throwaway comped user, five
       notes → 0.9 medium, repeat served from cache, one usage event, user
       deleted) passed; client hash parity pinned in a unit test.
-- [ ] Ship the OTA for both runtimes; record group IDs.
+- [x] Ship the OTA for both runtimes; record group IDs - PR #108, published
+      2026-10-04 to `preview`: runtime 1.0.1 group
+      `9c522575-37b0-40f4-98fd-d022ace6183e`, runtime 1.0.0 group
+      `4dff8505-a016-493e-b19b-d3e97e6d47dd`.
 
 ---
 
