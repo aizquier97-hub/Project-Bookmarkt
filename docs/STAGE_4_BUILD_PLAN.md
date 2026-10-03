@@ -220,6 +220,42 @@ Build order within the phase:
 - [ ] Walk the Stage 4 exit gate (roadmap §13) and record the review in
       `gates/STAGE_4_EXIT.md`.
 
+## Phase 5 - Beta engagement layer (added 2026-10-03, D-062)
+
+Inserted after the September 2026 internal test. Solo habit loops ship
+before any social feature; see roadmap §13 "Beta engagement layer" and
+[READING_METRICS.md](READING_METRICS.md) for the formulas.
+
+- [x] Domain layer `app/src/domains/fitness/` (difficulty, activity,
+      fitness, streaks, trophies, model) - pure, unit-tested (42 tests).
+- [x] Migration `20261003120000_add_reading_fitness.sql`: `reading_sessions`
+      (owner RLS, topic-ownership inserts), `entries.is_favorite` +
+      `entries.reflection`, `topics.difficulty_override`.
+- [x] Screens: `/reading-timer`, Progress tab, Quotes tab; book screen gains
+      the difficulty chip, trophy strip, "Reading session" button, and
+      trophy-unlock toasts; Edit book gains the difficulty override.
+- [x] Export v2 (sessions, favorites, reflections, override); theme paper
+      tokens lightened; six-tab shelf with My bookmarks under Settings.
+- [x] Apply the migration to the linked project. *Done 2026-10-03:
+      `supabase db push` against `bfallxtcxxyykcnkedom`; migration history
+      21/21 in sync; smoke test over REST - `reading_sessions` returns
+      42501 for `anon`, `entries.is_favorite` / `reflection` and
+      `topics.difficulty_override` resolve. `database.types.ts` checked
+      against `supabase gen types` (only pre-existing D-052 omissions
+      differ).*
+- [x] Ship the OTA (`eas update --channel preview`). *Done 2026-10-03 from
+      commit `9527c59`, published for both preview runtimes: 1.0.1 (group
+      `47304468-aaa2-4ffa-b503-0c4a1b463d55`) and 1.0.0 (group
+      `a570fafd-e06a-41cc-8ed8-d9acb8bf81aa`), android + ios. The 1.0.0
+      publish exists because the only 1.0.1 binary (2026-09-04, D-061) was
+      never confirmed installed and every September OTA targeted 1.0.0;
+      D-062 adds no native module, so both bundles are runtime-safe.*
+- [ ] Owner on-device check (fully close and reopen the app twice to pick up
+      the update): timer flow end to end (finish and leave-early),
+      a trophy piece unlocking from an entry, a frozen streak after a
+      companion-only day.
+- [ ] Next binary build: `expo-keep-awake` during the glass.
+
 ---
 
 ## Distribution notes

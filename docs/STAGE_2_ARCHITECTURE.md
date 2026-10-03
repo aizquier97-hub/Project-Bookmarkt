@@ -35,9 +35,10 @@ service, never raw table access from screens.
 | authentication | session, credentials, recovery | No database work inside Auth callbacks |
 | library | books, metadata, Open Library lookup | |
 | progress | reading boundary derivation | Boundary always derives from the latest entry (entries domain) |
-| entries | typed and voice entries, raw transcripts | Raw transcript stored beside cleaned text (D-016) |
+| entries | typed and voice entries, raw transcripts, quote favorites and reflections | Raw transcript stored beside cleaned text (D-016); `is_favorite` / `reflection` feed the Quotes tab (D-062) |
 | voice capture | recording, on-device transcription, review | Produces entries; never stores audio server-side |
 | companion | retrieval, session contract, provenance, audit | Behind entitlement; see sections 3-4 |
+| fitness | `reading_sessions`, Difficulty Index, Reading Fitness, streaks, trophies | D-062; pure on-device derivation from sessions + entries + analytics days, no server aggregation ([READING_METRICS.md](READING_METRICS.md)) |
 | characters | manual character maps | |
 | images | private Storage objects, signed URLs | Legacy-path compatibility until migration completes |
 | bookmarks | ID registry, claim, link, unlink, relink, history | D-015; scanning is an accelerator, never a capture gate |

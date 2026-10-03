@@ -68,6 +68,19 @@ const bookmarks = [
   { code: 'BM-0002', topic_id: null, claimed_at: '2026-08-06T00:00:00Z', linked_at: null },
 ];
 
+const sessions = [
+  {
+    topic_id: 1,
+    started_at: '2026-08-03T20:00:00Z',
+    ended_at: '2026-08-03T20:25:00Z',
+    duration_seconds: 1500,
+    planned_seconds: 1500,
+    start_page: 40,
+    end_page: 58,
+    pages_read: 18,
+  },
+];
+
 describe('buildExportPayload', () => {
   const payload = buildExportPayload({
     email: 'reader@example.com',
@@ -76,19 +89,56 @@ describe('buildExportPayload', () => {
     entries,
     characters,
     bookmarks,
+    sessions,
   });
 
   it('counts every raw row, including orphans', () => {
-    expect(payload.counts).toEqual({ books: 2, entries: 3, characters: 1, bookmarks: 2 });
+    expect(payload.counts).toEqual({
+      books: 2,
+      entries: 3,
+      characters: 1,
+      bookmarks: 2,
+      reading_sessions: 1,
+    });
   });
 
-  it('nests entries and characters under their book', () => {
+  it('nests entries, characters, and sessions under their book', () => {
     expect(payload.books[0].title).toBe('Dune');
     expect(payload.books[0].entries).toHaveLength(1);
     expect(payload.books[0].entries[0].text).toContain('Paul meets the Fremen');
+    expect(payload.books[0].entries[0]).toMatchObject({ is_favorite: false, reflection: null });
     expect(payload.books[0].characters[0].name).toBe('Paul Atreides');
+    expect(payload.books[0].reading_sessions).toEqual([
+      expect.objectContaining({ duration_seconds: 1500, pages_read: 18 }),
+    ]);
+    expect(payload.books[0].difficulty_override).toBeNull();
     expect(payload.books[1].entries[0].voice_transcript).toBe('harriet declines the proposal');
     expect(payload.books[1].characters).toHaveLength(0);
+    expect(payload.books[1].reading_sessions).toHaveLength(0);
+  });
+
+  it('carries favorites and reflections when present', () => {
+    const withQuote = buildExportPayload({
+      email: null,
+      exportedAt: '2026-09-02T12:00:00Z',
+      books: [{ ...books[0], difficulty_override: 7.5 }],
+      entries: [
+        {
+          ...entries[0],
+          text: '[Manual Entry - page 12]\n[Quote]\nFear is the mind-killer.',
+          is_favorite: true,
+          reflection: 'Felt this before the exam.',
+        },
+      ],
+      characters: [],
+      bookmarks: [],
+    });
+    expect(withQuote.books[0].difficulty_override).toBe(7.5);
+    expect(withQuote.books[0].entries[0]).toMatchObject({
+      is_favorite: true,
+      reflection: 'Felt this before the exam.',
+    });
+    expect(withQuote.counts.reading_sessions).toBe(0);
   });
 
   it('resolves bookmark links to book titles and keeps unlinked codes', () => {
@@ -104,7 +154,7 @@ describe('buildExportPayload', () => {
 
   it('serializes to parseable JSON', () => {
     const parsed = JSON.parse(serializeExport(payload));
-    expect(parsed.version).toBe(1);
+    expect(parsed.version).toBe(2);
     expect(parsed.books).toHaveLength(2);
   });
 });

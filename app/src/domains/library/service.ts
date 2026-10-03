@@ -80,6 +80,9 @@ export async function updateBook(bookId: number, input: BookInput): Promise<Book
   if (input.isbn !== undefined) {
     patch.isbn = input.isbn?.trim() || null;
   }
+  if (input.difficultyOverride !== undefined) {
+    patch.difficulty_override = normalizeDifficultyOverride(input.difficultyOverride);
+  }
   const { data, error } = await supabase
     .from('topics')
     .update(patch)
@@ -90,7 +93,25 @@ export async function updateBook(bookId: number, input: BookInput): Promise<Book
   if (error) {
     throw error;
   }
+  if (input.difficultyOverride !== undefined) {
+    trackAnalyticsEvent(
+      'difficulty_override_set',
+      { value: patch.difficulty_override ?? null },
+      bookId,
+    );
+  }
   return data;
+}
+
+/** Reader-set difficulty (D-062): 1-10 in half steps, or null to go back to Auto. */
+export function normalizeDifficultyOverride(value: number | null): number | null {
+  if (value === null) {
+    return null;
+  }
+  if (!Number.isFinite(value) || value < 1 || value > 10) {
+    throw new Error('Difficulty must be between 1 and 10.');
+  }
+  return Math.round(value * 2) / 2;
 }
 
 const BOOK_IMAGES_BUCKET = 'book-images';
@@ -191,6 +212,8 @@ export interface BookInput {
   isbn?: string | null;
   /** Genre/category from the search source; feeds the archetype profile (D-038). */
   genre?: string | null;
+  /** Reader-set Difficulty Index 1-10 (D-062); null returns to Auto, undefined leaves it alone. */
+  difficultyOverride?: number | null;
 }
 
 function normalizeOptionalInt(

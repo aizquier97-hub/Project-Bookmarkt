@@ -20,7 +20,13 @@ export type AnalyticsEventName =
   | 'recap_requested'
   | 'companion_tool_used'
   | 'entry_flag_applied'
-  | 'semantic_search_used';
+  | 'semantic_search_used'
+  | 'reading_session_completed'
+  | 'reading_session_abandoned'
+  | 'trophy_piece_unlocked'
+  | 'quote_favorited'
+  | 'quote_reflection_saved'
+  | 'difficulty_override_set';
 
 export function trackAnalyticsEvent(
   eventName: AnalyticsEventName,

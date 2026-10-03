@@ -1035,6 +1035,49 @@ operations, and app-store distribution.
 - [ ] Open Apple Developer and Google Play Console accounts early enough to avoid
       approval delays in Stage 5.
 
+#### Beta engagement layer (D-062, added 2026-10-03 from September 2026 feedback)
+
+The three-week internal test produced a ranked feedback set; the owner chose
+to ship the **solo habit loops first** and defer every multi-user feature
+(ghost bookmarks, global feed, multi-user clubs) until those loops prove
+retention in beta. Formulas live in [READING_METRICS.md](READING_METRICS.md).
+
+- [x] Sandglass reading timer: pick a book and a sitting length, a focus
+      screen with only the falling sand and a "Leave early" exit, a wrap-up
+      that captures the page reached and an optional one-line note;
+      sessions persist to `reading_sessions`.
+- [x] Progress tab (Strava-style profile): Reading Fitness (42-day EWMA of
+      Session Effort) with range chart, weekly Volume vs 4-week average,
+      Pace / Endurance / Consistency / Difficulty / Comprehension grid,
+      reading-days heatmap, trophy case, per-book list.
+- [x] Reading streaks with "Reading Current" freezes (companion-only days
+      freeze rather than break, max 2 consecutive).
+- [x] Segment trophies: four pieces per book at each quarter of its page
+      count, completed on finish; unlock toasts on entry save and session save.
+- [x] Quotes tab: all `[Quote]` entries with favorites, written reflections,
+      and a personal-analysis header.
+- [x] Difficulty Index per book (quote readability blended with a
+      genre/era/length prior; reader override in Edit book).
+- [x] Paper palette lightened toward white under the unchanged dark-walnut
+      chrome; six-tab shelf (Library, Progress, Quotes, Club, Cards,
+      Settings); My bookmarks reached from Settings.
+- [x] Apply migration `20261003120000_add_reading_fitness.sql` to the linked
+      project before the OTA that carries this layer. *(Done 2026-10-03 via
+      `supabase db push`; remote history 21/21 in sync; `reading_sessions`
+      confirmed denied to `anon` and the new columns visible through the API.)*
+- [x] Ship the OTA (`eas update --channel preview`). *(Done 2026-10-03:
+      published twice so both installed preview binaries receive it -
+      runtime 1.0.1 group `47304468-aaa2-4ffa-b503-0c4a1b463d55` and runtime
+      1.0.0 group `a570fafd-e06a-41cc-8ed8-d9acb8bf81aa`; see
+      [STAGE_2_OPERATIONS.md](STAGE_2_OPERATIONS.md) §2 for why two.)*
+- [ ] Run the on-device check in
+      [STAGE_4_BUILD_PLAN.md](STAGE_4_BUILD_PLAN.md) Phase 5 (close and
+      reopen the app twice first).
+- [ ] Keep the screen awake during the glass (`expo-keep-awake`) in the next
+      binary build.
+- [ ] Post-beta: model-scored reflection quality as the comprehension
+      factor's v2; vocabulary-richness metric once note volume supports it.
+
 ### Stage 4 exit gate
 
 - Entitlements are consistent across iOS and Android test contexts and the
