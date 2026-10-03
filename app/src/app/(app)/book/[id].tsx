@@ -75,13 +75,23 @@ import {
   uploadBookImage,
   type BookImage,
 } from '@/domains/library/images';
-import { getBook, setBookFinished } from '@/domains/library/service';
+import { getBook, setBookFinished, type Book } from '@/domains/library/service';
+import { describeDifficultySource, difficultyLabel } from '@/domains/fitness/difficulty';
+import { collectQuoteTextsByBook, difficultyForBook, furthestPage } from '@/domains/fitness/model';
+import { listReadingSessions } from '@/domains/fitness/service';
+import {
+  computeTrophyProgress,
+  newlyUnlockedSegments,
+  trophyUnlockMessage,
+} from '@/domains/fitness/trophies';
+import { READING_MODEL_KEYS } from '@/domains/fitness/useReadingModel';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
 import { useDictation } from '@/domains/voice/useDictation';
 import { EntryBookmark } from '@/components/EntryBookmark';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
+import { TrophyStrip } from '@/components/TrophyStrip';
 import { queryKeys } from '@/lib/queryKeys';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
@@ -136,6 +146,7 @@ export default function BookScreen() {
   const [characterMode, setCharacterMode] = useState<ComposerMode>(null);
   const addPhotosRef = useRef<(() => void) | null>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { showToast } = useToast();
   // Android is edge-to-edge (SDK 54): without this, the capture bar and
   // composer buttons render under the system navigation buttons.
@@ -165,6 +176,13 @@ export default function BookScreen() {
     queryFn: () => listEntries(bookId),
     enabled: validId,
   });
+  // Sandglass sessions (D-062) share the Progress tab's cache; this book's
+  // rows push its furthest page and trophy pieces forward.
+  const sessionsQuery = useQuery({
+    queryKey: queryKeys.readingSessions,
+    queryFn: listReadingSessions,
+    enabled: validId,
+  });
 
   // Finishing a book is the roadmap's primary outcome - celebrate it, and
   // let an accidental tap be undone without ceremony.
@@ -179,6 +197,29 @@ export default function BookScreen() {
     },
   });
 
+  const book = bookQuery.data;
+  const headerEntries = useMemo(() => entriesQuery.data ?? [], [entriesQuery.data]);
+  const bookSessions = useMemo(
+    () => (sessionsQuery.data ?? []).filter((session) => session.topic_id === bookId),
+    [sessionsQuery.data, bookId],
+  );
+  const difficulty = useMemo(
+    () =>
+      book ? difficultyForBook(book, collectQuoteTextsByBook(headerEntries).get(book.id) ?? []) : null,
+    [book, headerEntries],
+  );
+  const trophy = useMemo(
+    () =>
+      book
+        ? computeTrophyProgress({
+            totalPages: book.total_pages,
+            currentPage: furthestPage(headerEntries, bookSessions),
+            finished: Boolean(book.finished_at),
+          })
+        : null,
+    [book, headerEntries, bookSessions],
+  );
+
   if (!validId) {
     return (
       <View style={styles.container}>
@@ -187,12 +228,10 @@ export default function BookScreen() {
     );
   }
 
-  const book = bookQuery.data;
   // Publisher/year retired from display (D-032): pages is the one metadata
   // detail a reader actually uses here.
   const metaParts = [book?.total_pages ? `${book.total_pages} pages` : null].filter(Boolean);
 
-  const headerEntries = entriesQuery.data ?? [];
   const currentPosition = getCurrentPosition(headerEntries);
   const lastEntryRelative = formatRelativeTime(headerEntries[0]?.created_at);
 
@@ -265,8 +304,29 @@ export default function BookScreen() {
                 ) : null}
               </View>
             ) : null}
+
+            {/* Difficulty Index (D-062): measured from logged quotes, or the
+                reader's own setting from Edit book. */}
+            {difficulty ? (
+              <View style={styles.difficultyRow}>
+                <View style={styles.difficultyChip}>
+                  <Text style={styles.difficultyChipText}>
+                    {difficultyLabel(difficulty.score)} · {difficulty.score}/10
+                  </Text>
+                </View>
+                <Text style={styles.difficultyMeta} numberOfLines={1}>
+                  {describeDifficultySource(difficulty)}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
+
+        {trophy ? (
+          <View style={styles.trophyRow}>
+            <TrophyStrip progress={trophy} compact />
+          </View>
+        ) : null}
 
         <View style={styles.detailsRow}>
           {book ? (
@@ -295,6 +355,17 @@ export default function BookScreen() {
                 <Text style={styles.finishText}>Mark as finished</Text>
               </Pressable>
             )
+          ) : null}
+          {book && !book.finished_at ? (
+            <Pressable
+              style={styles.sessionButton}
+              onPress={() => router.push({ pathname: '/reading-timer', params: { id: String(bookId) } })}
+              accessibilityRole="button"
+              accessibilityLabel="Start a timed reading session with this book"
+            >
+              <Ionicons name="hourglass-outline" size={14} color={colors.accent} />
+              <Text style={styles.sessionText}>Reading session</Text>
+            </Pressable>
           ) : null}
         </View>
         {finishMutation.isError ? (
@@ -512,7 +583,8 @@ function EntriesTab({
     });
   }, [entries, entrySearch, entryFilter, hasMarkedEntries, meaningMatches]);
 
-  const addEntryMutation = useMutation({    mutationFn: () =>
+  const addEntryMutation = useMutation({
+    mutationFn: () =>
       addEntry(bookId, {
         text,
         progressType,
@@ -520,15 +592,43 @@ function EntriesTab({
         rawTranscript: rawTranscripts.length > 0 ? rawTranscripts.join('\n') : null,
         kind: entryKind,
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       setText('');
       setRawTranscripts([]);
       setEntryKind('note');
       setFormError(null);
       onComposerModeChange(null);
-      showToast('Entry saved.', 'success');
+      // Segment trophies (D-062): compare the furthest page before and after
+      // this entry; a crossed quarter earns a piece and a moment of praise.
+      const book = queryClient.getQueryData<Book>(queryKeys.book(bookId));
+      const unlocked = book
+        ? newlyUnlockedSegments(
+            computeTrophyProgress({
+              totalPages: book.total_pages,
+              currentPage: furthestPage(entries, []),
+              finished: Boolean(book.finished_at),
+            }),
+            computeTrophyProgress({
+              totalPages: book.total_pages,
+              currentPage: furthestPage([created, ...entries], []),
+              finished: Boolean(book.finished_at),
+            }),
+          )
+        : [];
+      if (book && unlocked.length > 0) {
+        for (const piece of unlocked) {
+          trackAnalyticsEvent('trophy_piece_unlocked', { piece: piece.index, source: 'entry' }, bookId);
+        }
+        showToast(trophyUnlockMessage(book.name, unlocked), 'success');
+      } else {
+        showToast('Entry saved.', 'success');
+      }
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.quotes });
+      for (const key of READING_MODEL_KEYS) {
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
     },
     onError: (err) => {
       setFormError(err instanceof Error ? err.message : 'Could not save the entry.');
@@ -600,6 +700,7 @@ function EntriesTab({
       trackAnalyticsEvent('entry_flag_applied', { source: 'suggestion' }, bookId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.activityEntries });
     },
     onError: () => {
       setFlagsError('The flag could not be saved. Please try again.');
@@ -1946,6 +2047,50 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     marginTop: 2,
+  },
+  difficultyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  difficultyChip: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    backgroundColor: colors.accentSoft,
+  },
+  difficultyChipText: {
+    fontFamily: fonts.serif,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  difficultyMeta: {
+    flex: 1,
+    fontFamily: fonts.serif,
+    fontSize: 11,
+    color: colors.muted,
+  },
+  trophyRow: {
+    marginTop: 10,
+  },
+  sessionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.card,
+    borderColor: colors.accent,
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  sessionText: {
+    fontFamily: fonts.serif,
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 14,
   },
   detailsRow: {
     flexDirection: 'row',

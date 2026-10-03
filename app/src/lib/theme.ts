@@ -2,18 +2,21 @@ import { Platform } from 'react-native';
 
 // Stage 4 tactile redesign (D-054): layered physical materials in place of
 // the flat Stage 3 chrome - dark-walnut wood for the app frame, deep
-// leather for accents, warm cream paper for reading surfaces. Ink-dark
-// text for contrast; gold is bold and reserved for active states, primary
-// actions, and celebration. All text tokens pass WCAG AA (4.5:1) on their
-// intended surfaces.
+// leather for accents, and paper for reading surfaces. D-062 (September
+// 2026 feedback) moved the paper from warm cream to a near-white sheet with
+// only a hint of warmth, so the walnut and leather read as accents against
+// a clean page rather than a yellow interior. Ink-dark text for contrast;
+// gold is bold and reserved for active states, primary actions, and
+// celebration. All text tokens pass WCAG AA (4.5:1) on their intended
+// surfaces.
 export const colors = {
-  background: '#f0e6d2',
-  card: '#faf4e6',
-  border: '#c8b48d',
+  background: '#f7f4ef',
+  card: '#fffdf9',
+  border: '#d9d0c1',
   text: '#191008',
   muted: '#5a4a38',
   accent: '#7d3417',
-  accentSoft: '#eedac6',
+  accentSoft: '#f1e4d8',
   danger: '#9d271f',
   // The wooden frame: headers, tab bar, and other structural chrome.
   walnut: '#2a1c11',

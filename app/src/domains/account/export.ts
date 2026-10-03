@@ -14,6 +14,7 @@ interface ExportBookRow {
   isbn: string | null;
   finished_at: string | null;
   created_at: string | null;
+  difficulty_override?: number | null;
 }
 
 interface ExportEntryRow {
@@ -23,6 +24,8 @@ interface ExportEntryRow {
   raw_transcript: string | null;
   created_at: string | null;
   updated_at: string | null;
+  is_favorite?: boolean | null;
+  reflection?: string | null;
 }
 
 interface ExportCharacterRow {
@@ -41,12 +44,29 @@ interface ExportBookmarkRow {
   linked_at: string | null;
 }
 
+interface ExportSessionRow {
+  topic_id: number;
+  started_at: string;
+  ended_at: string;
+  duration_seconds: number;
+  planned_seconds: number | null;
+  start_page: number | null;
+  end_page: number | null;
+  pages_read: number | null;
+}
+
 export interface ExportPayload {
   format: 'bookmarkt-export';
-  version: 1;
+  version: 2;
   exported_at: string;
   account_email: string | null;
-  counts: { books: number; entries: number; characters: number; bookmarks: number };
+  counts: {
+    books: number;
+    entries: number;
+    characters: number;
+    bookmarks: number;
+    reading_sessions: number;
+  };
   books: {
     title: string;
     author: string | null;
@@ -54,17 +74,29 @@ export interface ExportPayload {
     isbn: string | null;
     finished_at: string | null;
     created_at: string | null;
+    difficulty_override: number | null;
     entries: {
       text: string;
       voice_transcript: string | null;
       created_at: string | null;
       updated_at: string | null;
+      is_favorite: boolean;
+      reflection: string | null;
     }[];
     characters: {
       name: string;
       description: string;
       created_at: string | null;
       updated_at: string | null;
+    }[];
+    reading_sessions: {
+      started_at: string;
+      ended_at: string;
+      duration_seconds: number;
+      planned_seconds: number | null;
+      start_page: number | null;
+      end_page: number | null;
+      pages_read: number | null;
     }[];
   }[];
   bookmarks: {
@@ -83,7 +115,9 @@ export function buildExportPayload(input: {
   entries: ExportEntryRow[];
   characters: ExportCharacterRow[];
   bookmarks: ExportBookmarkRow[];
+  sessions?: ExportSessionRow[];
 }): ExportPayload {
+  const sessions = input.sessions ?? [];
   const titleByBook = new Map<number, string>();
   for (const book of input.books) {
     titleByBook.set(book.id, book.name);
@@ -106,9 +140,15 @@ export function buildExportPayload(input: {
     list.push(character);
     charactersByBook.set(character.topic_id, list);
   }
+  const sessionsByBook = new Map<number, ExportSessionRow[]>();
+  for (const session of sessions) {
+    const list = sessionsByBook.get(session.topic_id) ?? [];
+    list.push(session);
+    sessionsByBook.set(session.topic_id, list);
+  }
   return {
     format: 'bookmarkt-export',
-    version: 1,
+    version: 2,
     exported_at: input.exportedAt,
     account_email: input.email,
     counts: {
@@ -116,6 +156,7 @@ export function buildExportPayload(input: {
       entries: input.entries.length,
       characters: input.characters.length,
       bookmarks: input.bookmarks.length,
+      reading_sessions: sessions.length,
     },
     books: input.books.map((book) => ({
       title: book.name,
@@ -124,17 +165,29 @@ export function buildExportPayload(input: {
       isbn: book.isbn,
       finished_at: book.finished_at,
       created_at: book.created_at,
+      difficulty_override: book.difficulty_override ?? null,
       entries: (entriesByBook.get(book.id) ?? []).map((entry) => ({
         text: entry.text,
         voice_transcript: entry.raw_transcript,
         created_at: entry.created_at,
         updated_at: entry.updated_at,
+        is_favorite: Boolean(entry.is_favorite),
+        reflection: entry.reflection ?? null,
       })),
       characters: (charactersByBook.get(book.id) ?? []).map((character) => ({
         name: character.name,
         description: character.description,
         created_at: character.created_at,
         updated_at: character.updated_at,
+      })),
+      reading_sessions: (sessionsByBook.get(book.id) ?? []).map((session) => ({
+        started_at: session.started_at,
+        ended_at: session.ended_at,
+        duration_seconds: session.duration_seconds,
+        planned_seconds: session.planned_seconds,
+        start_page: session.start_page,
+        end_page: session.end_page,
+        pages_read: session.pages_read,
       })),
     })),
     bookmarks: input.bookmarks.map((bookmark) => ({
@@ -157,14 +210,14 @@ export async function fetchExportPayload(): Promise<ExportPayload> {
   if (userError || !userData.user) {
     throw new Error('You must be signed in.');
   }
-  const [books, entries, characters, bookmarks] = await Promise.all([
+  const [books, entries, characters, bookmarks, sessions] = await Promise.all([
     supabase
       .from('topics')
-      .select('id, name, author, genre, isbn, finished_at, created_at')
+      .select('id, name, author, genre, isbn, finished_at, created_at, difficulty_override')
       .order('created_at', { ascending: true }),
     supabase
       .from('entries')
-      .select('id, topic_id, text, raw_transcript, created_at, updated_at')
+      .select('id, topic_id, text, raw_transcript, created_at, updated_at, is_favorite, reflection')
       .order('created_at', { ascending: true }),
     supabase
       .from('characters')
@@ -175,8 +228,15 @@ export async function fetchExportPayload(): Promise<ExportPayload> {
       .select('code, topic_id, claimed_at, linked_at')
       .eq('user_id', userData.user.id)
       .order('claimed_at', { ascending: true }),
+    supabase
+      .from('reading_sessions')
+      .select(
+        'topic_id, started_at, ended_at, duration_seconds, planned_seconds, start_page, end_page, pages_read',
+      )
+      .order('started_at', { ascending: true }),
   ]);
-  const failed = books.error ?? entries.error ?? characters.error ?? bookmarks.error;
+  const failed =
+    books.error ?? entries.error ?? characters.error ?? bookmarks.error ?? sessions.error;
   if (failed) {
     throw new Error('Your data could not be gathered. Please try again.');
   }
@@ -187,5 +247,6 @@ export async function fetchExportPayload(): Promise<ExportPayload> {
     entries: entries.data ?? [],
     characters: characters.data ?? [],
     bookmarks: bookmarks.data ?? [],
+    sessions: sessions.data ?? [],
   });
 }

@@ -220,6 +220,28 @@ Build order within the phase:
 - [ ] Walk the Stage 4 exit gate (roadmap §13) and record the review in
       `gates/STAGE_4_EXIT.md`.
 
+## Phase 5 - Beta engagement layer (added 2026-10-03, D-062)
+
+Inserted after the September 2026 internal test. Solo habit loops ship
+before any social feature; see roadmap §13 "Beta engagement layer" and
+[READING_METRICS.md](READING_METRICS.md) for the formulas.
+
+- [x] Domain layer `app/src/domains/fitness/` (difficulty, activity,
+      fitness, streaks, trophies, model) - pure, unit-tested (42 tests).
+- [x] Migration `20261003120000_add_reading_fitness.sql`: `reading_sessions`
+      (owner RLS, topic-ownership inserts), `entries.is_favorite` +
+      `entries.reflection`, `topics.difficulty_override`.
+- [x] Screens: `/reading-timer`, Progress tab, Quotes tab; book screen gains
+      the difficulty chip, trophy strip, "Reading session" button, and
+      trophy-unlock toasts; Edit book gains the difficulty override.
+- [x] Export v2 (sessions, favorites, reflections, override); theme paper
+      tokens lightened; six-tab shelf with My bookmarks under Settings.
+- [ ] Apply the migration to the linked project, then ship the OTA.
+- [ ] Owner on-device check: timer flow end to end (finish and leave-early),
+      a trophy piece unlocking from an entry, a frozen streak after a
+      companion-only day.
+- [ ] Next binary build: `expo-keep-awake` during the glass.
+
 ---
 
 ## Distribution notes

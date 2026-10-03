@@ -26,6 +26,8 @@ import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
+const DIFFICULTY_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
 export default function EditBookScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const bookId = Number(params.id);
@@ -76,6 +78,9 @@ function EditBookForm({ book }: { book: Book }) {
   const [totalPages, setTotalPages] = useState(book.total_pages ? String(book.total_pages) : '');
   const [coverUrl, setCoverUrl] = useState<string | null>(book.cover_url ?? null);
   const [isbn, setIsbn] = useState<string | null>(book.isbn ?? null);
+  const [difficultyOverride, setDifficultyOverride] = useState<number | null>(
+    book.difficulty_override ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const updateMutation = useMutation({
@@ -90,10 +95,12 @@ function EditBookForm({ book }: { book: Book }) {
         totalPages,
         coverUrl,
         isbn,
+        difficultyOverride,
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.books });
       void queryClient.invalidateQueries({ queryKey: queryKeys.book(book.id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.activityEntries });
       showToast('Book details saved.', 'success');
       router.back();
     },
@@ -211,6 +218,40 @@ function EditBookForm({ book }: { book: Book }) {
           onIsbnResolved={setIsbn}
         />
 
+        <Text style={styles.label}>Difficulty</Text>
+        <Text style={styles.hint}>
+          Auto measures it from the quotes you log (and the book’s genre, era, and length).
+          Set your own 1-10 if you disagree; it weights your Reading Fitness.
+        </Text>
+        <View style={styles.chipRow}>
+          <Pressable
+            style={[styles.chip, difficultyOverride === null && styles.chipActive]}
+            onPress={() => setDifficultyOverride(null)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: difficultyOverride === null }}
+            accessibilityLabel="Difficulty: Auto"
+          >
+            <Text style={[styles.chipText, difficultyOverride === null && styles.chipTextActive]}>
+              Auto
+            </Text>
+          </Pressable>
+          {DIFFICULTY_CHOICES.map((value) => {
+            const active = difficultyOverride === value;
+            return (
+              <Pressable
+                key={value}
+                style={[styles.chip, styles.chipNumber, active && styles.chipActive]}
+                onPress={() => setDifficultyOverride(value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`Difficulty ${value} of 10`}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{value}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Pressable style={styles.saveButton} onPress={() => updateMutation.mutate()} disabled={busy}>
@@ -274,6 +315,44 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.danger,
     marginTop: 12,
+  },
+  hint: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    minWidth: 40,
+    alignItems: 'center',
+  },
+  chipNumber: {
+    paddingHorizontal: 0,
+  },
+  chipActive: {
+    backgroundColor: gold.fill,
+    borderColor: gold.deep,
+  },
+  chipText: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: gold.onFill,
   },
   saveButton: {
     backgroundColor: gold.fill,

@@ -554,7 +554,9 @@ export type Database = {
           ai_summary_hash: string | null
           created_at: string | null
           id: number
+          is_favorite: boolean
           raw_transcript: string | null
+          reflection: string | null
           text: string
           topic_id: number | null
           updated_at: string | null
@@ -565,7 +567,9 @@ export type Database = {
           ai_summary_hash?: string | null
           created_at?: string | null
           id?: never
+          is_favorite?: boolean
           raw_transcript?: string | null
+          reflection?: string | null
           text: string
           topic_id?: number | null
           updated_at?: string | null
@@ -576,7 +580,9 @@ export type Database = {
           ai_summary_hash?: string | null
           created_at?: string | null
           id?: never
+          is_favorite?: boolean
           raw_transcript?: string | null
+          reflection?: string | null
           text?: string
           topic_id?: number | null
           updated_at?: string | null
@@ -645,6 +651,56 @@ export type Database = {
           },
         ]
       }
+      reading_sessions: {
+        Row: {
+          created_at: string
+          duration_seconds: number
+          end_page: number | null
+          ended_at: string
+          id: number
+          pages_read: number | null
+          planned_seconds: number | null
+          start_page: number | null
+          started_at: string
+          topic_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds: number
+          end_page?: number | null
+          ended_at: string
+          id?: never
+          pages_read?: number | null
+          planned_seconds?: number | null
+          start_page?: number | null
+          started_at: string
+          topic_id: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number
+          end_page?: number | null
+          ended_at?: string
+          id?: never
+          pages_read?: number | null
+          planned_seconds?: number | null
+          start_page?: number | null
+          started_at?: string
+          topic_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_sessions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spoiler_reports: {
         Row: {
           assigned_to: string | null
@@ -706,6 +762,7 @@ export type Database = {
           author: string | null
           cover_url: string | null
           created_at: string | null
+          difficulty_override: number | null
           finished_at: string | null
           genre: string | null
           id: number
@@ -720,6 +777,7 @@ export type Database = {
           author?: string | null
           cover_url?: string | null
           created_at?: string | null
+          difficulty_override?: number | null
           finished_at?: string | null
           genre?: string | null
           id?: never
@@ -734,6 +792,7 @@ export type Database = {
           author?: string | null
           cover_url?: string | null
           created_at?: string | null
+          difficulty_override?: number | null
           finished_at?: string | null
           genre?: string | null
           id?: never

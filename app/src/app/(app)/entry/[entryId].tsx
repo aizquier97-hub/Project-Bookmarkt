@@ -69,6 +69,8 @@ export default function EntryDetailScreen() {
       showToast('Entry saved.', 'success');
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.quotes });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.activityEntries });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Could not save the entry.');
@@ -80,6 +82,8 @@ export default function EntryDetailScreen() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.quotes });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.activityEntries });
       showToast('Entry deleted.', 'success');
       router.back();
     },
