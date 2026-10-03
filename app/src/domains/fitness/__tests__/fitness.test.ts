@@ -10,11 +10,14 @@ import {
 } from '@/domains/fitness/activity';
 import { dayKey } from '@/domains/fitness/days';
 import {
+  computeCalendarMonth,
   computeFitnessSeries,
   computeHeatmap,
   computeProgressSummary,
   computeWeeklyVolume,
   describeFitnessTrend,
+  sessionPacePagesPerMinute,
+  shiftMonth,
   volumeVersusFourWeekAverage,
 } from '@/domains/fitness/fitness';
 
@@ -278,13 +281,21 @@ describe('weekly volume and summary', () => {
       loads: aggregateDailyLoad(activity),
       today,
     });
-    expect(summary.pacePagesPerHour).toBe(60);
+    // 60 pages over 60 minutes = 1 page/min.
+    expect(summary.pacePagesPerMinute).toBe(1);
     expect(summary.enduranceMinutes).toBe(30);
     expect(summary.consistencyDaysPerWeek).toBe(0.8);
     expect(summary.averageDifficulty).toBe(5.3);
     expect(summary.pagesLast28Days).toBe(80);
     expect(summary.totalSessions).toBe(2);
     expect(summary.totalReadDays).toBe(3);
+  });
+
+  it('reports a single sitting’s pace in pages per minute', () => {
+    expect(sessionPacePagesPerMinute(18, 20 * 60)).toBe(0.9);
+    expect(sessionPacePagesPerMinute(7, 25 * 60)).toBe(0.28);
+    expect(sessionPacePagesPerMinute(null, 600)).toBeNull();
+    expect(sessionPacePagesPerMinute(0, 600)).toBeNull();
   });
 
   it('builds a Monday-aligned heatmap with relative levels', () => {
@@ -294,5 +305,35 @@ describe('weekly volume and summary', () => {
     expect(cells.find((c) => c.day === '2026-09-28')?.level).toBe(4);
     expect(cells.find((c) => c.day === '2026-09-21')?.level).toBe(3);
     expect(cells.find((c) => c.day === '2026-09-22')?.level).toBe(0);
+  });
+
+  it('lays a month out Monday-first with read, current, and quiet days', () => {
+    const month = computeCalendarMonth({
+      loads,
+      engagementDays: new Set(['2026-09-22', '2026-09-28']),
+      year: 2026,
+      monthIndex: 9,
+      today,
+    });
+    // September 2026 starts on a Tuesday: one leading pad, 30 days, trailing pads to a full week.
+    expect(month.cells[0]).toBeNull();
+    expect(month.cells[1]?.day).toBe('2026-09-01');
+    expect(month.cells.length % 7).toBe(0);
+    expect(month.cells.filter(Boolean)).toHaveLength(30);
+    expect(month.cells.find((c) => c?.day === '2026-09-28')?.kind).toBe('read');
+    expect(month.cells.find((c) => c?.day === '2026-09-22')?.kind).toBe('current');
+    expect(month.cells.find((c) => c?.day === '2026-09-23')?.kind).toBe('quiet');
+    expect(month.cells.find((c) => c?.day === today)?.isToday).toBe(true);
+    expect(month.cells.find((c) => c?.day === '2026-09-30')?.isFuture).toBe(false);
+    expect(month.readDays).toBe(5);
+    expect(month.currentDays).toBe(1);
+    expect(month.pages).toBe(120);
+    expect(month.minutes).toBe(40);
+  });
+
+  it('shifts months across year boundaries', () => {
+    expect(shiftMonth(2026, 1, -1)).toEqual({ year: 2025, monthIndex: 12 });
+    expect(shiftMonth(2026, 12, 1)).toEqual({ year: 2027, monthIndex: 1 });
+    expect(shiftMonth(2026, 6, -18)).toEqual({ year: 2024, monthIndex: 12 });
   });
 });

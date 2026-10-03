@@ -4,10 +4,11 @@ import { Tabs } from 'expo-router';
 import { colors, fonts, gold } from '@/lib/theme';
 
 // Bottom tabs (D-040): the primary-destination pattern every reading app in
-// this space uses (StoryGraph, Goodreads, Fable, Kindle). Library is home;
-// Progress (Reading Fitness, streaks, trophies) and Quotes joined the bar
-// in D-062 and QR bookmarks moved under Settings. The walnut frame (D-054)
-// makes the chrome read as the bookcase around the paper surfaces.
+// this space uses (StoryGraph, Goodreads, Fable, Kindle). Profile (Reading
+// Fitness, streaks, trophies - the Strava-style home, D-064) is the landing
+// tab; Library sits beside it. Quotes joined the bar in D-062 and QR
+// bookmarks moved under Settings. The walnut frame (D-054) makes the chrome
+// read as the bookcase around the paper surfaces.
 export default function TabsLayout() {
   return (
     <Tabs
@@ -30,18 +31,18 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Library',
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="library-outline" size={size} color={color} />
+            <Ionicons name="person-circle-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="progress"
+        name="library"
         options={{
-          title: 'Progress',
+          title: 'Library',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trending-up-outline" size={size} color={color} />
+            <Ionicons name="library-outline" size={size} color={color} />
           ),
         }}
       />

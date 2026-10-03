@@ -130,7 +130,13 @@ function confirmDestructive(title: string, message: string, onConfirm: () => voi
 }
 
 export default function BookScreen() {
-  const params = useLocalSearchParams<{ id: string; tab?: string; character?: string }>();
+  const params = useLocalSearchParams<{
+    id: string;
+    tab?: string;
+    character?: string;
+    compose?: string;
+    page?: string;
+  }>();
   const bookId = Number(params.id);
   const validId = Number.isInteger(bookId) && bookId > 0;
   // Deep-link groundwork (D-045): /book/[id]?tab=characters&character=<id>
@@ -142,7 +148,18 @@ export default function BookScreen() {
     const parsed = Number(params.character);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   });
-  const [composerMode, setComposerMode] = useState<ComposerMode>(null);
+  // The Sandglass hands off here after a sitting with no note (D-064):
+  // /book/[id]?compose=write&page=<n> lands with the composer open and the
+  // page the reader stopped on already filled in.
+  const [composerMode, setComposerMode] = useState<ComposerMode>(
+    params.compose === 'write' || params.compose === 'speak' ? params.compose : null,
+  );
+  const initialProgressPage = useMemo(() => {
+    const parsed = Number(params.page);
+    return Number.isInteger(parsed) && parsed > 0 ? String(parsed) : '';
+    // Read once: the handoff page should not re-apply on later re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [characterMode, setCharacterMode] = useState<ComposerMode>(null);
   const addPhotosRef = useRef<(() => void) | null>(null);
   const queryClient = useQueryClient();
@@ -176,7 +193,7 @@ export default function BookScreen() {
     queryFn: () => listEntries(bookId),
     enabled: validId,
   });
-  // Sandglass sessions (D-062) share the Progress tab's cache; this book's
+  // Sandglass sessions (D-062) share the Profile tab's cache; this book's
   // rows push its furthest page and trophy pieces forward.
   const sessionsQuery = useQuery({
     queryKey: queryKeys.readingSessions,
@@ -411,6 +428,7 @@ export default function BookScreen() {
             composerMode={composerMode}
             onComposerModeChange={setComposerMode}
             onOpenCharacter={openCharacter}
+            initialProgressPage={initialProgressPage}
           />
         </View>
         <View style={[styles.tabPane, tab !== 'characters' && styles.tabPaneHidden]}>
@@ -498,17 +516,20 @@ function EntriesTab({
   composerMode,
   onComposerModeChange,
   onOpenCharacter,
+  initialProgressPage = '',
 }: {
   bookId: number;
   composerMode: ComposerMode;
   onComposerModeChange: (mode: ComposerMode) => void;
   onOpenCharacter: (characterId: number) => void;
+  /** Page prefilled in the composer (Sandglass handoff, D-064). */
+  initialProgressPage?: string;
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { showToast } = useToast();
   const [progressType, setProgressType] = useState<ProgressType>('page');
-  const [progressValue, setProgressValue] = useState('');
+  const [progressValue, setProgressValue] = useState(initialProgressPage);
   const [text, setText] = useState('');
   const [entryKind, setEntryKind] = useState<EntryKind>('note');
   const [formError, setFormError] = useState<string | null>(null);

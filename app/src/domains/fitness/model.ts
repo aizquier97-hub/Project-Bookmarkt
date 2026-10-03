@@ -1,7 +1,7 @@
 /**
  * The assembled Reading Fitness model (D-062): one pure function that turns
  * the reader's books, entries, Sandglass sessions, and companion engagement
- * days into everything the Progress tab, book screen, and timer wrap-up
+ * days into everything the Profile tab, book screen, and timer wrap-up
  * display. Pure so it is unit-testable and cheap to memoize.
  */
 
@@ -17,7 +17,12 @@ import {
   type DailyLoad,
 } from '@/domains/fitness/activity';
 import { dayKey, dayKeyFromIso } from '@/domains/fitness/days';
-import { computeDifficulty, type DifficultyResult } from '@/domains/fitness/difficulty';
+import {
+  computeDifficulty,
+  difficultyLabel,
+  type DifficultyLabel,
+  type DifficultyResult,
+} from '@/domains/fitness/difficulty';
 import {
   computeFitnessSeries,
   computeHeatmap,
@@ -72,9 +77,47 @@ export interface ReadingModel<TBook extends ModelBook = ModelBook> {
   books: BookFitness<TBook>[];
   /** Books whose trophy is complete, most recently finished first. */
   trophyCase: BookFitness<TBook>[];
+  /** The trophy case shelved by Difficulty Index band, lightest first (D-064). */
+  trophyGroups: TrophyGroup<TBook>[];
   difficultyByBook: Map<number, number>;
   /** Books with at least one unlocked piece, most pieces first. */
   trophiesInProgress: BookFitness<TBook>[];
+  /** Every unfinished book, most recently active first (D-064). */
+  booksInProgress: BookFitness<TBook>[];
+  /** Local day keys on which the reader logged an entry or a session. */
+  readDays: Set<string>;
+  /** Local day keys with companion engagement (may overlap readDays). */
+  engagementDays: ReadonlySet<string>;
+}
+
+/** One shelf of the trophy case: every completed trophy in a difficulty band. */
+export interface TrophyGroup<TBook extends ModelBook = ModelBook> {
+  label: DifficultyLabel;
+  /** Human range for the band, e.g. "1 - 3.4". */
+  range: string;
+  items: BookFitness<TBook>[];
+}
+
+const TROPHY_BANDS: readonly { label: DifficultyLabel; range: string }[] = [
+  { label: 'Light', range: '1 - 3.4' },
+  { label: 'Moderate', range: '3.5 - 5.4' },
+  { label: 'Demanding', range: '5.5 - 7.4' },
+  { label: 'Dense', range: '7.5 - 10' },
+];
+
+/**
+ * Shelves completed trophies by the book's difficulty band. Every band is
+ * returned (empty ones included) so the case reads as a fixed set of
+ * shelves the reader can fill, lightest to densest.
+ */
+export function groupTrophyCase<TBook extends ModelBook>(
+  trophyCase: readonly BookFitness<TBook>[],
+): TrophyGroup<TBook>[] {
+  return TROPHY_BANDS.map((band) => ({
+    label: band.label,
+    range: band.range,
+    items: trophyCase.filter((item) => difficultyLabel(item.difficulty.score) === band.label),
+  }));
 }
 
 export interface BuildReadingModelInput<TBook extends ModelBook> {
@@ -231,6 +274,16 @@ export function buildReadingModel<TBook extends ModelBook>(
   const trophiesInProgress = books
     .filter((item) => !item.trophy.complete && item.trophy.unlockedCount > 0)
     .sort((a, b) => b.trophy.unlockedCount - a.trophy.unlockedCount);
+  const booksInProgress = books
+    .filter((item) => !item.book.finished_at && !item.trophy.complete)
+    .sort((a, b) => {
+      const left = a.lastActiveDay ?? '';
+      const right = b.lastActiveDay ?? '';
+      if (left !== right) {
+        return left < right ? 1 : -1;
+      }
+      return a.book.name.localeCompare(b.book.name);
+    });
 
   return {
     today,
@@ -244,7 +297,11 @@ export function buildReadingModel<TBook extends ModelBook>(
     streak,
     books,
     trophyCase,
+    trophyGroups: groupTrophyCase(trophyCase),
     difficultyByBook,
     trophiesInProgress,
+    booksInProgress,
+    readDays,
+    engagementDays: input.engagementDays.all,
   };
 }

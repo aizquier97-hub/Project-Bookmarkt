@@ -13,7 +13,7 @@
 
 import type { ActivitySession, BookDayActivity, DailyLoad } from '@/domains/fitness/activity';
 import { sessionPages } from '@/domains/fitness/activity';
-import { dayKeyFromIso, dayRange, shiftDayKey, weekStartKey } from '@/domains/fitness/days';
+import { dayKeyFromIso, dayRange, parseDayKey, shiftDayKey, weekStartKey } from '@/domains/fitness/days';
 
 /** Time constant of the fitness average, in days (Strava's CTL default). */
 export const FITNESS_TIME_CONSTANT = 42;
@@ -143,8 +143,13 @@ export function volumeVersusFourWeekAverage(weekly: readonly WeekVolume[]): {
 }
 
 export interface ProgressSummary {
-  /** Pages per hour across timed sessions with a page range (null = none yet). */
-  pacePagesPerHour: number | null;
+  /**
+   * Pages per minute across timed sessions with a page range, to two
+   * decimals (null = none yet). Minutes, not hours, since D-064: a sitting
+   * is measured in minutes and "0.8 pages/min" is the number a reader can
+   * feel while the glass runs.
+   */
+  pacePagesPerMinute: number | null;
   /** Average timed session length in minutes (null = no sessions). */
   enduranceMinutes: number | null;
   /** Read days per week over the last 28 days. */
@@ -162,6 +167,19 @@ export interface ProgressSummary {
 }
 
 const SUMMARY_WINDOW_DAYS = 28;
+
+/** Pace to two decimals; shared by the summary and the timer's wrap-up. */
+export function roundPace(pagesPerMinute: number): number {
+  return Math.round(pagesPerMinute * 100) / 100;
+}
+
+/** Pages per minute for one sitting, or null without a usable page range. */
+export function sessionPacePagesPerMinute(pages: number | null, durationSeconds: number): number | null {
+  if (pages === null || pages <= 0 || durationSeconds <= 0) {
+    return null;
+  }
+  return roundPace(pages / (durationSeconds / 60));
+}
 
 export function computeProgressSummary(input: {
   activity: readonly BookDayActivity[];
@@ -183,12 +201,12 @@ export function computeProgressSummary(input: {
       pages += sessionPageCount;
       seconds += session.duration_seconds;
     }
-    return seconds > 0 ? Math.round((pages / (seconds / 3600)) * 10) / 10 : null;
+    return seconds > 0 ? roundPace(pages / (seconds / 60)) : null;
   };
   const recentSessions = input.sessions.filter(
     (session) => (dayKeyFromIso(session.started_at) ?? '') >= windowStart,
   );
-  const pacePagesPerHour = paceFrom(recentSessions) ?? paceFrom(input.sessions);
+  const pacePagesPerMinute = paceFrom(recentSessions) ?? paceFrom(input.sessions);
 
   const enduranceFrom = (sessions: readonly ActivitySession[]): number | null => {
     if (sessions.length === 0) {
@@ -215,7 +233,7 @@ export function computeProgressSummary(input: {
   }
 
   return {
-    pacePagesPerHour,
+    pacePagesPerMinute,
     enduranceMinutes,
     consistencyDaysPerWeek,
     averageDifficulty: weightPages > 0 ? Math.round((weightedDifficulty / weightPages) * 10) / 10 : null,
@@ -254,4 +272,101 @@ export function computeHeatmap(loads: readonly DailyLoad[], today: string, weeks
     }
     return { day, level, effort };
   });
+}
+
+export type CalendarDayKind = 'read' | 'current' | 'quiet';
+
+export interface CalendarDay {
+  day: string;
+  kind: CalendarDayKind;
+  pages: number;
+  minutes: number;
+  entries: number;
+  sessions: number;
+  isToday: boolean;
+  isFuture: boolean;
+}
+
+export interface CalendarMonth {
+  /** "YYYY-MM". */
+  month: string;
+  year: number;
+  /** 1-12. */
+  monthIndex: number;
+  /** Nulls pad the first week so the grid starts on Monday. */
+  cells: (CalendarDay | null)[];
+  readDays: number;
+  currentDays: number;
+  pages: number;
+  minutes: number;
+}
+
+/**
+ * One month of the reading calendar (D-064): every day of the month marked
+ * as read (entry or session), Reading Current (companion engagement only),
+ * or quiet, with the month's totals. The grid is Monday-first like the
+ * heatmap so the two agree.
+ */
+export function computeCalendarMonth(input: {
+  loads: readonly DailyLoad[];
+  engagementDays: ReadonlySet<string>;
+  year: number;
+  monthIndex: number;
+  today: string;
+}): CalendarMonth {
+  const { year, monthIndex, today } = input;
+  const monthKey = `${year}-${String(monthIndex).padStart(2, '0')}`;
+  const loadByDay = new Map(input.loads.map((load) => [load.day, load]));
+  const daysInMonth = new Date(year, monthIndex, 0).getDate();
+  const first = parseDayKey(`${monthKey}-01`);
+  const leading = (first.getDay() + 6) % 7; // Monday = 0
+  const cells: (CalendarDay | null)[] = Array.from({ length: leading }, () => null);
+  let readDays = 0;
+  let currentDays = 0;
+  let pages = 0;
+  let minutes = 0;
+  for (let date = 1; date <= daysInMonth; date++) {
+    const day = `${monthKey}-${String(date).padStart(2, '0')}`;
+    const load = loadByDay.get(day);
+    const read = Boolean(load && (load.pages > 0 || load.entries > 0 || load.sessions > 0));
+    const kind: CalendarDayKind = read ? 'read' : input.engagementDays.has(day) ? 'current' : 'quiet';
+    if (kind === 'read') {
+      readDays += 1;
+    } else if (kind === 'current') {
+      currentDays += 1;
+    }
+    pages += load?.pages ?? 0;
+    minutes += load?.minutes ?? 0;
+    cells.push({
+      day,
+      kind,
+      pages: load?.pages ?? 0,
+      minutes: Math.round(load?.minutes ?? 0),
+      entries: load?.entries ?? 0,
+      sessions: load?.sessions ?? 0,
+      isToday: day === today,
+      isFuture: day > today,
+    });
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+  return {
+    month: monthKey,
+    year,
+    monthIndex,
+    cells,
+    readDays,
+    currentDays,
+    pages,
+    minutes: Math.round(minutes),
+  };
+}
+
+/** Shifts a (year, 1-12 month) pair by `delta` months. */
+export function shiftMonth(year: number, monthIndex: number, delta: number): { year: number; monthIndex: number } {
+  const zeroBased = monthIndex - 1 + delta;
+  const shiftedYear = year + Math.floor(zeroBased / 12);
+  const shiftedMonth = ((zeroBased % 12) + 12) % 12;
+  return { year: shiftedYear, monthIndex: shiftedMonth + 1 };
 }
