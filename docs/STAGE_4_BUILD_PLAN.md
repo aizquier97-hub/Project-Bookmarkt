@@ -403,9 +403,9 @@ into the Recall match.
       deleted afterwards): comprehension R4 I4 C3 E3 → 0.938 medium, hash
       `...:690:r2`, repeat from cache, one usage event; cue cards 7
       distinct, backs ≤5 words.
-- [x] Ship the OTA for both runtimes; record group IDs - PR #PRNUM, published
-      2026-10-04 to `preview`: runtime 1.0.1 group `GROUP101`, runtime
-      1.0.0 group `GROUP100`.
+- [x] Ship the OTA for both runtimes; record group IDs - PR #109, published
+      2026-10-04 to `preview`: runtime 1.0.1 group `7b9848e1-0f29-47ad-8377-bf952f6cb0c5`, runtime
+      1.0.0 group `91552287-0f9f-4646-af02-bc7c9314b7ca`.
 
 ---
 

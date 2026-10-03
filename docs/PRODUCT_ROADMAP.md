@@ -1220,9 +1220,9 @@ were sampling variance plus tiles small enough to shrink text to 70%.
       cache hit on the repeat; a cue-card deal returned 7 distinct cards.
 - [x] Tests: blend / damping / grade words, hash `:r2` pins, MAX_PAIRS,
       `formatClock`, `betterResult`; 332 tests across 28 suites.
-- [x] Ship the OTA for both runtimes; record the group IDs - PR #PRNUM,
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #109,
       published 2026-10-04 to `preview`: runtime 1.0.1 group
-      `GROUP101`, runtime 1.0.0 group `GROUP100`.
+      `7b9848e1-0f29-47ad-8377-bf952f6cb0c5`, runtime 1.0.0 group `91552287-0f9f-4646-af02-bc7c9314b7ca`.
 - [ ] Owner on-device check (close and reopen the app twice): the tab bar
       reads Recall; a dealt board is two across with a running clock; the
       Profile's graded books re-grade over the next launches and read
