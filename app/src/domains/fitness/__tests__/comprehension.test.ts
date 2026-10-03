@@ -12,6 +12,8 @@ import {
   COMPREHENSION_MAX,
   COMPREHENSION_MIN,
   computeComprehensionFactor,
+  dampComprehensionByConfidence,
+  describeComprehensionGrade,
 } from '@/domains/fitness/activity';
 import type { Book } from '@/domains/library/service';
 import { supabase } from '@/lib/supabase';
@@ -100,16 +102,17 @@ describe('buildComprehensionMaterial', () => {
 });
 
 describe('hashComprehensionMaterial', () => {
-  it('is the djb2 shape the Edge Function writes', () => {
-    expect(hashComprehensionMaterial('')).toBe('djb2:1505:0');
-    expect(hashComprehensionMaterial('abc')).toMatch(/^djb2:[0-9a-f]+:3$/);
+  it('is the djb2 shape the Edge Function writes, stamped with the rubric version', () => {
+    expect(hashComprehensionMaterial('')).toBe('djb2:1505:0:r2');
+    expect(hashComprehensionMaterial('abc')).toMatch(/^djb2:[0-9a-f]+:3:r2$/);
     expect(hashComprehensionMaterial('abc')).toBe(hashComprehensionMaterial('abc'));
     expect(hashComprehensionMaterial('abc')).not.toBe(hashComprehensionMaterial('abd'));
   });
 
-  it('matches the hash the deployed Edge Function wrote for the same notes', () => {
+  it('matches the hash the deployed Edge Function writes for the same notes', () => {
     // Recorded from a live grading run against the companion function
-    // (D-065 smoke test); the server and client builders must agree.
+    // (D-065 smoke test; D-066 appended the rubric version so every r1
+    // grade is re-assessed). The server and client builders must agree.
     const notes = [
       'page 12 Fyodor Pavlovich is introduced as a buffoon who neglects his sons; the narrator keeps apologising for him, which makes me trust the narrator less.',
       'page 60 Zosima bows to Dmitri. I think he sees the suffering coming - the bow is to the suffering, not the man. Compare with Myshkin in The Idiot.',
@@ -127,7 +130,7 @@ describe('hashComprehensionMaterial', () => {
     );
     const built = buildComprehensionMaterial(rows);
     expect(built.entryCount).toBe(5);
-    expect(hashComprehensionMaterial(built.material)).toBe('djb2:6c2c609c:690');
+    expect(hashComprehensionMaterial(built.material)).toBe('djb2:6c2c609c:690:r2');
   });
 });
 
@@ -190,15 +193,26 @@ describe('backfillComprehensionScores', () => {
 describe('blendComprehensionFactor', () => {
   it('returns the behavioural factor untouched without a rubric score', () => {
     expect(blendComprehensionFactor(1.1, null)).toBe(1.1);
+    expect(blendComprehensionFactor(1.1, Number.NaN)).toBe(1.1);
   });
 
-  it('averages the two on the unit interval and stretches back to [0.6, 1.4]', () => {
+  it('scales the credit above the silent floor by (0.5 + m), clamped to [0.6, 1.4]', () => {
     expect(blendComprehensionFactor(COMPREHENSION_MIN, 0)).toBe(COMPREHENSION_MIN);
     expect(blendComprehensionFactor(COMPREHENSION_MAX, 1)).toBe(COMPREHENSION_MAX);
-    // b = (1.0 - 0.6) / 0.8 = 0.5; m = 1 -> C = 0.6 + 0.8 x 0.75 = 1.2
+    // credit = 1.0 - 0.6 = 0.4; m = 1 -> C = 0.6 + 0.4 x 1.5 = 1.2
     expect(blendComprehensionFactor(1.0, 1)).toBe(1.2);
-    // b = 1; m = 0 -> C = 0.6 + 0.8 x 0.5 = 1.0
+    // credit = 0.8; m = 0 -> C = 0.6 + 0.8 x 0.5 = 1.0
     expect(blendComprehensionFactor(COMPREHENSION_MAX, 0)).toBe(1.0);
+  });
+
+  it('leaves the proxy alone at the neutral grade a faithful plot-logger earns (D-066)', () => {
+    expect(blendComprehensionFactor(1.07, 0.5)).toBe(1.07);
+    expect(blendComprehensionFactor(0.9, 0.5)).toBe(0.9);
+  });
+
+  it('never moves a silent day off the floor, whatever the grade', () => {
+    expect(blendComprehensionFactor(COMPREHENSION_MIN, 1)).toBe(COMPREHENSION_MIN);
+    expect(blendComprehensionFactor(0.55, 1)).toBe(COMPREHENSION_MIN);
   });
 
   it('flows through the activity rows when a book has a score', () => {
@@ -214,5 +228,37 @@ describe('blendComprehensionFactor', () => {
     expect(behavioural).toBeGreaterThanOrEqual(1.0);
     expect(rows[0].comprehension).toBe(blendComprehensionFactor(behavioural, 1));
     expect(rows[0].comprehension).toBeGreaterThan(behavioural);
+  });
+});
+
+describe('dampComprehensionByConfidence', () => {
+  it('trusts a high-confidence grade fully', () => {
+    expect(dampComprehensionByConfidence(0.9, 'high')).toBeCloseTo(0.9);
+    expect(dampComprehensionByConfidence(0.2, 'high')).toBeCloseTo(0.2);
+  });
+
+  it('pulls medium and low grades toward neutral by a quarter and a half', () => {
+    expect(dampComprehensionByConfidence(0.9, 'medium')).toBeCloseTo(0.8);
+    expect(dampComprehensionByConfidence(0.9, 'low')).toBeCloseTo(0.7);
+    expect(dampComprehensionByConfidence(0.1, 'low')).toBeCloseTo(0.3);
+    expect(dampComprehensionByConfidence(0.9, null)).toBeCloseTo(0.7);
+    expect(dampComprehensionByConfidence(0.9, 'odd')).toBeCloseTo(0.7);
+  });
+
+  it('leaves the neutral grade where it is and clamps the input', () => {
+    expect(dampComprehensionByConfidence(0.5, 'low')).toBe(0.5);
+    expect(dampComprehensionByConfidence(1.7, 'high')).toBe(1);
+  });
+});
+
+describe('describeComprehensionGrade', () => {
+  it('names the four bands', () => {
+    expect(describeComprehensionGrade(1)).toBe('deep');
+    expect(describeComprehensionGrade(0.85)).toBe('deep');
+    expect(describeComprehensionGrade(0.75)).toBe('reflective');
+    expect(describeComprehensionGrade(0.65)).toBe('reflective');
+    expect(describeComprehensionGrade(0.5)).toBe('factual');
+    expect(describeComprehensionGrade(0.45)).toBe('factual');
+    expect(describeComprehensionGrade(0.3)).toBe('thin');
   });
 });

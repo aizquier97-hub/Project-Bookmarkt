@@ -1,7 +1,9 @@
 import {
   applyFlip,
+  betterResult,
   buildBoard,
   deckOverlap,
+  formatClock,
   hasEnoughForBoard,
   hideMismatch,
   isFaceUp,
@@ -54,6 +56,10 @@ describe('shuffle', () => {
 describe('buildBoard', () => {
   it('refuses a deck below the minimum', () => {
     expect(() => buildBoard([card(1), card(2)])).toThrow(/at least/);
+  });
+
+  it('deals a two-across board of ten tiles at most (D-066)', () => {
+    expect(MAX_PAIRS).toBe(5);
   });
 
   it('deals two tiles per card, capped at MAX_PAIRS, every pair complete', () => {
@@ -143,5 +149,37 @@ describe('deckOverlap', () => {
     expect(deckOverlap(previous, [{ front: 'cue 1', back: 'x' }])).toBe(1);
     expect(deckOverlap(previous, [card(7)])).toBe(0);
     expect(deckOverlap(previous, [])).toBe(1);
+  });
+});
+
+describe('formatClock', () => {
+  it('reads like a stopwatch and never goes negative', () => {
+    expect(formatClock(0)).toBe('0:00');
+    expect(formatClock(7)).toBe('0:07');
+    expect(formatClock(65)).toBe('1:05');
+    expect(formatClock(750)).toBe('12:30');
+    expect(formatClock(59.9)).toBe('0:59');
+    expect(formatClock(-3)).toBe('0:00');
+  });
+});
+
+describe('betterResult', () => {
+  const slow = { seconds: 40, turns: 9, pairs: 5 };
+  const quick = { seconds: 31, turns: 12, pairs: 5 };
+  const quickFewerTurns = { seconds: 31, turns: 8, pairs: 5 };
+
+  it('takes the first clear as the record', () => {
+    expect(betterResult(null, slow)).toBe(slow);
+  });
+
+  it('prefers fewer seconds, whatever the turn count', () => {
+    expect(betterResult(slow, quick)).toBe(quick);
+    expect(betterResult(quick, slow)).toBe(quick);
+  });
+
+  it('breaks a tie on time by fewer turns and keeps the holder otherwise', () => {
+    expect(betterResult(quick, quickFewerTurns)).toBe(quickFewerTurns);
+    expect(betterResult(quickFewerTurns, quick)).toBe(quickFewerTurns);
+    expect(betterResult(quick, { ...quick })).toBe(quick);
   });
 });

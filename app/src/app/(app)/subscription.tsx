@@ -127,8 +127,8 @@ export default function SubscriptionScreen() {
         </View>
         <Text style={styles.title}>The Book Club</Text>
         <Text style={styles.body}>
-          Socratic discussions, retellings from your own notes, cue cards, and search by meaning -
-          all grounded in what you have written, never past where you have read.
+          Socratic discussions, retellings from your own notes, the Recall match, and search by
+          meaning - all grounded in what you have written, never past where you have read.
         </Text>
         <Text style={styles.body}>
           Capturing notes, character maps, and bookmarks stays free forever, subscription or not.

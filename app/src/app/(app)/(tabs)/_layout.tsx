@@ -66,12 +66,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="cards"
+        name="recall"
         options={{
-          title: 'Cue Cards',
-          tabBarLabel: 'Cards',
+          title: 'Recall',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="albums-outline" size={size} color={color} />
+            <Ionicons name="extension-puzzle-outline" size={size} color={color} />
           ),
         }}
       />

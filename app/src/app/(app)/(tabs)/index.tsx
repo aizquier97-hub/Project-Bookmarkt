@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { describeComprehensionGrade } from '@/domains/fitness/activity';
 import { describeDifficultySource, difficultyLabel } from '@/domains/fitness/difficulty';
 import {
   describeFitnessTrend,
@@ -509,7 +510,7 @@ function BookRow({ item, onPress }: { item: BookFitness<Book>; onPress: () => vo
         {item.minutes > 0 ? `, ${item.minutes} timed min` : ''}
         {item.streak.current > 0 ? ` - ${item.streak.current}-day streak` : ''}
         {typeof item.book.comprehension_score === 'number'
-          ? ` - understanding ${Math.round(item.book.comprehension_score * 100)}%`
+          ? ` - comprehension ${Math.round(item.book.comprehension_score * 100)}%, ${describeComprehensionGrade(item.book.comprehension_score)}`
           : ''}
       </Text>
       <TrophyStrip progress={item.trophy} compact />
@@ -543,11 +544,14 @@ function Explainer({ model }: { model: ReadingModel<Book> }) {
           <Text style={styles.explainerHeading}>Comprehension factor (x0.6 - x1.4)</Text>
           <Text style={styles.explainerBody}>
             Silent timed reading earns x0.6. Any bookmark that day adds +0.4; up to 80 words of notes
-            add +0.2; an Important flag +0.1; reflecting on a quote +0.1. With the companion, your
-            notes on each book are also graded for understanding - recall, interpretation,
-            connection, and evaluation, each 0-4 - and that grade (shown as “understanding N%” on
-            the book) counts for half the factor: C = 0.6 + 0.8 x (half the behaviour score + half
-            the grade). Books are regraded only when you write something new.
+            add +0.2; an Important flag +0.1; reflecting on a quote +0.1. With the companion, each
+            book’s notes are also graded for what they show you understood: recall (half the grade -
+            specific, accurate tracking of people, events, and ideas), interpretation (a quarter -
+            the why), connection and evaluation (an eighth each), each marked 0-4. The grade scales
+            the credit your writing earned that day: C = 0.6 + (behaviour score - 0.6) x (0.5 +
+            grade). Accurate, factual notes grade 50% and leave the credit as it is; reflective
+            notes add up to half again; thin notes take some away. A grade from only a few notes
+            counts for less. Books are regraded only when you write something new.
           </Text>
           <Text style={styles.explainerHeading}>Session Effort</Text>
           <Text style={styles.explainerBody}>

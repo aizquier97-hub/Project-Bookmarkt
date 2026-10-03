@@ -1,4 +1,4 @@
-# Bookmarkt Reading Metrics (D-062, D-063, D-064, D-065)
+# Bookmarkt Reading Metrics (D-062, D-063, D-064, D-065, D-066)
 
 This document is the reference for every number on the Profile tab (the
 home tab since D-064; "Progress" until then), the reading calendar, the
@@ -180,7 +180,8 @@ face value; a 10/10 book doubles them; a 1/10 book counts a fifth).
 Per book per day. Since D-065 the factor has two parts: a deterministic
 **behaviour proxy** `Cb` that every reader gets, and a **model grade** `m`
 of how deeply the notes understand the book, blended in for companion
-subscribers. A book without a grade uses `Cb` unchanged.
+subscribers (rubric r2 and confidence weighting since D-066). A book
+without a grade uses `Cb` unchanged.
 
 ### 3.1 Behaviour proxy `Cb` (v1, D-062)
 
@@ -198,32 +199,44 @@ Cb = min(Cb, 1.4)
 `note_words` counts the reader's own words: note bodies and quote
 reflections. Quoted passages are the author's words and do not count.
 
-### 3.2 Model grade `m` (v2, D-065)
+### 3.2 Model grade `m` (v2.1 - rubric r2, D-065 / D-066)
 
 The owner's round-2 feedback: the factor should also judge the *depth* of
 what was written, not just that something was. The `companion` Edge
 Function's `comprehension` feature grades one book's notes against a
-four-mark rubric. Each mark is an integer 0-4:
+four-mark rubric - **R.I.C.E.**: Recall, Interpretation, Connection,
+Evaluation. Each mark is an integer 0-4. The grader reads the notes, not
+the reader's mind: a mark measures what the notes *demonstrate*.
 
-| Mark | Weight | What earns it |
+| Mark | Weight (r2) | What earns it |
 | --- | --- | --- |
-| recall `R` | 0.3 | Specific people, events, places, ideas tracked accurately and in sequence (0 none, 2 some specifics, 4 precise and sustained) |
-| interpretation `I` | 0.3 | Explains *why* - motives, causes, themes, meaning - rather than only what happened |
-| connection `C` | 0.2 | Relates parts of the book to each other, to other books, or to the reader's own life |
-| evaluation `E` | 0.2 | Weighs, questions, or judges the book with reasons |
+| recall `R` | 0.5 | Literal comprehension: specific people, events, places, ideas tracked accurately and in sequence (0 none or wrong, 2 some specifics, 4 precise and sustained) |
+| interpretation `I` | 0.25 | Explains *why* - motives, causes, themes, meaning - rather than only what happened |
+| connection `C` | 0.125 | Relates parts of the book to each other, to other books, or to the reader's own life |
+| evaluation `E` | 0.125 | Weighs, questions, or judges the book with reasons |
 
 ```
-m = (0.3 R + 0.3 I + 0.2 C + 0.2 E) / 4        in [0, 1], three decimals
+m = (0.5 R + 0.25 I + 0.125 C + 0.125 E) / 4      in [0, 1], three decimals
 ```
+
+Accurate literal recall - the thing notes most reliably show - is half
+the grade. A reader whose notes track the plot faithfully and never
+interpret scores R4 I0 C0 E0 = **0.5**, the neutral grade; notes that also
+interpret about 0.75; the full rubric 1.0. (D-065's weights 0.3/0.3/0.2/0.2
+gave that same plot-tracker 0.30, and the round-3 x1.07 report traced to
+exactly this: four books, all recall 4, all pulled down for what they had
+not written. Rubric r2 corrects the design, not the arithmetic.)
 
 Rules the grader is given: judge the notes as written; do not reward
 length or penalise precise brevity; `[Quote]` lines are attention, not
-understanding, unless a Reflection follows; never fill gaps from the
-model's own knowledge of the book (naming something that happens is
-recall, not interpretation). Confidence is `high` with 8+ substantive
-notes, `medium` with 3-7, `low` otherwise or when most lines are copied
-quotes. A one-sentence rationale (≤240 chars, "Your notes ...") names the
-strongest and weakest mark.
+understanding, unless a Reflection follows; the model may use its own
+knowledge of the book **only to check that stated facts are accurate**,
+never to credit content the notes do not contain; for a book it does not
+know, judge specificity and internal consistency; absent interpretation
+never lowers recall. Confidence is `high` with 8+ substantive notes,
+`medium` with 3-7, `low` otherwise or when most lines are copied quotes.
+A one-sentence rationale (<=240 chars, "Your notes ...") names what the
+notes show best and what they could show more of.
 
 **Material.** Only that book's entries: oldest first, one per line, the
 note text with whitespace collapsed and ` || Reflection: ...` appended
@@ -233,37 +246,57 @@ or the companion's chat history is sent.
 
 **Caching and cost.** The grade (`comprehension_score`, `_confidence`,
 `_rationale`, `_marks`, `_scored_at`) is stored on the `topics` row with a
-djb2 `comprehension_hash` of the material. The function rebuilds the
-material under the caller's RLS and, if the hash matches, answers from the
-cache **before** the quota gate - no model call, no quota. A book with no
-notes answers `NO_ENTRIES` the same way. Only a changed book spends one of
-the 20 daily grades (`COMPANION_COMPREHENSION_DAILY_LIMIT`). Gemini 2.5
-Flash, temperature 0, thinking off, JSON output; roughly 600 prompt tokens
-for five notes.
+djb2 `comprehension_hash` of the material, suffixed with the rubric
+version (`...:r2`) so a rubric change re-grades every book once. The
+function rebuilds the material under the caller's RLS and, if the hash
+matches, answers from the cache **before** the quota gate - no model call,
+no quota. A book with no notes answers `NO_ENTRIES` the same way. Only a
+changed book (or a stale rubric) spends one of the 20 daily grades
+(`COMPANION_COMPREHENSION_DAILY_LIMIT`). Gemini 2.5 Flash, temperature 0,
+thinking off, JSON output; roughly 700 prompt tokens for five notes.
 
 **Gating.** The standard companion entitlement (comped / trial / active;
 `402 COMPANION_SUBSCRIPTION_REQUIRED` otherwise). The owner's dev comp
 passes today. The client (`ComprehensionBackfill`, signed-in shell)
 mirrors the material builder and hash exactly - a unit test pins the live
-hash `djb2:6c2c609c:690` from the deploy-day smoke test - and grades up to
-four stale books per launch, one at a time, for entitled readers only.
+hash `djb2:6c2c609c:690:r2` from the deploy-day smoke test - and grades up
+to four stale books per launch, one at a time, for entitled readers only.
 
-### 3.3 Blend
+### 3.3 Confidence weighting and blend (v2.1, D-066)
 
-Both parts are mapped to the unit interval, averaged with equal weight,
-and stretched back to the factor's range:
+**Confidence weighting.** A grade from a few notes is a weak witness, so
+the grader's own confidence pulls it toward neutral before it touches the
+factor:
 
 ```
-b = (Cb - 0.6) / 0.8
-C = 0.6 + 0.8 * (0.5 b + 0.5 m)       when the book has a grade
-C = Cb                                 otherwise
+m' = 0.5 + (m - 0.5) * w        w = 1.0 high, 0.75 medium, 0.5 low
 ```
+
+A two-note book graded 0.9 at low confidence enters the blend as 0.7; the
+same grade at high confidence enters as 0.9.
+
+**Blend.** The grade scales the *credit* the day's writing earned above
+the silent floor; the floor itself never moves:
+
+```
+C = clamp(0.6 + (Cb - 0.6) * (0.5 + m'), 0.6, 1.4)    when the book has a grade
+C = Cb                                                 otherwise
+```
+
+So at the neutral grade (m' = 0.5) the behaviour proxy passes through
+unchanged; a full grade adds half again to the credit; a zero grade halves
+it. A silent day stays at 0.6 whatever the book's grade. (D-065 averaged
+the two on the unit interval, which let a missing interpretation mark
+drag a faithful plot-tracker *below* the proxy; this form cannot.)
 
 Worked example: a day with one 60-word note on a book graded
-R4 I4 C4 E2 (`m` = 0.9): `Cb` = 0.6 + 0.4 + 0.15 = 1.15, `b` = 0.6875,
-`C` = 0.6 + 0.8 × 0.79375 = 1.235 → **1.23** (rounded to two decimals as
-the code does). The same day on an ungraded book stays at 1.15. The
-Profile shows the grade on each book's row as "understanding 90%".
+R4 I4 C3 E3 at medium confidence: `m` = (2 + 1 + 0.375 + 0.375) / 4 =
+0.9375, `m'` = 0.5 + 0.4375 x 0.75 = 0.828, `Cb` = 0.6 + 0.4 + 0.15 = 1.15,
+`C` = 0.6 + 0.55 x 1.328 = 1.330 -> **1.33** (rounded to two decimals as
+the code does). The same day on an ungraded book stays at 1.15; on a book
+graded R4 I0 C0 E0 (`m` = 0.5) it also stays at 1.15. The Profile shows
+the raw grade on each book's row as "comprehension 94%, deep" - the word
+is `deep` at 85%+, `reflective` at 65%+, `factual` at 45%+, `thin` below.
 
 ## 4. Session Effort `E` and daily load
 
@@ -392,8 +425,14 @@ action.
   notes can hash differently from the server's view and trigger one cached
   (free) call per launch; harmless, but a `since` cursor would remove it.
 - The rubric treats a very short set of notes honestly (`low` confidence),
-  but confidence does not yet soften the blend; weighting `m` by confidence
-  is the obvious refinement once real distributions are seen.
+  and since D-066 confidence weights the blend (section 3.3). The weights
+  1 / 0.75 / 0.5 are a first guess; revisit once real grade distributions
+  are seen. Rubric r2's recall-heavy weighting means a reader who only
+  logs plot can never fall below neutral but also never rises above it
+  without interpreting - by design, and worth saying in the app if readers
+  ask why their grade sits at 50%.
+- The Recall match's best time is stored on the device only
+  (`cueCards/records.ts`); it does not sync and is lost with the app.
 - Vocabulary richness (type-token ratio of the reader's notes) was
   considered and deferred - too noisy below ~500 words.
 - Pages estimated from minutes use the reader's own median pace; before any

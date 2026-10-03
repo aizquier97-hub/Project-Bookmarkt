@@ -1,17 +1,18 @@
 /**
- * Cue-card memory match (D-065): a concentration game dealt from the
- * reader's own cue cards. Each card contributes one pair - its cue face and
- * its answer face - and the reader turns two tiles at a time looking for
- * the pair that belongs together. Pure logic lives here so the board, the
- * flip rules, and the "enough material?" checks are testable without UI.
+ * Recall match (D-065, game-only since D-066): a concentration game dealt
+ * from the reader's own cue cards. Each card contributes one pair - its cue
+ * face and its answer face - and the reader turns two tiles at a time
+ * looking for the pair that belongs together, against a clock. Pure logic
+ * lives here so the board, the flip rules, the clock, and the "enough
+ * material?" checks are testable without UI.
  */
 
 import type { CompanionCueCard } from '@/domains/companion/api';
 
 /** Fewest cards that make a game worth dealing (6 tiles). */
 export const MIN_PAIRS = 3;
-/** Most cards used per board (12 tiles, three across). */
-export const MAX_PAIRS = 6;
+/** Most cards used per board (10 tiles, two across - D-066 made the tiles bigger). */
+export const MAX_PAIRS = 5;
 /** Two decks this alike mean the records have no fresh cues left. */
 export const DECK_OVERLAP_CEILING = 0.8;
 /** How long a mismatched pair stays face up before turning back (ms). */
@@ -163,3 +164,31 @@ export function deckOverlap(
 /** The copy shown when the records cannot support a fresh board. */
 export const NEED_MORE_MATERIAL =
   'Your records cannot deal a fresh board yet. Add a few more entries or characters and come back.';
+
+/** Whole seconds as a stopwatch reads them: 0:07, 1:05, 12:30. */
+export function formatClock(seconds: number): string {
+  const whole = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(whole / 60);
+  const rest = whole % 60;
+  return `${minutes}:${rest < 10 ? '0' : ''}${rest}`;
+}
+
+/** A finished game: how long it took and how many pairs of tiles were turned. */
+export interface GameResult {
+  seconds: number;
+  turns: number;
+  pairs: number;
+}
+
+/**
+ * The better of two results for the record: fewer seconds wins; equal
+ * seconds fall back to fewer turns. Records are kept per board size, so
+ * callers compare results of the same `pairs` only.
+ */
+export function betterResult(current: GameResult | null, next: GameResult): GameResult {
+  if (!current) return next;
+  if (next.seconds !== current.seconds) {
+    return next.seconds < current.seconds ? next : current;
+  }
+  return next.turns < current.turns ? next : current;
+}

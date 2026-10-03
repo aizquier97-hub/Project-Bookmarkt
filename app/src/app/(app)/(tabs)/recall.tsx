@@ -14,11 +14,12 @@ import { queryKeys } from '@/lib/queryKeys';
 import { colors, fonts, gold } from '@/lib/theme';
 
 /**
- * The Cue Cards tab (Interface v2.0): flip-card decks drawn only from the
- * reader's own entries and character maps. Book first, deck second - each
- * deck covers one book. The deck itself lives on the cue-cards screen.
+ * The Recall tab (D-066, formerly Cue Cards): a timed memory-match game
+ * dealt only from the reader's own entries and character maps. Book first,
+ * board second - each board covers one book. The game itself lives on the
+ * match screen.
  */
-export default function CueCardsTab() {
+export default function RecallTab() {
   const router = useRouter();
   const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
   const summariesQuery = useQuery({
@@ -55,7 +56,7 @@ export default function CueCardsTab() {
   if (sortedBooks.length === 0) {
     return (
       <View style={styles.stateContainer}>
-        <EmptyState message="Add a book to your library first - each cue-card deck covers one book." />
+        <EmptyState message="Add a book to your library first - each Recall board covers one book." />
       </View>
     );
   }
@@ -69,24 +70,22 @@ export default function CueCardsTab() {
       ListHeaderComponent={
         <View style={styles.header}>
           <View style={styles.badgeRow}>
-            <Ionicons name="albums" size={16} color={gold.deep} />
+            <Ionicons name="extension-puzzle" size={16} color={gold.deep} />
             <Text style={styles.badgeText}>Recall before you reread</Text>
           </View>
           <Text style={styles.lede}>
-            A deck of real cue cards - terse on the front, the answer on the back, press to flip.
-            Every card is drawn from your own entries and character maps, nothing else. The small
-            effort of recalling is what makes a book stay with you. Any deck also deals a
-            memory-match board: find each cue’s answer among the face-down tiles.
+            A memory-match board dealt from your own records: a cue on one tile, the answer from
+            your entries on another, all face down. Turn two at a time and pair them up against the
+            clock. Every card comes from what you wrote, nothing else - and the small effort of
+            recalling is what makes a book stay with you. Beat your best time, then deal new cards.
           </Text>
-          <Text style={styles.pickHeading}>Which book should the deck cover?</Text>
+          <Text style={styles.pickHeading}>Which book should the board cover?</Text>
         </View>
       }
       renderItem={({ item: book }) => (
         <BookPickerRow
           book={book}
-          onPress={() =>
-            router.push({ pathname: '/cue-cards', params: { id: String(book.id) } })
-          }
+          onPress={() => router.push({ pathname: '/match', params: { id: String(book.id) } })}
         />
       )}
     />

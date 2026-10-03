@@ -6,7 +6,7 @@ import { colors, fonts, gold } from '@/lib/theme';
 /**
  * The locked-state card for premium companion features (Phase-3 billing is
  * not live yet, so this explains the feature without a buy button). Shared
- * by the Book Club, Cue Cards, and story-so-far screens.
+ * by the Book Club, Recall match, and story-so-far screens.
  */
 export function PremiumOffer({ title, body }: { title: string; body: string }) {
   return (

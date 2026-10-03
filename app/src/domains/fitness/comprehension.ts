@@ -1,11 +1,12 @@
 /**
- * Model-assessed comprehension (D-065). The companion grades a book's notes
- * against a four-mark rubric (recall, interpretation, connection,
- * evaluation) and caches the result on the topic row, keyed by a hash of
- * the material it read. This module mirrors the server's material builder
- * and hash so the client can tell, without a network call, which books are
- * unassessed or have new writing since their last grading - and backfills
- * them a few at a time, exactly like the Difficulty Index (D-063).
+ * Model-assessed comprehension (D-065, rubric r2 since D-066). The companion
+ * grades a book's notes against a four-mark rubric (recall, interpretation,
+ * connection, evaluation) and caches the result on the topic row, keyed by a
+ * hash of the material it read plus the rubric revision. This module mirrors
+ * the server's material builder and hash so the client can tell, without a
+ * network call, which books are unassessed, have new writing since their
+ * last grading, or were graded under an older rubric - and backfills them a
+ * few at a time, exactly like the Difficulty Index (D-063).
  *
  * The backfill only runs for entitled readers: the companion gate on the
  * server would deny everyone else anyway, so skipping it saves a request
@@ -28,6 +29,13 @@ export const COMPREHENSION_BACKFILL_PER_LAUNCH = 4;
 
 /** Entries per book the server grades (newest first when a book has more). */
 export const COMPREHENSION_MAX_ENTRIES = 400;
+
+/**
+ * Rubric revision, appended to the hash on both sides so a reweighted
+ * rubric regrades every cached book. Must match the Edge Function's
+ * COMPREHENSION_RUBRIC_VERSION.
+ */
+export const COMPREHENSION_RUBRIC_VERSION = 'r2';
 
 export interface ComprehensionEntry {
   text: string | null;
@@ -76,13 +84,16 @@ export function buildComprehensionMaterial(rows: readonly ComprehensionEntry[]):
   return { material: kept.join('\n'), entryCount: kept.length };
 }
 
-/** djb2 content hash, same shape as the Edge Function's `hashContent`. */
+/**
+ * djb2 content hash in the Edge Function's `hashContent` shape, suffixed
+ * with the rubric revision (`djb2:<hex>:<length>:r2`).
+ */
 export function hashComprehensionMaterial(value: string): string {
   let hash = 5381;
   for (let i = 0; i < value.length; i += 1) {
     hash = ((hash << 5) + hash + value.charCodeAt(i)) | 0;
   }
-  return `djb2:${(hash >>> 0).toString(16)}:${value.length}`;
+  return `djb2:${(hash >>> 0).toString(16)}:${value.length}:${COMPREHENSION_RUBRIC_VERSION}`;
 }
 
 type ComprehensionBook = Pick<Book, 'id' | 'comprehension_hash' | 'comprehension_score'>;

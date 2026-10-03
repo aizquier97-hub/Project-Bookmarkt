@@ -57,7 +57,7 @@ Policy:
   to the older value, publish again, and `git checkout -- app.json`. Code
   that touches the newer module must degrade when it is absent (D-061's lazy
   import does). First done for D-062 on 2026-10-03; repeated for D-063,
-  D-064, and D-065.
+  D-064, D-065, and D-066.
 - **Local prerequisites for `eas update`:** `npx --yes eas-cli@latest`
   authenticates from the EAS login in `~/.expo/state.json`; the bundle reads
   `app/.env` (gitignored) for the `EXPO_PUBLIC_*` values, which must mirror
@@ -111,12 +111,17 @@ Policy:
    afterwards) exercises the live endpoint without touching reader data -
    first done for `book-difficulty` (D-063), repeated for the companion's
    `comprehension` feature (D-065: fresh call, cached call, persisted grade,
-   single usage row, then the account removed).
+   single usage row, then the account removed) and again for D-066's rubric
+   r2 and the tightened `cue_cards` deal.
 4. Companion quotas are per-feature daily limits read from function env at
    request time; each has a built-in default and an override secret
    (`COMPANION_*_DAILY_LIMIT`) - `comprehension` defaults to 20/day under
    `COMPANION_COMPREHENSION_DAILY_LIMIT` (D-065). A cache hit or an empty
-   book is served before the quota gate and never consumes a unit.
+   book is served before the quota gate and never consumes a unit. A rubric
+   change is shipped by bumping `COMPREHENSION_RUBRIC_VERSION` on **both**
+   the function and the client (`fitness/comprehension.ts`): the hash
+   suffix changes, every cached grade goes stale, and each reader's books
+   re-grade at most four per launch within the daily quota (D-066).
 
 ### Application rollback
 
