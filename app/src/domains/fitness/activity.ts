@@ -144,12 +144,27 @@ export function dampComprehensionByConfidence(
   return 0.5 + (m - 0.5) * weight;
 }
 
-/** The one-word reading of a grade shown beside its percentage on the Profile. */
+/**
+ * The one-word reading of a grade shown beside its percentage on the
+ * Profile. Takes the unit interval, so it serves both the per-book model
+ * grade m and `comprehensionPercent() / 100`, which share the neutral 0.5.
+ */
 export function describeComprehensionGrade(model: number): 'deep' | 'reflective' | 'factual' | 'thin' {
   if (model >= 0.85) return 'deep';
   if (model >= 0.65) return 'reflective';
   if (model >= 0.45) return 'factual';
   return 'thin';
+}
+
+/**
+ * The comprehension factor as the 0-100 score the Profile shows (D-067):
+ * a straight rescale of [0.6, 1.4], so a silent session is 0, the neutral
+ * x1.0 is 50, and the ceiling is 100. Reading Fitness keeps multiplying by
+ * the factor itself; only the display changes.
+ */
+export function comprehensionPercent(factor: number): number {
+  const clamped = Math.min(COMPREHENSION_MAX, Math.max(COMPREHENSION_MIN, factor));
+  return Math.round(((clamped - COMPREHENSION_MIN) / (COMPREHENSION_MAX - COMPREHENSION_MIN)) * 100);
 }
 
 /** Session Effort E = pages x (D / 5) x C. */

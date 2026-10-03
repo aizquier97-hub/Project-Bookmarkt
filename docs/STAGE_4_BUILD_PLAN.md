@@ -407,6 +407,25 @@ into the Recall match.
       2026-10-04 to `preview`: runtime 1.0.1 group `7b9848e1-0f29-47ad-8377-bf952f6cb0c5`, runtime
       1.0.0 group `91552287-0f9f-4646-af02-bc7c9314b7ca`.
 
+**Drop 3 follow-up (D-067) - comprehension shown as a 0-100 score.**
+
+- [x] `activity.ts` `comprehensionPercent(factor)` - linear rescale of
+      [0.6, 1.4] onto 0-100 (neutral x1.0 = 50), clamped; the band word
+      comes from `describeComprehensionGrade(S / 100)`, which already took
+      the unit interval.
+- [x] Profile `index.tsx`: Comprehension `Metric` value `${S}%`, unit the
+      capitalised band word (`comprehensionWord`, next to `formatFitness`)
+      or "of 100" before any data; `BookRow` meta "notes graded N%, word";
+      Explainer heading "Comprehension (0-100%)" with the paragraph
+      rewritten in points. Copy: `reading-timer.tsx` note hint and entry
+      prompt, `quotes.tsx` reflection hint → "comprehension score".
+- [x] Tests: `comprehension.test.ts` `comprehensionPercent` (0 / 50 / 59 /
+      75 / 91 / 100, clamp, shared band words). 335 tests / 28 suites; tsc
+      and lint clean. No server or migration work.
+- [x] Ship the OTA for both runtimes; record group IDs - PR #110, published
+      2026-10-04 to `preview`: runtime 1.0.1 group `20b42395-d1f5-4fec-9a70-96fe445ad60d`, runtime 1.0.0
+      group `c89f7b3c-4259-4ca4-9008-4566574a2dd1`.
+
 ---
 
 ## Distribution notes

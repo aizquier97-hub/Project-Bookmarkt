@@ -337,7 +337,7 @@ function ReflectionSheet({
             />
             <Text style={styles.sheetHint}>
               {countWords(draft)} {countWords(draft) === 1 ? 'word' : 'words'}. Reflections lift the
-              comprehension factor behind your Reading Fitness.
+              comprehension score behind your Reading Fitness.
             </Text>
             <View style={styles.sheetActions}>
               <Pressable style={styles.secondaryButton} onPress={onClose} accessibilityRole="button">

@@ -1,4 +1,4 @@
-# Bookmarkt Reading Metrics (D-062, D-063, D-064, D-065, D-066)
+# Bookmarkt Reading Metrics (D-062, D-063, D-064, D-065, D-066, D-067)
 
 This document is the reference for every number on the Profile tab (the
 home tab since D-064; "Progress" until then), the reading calendar, the
@@ -295,8 +295,34 @@ R4 I4 C3 E3 at medium confidence: `m` = (2 + 1 + 0.375 + 0.375) / 4 =
 `C` = 0.6 + 0.55 x 1.328 = 1.330 -> **1.33** (rounded to two decimals as
 the code does). The same day on an ungraded book stays at 1.15; on a book
 graded R4 I0 C0 E0 (`m` = 0.5) it also stays at 1.15. The Profile shows
-the raw grade on each book's row as "comprehension 94%, deep" - the word
+the raw grade on each book's row as "notes graded 94%, deep" - the word
 is `deep` at 85%+, `reflective` at 65%+, `factual` at 45%+, `thin` below.
+
+### 3.4 Display: the 0-100 Comprehension score (D-067)
+
+Readers do not think in multipliers, so the Profile never shows `C` as
+"x1.07" (the owner's round-3 follow-up: "better understood as a percent
+/100"). The factor is rescaled onto 0-100 for display only:
+
+```
+S = round((C - 0.6) / 0.8 * 100)        0 = silent floor, 50 = neutral x1.0, 100 = ceiling
+```
+
+In behaviour terms a bookmark that day is worth 50 points, 80 words of
+notes 25, an Important flag 12.5, a quote reflection 12.5; the model grade
+then scales those points exactly as section 3.3 scales the credit. The
+**Comprehension tile** in "This month's shape" shows `S` of the
+pages-weighted 28-day mean factor (`averageComprehension`, so x1.07 reads
+59%, x1.20 reads 75%, the worked example's x1.33 reads 91%) with the same
+one-word band as the per-book grade underneath (`S / 100` through the
+`deep` / `reflective` / `factual` / `thin` thresholds, capitalised like
+the Difficulty band), in place of the former "x1.07 factor". Each graded
+book's row keeps the **notes grade** `m` as a percent, now labelled "notes
+graded N%" so the two percentages cannot be mistaken for one another: the
+row is what the companion read in the notes; the tile is what the month's
+reading earned. Session Effort and Reading Fitness still multiply by `C`
+itself; the tile explainer says so in its last sentence. Code:
+`comprehensionPercent()` in `domains/fitness/activity.ts`.
 
 ## 4. Session Effort `E` and daily load
 
@@ -348,7 +374,7 @@ outrank a month of evenings.
 | Endurance | Mean timed session length, minutes |
 | Consistency | Read days per week over the last 28 days |
 | Difficulty | Pages-weighted mean `D`, last 28 days |
-| Comprehension | Pages-weighted mean `C`, last 28 days |
+| Comprehension | Pages-weighted mean `C`, last 28 days, shown as the 0-100 score of §3.4 (`comprehensionPercent`) with its band word; the factor itself is never displayed (D-067) |
 | Reading days | 16-week heatmap; level 0-4 by load quartile. Tapping it opens the **reading calendar** (D-064) |
 
 ### 6.1 Reading calendar (D-064)
