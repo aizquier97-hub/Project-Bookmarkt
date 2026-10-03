@@ -243,8 +243,15 @@ before any social feature; see roadmap §13 "Beta engagement layer" and
       `topics.difficulty_override` resolve. `database.types.ts` checked
       against `supabase gen types` (only pre-existing D-052 omissions
       differ).*
-- [ ] Ship the OTA (`eas update --channel preview`) after the PR merges.
-- [ ] Owner on-device check: timer flow end to end (finish and leave-early),
+- [x] Ship the OTA (`eas update --channel preview`). *Done 2026-10-03 from
+      commit `9527c59`, published for both preview runtimes: 1.0.1 (group
+      `47304468-aaa2-4ffa-b503-0c4a1b463d55`) and 1.0.0 (group
+      `a570fafd-e06a-41cc-8ed8-d9acb8bf81aa`), android + ios. The 1.0.0
+      publish exists because the only 1.0.1 binary (2026-09-04, D-061) was
+      never confirmed installed and every September OTA targeted 1.0.0;
+      D-062 adds no native module, so both bundles are runtime-safe.*
+- [ ] Owner on-device check (fully close and reopen the app twice to pick up
+      the update): timer flow end to end (finish and leave-early),
       a trophy piece unlocking from an entry, a frozen streak after a
       companion-only day.
 - [ ] Next binary build: `expo-keep-awake` during the glass.

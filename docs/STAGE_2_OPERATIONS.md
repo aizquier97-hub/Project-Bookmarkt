@@ -43,9 +43,25 @@ Policy:
   splash, permissions), or upgrading the Expo SDK. These change the runtime.
 - Each update channel maps to exactly one environment (table above); an update
   published to `preview` can never reach `production` installs.
-- Runtime version policy is the SDK version (Expo default): a binary only
-  accepts bundles built for its own SDK, which structurally prevents a new
-  bundle from calling native code the installed binary lacks.
+- Runtime version policy is `appVersion` (`app.json` →
+  `runtimeVersion.policy`): a binary only accepts bundles published while
+  `expo.version` equals the version it was built with, which structurally
+  prevents a new bundle from calling native code the installed binary lacks.
+  `expo.version` is therefore bumped only when a native module is added
+  (1.0.0 → 1.0.1 for D-061's `react-native-purchases`).
+- **Publishing across a version bump:** testers may still run the previous
+  binary after a bump (the 1.0.1 build from 2026-09-04 was never confirmed
+  installed, and every September OTA targeted 1.0.0). When the change itself
+  adds no native module, publish once per live runtime: run
+  `eas update --channel preview` as-is, then temporarily set `expo.version`
+  to the older value, publish again, and `git checkout -- app.json`. Code
+  that touches the newer module must degrade when it is absent (D-061's lazy
+  import does). First done for D-062 on 2026-10-03.
+- **Local prerequisites for `eas update`:** `npx --yes eas-cli@latest`
+  authenticates from the EAS login in `~/.expo/state.json`; the bundle reads
+  `app/.env` (gitignored) for the `EXPO_PUBLIC_*` values, which must mirror
+  the `build.preview.env` block in `app/eas.json` - the EAS-hosted
+  environment has no variables, so do not pass `--environment`.
 - **Stale clients:** an installed binary keeps its last-downloaded bundle and
   checks for updates on launch (Expo default). Because the schema is managed
   additively (§3), a client one bundle behind must keep working; any change
