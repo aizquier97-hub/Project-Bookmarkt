@@ -1061,8 +1061,13 @@ retention in beta. Formulas live in [READING_METRICS.md](READING_METRICS.md).
 - [x] Paper palette lightened toward white under the unchanged dark-walnut
       chrome; six-tab shelf (Library, Progress, Quotes, Club, Cards,
       Settings); My bookmarks reached from Settings.
-- [ ] Apply migration `20261003120000_add_reading_fitness.sql` to the linked
-      project before the OTA that carries this layer.
+- [x] Apply migration `20261003120000_add_reading_fitness.sql` to the linked
+      project before the OTA that carries this layer. *(Done 2026-10-03 via
+      `supabase db push`; remote history 21/21 in sync; `reading_sessions`
+      confirmed denied to `anon` and the new columns visible through the API.)*
+- [ ] Ship the OTA (`eas update --channel preview`) once the PR merges, then
+      run the on-device check in
+      [STAGE_4_BUILD_PLAN.md](STAGE_4_BUILD_PLAN.md) Phase 5.
 - [ ] Keep the screen awake during the glass (`expo-keep-awake`) in the next
       binary build.
 - [ ] Post-beta: model-scored reflection quality as the comprehension

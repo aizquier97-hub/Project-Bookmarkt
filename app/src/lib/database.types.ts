@@ -670,7 +670,7 @@ export type Database = {
           duration_seconds: number
           end_page?: number | null
           ended_at: string
-          id?: never
+          id?: number
           pages_read?: number | null
           planned_seconds?: number | null
           start_page?: number | null
@@ -683,7 +683,7 @@ export type Database = {
           duration_seconds?: number
           end_page?: number | null
           ended_at?: string
-          id?: never
+          id?: number
           pages_read?: number | null
           planned_seconds?: number | null
           start_page?: number | null

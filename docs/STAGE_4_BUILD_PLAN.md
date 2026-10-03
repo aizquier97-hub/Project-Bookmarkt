@@ -236,7 +236,14 @@ before any social feature; see roadmap §13 "Beta engagement layer" and
       trophy-unlock toasts; Edit book gains the difficulty override.
 - [x] Export v2 (sessions, favorites, reflections, override); theme paper
       tokens lightened; six-tab shelf with My bookmarks under Settings.
-- [ ] Apply the migration to the linked project, then ship the OTA.
+- [x] Apply the migration to the linked project. *Done 2026-10-03:
+      `supabase db push` against `bfallxtcxxyykcnkedom`; migration history
+      21/21 in sync; smoke test over REST - `reading_sessions` returns
+      42501 for `anon`, `entries.is_favorite` / `reflection` and
+      `topics.difficulty_override` resolve. `database.types.ts` checked
+      against `supabase gen types` (only pre-existing D-052 omissions
+      differ).*
+- [ ] Ship the OTA (`eas update --channel preview`) after the PR merges.
 - [ ] Owner on-device check: timer flow end to end (finish and leave-early),
       a trophy piece unlocking from an entry, a frozen streak after a
       companion-only day.
