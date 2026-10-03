@@ -29,6 +29,7 @@ import {
 } from '@/domains/library/covers';
 import { resolveBookMetadata } from '@/domains/library/metadata';
 import { addBook, type Book } from '@/domains/library/service';
+import { requestDifficultyEstimate } from '@/domains/fitness/difficultyEstimate';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { CoverPicker } from '@/components/CoverPicker';
 import { IsbnScanner, isBarcodeScannerAvailable } from '@/components/IsbnScanner';
@@ -214,6 +215,12 @@ export default function AddBookScreen() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.books });
       showToast(`Added "${book.name}" to your library.`, 'success');
       router.back();
+      // Rate the new book right away (D-063) so the chip is ready by the
+      // time the reader opens it; failures are silent and the backfill
+      // catches them next launch.
+      void requestDifficultyEstimate(book.id)
+        .then(() => queryClient.invalidateQueries({ queryKey: queryKeys.books }))
+        .catch(() => undefined);
     },
     onError: (err, variables) => {
       const message = err instanceof Error ? err.message : 'Could not add the book.';

@@ -305,8 +305,8 @@ export default function BookScreen() {
               </View>
             ) : null}
 
-            {/* Difficulty Index (D-062): measured from logged quotes, or the
-                reader's own setting from Edit book. */}
+            {/* Difficulty Index (D-062/D-063): the book's knowledge rating, or
+                the reader's own setting from Edit book. */}
             {difficulty ? (
               <View style={styles.difficultyRow}>
                 <View style={styles.difficultyChip}>

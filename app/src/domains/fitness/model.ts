@@ -42,6 +42,8 @@ export interface ModelBook {
   total_pages: number | null;
   finished_at: string | null;
   difficulty_override: number | null;
+  difficulty_estimate: number | null;
+  difficulty_estimate_confidence: string | null;
 }
 
 export interface BookFitness<TBook extends ModelBook = ModelBook> {
@@ -112,6 +114,8 @@ export function difficultyForBook(book: ModelBook, quoteTexts: readonly string[]
     totalPages: book.total_pages,
     quoteTexts,
     override: book.difficulty_override,
+    estimate: book.difficulty_estimate,
+    estimateConfidence: book.difficulty_estimate_confidence,
   });
 }
 

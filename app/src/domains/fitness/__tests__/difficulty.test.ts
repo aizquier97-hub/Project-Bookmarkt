@@ -103,9 +103,10 @@ describe('computeDifficulty', () => {
       quoteTexts: [],
     });
     expect(result.score).toBe(6.5);
-    expect(result.source).toBe('estimated');
+    expect(result.source).toBe('metadata');
     expect(result.confidence).toBe(0);
     expect(result.textGrade).toBeNull();
+    expect(result.estimateConfidence).toBeNull();
     expect(describeDifficultySource(result)).toBe('estimated from genre, era, and length');
   });
 
@@ -116,8 +117,59 @@ describe('computeDifficulty', () => {
       totalPages: null,
       quoteTexts: ['Notwithstanding epistemological difficulties, phenomenology persists.'],
     });
-    expect(result.source).toBe('estimated');
+    expect(result.source).toBe('metadata');
     expect(result.score).toBe(5);
+  });
+
+  it('prefers the knowledge estimate over quotes and metadata (D-063)', () => {
+    // The Brothers Karamazov as a modern reprint: the metadata prior alone
+    // lands near 5, which is the bug the estimate fixes.
+    const result = computeDifficulty({
+      genre: 'Fiction',
+      publicationYear: 2002,
+      totalPages: 796,
+      quoteTexts: [SIMPLE_PROSE, SIMPLE_PROSE, SIMPLE_PROSE],
+      estimate: 8.5,
+      estimateConfidence: 'high',
+    });
+    expect(result.prior).toBeLessThan(6);
+    expect(result.score).toBe(8.5);
+    expect(result.source).toBe('knowledge');
+    expect(result.estimateConfidence).toBe('high');
+    expect(result.label).toBe('Dense');
+    expect(describeDifficultySource(result)).toBe('from what is known about this book');
+    // The quote measurement is still reported for transparency.
+    expect(result.confidence).toBe(1);
+  });
+
+  it('flags a low-confidence estimate and clamps the value', () => {
+    const result = computeDifficulty({
+      genre: null,
+      publicationYear: null,
+      totalPages: null,
+      quoteTexts: [],
+      estimate: 11,
+      estimateConfidence: 'nonsense',
+    });
+    expect(result.score).toBe(10);
+    expect(result.source).toBe('knowledge');
+    expect(result.estimateConfidence).toBe('low');
+    expect(describeDifficultySource(result)).toBe(
+      'rough estimate - little is known about this book',
+    );
+  });
+
+  it('falls back to the blend when the estimate is missing', () => {
+    const result = computeDifficulty({
+      genre: 'History',
+      publicationYear: 1990,
+      totalPages: 300,
+      quoteTexts: [],
+      estimate: null,
+      estimateConfidence: null,
+    });
+    expect(result.source).toBe('metadata');
+    expect(result.score).toBe(6.5);
   });
 
   it('blends the measured grade in proportion to the sample size', () => {

@@ -19,6 +19,7 @@ import {
   type CoverCandidate,
 } from '@/domains/library/covers';
 import { deleteBook, getBook, updateBook, type Book } from '@/domains/library/service';
+import { difficultyLabel } from '@/domains/fitness/difficulty';
 import { CoverPicker } from '@/components/CoverPicker';
 import { ErrorState, LoadingState } from '@/components/states';
 import { KeyboardPane } from '@/components/KeyboardPane';
@@ -96,6 +97,11 @@ function EditBookForm({ book }: { book: Book }) {
         coverUrl,
         isbn,
         difficultyOverride,
+        // A different title or author means the cached estimate described
+        // another book (D-063); the backfill rates the new one.
+        resetDifficultyEstimate:
+          name.trim() !== (book.name ?? '').trim() ||
+          author.trim() !== (book.author ?? '').trim(),
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.books });
@@ -220,9 +226,22 @@ function EditBookForm({ book }: { book: Book }) {
 
         <Text style={styles.label}>Difficulty</Text>
         <Text style={styles.hint}>
-          Auto measures it from the quotes you log (and the book’s genre, era, and length).
-          Set your own 1-10 if you disagree; it weights your Reading Fitness.
+          Auto rates the book 1-10 from what is known about it - its prose, structure, and
+          ideas - on a scale where a light adventure sits near 3 and The Brothers Karamazov near
+          8. Set your own number if you disagree; it weights your Reading Fitness.
         </Text>
+        {book.difficulty_estimate !== null ? (
+          <View style={styles.estimateCard}>
+            <Text style={styles.estimateTitle}>
+              Bookmarkt’s estimate: {book.difficulty_estimate.toFixed(1)} ·{' '}
+              {difficultyLabel(book.difficulty_estimate)}
+              {book.difficulty_estimate_confidence === 'low' ? ' (rough)' : ''}
+            </Text>
+            {book.difficulty_rationale ? (
+              <Text style={styles.estimateBody}>{book.difficulty_rationale}</Text>
+            ) : null}
+          </View>
+        ) : null}
         <View style={styles.chipRow}>
           <Pressable
             style={[styles.chip, difficultyOverride === null && styles.chipActive]}
@@ -322,6 +341,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     marginBottom: 8,
+  },
+  estimateCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  estimateTitle: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  estimateBody: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
   },
   chipRow: {
     flexDirection: 'row',
