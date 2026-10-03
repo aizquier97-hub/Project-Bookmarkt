@@ -422,9 +422,9 @@ into the Recall match.
 - [x] Tests: `comprehension.test.ts` `comprehensionPercent` (0 / 50 / 59 /
       75 / 91 / 100, clamp, shared band words). 335 tests / 28 suites; tsc
       and lint clean. No server or migration work.
-- [x] Ship the OTA for both runtimes; record group IDs - PR #PRNUM, published
-      2026-10-04 to `preview`: runtime 1.0.1 group `GROUP101`, runtime 1.0.0
-      group `GROUP100`.
+- [x] Ship the OTA for both runtimes; record group IDs - PR #110, published
+      2026-10-04 to `preview`: runtime 1.0.1 group `20b42395-d1f5-4fec-9a70-96fe445ad60d`, runtime 1.0.0
+      group `c89f7b3c-4259-4ca4-9008-4566574a2dd1`.
 
 ---
 

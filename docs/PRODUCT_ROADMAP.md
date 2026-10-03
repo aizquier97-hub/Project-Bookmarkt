@@ -1250,9 +1250,9 @@ place. Display only; no formula, stored value, or server code changes.
 - [x] Tests pin 0 / 50 / 59 / 75 / 91 / 100 and the clamp; 335 tests across
       28 suites. READING_METRICS.md §3.4 + §6 row; DESIGN_REQUIREMENTS.md
       dashboard and grade rows; DECISION_LOG D-067.
-- [x] Ship the OTA for both runtimes; record the group IDs - PR #PRNUM,
-      published 2026-10-04 to `preview`: runtime 1.0.1 group `GROUP101`,
-      runtime 1.0.0 group `GROUP100`.
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #110,
+      published 2026-10-04 to `preview`: runtime 1.0.1 group `20b42395-d1f5-4fec-9a70-96fe445ad60d`,
+      runtime 1.0.0 group `c89f7b3c-4259-4ca4-9008-4566574a2dd1`.
 - [ ] Owner on-device check: the Comprehension tile shows a percentage with
       a word under it; book rows read "notes graded N%".
 
