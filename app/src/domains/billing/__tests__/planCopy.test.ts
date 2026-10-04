@@ -74,7 +74,14 @@ describe('freeTrialLabel', () => {
 
 describe('annualSavingsPercent', () => {
   it('rounds the yearly saving against twelve monthly charges', () => {
-    // The decided prices (D-070): 7.99 x 12 = 95.88 against 59.99.
+    // The decided prices (D-070, revised): 7.99 x 12 = 95.88 against 79.99.
+    expect(
+      annualSavingsPercent([
+        { packageType: 'MONTHLY', price: 7.99 },
+        { packageType: 'ANNUAL', price: 79.99 },
+      ]),
+    ).toBe(17);
+    // The first draft of the decision, kept as a second data point.
     expect(
       annualSavingsPercent([
         { packageType: 'MONTHLY', price: 7.99 },

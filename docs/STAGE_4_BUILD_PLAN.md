@@ -33,8 +33,8 @@ Do these before or alongside Phase 1; none require code.
 - [x] **Set the price, billing period, and introductory offer.** The trial
       is server-authorized, time-bound, one per account, and begins only
       after the qualifying number of entries exists.
-      *Done 2026-10-04 (D-070): Monthly $7.99 USD / Yearly $59.99 USD
-      (saves 37%), auto-renewing, a 7-day free trial on each Play base plan.
+      *Done 2026-10-04 (D-070): Monthly $7.99 USD / Yearly $79.99 USD
+      (saves 17%), auto-renewing, a 7-day free trial on each Play base plan.
       The store trial is the trial - Bookmarkt's no-card trial is switched
       off by `companion_trial_policy.bookmarkt_trial_enabled`; the 5-entry
       gate still guards the plan buttons.*
@@ -220,7 +220,7 @@ Build order within the phase:
       exist; subscription history fails open to plans) shipped (D-068).
       2026-10-04: the store's 7-day trial became the trial - the Bookmarkt
       trial is off by policy flag and the plan buttons print "7 days free,
-      then $7.99 per month" / "Save 37%" from the store's phases (D-070).*
+      then $7.99 per month" / "Save 17%" from the store's phases (D-070).*
 - [x] Free capture is never paywalled and never degraded by subscription
       state.
       *Confirmed 2026-10-04: no capture, character, bookmark, timer, or
@@ -530,8 +530,8 @@ trial policy.
 
 ### Pricing decision and the store trial (added 2026-10-04, D-070)
 
-Owner's financial model: **Monthly $7.99 USD, Yearly $59.99 USD** (saves
-37%), auto-renewing, each Play base plan with a **7-day free trial**. The
+Owner's financial model: **Monthly $7.99 USD, Yearly $79.99 USD** (saves
+17%), auto-renewing, each Play base plan with a **7-day free trial**. The
 store's trial is the trial; Bookmarkt's own no-card trial (D-068) is off by
 policy flag, not deleted.
 
@@ -545,10 +545,10 @@ policy flag, not deleted.
 - [x] Client: `billing/planCopy.ts` (pure: `readFreeTrial` from Play
       `defaultOption.freePhase` or a zero-priced `introPrice`, WEEK
       normalized to days; `freeTrialLabel` -> "7 days free";
-      `annualSavingsPercent` -> 37 for 7.99 / 59.99); `BillingPackage` gains
+      `annualSavingsPercent` -> 17 for 7.99 / 79.99); `BillingPackage` gains
       `packageType`, `price`, `trialLabel`; `subscription.tsx` plan buttons
-      render "7 days free, then $7.99 per month" / "then $59.99 per year",
-      a "Save 37%" badge on the annual plan, and the store-trial note;
+      render "7 days free, then $7.99 per month" / "then $79.99 per year",
+      a "Save 17%" badge on the annual plan, and the store-trial note;
       `purchase_started` carries `store_trial`; `trial.ts` /
       `subscriptionCopy.ts` know the `store_trial` reason (no card).
 - [x] Tests: `planCopy.test.ts` (Play phase, intro-price fallback, week
@@ -572,10 +572,10 @@ policy flag, not deleted.
 | --- | --- | --- |
 | Play Console -> Monetize -> Subscriptions | Subscription **`companion`** ("Book Club companion") | One subscription, two base plans; the client never hard-codes the id (it reads RevenueCat offerings), so any id works - keep it short and permanent. |
 | Base plan 1 | **`monthly`**, auto-renewing, monthly, **$7.99 USD**; offer: **7-day free trial**, eligibility "new customer" | Turn the grace period on (the webhook handles BILLING_ISSUE, D-068). |
-| Base plan 2 | **`yearly`**, auto-renewing, yearly, **$59.99 USD**; offer: **7-day free trial**, eligibility "new customer" | Google computes and enforces one trial per account across both plans. |
+| Base plan 2 | **`yearly`**, auto-renewing, yearly, **$79.99 USD**; offer: **7-day free trial**, eligibility "new customer" | Google computes and enforces one trial per account across both plans. |
 | RevenueCat -> Project -> Apps | Link the Play app (service-account JSON) | Then **Products**: import `companion:monthly` and `companion:yearly`. |
 | RevenueCat -> Entitlements | **`companion`** <- both products | The webhook maps entitlement `companion` to the row; nothing else to change. |
-| RevenueCat -> Offerings | **`default`**: `$rc_monthly` = `companion:monthly`, `$rc_annual` = `companion:yearly` | The screen orders by package type and computes the 37% saving from the two prices. |
+| RevenueCat -> Offerings | **`default`**: `$rc_monthly` = `companion:monthly`, `$rc_annual` = `companion:yearly` | The screen orders by package type and computes the saving (17% at the decided prices) from the two prices. |
 | RevenueCat -> API keys | Copy the **`goog_`** public SDK key | Replace the `test_` Test Store key in `app/src/domains/billing/purchases.ts` (one line, ships OTA). Never the secret key. |
 | Play Console -> License testing | Add the fresh test account | Sandbox cycle: purchase (trial) -> cancel -> expire -> restore; record it in `gates/STAGE_4_EXIT.md`. |
 

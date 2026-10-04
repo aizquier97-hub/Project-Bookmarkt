@@ -1,5 +1,5 @@
 -- D-070 (2026-10-04): the pricing decision landed - monthly 7.99 USD and
--- yearly 59.99 USD, each Play base plan carrying a 7-day free trial. The
+-- yearly 79.99 USD, each Play base plan carrying a 7-day free trial. The
 -- store's free trial is therefore *the* trial: Google enforces one per
 -- account, converts it to a paid period, and sends the pre-charge reminder.
 -- The no-card Bookmarkt trial from D-068 stays in the schema as a lever but
