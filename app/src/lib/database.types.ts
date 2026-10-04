@@ -934,6 +934,36 @@ export type Database = {
         }
         Relationships: []
       }
+      waitlist_signups: {
+        Row: {
+          created_at: string
+          currently_reading: string | null
+          email: string
+          id: number
+          name: string
+          platform: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          currently_reading?: string | null
+          email: string
+          id?: never
+          name: string
+          platform?: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          currently_reading?: string | null
+          email?: string
+          id?: never
+          name?: string
+          platform?: string
+          source?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       ai_usage_daily_summary: {
