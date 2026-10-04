@@ -987,13 +987,14 @@ operations, and app-store distribution.
       is server-authorized, time-bound, limited to one per account, and begins
       only after the qualifying number of entries exists.
       *(Done 2026-10-04, D-070: Monthly $7.99 USD / Yearly $79.99 USD
-      (saves 17%), auto-renewing, each base plan with a 7-day free trial run
-      by the store. The store trial is the trial: Bookmarkt's own no-card
+      (saves 17%), auto-renewing, a 7-day free trial on the monthly plan
+      and 14 days on the yearly plan (D-071), run by the store. The store
+      trial is the trial: Bookmarkt's own no-card
       trial from D-068 is switched off by `companion_trial_policy.
       bookmarkt_trial_enabled = false` (the RPCs answer `store_trial`), and
       the entries-before-offer rule still gates the plan buttons at 5
       entries. Plan buttons print the store's own phases - "7 days free,
-      then $7.99 per month".)*
+      then $7.99 per month" / "14 days free, then $79.99 per year".)*
 - [x] Build a financial model for AI cost per companion session, infrastructure,
       app-store commission, taxes, refunds, support, and target margin.
       *(Done 2026-10-04 by the owner; its outputs are the D-070 prices.)*
@@ -1352,8 +1353,9 @@ only the store product, the `goog_` key swap, and the trial policy.
 #### Pricing decision and the store trial (D-070, added 2026-10-04)
 
 The owner's financial model landed: **Monthly $7.99 USD, Yearly $79.99 USD**
-(saves 17%), auto-renewing, each Google Play base plan with a **7-day free
-trial**. One trial, one sentence: the store's trial is the trial.
+(saves 17%), auto-renewing, a **7-day free trial** on the monthly plan and
+**14 days** on the yearly plan (D-071). One trial, one sentence: the
+store's trial is the trial.
 
 - [x] Migration `20261005130000_store_trial_is_the_trial.sql`:
       `companion_trial_policy.bookmarkt_trial_enabled` (default false);
@@ -1365,7 +1367,8 @@ trial**. One trial, one sentence: the store's trial is the trial.
       policy unreadable by readers; cleaned up.
 - [x] Plan buttons read the store's pricing phases (`planCopy.ts`: Play
       `defaultOption.freePhase`, else a zero-priced `introPrice`): "7 days
-      free, then $7.99 per month" / "then $79.99 per year", a "Save 17%"
+      free, then $7.99 per month" / "14 days free, then $79.99 per year",
+      a "Save 17%"
       badge on the annual plan computed from the two prices, and the note
       "Your store runs the free trial: cancel before it ends from Google
       Play or the App Store and nothing is charged. One trial per store
@@ -1381,13 +1384,20 @@ trial**. One trial, one sentence: the store's trial is the trial.
 - [x] Ship the OTA for both runtimes; record the group IDs - PR #114,
       published 2026-10-04 to `preview`: runtime 1.0.1 group `a9a254b9-6e01-4b1e-bd9f-541c9b75fb11`,
       runtime 1.0.0 group `2eef106c-732f-46e2-aacf-dc6794e42578`.
-- [ ] **Owner:** in the Play Console create one subscription (suggested
-      product id `companion`) with base plans `monthly` ($7.99, 7-day free
-      trial offer) and `yearly` ($79.99, 7-day free trial offer), grace
-      period on; in RevenueCat link Google Play, import the products
-      (`companion:monthly`, `companion:yearly`), attach both to entitlement
-      `companion`, and place them in the `default` offering as `$rc_monthly`
-      / `$rc_annual`; share the `goog_` public SDK key.
+- [x] **Owner (2026-10-04, D-071):** created the Play subscription
+      **`premium`** ("Bookmarkt Premium") with base plans `monthly` ($7.99,
+      7-day free-trial offer) and `yearly` ($79.99, 14-day free-trial
+      offer), 7-day grace period, active in 175 countries/regions. The
+      internal-testing build is live (download link verified); Play review
+      pending.
+- [ ] **Owner:** Play service credentials for RevenueCat (service account
+      invited in Play Console with view-app-info, financial-data,
+      manage-orders, and store-presence permissions); in RevenueCat link
+      Google Play, import the products (`premium:monthly`,
+      `premium:yearly`), attach both to entitlement `companion`, and place
+      them in the `default` offering as `$rc_monthly` / `$rc_annual`; paste
+      RevenueCat's Pub/Sub topic into Play's Monetization setup; share the
+      `goog_` public SDK key.
 - [x] **Owner (2026-10-04):** added their own Google account as a license
       tester in the Play Console, so sandbox purchases will not be charged.
 - [ ] Swap the `test_` Test Store key in `purchases.ts` for the `goog_` key
@@ -1398,8 +1408,9 @@ trial**. One trial, one sentence: the store's trial is the trial.
 ### Stage 4 exit gate
 
 Review record: [gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md) (drafted
-2026-10-04; pricing decided 2026-10-04, D-070; open until the Play product
-exists and one real sandbox cycle is recorded).
+2026-10-04; pricing decided 2026-10-04, D-070; Play subscription `premium`
+created 2026-10-04, D-071; open until the RevenueCat mapping and `goog_`
+key are in place and one real sandbox cycle is recorded).
 
 - Entitlements are consistent across iOS and Android test contexts and the
   server-authoritative account state.
