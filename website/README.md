@@ -15,7 +15,7 @@ build step, no framework, no third-party fonts or scripts. Decision D-069 in
 | `cookie-policy.html` | `/cookie-policy` Cookie Policy embedded via Termly Pro snippet. |
 | `data-deletion.html` | `/data-deletion` Data deletion instructions for Google Play & GDPR/CCPA. |
 | `style.css` | Tokens mirror `app/src/lib/theme.ts` (walnut, paper, ink, gold; serif). |
-| `_headers` | Security headers for Cloudflare Pages, including CSP with Termly allowances. |
+| `_headers` | Security headers for Cloudflare Pages, including the CSP. `/cookie-policy` gets its own relaxed CSP (`'unsafe-eval'`, inline styles, Termly origins) because Termly's embed script needs them; every other page keeps the strict policy. |
 | `_redirects` | Cloudflare Pages route redirects (e.g. `/cookies` to `/cookie-policy`). |
 | `favicon.png` | Copy of `icons/icon-192.png`. |
 
