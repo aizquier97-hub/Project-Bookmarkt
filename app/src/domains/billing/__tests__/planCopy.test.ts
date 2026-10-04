@@ -4,7 +4,7 @@ import {
   readFreeTrial,
 } from '@/domains/billing/planCopy';
 
-describe('readFreeTrial (D-069 store trial on the plans)', () => {
+describe('readFreeTrial (D-070 store trial on the plans)', () => {
   it('reads the Play default option free phase', () => {
     expect(
       readFreeTrial({
@@ -74,7 +74,7 @@ describe('freeTrialLabel', () => {
 
 describe('annualSavingsPercent', () => {
   it('rounds the yearly saving against twelve monthly charges', () => {
-    // The decided prices (D-069): 7.99 x 12 = 95.88 against 59.99.
+    // The decided prices (D-070): 7.99 x 12 = 95.88 against 59.99.
     expect(
       annualSavingsPercent([
         { packageType: 'MONTHLY', price: 7.99 },

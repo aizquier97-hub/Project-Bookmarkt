@@ -1,4 +1,4 @@
--- D-069 (2026-10-04): the pricing decision landed - monthly 7.99 USD and
+-- D-070 (2026-10-04): the pricing decision landed - monthly 7.99 USD and
 -- yearly 59.99 USD, each Play base plan carrying a 7-day free trial. The
 -- store's free trial is therefore *the* trial: Google enforces one per
 -- account, converts it to a paid period, and sends the pre-charge reminder.
@@ -25,7 +25,7 @@ set bookmarkt_trial_enabled = false,
 where id = 1;
 
 comment on column public.companion_trial_policy.bookmarkt_trial_enabled is
-  'D-069: false (default) means the store free trial on the plans is the only trial; true re-enables the no-card Bookmarkt trial RPC.';
+  'D-070: false (default) means the store free trial on the plans is the only trial; true re-enables the no-card Bookmarkt trial RPC.';
 
 -- 2. Eligibility. Same return shape (old clients fold the new reason to
 -- "no card to show" and fall through to the plans). Order is unchanged:

@@ -984,7 +984,7 @@ operations, and app-store distribution.
 - [x] Set the companion price, billing period, and introductory offer. The trial
       is server-authorized, time-bound, limited to one per account, and begins
       only after the qualifying number of entries exists.
-      *(Done 2026-10-04, D-069: Monthly $7.99 USD / Yearly $59.99 USD
+      *(Done 2026-10-04, D-070: Monthly $7.99 USD / Yearly $59.99 USD
       (saves 37%), auto-renewing, each base plan with a 7-day free trial run
       by the store. The store trial is the trial: Bookmarkt's own no-card
       trial from D-068 is switched off by `companion_trial_policy.
@@ -994,7 +994,7 @@ operations, and app-store distribution.
       then $7.99 per month".)*
 - [x] Build a financial model for AI cost per companion session, infrastructure,
       app-store commission, taxes, refunds, support, and target margin.
-      *(Done 2026-10-04 by the owner; its outputs are the D-069 prices.)*
+      *(Done 2026-10-04 by the owner; its outputs are the D-070 prices.)*
 - [x] Decide the native billing architecture before implementation. Evaluate
       StoreKit and Google Play Billing with a shared entitlement provider such as
       RevenueCat. Do not add web purchase flows without a separate approved
@@ -1040,7 +1040,7 @@ operations, and app-store distribution.
 - [x] Build subscription and account-management screens. *(Subscription
       screen 2026-09-06, D-061; lifecycle states, trial card, and the
       entries-before-offer rule 2026-10-04, D-068; plan buttons with the
-      store's trial and savings wording 2026-10-04, D-069; account rows
+      store's trial and savings wording 2026-10-04, D-070; account rows
       2026-09-02, D-053.)*
 - [x] Prevent client-only entitlement decisions. *(Structural since
       2026-09-02, D-047: the client's entitlement read is render-only; the
@@ -1296,7 +1296,7 @@ place. Display only; no formula, stored value, or server code changes.
 #### Billing lifecycle, trial, and subscription states (D-068, added 2026-10-04)
 
 Done while the owner finished the financial model: every billing item that
-does not depend on the price. The price landed the next day (D-069) and set
+does not depend on the price. The price landed the next day (D-070) and set
 only the store product, the `goog_` key swap, and the trial policy.
 
 - [x] `revenuecat-webhook` hardened: `companion_billing_events` ledger
@@ -1337,17 +1337,17 @@ only the store product, the `goog_` key swap, and the trial policy.
 - [ ] Owner check with a **fresh account** (the owner's own account is
       `dev_comp`, so it never sees the trial): Subscription shows the locked
       trial card at 0/5 and, after five entries, the plan buttons with the
-      store's trial wording (D-069 - the Bookmarkt "Start free trial" card
+      store's trial wording (D-070 - the Bookmarkt "Start free trial" card
       appears only if `bookmarkt_trial_enabled` is set back to true).
 - [x] After the pricing decision: set `companion_trial_policy`. *(Done
-      2026-10-04, D-069: the store runs the trial, so the Bookmarkt trial is
+      2026-10-04, D-070: the store runs the trial, so the Bookmarkt trial is
       switched off by the new `bookmarkt_trial_enabled` flag; 7 days / 5
       entries stay as the gate and the lever.)*
 - [ ] After the pricing decision (owner side): create the Play product,
       swap the `goog_` key, run one real sandbox cycle (purchase -> cancel
-      -> expire -> restore), close the exit gate. *(Checklist below, D-069.)*
+      -> expire -> restore), close the exit gate. *(Checklist below, D-070.)*
 
-#### Pricing decision and the store trial (D-069, added 2026-10-04)
+#### Pricing decision and the store trial (D-070, added 2026-10-04)
 
 The owner's financial model landed: **Monthly $7.99 USD, Yearly $59.99 USD**
 (saves 37%), auto-renewing, each Google Play base plan with a **7-day free
@@ -1372,7 +1372,7 @@ trial**. One trial, one sentence: the store's trial is the trial.
 - [x] `trial.ts` / `subscriptionCopy.ts`: `store_trial` reason (no trial
       card, plans speak); tests for the reason, the copy, and `planCopy`.
       372 tests across 31 suites pass; tsc and lint clean.
-- [x] Docs: DECISION_LOG D-069; STAGE_4_BUILD_PLAN Phase 0/3/4 + store
+- [x] Docs: DECISION_LOG D-070; STAGE_4_BUILD_PLAN Phase 0/3/4 + store
       setup identifiers; `gates/STAGE_4_EXIT.md` pricing rows;
       SUPPORT_BILLING_DISPUTES trial row; STAGE_2_OPERATIONS flag note;
       DESIGN_REQUIREMENTS plan-button row.
@@ -1394,7 +1394,7 @@ trial**. One trial, one sentence: the store's trial is the trial.
 ### Stage 4 exit gate
 
 Review record: [gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md) (drafted
-2026-10-04; pricing decided 2026-10-04, D-069; open until the Play product
+2026-10-04; pricing decided 2026-10-04, D-070; open until the Play product
 exists and one real sandbox cycle is recorded).
 
 - Entitlements are consistent across iOS and Android test contexts and the

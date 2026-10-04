@@ -26,11 +26,11 @@ import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 /**
- * Companion subscription (Stage 4 Phase 3, D-061 + D-068 + D-069). The
+ * Companion subscription (Stage 4 Phase 3, D-061 + D-068 + D-070). The
  * purchase runs through the store sheet; access itself is granted
  * server-side when RevenueCat's webhook activates the reader's entitlement
  * row - this screen only ever renders what the server already decided
- * (D-047: no client-only entitlement decisions). Since D-069 the store's
+ * (D-047: no client-only entitlement decisions). Since D-070 the store's
  * free trial on each plan is the trial: the buttons read "7 days free, then
  * $7.99 per month" from the store's own pricing phases, and the plans stay
  * behind the entries-before-offer gate until the qualifying entries exist.

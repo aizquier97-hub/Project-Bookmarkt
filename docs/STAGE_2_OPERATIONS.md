@@ -139,7 +139,7 @@ Policy:
    `qualifying_entries`, `bookmarkt_trial_enabled`) is read by
    `companion_trial_eligibility()` / `start_companion_trial()`, so the trial
    length and entry threshold change with one `update` and no release -
-   record any change in the decision log. Since D-069 the flag is **false**:
+   record any change in the decision log. Since D-070 the flag is **false**:
    the store's own 7-day free trial is the trial, the RPCs answer
    `store_trial`, and the entry threshold only gates the plan buttons.
    Setting the flag to true re-enables the Bookmarkt no-card trial on the

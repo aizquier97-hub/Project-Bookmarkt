@@ -7,7 +7,7 @@
  * qualifying-entry count, and whether this no-card trial is on at all live
  * in `companion_trial_policy`, tunable by the owner without a release.
  *
- * Since D-069 the store's own free trial on the plans is the trial, so the
+ * Since D-070 the store's own free trial on the plans is the trial, so the
  * policy flag is off and an otherwise-eligible reader is answered
  * `store_trial`: no offer card, the plans speak. The `needs_entries` gate
  * still fires first - it guards the plan buttons as well.

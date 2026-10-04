@@ -26,7 +26,7 @@ export type BillingPackage = {
   price: number;
   priceString: string;
   periodLabel: string;
-  /** "7 days free" when the store will run a free trial for this reader (D-069). */
+  /** "7 days free" when the store will run a free trial for this reader (D-070). */
   trialLabel: string | null;
   raw: PurchasesPackage;
 };

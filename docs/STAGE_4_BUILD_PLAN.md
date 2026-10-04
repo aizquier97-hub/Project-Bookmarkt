@@ -29,11 +29,11 @@ Do these before or alongside Phase 1; none require code.
 - [x] **Financial model**: AI cost per companion session (provider pricing x
       expected usage), infrastructure, app-store commission (~15% small
       business tier), taxes, refunds, support, and target margin.
-      *Done 2026-10-04 by the owner; outputs recorded in D-069.*
+      *Done 2026-10-04 by the owner; outputs recorded in D-070.*
 - [x] **Set the price, billing period, and introductory offer.** The trial
       is server-authorized, time-bound, one per account, and begins only
       after the qualifying number of entries exists.
-      *Done 2026-10-04 (D-069): Monthly $7.99 USD / Yearly $59.99 USD
+      *Done 2026-10-04 (D-070): Monthly $7.99 USD / Yearly $59.99 USD
       (saves 37%), auto-renewing, a 7-day free trial on each Play base plan.
       The store trial is the trial - Bookmarkt's no-card trial is switched
       off by `companion_trial_policy.bookmarkt_trial_enabled`; the 5-entry
@@ -184,7 +184,7 @@ Build order within the phase:
       *Done 2026-09-06: react-native-purchases in the 1.0.1 binary, lazy-loaded
       with graceful degradation on older runtimes (D-061).*
 - [ ] Create the subscription product in the Play Console; Apple's side
-      waits for Stage 5's iOS builds. *Pricing decided 2026-10-04 (D-069);
+      waits for Stage 5's iOS builds. *Pricing decided 2026-10-04 (D-070);
       owner-side setup is specified under "Store setup identifiers" below.
       Development runs against RevenueCat's Test Store meanwhile.*
 - [x] Webhooks -> Supabase entitlement activation: idempotent, signed, with
@@ -220,7 +220,7 @@ Build order within the phase:
       exist; subscription history fails open to plans) shipped (D-068).
       2026-10-04: the store's 7-day trial became the trial - the Bookmarkt
       trial is off by policy flag and the plan buttons print "7 days free,
-      then $7.99 per month" / "Save 37%" from the store's phases (D-069).*
+      then $7.99 per month" / "Save 37%" from the store's phases (D-070).*
 - [x] Free capture is never paywalled and never degraded by subscription
       state.
       *Confirmed 2026-10-04: no capture, character, bookmark, timer, or
@@ -258,7 +258,7 @@ Build order within the phase:
       `gates/STAGE_4_EXIT.md`.
       *Draft opened 2026-10-04 ([gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md)):
       every criterion that does not depend on the price is evidenced; pricing
-      decided 2026-10-04 (D-069); the review stays open until the Play
+      decided 2026-10-04 (D-070); the review stays open until the Play
       product exists and one real sandbox purchase cycle is recorded.*
 
 ## Phase 5 - Beta engagement layer (added 2026-10-03, D-062)
@@ -471,7 +471,7 @@ into the Recall match.
 
 Price-independent billing work done while the owner finishes the financial
 model. Nothing here changes with the price; the price landed the next day
-(D-069, below) and set only the store product, the `goog_` key swap, and the
+(D-070, below) and set only the store product, the `goog_` key swap, and the
 trial policy.
 
 - [x] Migration `20261005090000_add_billing_lifecycle_and_trial.sql`:
@@ -521,14 +521,14 @@ trial policy.
       2026-10-04 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`, runtime 1.0.0
       group `8dbe2974-6742-4de5-b465-27d9466f7bcd`.
 - [x] After the pricing decision: set `companion_trial_policy`. *Done
-      2026-10-04 (D-069): `bookmarkt_trial_enabled = false` - the store runs
+      2026-10-04 (D-070): `bookmarkt_trial_enabled = false` - the store runs
       the trial; 7 days / 5 entries stay as the gate and the lever.*
 - [ ] After the pricing decision (owner side): create the Play product, swap
       the `goog_` key, run one real sandbox purchase cycle (purchase ->
-      cancel -> expire -> restore), close the exit gate. *See the D-069
+      cancel -> expire -> restore), close the exit gate. *See the D-070
       block.*
 
-### Pricing decision and the store trial (added 2026-10-04, D-069)
+### Pricing decision and the store trial (added 2026-10-04, D-070)
 
 Owner's financial model: **Monthly $7.99 USD, Yearly $59.99 USD** (saves
 37%), auto-renewing, each Play base plan with a **7-day free trial**. The
@@ -540,8 +540,8 @@ policy flag, not deleted.
       default false`; `companion_trial_eligibility()` returns reason
       `store_trial` after the `needs_entries` check when the flag is off;
       `start_companion_trial()` refuses with `store_trial` and writes nothing.
-      Applied 2026-10-04 (the version follows a sibling session's waitlist
-      migration `20261005120000` already in the remote history).
+      Applied 2026-10-04 (the version follows the bookmarkt.io waitlist
+      migration `20261005120000`, D-069, already in the remote history).
 - [x] Client: `billing/planCopy.ts` (pure: `readFreeTrial` from Play
       `defaultOption.freePhase` or a zero-priced `introPrice`, WEEK
       normalized to days; `freeTrialLabel` -> "7 days free";
@@ -559,7 +559,7 @@ policy flag, not deleted.
       applied; `needs_entries` at 0 -> `store_trial` at 5 ->
       `start_companion_trial` refused with no entitlement row -> flag on
       `eligible` -> flag off `store_trial`; policy unreadable by readers.
-- [x] Docs: DECISION_LOG D-069; roadmap §13 ticks + D-069 checklist;
+- [x] Docs: DECISION_LOG D-070; roadmap §13 ticks + D-070 checklist;
       `gates/STAGE_4_EXIT.md` pricing rows; SUPPORT_BILLING_DISPUTES trial
       row; STAGE_2_OPERATIONS flag note; DESIGN_REQUIREMENTS plan-button row.
 - [x] Ship the OTA for both runtimes; record group IDs - PR #PRNUM, published

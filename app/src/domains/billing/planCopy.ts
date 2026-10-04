@@ -1,5 +1,5 @@
 /**
- * Plan-button copy (D-069). Pure: reads the store's own pricing phases off
+ * Plan-button copy (D-070). Pure: reads the store's own pricing phases off
  * a RevenueCat product so the Subscription screen can say "7 days free,
  * then $7.99 per month" with numbers the store will actually charge -
  * nothing here is hard-coded, so a price or trial change in the Play
