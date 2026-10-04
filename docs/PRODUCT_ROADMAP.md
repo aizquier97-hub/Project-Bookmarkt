@@ -981,16 +981,20 @@ operations, and app-store distribution.
       Key differentiator for a unique per-reader experience; heaviest
       engineering item (embeddings + clustering); sequenced after closed-beta
       buy-in rather than into the MVP.
-- [ ] Set the companion price, billing period, and introductory offer. The trial
+- [x] Set the companion price, billing period, and introductory offer. The trial
       is server-authorized, time-bound, limited to one per account, and begins
       only after the qualifying number of entries exists.
-      *(The trial mechanics shipped 2026-10-05, D-068:
-      `companion_trial_eligibility()` / `start_companion_trial()` with the
-      length and entry count in `companion_trial_policy` - placeholders 7 days
-      / 5 entries until the price and model land. Only the numbers, the store
-      product, and any store introductory offer remain.)*
-- [ ] Build a financial model for AI cost per companion session, infrastructure,
+      *(Done 2026-10-04, D-070: Monthly $7.99 USD / Yearly $59.99 USD
+      (saves 37%), auto-renewing, each base plan with a 7-day free trial run
+      by the store. The store trial is the trial: Bookmarkt's own no-card
+      trial from D-068 is switched off by `companion_trial_policy.
+      bookmarkt_trial_enabled = false` (the RPCs answer `store_trial`), and
+      the entries-before-offer rule still gates the plan buttons at 5
+      entries. Plan buttons print the store's own phases - "7 days free,
+      then $7.99 per month".)*
+- [x] Build a financial model for AI cost per companion session, infrastructure,
       app-store commission, taxes, refunds, support, and target margin.
+      *(Done 2026-10-04 by the owner; its outputs are the D-070 prices.)*
 - [x] Decide the native billing architecture before implementation. Evaluate
       StoreKit and Google Play Billing with a shared entitlement provider such as
       RevenueCat. Do not add web purchase flows without a separate approved
@@ -1001,7 +1005,7 @@ operations, and app-store distribution.
 - [x] Create a server-authoritative entitlement model in Supabase.
       *(Done 2026-09-02, D-047.)*
 - [x] Implement idempotent signed webhooks and transaction reconciliation.
-      *(Done 2026-09-06, D-061; hardened 2026-10-05, D-068: event-id ledger
+      *(Done 2026-09-06, D-061; hardened 2026-10-04, D-068: event-id ledger
       makes re-deliveries no-ops, `last_event_at` ordering guard, grace
       periods, reasons, pause and transfer handling, 20 Deno tests + a live
       29-check integration smoke.)*
@@ -1022,21 +1026,22 @@ operations, and app-store distribution.
       train models. *(Done 2026-09-02, D-047; embeddings follow the same RLS
       scoping, D-052.)*
 - [x] Implement purchase, restore purchase, cancellation, grace period, expiry,
-      refund, and billing-retry states. *(Done 2026-10-05, D-068: lifecycle
+      refund, and billing-retry states. *(Done 2026-10-04, D-068: lifecycle
       columns on the entitlement row and a tested sentence for each state on
       the Subscription screen. Real store sandbox cycles wait on the Play
       product.)*
 - [x] After subscribing, require verified App Store/Google Play purchase state
       before companion access; canceled, failed, or abandoned purchases return
       safely to capture. *(Structural since D-047/D-061 - the webhook is the
-      only store writer and the gate re-checks every request; 2026-10-05
+      only store writer and the gate re-checks every request; 2026-10-04
       the gate also lapses active rows 7 days past their period end, and a
       canceled or failed purchase now shows "No charge was made and nothing
       changed", D-068.)*
 - [x] Build subscription and account-management screens. *(Subscription
       screen 2026-09-06, D-061; lifecycle states, trial card, and the
-      entries-before-offer rule 2026-10-05, D-068; account rows 2026-09-02,
-      D-053.)*
+      entries-before-offer rule 2026-10-04, D-068; plan buttons with the
+      store's trial and savings wording 2026-10-04, D-070; account rows
+      2026-09-02, D-053.)*
 - [x] Prevent client-only entitlement decisions. *(Structural since
       2026-09-02, D-047: the client's entitlement read is render-only; the
       Edge Function re-checks on every request.)*
@@ -1048,19 +1053,19 @@ operations, and app-store distribution.
       D-053: JSON export via the share sheet; server-side deletion Edge
       Function that also releases bookmark codes.)*
 - [x] Add subscription analytics without exposing payment details. *(Done
-      2026-10-05, D-068: `subscription_viewed`, `purchase_started / completed
+      2026-10-04, D-068: `subscription_viewed`, `purchase_started / completed
       / cancelled / failed`, `purchases_restored`, `trial_started`,
       `trial_locked_viewed` - states and package identifiers only.)*
 - [ ] Test sandbox purchases, duplicate events, delayed webhooks, refunds,
       revocations, offline receipts, and cross-platform account restoration.
-      *(Partially done 2026-10-05, D-068: duplicate events, delayed and
+      *(Partially done 2026-10-04, D-068: duplicate events, delayed and
       out-of-order webhooks, refunds, revocations, billing retry, pause, and
       transfer are covered by unit tests and a live integration smoke against
       the deployed schema. Real sandbox purchases, offline receipts, and
       cross-platform restore wait for the Play product and the iOS build.)*
 - [x] Document customer-support procedures for billing disputes.
       *(Done 2026-09-02: [SUPPORT_BILLING_DISPUTES.md](SUPPORT_BILLING_DISPUTES.md);
-      revised 2026-10-05 for the billing ledger, lapse tolerance, and trial
+      revised 2026-10-04 for the billing ledger, lapse tolerance, and trial
       cases, D-068.)*
 - [ ] Open Apple Developer and Google Play Console accounts early enough to avoid
       approval delays in Stage 5.
@@ -1288,12 +1293,11 @@ place. Display only; no formula, stored value, or server code changes.
 - [ ] Owner on-device check: the Comprehension tile shows a percentage with
       a word under it; book rows read "notes graded N%".
 
-#### Billing lifecycle, trial, and subscription states (D-068, added 2026-10-05)
+#### Billing lifecycle, trial, and subscription states (D-068, added 2026-10-04)
 
 Done while the owner finished the financial model: every billing item that
-does not depend on the price. The price now only sets the Play product, the
-`goog_` key swap, any store introductory offer, and the final numbers in
-`companion_trial_policy`.
+does not depend on the price. The price landed the next day (D-070) and set
+only the store product, the `goog_` key swap, and the trial policy.
 
 - [x] `revenuecat-webhook` hardened: `companion_billing_events` ledger
       (duplicate deliveries are no-ops), `last_event_at` ordering guard,
@@ -1328,20 +1332,70 @@ does not depend on the price. The price now only sets the Play product, the
       D-068; SUPPORT_BILLING_DISPUTES, STAGE_2_OPERATIONS, STAGE_4_BUILD_PLAN
       updated; `gates/STAGE_4_EXIT.md` drafted.
 - [x] Ship the OTA for both runtimes; record the group IDs - PR #111,
-      published 2026-10-05 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`,
+      published 2026-10-04 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`,
       runtime 1.0.0 group `8dbe2974-6742-4de5-b465-27d9466f7bcd`.
 - [ ] Owner check with a **fresh account** (the owner's own account is
       `dev_comp`, so it never sees the trial): Subscription shows the locked
-      trial card at 0/5, unlocks after five entries, "Start free trial"
-      opens the Book Club for 7 days, a second account cannot start twice.
-- [ ] After the pricing decision: set `companion_trial_policy`, create the
-      Play product, swap the `goog_` key, run one real sandbox cycle
-      (purchase -> cancel -> expire -> restore), close the exit gate.
+      trial card at 0/5 and, after five entries, the plan buttons with the
+      store's trial wording (D-070 - the Bookmarkt "Start free trial" card
+      appears only if `bookmarkt_trial_enabled` is set back to true).
+- [x] After the pricing decision: set `companion_trial_policy`. *(Done
+      2026-10-04, D-070: the store runs the trial, so the Bookmarkt trial is
+      switched off by the new `bookmarkt_trial_enabled` flag; 7 days / 5
+      entries stay as the gate and the lever.)*
+- [ ] After the pricing decision (owner side): create the Play product,
+      swap the `goog_` key, run one real sandbox cycle (purchase -> cancel
+      -> expire -> restore), close the exit gate. *(Checklist below, D-070.)*
+
+#### Pricing decision and the store trial (D-070, added 2026-10-04)
+
+The owner's financial model landed: **Monthly $7.99 USD, Yearly $59.99 USD**
+(saves 37%), auto-renewing, each Google Play base plan with a **7-day free
+trial**. One trial, one sentence: the store's trial is the trial.
+
+- [x] Migration `20261005130000_store_trial_is_the_trial.sql`:
+      `companion_trial_policy.bookmarkt_trial_enabled` (default false);
+      `companion_trial_eligibility()` returns `store_trial` after the entries
+      gate when the flag is off; `start_companion_trial()` refuses with the
+      same reason and writes nothing. Applied 2026-10-04; live smoke
+      (throwaway user): `needs_entries` 0/5 -> `store_trial` at 5 -> start
+      refused, no row -> flag on `eligible` -> flag off `store_trial`;
+      policy unreadable by readers; cleaned up.
+- [x] Plan buttons read the store's pricing phases (`planCopy.ts`: Play
+      `defaultOption.freePhase`, else a zero-priced `introPrice`): "7 days
+      free, then $7.99 per month" / "then $59.99 per year", a "Save 37%"
+      badge on the annual plan computed from the two prices, and the note
+      "Your store runs the free trial: cancel before it ends from Google
+      Play or the App Store and nothing is charged. One trial per store
+      account." A store account that already used its trial sees the price
+      only. `purchase_started` gains `store_trial: boolean`.
+- [x] `trial.ts` / `subscriptionCopy.ts`: `store_trial` reason (no trial
+      card, plans speak); tests for the reason, the copy, and `planCopy`.
+      372 tests across 31 suites pass; tsc and lint clean.
+- [x] Docs: DECISION_LOG D-070; STAGE_4_BUILD_PLAN Phase 0/3/4 + store
+      setup identifiers; `gates/STAGE_4_EXIT.md` pricing rows;
+      SUPPORT_BILLING_DISPUTES trial row; STAGE_2_OPERATIONS flag note;
+      DESIGN_REQUIREMENTS plan-button row.
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #114,
+      published 2026-10-04 to `preview`: runtime 1.0.1 group `a9a254b9-6e01-4b1e-bd9f-541c9b75fb11`,
+      runtime 1.0.0 group `2eef106c-732f-46e2-aacf-dc6794e42578`.
+- [ ] **Owner:** in the Play Console create one subscription (suggested
+      product id `companion`) with base plans `monthly` ($7.99, 7-day free
+      trial offer) and `yearly` ($59.99, 7-day free trial offer), grace
+      period on; in RevenueCat link Google Play, import the products
+      (`companion:monthly`, `companion:yearly`), attach both to entitlement
+      `companion`, and place them in the `default` offering as `$rc_monthly`
+      / `$rc_annual`; share the `goog_` public SDK key.
+- [ ] Swap the `test_` Test Store key in `purchases.ts` for the `goog_` key
+      (one-line change, OTA), then one sandbox cycle with a license-tester
+      account (purchase -> cancel -> expire -> restore) recorded in
+      `gates/STAGE_4_EXIT.md`; close the gate.
 
 ### Stage 4 exit gate
 
 Review record: [gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md) (drafted
-2026-10-05; open until the pricing decision and one real sandbox cycle).
+2026-10-04; pricing decided 2026-10-04, D-070; open until the Play product
+exists and one real sandbox cycle is recorded).
 
 - Entitlements are consistent across iOS and Android test contexts and the
   server-authoritative account state.

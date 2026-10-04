@@ -21,8 +21,9 @@ disabled flag.
 - [Stage 2 exit review](STAGE_2_EXIT.md) - `GO` 2026-08-21 (D-020)
 - [Stage 3 entry review](STAGE_3_ENTRY.md)
 - [Stage 3 exit review](STAGE_3_EXIT.md) - `GO` 2026-09-02 (D-046)
-- [Stage 4 exit review](STAGE_4_EXIT.md) - draft opened 2026-10-05 (D-068);
-  open until the pricing decision and one real sandbox purchase cycle
+- [Stage 4 exit review](STAGE_4_EXIT.md) - draft opened 2026-10-04 (D-068);
+  pricing decided 2026-10-04 (D-070); open until the Play product exists
+  and one real sandbox purchase cycle is recorded
 - [Gate review template](GATE_REVIEW_TEMPLATE.md)
 
 ## Process

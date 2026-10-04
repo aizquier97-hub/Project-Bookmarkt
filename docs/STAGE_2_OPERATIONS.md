@@ -136,9 +136,17 @@ Policy:
    the client both lapse an `active` row 7 days past its period end
    (`ACTIVE_LAPSE_TOLERANCE_MS`, keep the two constants equal). The free
    trial is server-side: `companion_trial_policy` (one row: `trial_days`,
-   `qualifying_entries`) is read by `companion_trial_eligibility()` /
-   `start_companion_trial()`, so the trial length and entry threshold change
-   with one `update` and no release - record any change in the decision log.
+   `qualifying_entries`, `bookmarkt_trial_enabled`) is read by
+   `companion_trial_eligibility()` / `start_companion_trial()`, so the trial
+   length and entry threshold change with one `update` and no release -
+   record any change in the decision log. Since D-070 the flag is **false**:
+   the store's own 7-day free trial is the trial, the RPCs answer
+   `store_trial`, and the entry threshold only gates the plan buttons.
+   Setting the flag to true re-enables the Bookmarkt no-card trial on the
+   next app launch (no release) - do it only with a decision-log entry, and
+   never while a store trial offer is live, or new readers get two trials.
+   Prices live in the Play Console, not in code: the plan buttons print the
+   store's pricing phases, so a price change needs no release either.
    The webhook's decision logic is pure (`lifecycle.ts`) and covered by Deno
    tests that CI runs (`edge-functions` job); a live integration smoke with
    a throwaway user (trial RPCs, the full event sequence through the handler,

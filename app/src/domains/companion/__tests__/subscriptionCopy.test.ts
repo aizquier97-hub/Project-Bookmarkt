@@ -154,6 +154,12 @@ describe('describeTrialOffer', () => {
       expect(describeTrialOffer({ ...base, eligible: false, reason })).toBeNull();
     }
   });
+
+  it('shows no card when the store trial on the plans is the trial (D-070)', () => {
+    expect(
+      describeTrialOffer({ ...base, eligible: false, reason: 'store_trial', entriesLogged: 9 }),
+    ).toBeNull();
+  });
 });
 
 describe('date helpers', () => {

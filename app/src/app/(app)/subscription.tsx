@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/domains/auth/AuthProvider';
+import { annualSavingsPercent } from '@/domains/billing/planCopy';
 import {
   ensureBillingReady,
   fetchBillingOfferings,
@@ -25,14 +26,17 @@ import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 /**
- * Companion subscription (Stage 4 Phase 3, D-061 + D-068). The purchase runs
- * through the store sheet; access itself is granted server-side when
- * RevenueCat's webhook activates the reader's entitlement row - this screen
- * only ever renders what the server already decided (D-047: no client-only
- * entitlement decisions). The free trial is likewise a server decision
- * (`start_companion_trial`), offered only after the qualifying entries
- * exist and once per account. A declined, canceled, or failed purchase
- * changes nothing: the reader is told so and stays right here.
+ * Companion subscription (Stage 4 Phase 3, D-061 + D-068 + D-070). The
+ * purchase runs through the store sheet; access itself is granted
+ * server-side when RevenueCat's webhook activates the reader's entitlement
+ * row - this screen only ever renders what the server already decided
+ * (D-047: no client-only entitlement decisions). Since D-070 the store's
+ * free trial on each plan is the trial: the buttons read "7 days free, then
+ * $7.99 per month" from the store's own pricing phases, and the plans stay
+ * behind the entries-before-offer gate until the qualifying entries exist.
+ * The no-card Bookmarkt trial (`start_companion_trial`) is a policy lever
+ * that is currently off. A declined, canceled, or failed purchase changes
+ * nothing: the reader is told so and stays right here.
  */
 export default function SubscriptionScreen() {
   const queryClient = useQueryClient();
@@ -131,7 +135,11 @@ export default function SubscriptionScreen() {
     setError(null);
     setNotice(null);
     setBusyPackage(pkg.identifier);
-    trackAnalyticsEvent('purchase_started', { package: pkg.identifier, period: pkg.periodLabel });
+    trackAnalyticsEvent('purchase_started', {
+      package: pkg.identifier,
+      period: pkg.periodLabel,
+      store_trial: pkg.trialLabel !== null,
+    });
     try {
       const outcome = await purchaseBillingPackage(pkg);
       if (outcome === 'completed') {
@@ -197,7 +205,9 @@ export default function SubscriptionScreen() {
         setNotice(
           result.reason === 'needs_entries'
             ? 'A few more entries first - the trial unlocks once the companion has notes to work from.'
-            : 'This account has already used its trial. Plans are below whenever you are ready.',
+            : result.reason === 'store_trial'
+              ? 'The free trial comes with the plans below - your store runs it, and nothing is charged until it ends.'
+              : 'This account has already used its trial. Plans are below whenever you are ready.',
         );
       }
       refreshEntitlement();
@@ -219,6 +229,9 @@ export default function SubscriptionScreen() {
     entitlement?.reason === 'no_subscription' &&
     trialCard?.kind === 'locked';
   const showPlans = !entitled || entitlement.status === 'trial';
+  const readyPackages = offerings?.status === 'ready' ? offerings.packages : [];
+  const savings = annualSavingsPercent(readyPackages);
+  const anyStoreTrial = readyPackages.some((pkg) => pkg.trialLabel !== null);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -322,27 +335,62 @@ export default function SubscriptionScreen() {
               <ActivityIndicator color={gold.base} />
             </View>
           ) : offerings.status === 'ready' ? (
-            offerings.packages.map((pkg) => (
-              <Pressable
-                key={pkg.identifier}
-                style={styles.planButton}
-                onPress={() => void handlePurchase(pkg)}
-                disabled={busyPackage !== null}
-                accessibilityRole="button"
-                accessibilityLabel={`Subscribe ${pkg.priceString} ${pkg.periodLabel}`}
-              >
-                {busyPackage === pkg.identifier ? (
-                  <ActivityIndicator color={gold.onFill} />
-                ) : (
-                  <>
-                    <Text style={styles.planPrice}>{pkg.priceString}</Text>
-                    {pkg.periodLabel ? (
-                      <Text style={styles.planPeriod}>{pkg.periodLabel}</Text>
-                    ) : null}
-                  </>
-                )}
-              </Pressable>
-            ))
+            <>
+              {offerings.packages.map((pkg) => {
+                const showSavings = pkg.packageType === 'ANNUAL' && savings !== null;
+                const label = pkg.trialLabel
+                  ? `Start ${pkg.trialLabel}, then ${pkg.priceString} ${pkg.periodLabel}`
+                  : `Subscribe ${pkg.priceString} ${pkg.periodLabel}`;
+                return (
+                  <Pressable
+                    key={pkg.identifier}
+                    style={styles.planButton}
+                    onPress={() => void handlePurchase(pkg)}
+                    disabled={busyPackage !== null}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      showSavings ? `${label}, save ${savings} percent against monthly` : label
+                    }
+                  >
+                    {busyPackage === pkg.identifier ? (
+                      <ActivityIndicator color={gold.onFill} />
+                    ) : (
+                      <View style={styles.planRow}>
+                        <View style={styles.planText}>
+                          {pkg.trialLabel ? (
+                            <>
+                              <Text style={styles.planPrice}>{pkg.trialLabel}</Text>
+                              <Text style={styles.planPeriod}>
+                                then {pkg.priceString}
+                                {pkg.periodLabel ? ` ${pkg.periodLabel}` : ''}
+                              </Text>
+                            </>
+                          ) : (
+                            <>
+                              <Text style={styles.planPrice}>{pkg.priceString}</Text>
+                              {pkg.periodLabel ? (
+                                <Text style={styles.planPeriod}>{pkg.periodLabel}</Text>
+                              ) : null}
+                            </>
+                          )}
+                        </View>
+                        {showSavings ? (
+                          <View style={styles.saveBadge}>
+                            <Text style={styles.saveBadgeText}>Save {savings}%</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+              {anyStoreTrial ? (
+                <Text style={styles.planNote}>
+                  Your store runs the free trial: cancel before it ends from Google Play or the App
+                  Store and nothing is charged. One trial per store account.
+                </Text>
+              ) : null}
+            </>
           ) : offerings.status === 'empty' ? (
             <View style={styles.card}>
               <Text style={styles.body}>
@@ -500,6 +548,40 @@ const styles = StyleSheet.create({
     color: gold.onFill,
     fontSize: 13,
     marginTop: 2,
+  },
+  planRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+  },
+  planText: {
+    alignItems: 'center',
+  },
+  saveBadge: {
+    backgroundColor: colors.card,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: gold.deep,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  saveBadgeText: {
+    fontFamily: fonts.serif,
+    color: gold.deep,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  planNote: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginHorizontal: 8,
+    fontStyle: 'italic',
   },
   manageHint: {
     fontFamily: fonts.serif,
