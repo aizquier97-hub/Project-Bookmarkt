@@ -1386,6 +1386,8 @@ trial**. One trial, one sentence: the store's trial is the trial.
       (`companion:monthly`, `companion:yearly`), attach both to entitlement
       `companion`, and place them in the `default` offering as `$rc_monthly`
       / `$rc_annual`; share the `goog_` public SDK key.
+- [x] **Owner (2026-10-04):** added their own Google account as a license
+      tester in the Play Console, so sandbox purchases will not be charged.
 - [ ] Swap the `test_` Test Store key in `purchases.ts` for the `goog_` key
       (one-line change, OTA), then one sandbox cycle with a license-tester
       account (purchase -> cancel -> expire -> restore) recorded in
