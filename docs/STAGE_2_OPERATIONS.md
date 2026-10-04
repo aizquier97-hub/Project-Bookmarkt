@@ -148,7 +148,8 @@ Policy:
    `companion_trial_eligibility()` / `start_companion_trial()`, so the trial
    length and entry threshold change with one `update` and no release -
    record any change in the decision log. Since D-070 the flag is **false**:
-   the store's own 7-day free trial is the trial, the RPCs answer
+   the store's own free trial is the trial (7 days on the monthly plan, 14
+   on the yearly, D-071), the RPCs answer
    `store_trial`, and the entry threshold only gates the plan buttons.
    Setting the flag to true re-enables the Bookmarkt no-card trial on the
    next app launch (no release) - do it only with a decision-log entry, and

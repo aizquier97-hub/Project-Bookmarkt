@@ -34,7 +34,8 @@ Do these before or alongside Phase 1; none require code.
       is server-authorized, time-bound, one per account, and begins only
       after the qualifying number of entries exists.
       *Done 2026-10-04 (D-070): Monthly $7.99 USD / Yearly $79.99 USD
-      (saves 17%), auto-renewing, a 7-day free trial on each Play base plan.
+      (saves 17%), auto-renewing, a 7-day free trial on the monthly plan
+      and 14 days on the yearly plan (D-071; D-070 first said 7 on both).
       The store trial is the trial - Bookmarkt's no-card trial is switched
       off by `companion_trial_policy.bookmarkt_trial_enabled`; the 5-entry
       gate still guards the plan buttons.*
@@ -218,9 +219,10 @@ Build order within the phase:
       placeholder 7 days / 5 entries) and the entries-before-offer rule
       (locked trial card with progress bar until the qualifying entries
       exist; subscription history fails open to plans) shipped (D-068).
-      2026-10-04: the store's 7-day trial became the trial - the Bookmarkt
+      2026-10-04: the store's free trial became the trial - the Bookmarkt
       trial is off by policy flag and the plan buttons print "7 days free,
-      then $7.99 per month" / "Save 17%" from the store's phases (D-070).*
+      then $7.99 per month" / "14 days free, then $79.99 per year" / "Save
+      17%" from the store's phases (D-070, D-071).*
 - [x] Free capture is never paywalled and never degraded by subscription
       state.
       *Confirmed 2026-10-04: no capture, character, bookmark, timer, or
@@ -531,7 +533,8 @@ trial policy.
 ### Pricing decision and the store trial (added 2026-10-04, D-070)
 
 Owner's financial model: **Monthly $7.99 USD, Yearly $79.99 USD** (saves
-17%), auto-renewing, each Play base plan with a **7-day free trial**. The
+17%), auto-renewing, a **7-day free trial** on the monthly plan and **14
+days** on the yearly plan (D-071; D-070 first said 7 on both). The
 store's trial is the trial; Bookmarkt's own no-card trial (D-068) is off by
 policy flag, not deleted.
 
@@ -547,7 +550,8 @@ policy flag, not deleted.
       normalized to days; `freeTrialLabel` -> "7 days free";
       `annualSavingsPercent` -> 17 for 7.99 / 79.99); `BillingPackage` gains
       `packageType`, `price`, `trialLabel`; `subscription.tsx` plan buttons
-      render "7 days free, then $7.99 per month" / "then $79.99 per year",
+      render "7 days free, then $7.99 per month" / "14 days free, then
+      $79.99 per year" (the yearly phase per D-071),
       a "Save 17%" badge on the annual plan, and the store-trial note;
       `purchase_started` carries `store_trial`; `trial.ts` /
       `subscriptionCopy.ts` know the `store_trial` reason (no card).
@@ -570,13 +574,15 @@ policy flag, not deleted.
 
 | Where | Create | Notes |
 | --- | --- | --- |
-| Play Console -> Monetize -> Subscriptions | Subscription **`companion`** ("Book Club companion") | One subscription, two base plans; the client never hard-codes the id (it reads RevenueCat offerings), so any id works - keep it short and permanent. |
-| Base plan 1 | **`monthly`**, auto-renewing, monthly, **$7.99 USD**; offer: **7-day free trial**, eligibility "new customer" | Turn the grace period on (the webhook handles BILLING_ISSUE, D-068). |
-| Base plan 2 | **`yearly`**, auto-renewing, yearly, **$79.99 USD**; offer: **7-day free trial**, eligibility "new customer" | Google computes and enforces one trial per account across both plans. |
-| RevenueCat -> Project -> Apps | Link the Play app (service-account JSON) | Then **Products**: import `companion:monthly` and `companion:yearly`. |
-| RevenueCat -> Entitlements | **`companion`** <- both products | The webhook maps entitlement `companion` to the row; nothing else to change. |
-| RevenueCat -> Offerings | **`default`**: `$rc_monthly` = `companion:monthly`, `$rc_annual` = `companion:yearly` | The screen orders by package type and computes the saving (17% at the decided prices) from the two prices. |
-| RevenueCat -> API keys | Copy the **`goog_`** public SDK key | Replace the `test_` Test Store key in `app/src/domains/billing/purchases.ts` (one line, ships OTA). Never the secret key. |
+| Play Console -> Monetize -> Subscriptions | Subscription **`premium`** (buyer-facing name "Bookmarkt Premium") - **created 2026-10-04 (D-071)** | One subscription, two base plans; the client never hard-codes the id (it reads RevenueCat offerings), so the id names the tier rather than the app. Permanent. |
+| Base plan 1 | **`monthly`**, auto-renewing, monthly, **$7.99 USD**; offer `free-trial`: **7-day free trial**, eligibility "new customer" - **created 2026-10-04** | Grace period 7 days with automatic account hold (the webhook handles BILLING_ISSUE, D-068); charge immediately on plan changes; resubscribe allowed. |
+| Base plan 2 | **`yearly`**, auto-renewing, yearly, **$79.99 USD**; offer `free-trial`: **14-day free trial**, eligibility "new customer" - **created 2026-10-04** | Google computes and enforces one trial per account across both plans. |
+| Google Cloud + Play Console -> Users and permissions | A service account (RevenueCat's Cloud Shell script or manual: Android Publisher, Play Developer Reporting, and Pub/Sub APIs enabled; JSON key downloaded), invited to the Play developer account with *View app information*, *View financial data*, *Manage orders and subscriptions*, and *Manage store presence* | Credentials can take up to 36 hours to validate against the Play Developer API. |
+| RevenueCat -> Project -> Apps | Link the Play app `com.inkmarkt.bookmarkt` (service-account JSON) | Then **Products**: import `premium:monthly` and `premium:yearly`. |
+| RevenueCat -> Entitlements | **`companion`** <- both products | The webhook maps any store event to the reader's row; the entitlement keeps RevenueCat's customer view meaningful. |
+| RevenueCat -> Offerings | **`default`**: `$rc_monthly` = `premium:monthly`, `$rc_annual` = `premium:yearly` | The screen orders by package type and computes the saving (17% at the decided prices) from the two prices. |
+| Play Console -> Monetization setup | Paste the Pub/Sub topic RevenueCat shows for Real-time developer notifications | Cancellations and renewals reach the webhook within seconds instead of on the next poll. |
+| RevenueCat -> API keys | Copy the **`goog_`** public SDK key | Replace the `test_` Test Store key in `app/src/domains/billing/purchases.ts` (one line, ships OTA on `preview`, the channel the internal-testing build follows). Never the secret key. |
 | Play Console -> License testing | Add the fresh test account | Sandbox cycle: purchase (trial) -> cancel -> expire -> restore; record it in `gates/STAGE_4_EXIT.md`. Owner added their own account 2026-10-04. |
 
 **Play Internal testing build (owner side, step by step):**

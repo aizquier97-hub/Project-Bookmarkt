@@ -244,7 +244,7 @@ compliance, or unavailable required recovery controls.
 | Stage 1 | Complete | Approved | `GO` August 21, 2026 (D-013 early exit) | [Stage 1 review](gates/STAGE_1_REVIEW.md) |
 | Stage 2 | Complete | Approved August 21, 2026 | `GO` August 21, 2026 (D-020; iOS deferred to Stage 5) | [Entry](gates/STAGE_2_ENTRY.md) · [Exit](gates/STAGE_2_EXIT.md) |
 | Stage 3 | Complete | Entered August 22, 2026 | `GO` September 2, 2026 (D-046; usability testing deferred to Stage 6) | [Entry](gates/STAGE_3_ENTRY.md) · [Exit](gates/STAGE_3_EXIT.md) |
-| Stage 4 | Active | Entered September 2, 2026 per Stage 3 `GO` | Review drafted October 4, 2026 (D-068); pricing decided October 4, 2026 (D-070: $7.99 monthly / $79.99 yearly, 7-day store trial); open pending the Play product and one real sandbox purchase cycle | [Build plan](STAGE_4_BUILD_PLAN.md) · [Exit (draft)](gates/STAGE_4_EXIT.md) |
+| Stage 4 | Active | Entered September 2, 2026 per Stage 3 `GO` | Review drafted October 4, 2026 (D-068); pricing decided October 4, 2026 (D-070: $7.99 monthly / $79.99 yearly; store trial 7 days monthly / 14 days yearly, D-071); Play subscription `premium` created October 4, 2026; open pending the RevenueCat mapping, the `goog_` key swap, and one real sandbox purchase cycle | [Build plan](STAGE_4_BUILD_PLAN.md) · [Exit (draft)](gates/STAGE_4_EXIT.md) |
 | Stage 5 | Planned | Pending Stage 4 `GO` | Not started | To be created |
 | Stage 6 | Planned | Pending Stage 5 `GO` | Not started | To be created |
 | Stage 7 | Planned | Pending Stage 6 `GO` and mandatory Pro controls | Not started | To be created |
