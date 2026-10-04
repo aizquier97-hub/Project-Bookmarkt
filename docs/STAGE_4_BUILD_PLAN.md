@@ -508,9 +508,9 @@ numbers in `companion_trial_policy`.
 - [x] Docs: DECISION_LOG D-068, PRODUCT_ROADMAP §13 ticks + D-068 checklist,
       SUPPORT_BILLING_DISPUTES (ledger, lapse, trial), STAGE_2_OPERATIONS
       (function + table notes), `gates/STAGE_4_EXIT.md` draft.
-- [x] Ship the OTA for both runtimes; record group IDs - PR #PRNUM, published
-      2026-10-05 to `preview`: runtime 1.0.1 group `GROUP101`, runtime 1.0.0
-      group `GROUP100`.
+- [x] Ship the OTA for both runtimes; record group IDs - PR #111, published
+      2026-10-05 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`, runtime 1.0.0
+      group `8dbe2974-6742-4de5-b465-27d9466f7bcd`.
 - [ ] After the pricing decision: set `companion_trial_policy`, create the
       Play product, swap the `goog_` key, run one real sandbox purchase cycle
       (purchase -> cancel -> expire -> restore), close the exit gate.

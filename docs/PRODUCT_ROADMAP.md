@@ -1327,9 +1327,9 @@ does not depend on the price. The price now only sets the Play product, the
       smoke passed and cleaned up; 363 tests across 30 suites. DECISION_LOG
       D-068; SUPPORT_BILLING_DISPUTES, STAGE_2_OPERATIONS, STAGE_4_BUILD_PLAN
       updated; `gates/STAGE_4_EXIT.md` drafted.
-- [x] Ship the OTA for both runtimes; record the group IDs - PR #PRNUM,
-      published 2026-10-05 to `preview`: runtime 1.0.1 group `GROUP101`,
-      runtime 1.0.0 group `GROUP100`.
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #111,
+      published 2026-10-05 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`,
+      runtime 1.0.0 group `8dbe2974-6742-4de5-b465-27d9466f7bcd`.
 - [ ] Owner check with a **fresh account** (the owner's own account is
       `dev_comp`, so it never sees the trial): Subscription shows the locked
       trial card at 0/5, unlocks after five entries, "Start free trial"
