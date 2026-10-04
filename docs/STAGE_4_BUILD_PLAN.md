@@ -577,7 +577,45 @@ policy flag, not deleted.
 | RevenueCat -> Entitlements | **`companion`** <- both products | The webhook maps entitlement `companion` to the row; nothing else to change. |
 | RevenueCat -> Offerings | **`default`**: `$rc_monthly` = `companion:monthly`, `$rc_annual` = `companion:yearly` | The screen orders by package type and computes the saving (17% at the decided prices) from the two prices. |
 | RevenueCat -> API keys | Copy the **`goog_`** public SDK key | Replace the `test_` Test Store key in `app/src/domains/billing/purchases.ts` (one line, ships OTA). Never the secret key. |
-| Play Console -> License testing | Add the fresh test account | Sandbox cycle: purchase (trial) -> cancel -> expire -> restore; record it in `gates/STAGE_4_EXIT.md`. |
+| Play Console -> License testing | Add the fresh test account | Sandbox cycle: purchase (trial) -> cancel -> expire -> restore; record it in `gates/STAGE_4_EXIT.md`. Owner added their own account 2026-10-04. |
+
+**Play Internal testing build (owner side, step by step):**
+
+Play will not let you create a subscription until an app bundle that
+carries the billing permission (react-native-purchases adds it) has been
+uploaded, so the build comes first. `eas.json` has a `play-internal`
+profile: an **.aab** signed for the store, `preview` update channel, live
+Supabase project baked in.
+
+1. Play Console -> **Create app**: name "Bookmarkt", default language,
+   App/Free, accept the declarations. Package name is fixed by the first
+   upload: `com.inkmarkt.bookmarkt`.
+2. In `app/`, run `npx eas-cli@latest build --platform android --profile play-internal`.
+   First time it asks to generate an Android keystore - say yes (EAS keeps
+   it; Play App Signing re-signs on top). About 15-20 minutes on EAS.
+3. Download the `.aab` from the link EAS prints (or expo.dev -> project ->
+   Builds).
+4. Play Console -> **Testing -> Internal testing -> Create new release** ->
+   upload the `.aab` -> accept Play App Signing -> release name = version ->
+   **Save** -> **Review release** -> **Start rollout to Internal testing**.
+   The release goes live within minutes, no Google review.
+5. Same screen, **Testers** tab -> create an email list containing the
+   accounts that will install (the owner's and the fresh test account) ->
+   copy the **opt-in URL**. License testing (Setup -> License testing) and
+   this testers list are two separate lists; both are needed.
+6. On the phone, signed in to Play with a listed account: open the opt-in
+   URL, accept, install from the Play Store. Remove any sideloaded preview
+   APK first - same package name, different signature.
+7. Only now: **Monetize -> Subscriptions -> Create subscription** and
+   follow the identifier table above. New products take up to a few hours
+   to become purchasable; a license-tester account sees them sooner.
+8. Later builds: repeat step 2 and 4 (**Create new release** on the same
+   track). JS-only changes still arrive OTA over the `preview` channel.
+
+Sandbox purchases with a license-tester account are not charged, renew
+every 5 minutes (monthly) / 30 minutes (yearly), and the trial lasts
+minutes rather than days - that is what makes the
+purchase -> cancel -> expire -> restore cycle a same-evening test.
 
 ---
 
