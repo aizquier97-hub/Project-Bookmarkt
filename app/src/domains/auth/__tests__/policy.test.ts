@@ -17,6 +17,9 @@ describe('friendlyAuthMessage', () => {
     expect(friendlyAuthMessage(new Error('Request rate limit reached'), 'f')).toBe(
       'Too many attempts - wait a minute, then try again.',
     );
+    expect(friendlyAuthMessage(new Error('email rate limit exceeded'), 'f')).toBe(
+      'We have sent this address several emails recently - wait about an hour before requesting another.',
+    );
   });
 
   it('translates connectivity failures', () => {

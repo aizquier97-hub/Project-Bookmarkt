@@ -13,11 +13,13 @@ import {
 import { passwordPolicyError, signUp } from '@/domains/auth/service';
 import { friendlyAuthMessage } from '@/domains/auth/policy';
 import { KeyboardPane } from '@/components/KeyboardPane';
+import { PasswordRules } from '@/components/PasswordRules';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +34,10 @@ export default function SignUpScreen() {
     const policyError = passwordPolicyError(password);
     if (policyError) {
       setError(policyError);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
 
@@ -52,9 +58,6 @@ export default function SignUpScreen() {
     <KeyboardPane style={styles.container}>
       <View style={styles.form}>
         <Text style={styles.title}>Create account</Text>
-        <Text style={styles.subtitle}>
-          Passwords need 12+ characters with upper, lower, number, and symbol.
-        </Text>
 
         <TextInput
           style={styles.input}
@@ -75,6 +78,19 @@ export default function SignUpScreen() {
           value={password}
           onChangeText={setPassword}
         />
+        <PasswordRules password={password} />
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm password"
+          placeholderTextColor={colors.muted}
+          secureTextEntry
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+        />
+        {confirmPassword && confirmPassword !== password ? (
+          <Text style={styles.hint}>Passwords do not match yet.</Text>
+        ) : null}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
@@ -111,13 +127,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     fontWeight: '700',
     textAlign: 'center',
+    marginBottom: 12,
   },
-  subtitle: {
+  hint: {
     fontFamily: fonts.serif,
     color: colors.muted,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 16,
+    fontSize: 13,
+    paddingHorizontal: 4,
   },
   input: {
     fontFamily: fonts.serif,
