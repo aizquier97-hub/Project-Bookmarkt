@@ -582,7 +582,7 @@ policy flag, not deleted.
 | RevenueCat -> Entitlements | **`companion`** <- both products | The webhook maps any store event to the reader's row; the entitlement keeps RevenueCat's customer view meaningful. |
 | RevenueCat -> Offerings | **`default`**: `$rc_monthly` = `premium:monthly`, `$rc_annual` = `premium:yearly` | The screen orders by package type and computes the saving (17% at the decided prices) from the two prices. |
 | Play Console -> Monetization setup | Paste the Pub/Sub topic RevenueCat shows for Real-time developer notifications | Cancellations and renewals reach the webhook within seconds instead of on the next poll. |
-| RevenueCat -> API keys | Copy the **`goog_`** public SDK key | Replace the `test_` Test Store key in `app/src/domains/billing/purchases.ts` (one line, ships OTA on `preview`, the channel the internal-testing build follows). Never the secret key. |
+| RevenueCat -> API keys | Copy the **`goog_`** public SDK key | Configured `goog_acdCtFcKInxdmAvZqOmGVrNHLBu` in `app/src/domains/billing/purchases.ts` (D-071); shipped OTA on `preview` (1.0.1 group `a3c3eb86-9d4a-4917-bbfd-55c12920c632`, 1.0.0 group `db83ed9a-f4c4-42a3-9671-5cd9112b3495`). |
 | Play Console -> License testing | Add the fresh test account | Sandbox cycle: purchase (trial) -> cancel -> expire -> restore; record it in `gates/STAGE_4_EXIT.md`. Owner added their own account 2026-10-04. |
 
 **Play Internal testing build (owner side, step by step):**

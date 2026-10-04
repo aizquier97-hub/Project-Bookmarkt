@@ -83,7 +83,7 @@ Criteria are the roadmap §13 exit gate. "Pass" means evidenced today;
 
 | Work | Destination gate | Trigger for earlier action | Accepted risk | Owner |
 | --- | --- | --- | --- | --- |
-| RevenueCat product/entitlement/offering mapping for the Play subscription `premium` (created 2026-10-04, D-071: base plans `monthly` / `yearly`, 7-day and 14-day free-trial offers), Play service credentials, `goog_` key swap, one sandbox cycle | This gate (closes it) | Pricing decided 2026-10-04 (D-070) and the Play product exists (D-071) - the RevenueCat link-up is the only remaining owner-side input | None - development runs on RevenueCat's Test Store meanwhile | Product owner |
+| One real Play Store sandbox purchase cycle (purchase -> cancel -> expire -> restore) with a license-tester account recorded in this gate | This gate (closes it) | RevenueCat setup, Play credentials, and `goog_` key OTA shipped (D-071) - running the sandbox cycle on device is the remaining step to close Stage 4 | None - development ran on RevenueCat's Test Store meanwhile | Product owner & Engineering |
 | iOS billing verification (StoreKit sandbox, cross-platform restore) | Stage 5 exit | Apple Developer account approval | Stage 4 exits on Android evidence (D-020) | Engineering |
 | Offline receipt handling | Stage 5 exit | First store sandbox cycle | RevenueCat SDK caches receipts; the server stays authoritative | Engineering |
 | Keep-awake during the Sandglass timer (native module) | Stage 5 (next binary) | Next EAS build | Screen may dim during a sitting (D-062) | Engineering |
