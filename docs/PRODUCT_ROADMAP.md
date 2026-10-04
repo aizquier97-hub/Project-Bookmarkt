@@ -984,8 +984,8 @@ operations, and app-store distribution.
 - [x] Set the companion price, billing period, and introductory offer. The trial
       is server-authorized, time-bound, limited to one per account, and begins
       only after the qualifying number of entries exists.
-      *(Done 2026-10-04, D-070: Monthly $7.99 USD / Yearly $59.99 USD
-      (saves 37%), auto-renewing, each base plan with a 7-day free trial run
+      *(Done 2026-10-04, D-070: Monthly $7.99 USD / Yearly $79.99 USD
+      (saves 17%), auto-renewing, each base plan with a 7-day free trial run
       by the store. The store trial is the trial: Bookmarkt's own no-card
       trial from D-068 is switched off by `companion_trial_policy.
       bookmarkt_trial_enabled = false` (the RPCs answer `store_trial`), and
@@ -1349,8 +1349,8 @@ only the store product, the `goog_` key swap, and the trial policy.
 
 #### Pricing decision and the store trial (D-070, added 2026-10-04)
 
-The owner's financial model landed: **Monthly $7.99 USD, Yearly $59.99 USD**
-(saves 37%), auto-renewing, each Google Play base plan with a **7-day free
+The owner's financial model landed: **Monthly $7.99 USD, Yearly $79.99 USD**
+(saves 17%), auto-renewing, each Google Play base plan with a **7-day free
 trial**. One trial, one sentence: the store's trial is the trial.
 
 - [x] Migration `20261005130000_store_trial_is_the_trial.sql`:
@@ -1363,7 +1363,7 @@ trial**. One trial, one sentence: the store's trial is the trial.
       policy unreadable by readers; cleaned up.
 - [x] Plan buttons read the store's pricing phases (`planCopy.ts`: Play
       `defaultOption.freePhase`, else a zero-priced `introPrice`): "7 days
-      free, then $7.99 per month" / "then $59.99 per year", a "Save 37%"
+      free, then $7.99 per month" / "then $79.99 per year", a "Save 17%"
       badge on the annual plan computed from the two prices, and the note
       "Your store runs the free trial: cancel before it ends from Google
       Play or the App Store and nothing is charged. One trial per store
@@ -1381,7 +1381,7 @@ trial**. One trial, one sentence: the store's trial is the trial.
       runtime 1.0.0 group `2eef106c-732f-46e2-aacf-dc6794e42578`.
 - [ ] **Owner:** in the Play Console create one subscription (suggested
       product id `companion`) with base plans `monthly` ($7.99, 7-day free
-      trial offer) and `yearly` ($59.99, 7-day free trial offer), grace
+      trial offer) and `yearly` ($79.99, 7-day free trial offer), grace
       period on; in RevenueCat link Google Play, import the products
       (`companion:monthly`, `companion:yearly`), attach both to entitlement
       `companion`, and place them in the `default` offering as `$rc_monthly`
