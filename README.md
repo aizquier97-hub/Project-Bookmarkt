@@ -22,7 +22,9 @@ labels the provenance of everything it says (Decision D-012).
 The current PWA is a temporary prototype used to validate the product quickly.
 The launch product is a subscription-based iOS and Android application, not a
 public web/PWA reading application. A minimal website remains only for durable QR
-routing, store redirection, privacy, support, and account-management obligations.
+routing, store redirection, privacy, support, and account-management
+obligations; its home is [bookmarkt.io](https://bookmarkt.io) (`website/`,
+D-069) - today a landing page and a waitlist.
 
 ## Product development
 
@@ -39,6 +41,7 @@ are supporting context.
 
 - [Stage 1 operations, AI controls, monitoring, and recovery](docs/STAGE_1_OPERATIONS.md)
 - [Billing dispute support procedures](docs/SUPPORT_BILLING_DISPUTES.md)
+- [bookmarkt.io website: hosting and waitlist](website/README.md)
 
 ## Current status
 

@@ -178,7 +178,9 @@ not initially:
 - A public web or PWA reading application.
 
 The minimal website and smart-link service may display installation guidance on
-unsupported/desktop devices, but they do not expose the reading product.
+unsupported/desktop devices, but they do not expose the reading product. The
+website is [bookmarkt.io](https://bookmarkt.io) (D-069): a landing page and a
+waitlist today; privacy, support, and account pages when Stage 6 writes them.
 
 Changes to these boundaries require the roadmap change process.
 
@@ -1526,7 +1528,10 @@ for people outside the development team. An additional purpose is to provide rec
 #### Privacy, legal, and store compliance
 
 - [ ] Create a complete data inventory and processor/subprocessor register,
-      including voice recordings, transcripts, and companion session data.
+      including voice recordings, transcripts, companion session data, and
+      the bookmarkt.io waitlist (`waitlist_signups`: name, email, platform,
+      optional current read - collected for launch notices only, deleted on
+      request; Cloudflare and Supabase as processors, D-069).
 - [ ] Publish a privacy policy, terms of service, subscription terms, and
       acceptable-use/content rules.
 - [ ] Implement the launch age posture: 13+ with an age gate. Document the
@@ -1628,6 +1633,9 @@ and physical-QR journey with representative external users before public launch.
 
 - [ ] Recruit a representative tester cohort - including readers who
       self-describe fragmented attention - and obtain appropriate consent.
+      The bookmarkt.io waitlist (D-069) is the first source: it records each
+      signup's platform, so the TestFlight and Play closed-test invitations
+      can be split by device.
 - [ ] Distribute TestFlight and Google Play closed-test builds.
 - [ ] Test installed-app QR opening, uninstalled-app store routing, deferred QR
       context, signup, return login, account sync, books, typed and voice
@@ -1711,7 +1719,9 @@ experience.
       service worker, handle previously cached installations, and replace public
       reading routes with app/store guidance without deleting account data.
 - [ ] Keep only the minimal smart-link, installation, privacy, support, and
-      account-obligation website.
+      account-obligation website - at bookmarkt.io (D-069), where the landing
+      page and waitlist already live; at launch the "Join the waitlist" calls
+      become store links and the waitlist gets its launch notice.
 - [ ] Freeze and quality-check the production physical-bookmark QR artwork.
 - [ ] Define manufacturing batch, QR traceability, packaging instructions,
       replacement process, inventory, and fulfillment quality controls.

@@ -94,7 +94,9 @@ gate).
 - Session material uses platform secure storage (Keychain/Keystore) via
   expo-secure-store, not AsyncStorage.
 - Deployment ownership: the product owner owns all environments, the single
-  shared Supabase project, Netlify (frozen PWA + smart-link service), and EAS.
+  shared Supabase project, Netlify (frozen PWA + smart-link service),
+  Cloudflare (the `bookmarkt.io` zone and the Pages project that serves the
+  static site, D-069), and EAS.
   Every deploy is reproducible from a tagged commit; schema changes ship only
   through committed migrations.
 - Over-the-air updates (expo-updates) may deliver JS-level fixes to preview
@@ -103,6 +105,8 @@ gate).
 ## 6. Repository layout
 
 The native app lives in this repository under `app/` (Expo workspace), beside
-the frozen PWA prototype at the root and `supabase/` shared backend assets.
+the frozen PWA prototype at the root, `supabase/` shared backend assets, and
+`website/` - the static bookmarkt.io site (plain HTML/CSS/JS, no build step;
+Cloudflare Pages publishes the folder on every merge to `main`, D-069).
 One repository preserves the single source of truth for docs, migrations, and
 gate history. Revisit only if CI times or tooling isolation demand a split.
