@@ -3,8 +3,21 @@ import { supabase } from '@/lib/supabase';
 
 export { passwordPolicyError };
 
-export async function signUp(email: string, password: string): Promise<void> {
-  const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+/**
+ * Creates the account. `emailRedirectTo` is where the emailed confirmation
+ * link lands; without it Supabase falls back to the project Site URL (the
+ * frozen prototype PWA), so the app always passes its own deep link.
+ */
+export async function signUp(
+  email: string,
+  password: string,
+  emailRedirectTo?: string,
+): Promise<void> {
+  const { error } = await supabase.auth.signUp({
+    email: email.trim(),
+    password,
+    options: emailRedirectTo ? { emailRedirectTo } : undefined,
+  });
   if (error) {
     throw error;
   }

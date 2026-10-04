@@ -10,7 +10,11 @@ additional_redirect_urls = [
   "exp://192.168.1.143:8081/--/reset-password",
   "exp://192.168.1.143:8081/--/*",
   "bookmarkt://reset-password",
+  "bookmarkt:///reset-password",
+  "bookmarkt://email-confirmed",
+  "bookmarkt:///email-confirmed",
   "bookmarkt://*",
+  "bookmarkt:///*",
 ]
 minimum_password_length = 12
 password_requirements = "lower_upper_letters_digits_symbols"
