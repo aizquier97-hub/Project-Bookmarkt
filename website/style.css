@@ -83,6 +83,11 @@ a {
   white-space: nowrap;
 }
 
+/* The hidden attribute must beat display: grid on the form cards. */
+[hidden] {
+  display: none !important;
+}
+
 /* Header: the app's walnut frame. */
 .header {
   position: sticky;
@@ -327,6 +332,202 @@ h1 {
   color: var(--muted);
   font-size: 1.15rem;
   margin-bottom: 32px;
+}
+
+.waitlist-contact {
+  margin: 24px 0 0;
+  font-size: 1rem;
+}
+
+.waitlist-contact a {
+  color: var(--gold-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Waitlist page: one paper card holding the form. */
+.signup {
+  padding: clamp(48px, 9vw, 96px) 0 clamp(64px, 10vw, 112px);
+  text-align: center;
+}
+
+.signup-inner {
+  max-width: 640px;
+}
+
+.signup h1 {
+  margin-bottom: 20px;
+}
+
+.signup .lede {
+  margin-bottom: 36px;
+}
+
+.form-card {
+  text-align: left;
+  display: grid;
+  gap: 22px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  border: 0;
+  min-width: 0;
+}
+
+.field label,
+.field legend {
+  font-weight: 700;
+  color: var(--walnut);
+  font-size: 1rem;
+}
+
+.field legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.field input[type="text"],
+.field input[type="email"] {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.field input::placeholder {
+  color: var(--on-walnut-muted);
+  opacity: 1;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip {
+  position: relative;
+  cursor: pointer;
+}
+
+.chip input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.chip span {
+  display: inline-block;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.chip input:checked + span {
+  background: var(--walnut);
+  border-color: var(--walnut);
+  color: var(--on-walnut);
+}
+
+.chip input:focus-visible + span {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Honeypot: off-screen for people, present for bots. */
+.hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.form-status {
+  min-height: 1.4em;
+  margin: -6px 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.form-status:empty {
+  display: none;
+}
+
+.form-status.is-error {
+  color: var(--leather);
+  font-weight: 700;
+}
+
+.form-card .btn {
+  justify-self: start;
+}
+
+.form-card .btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+  transform: none;
+}
+
+.fine-print {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.form-done {
+  text-align: center;
+  justify-items: center;
+  gap: 14px;
+}
+
+.form-done h2 {
+  font-size: clamp(1.6rem, 3.5vw, 2rem);
+  line-height: 1.2;
+  color: var(--walnut);
+}
+
+.form-done p {
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.form-done .btn {
+  justify-self: center;
+}
+
+noscript .form-status {
+  display: block;
+  margin-top: 24px;
+}
+
+noscript .form-status a {
+  color: var(--gold-deep);
+  text-decoration: underline;
 }
 
 /* Footer */

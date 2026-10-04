@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Join the waitlist — Bookmarkt</title>
+  <meta name="description" content="Leave your name and email and we will write when the Bookmarkt beta opens on Android and iOS.">
+  <link rel="canonical" href="https://bookmarkt.io/waitlist">
+  <meta name="robots" content="noindex">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Bookmarkt">
+  <meta property="og:title" content="Join the Bookmarkt waitlist">
+  <meta property="og:description" content="Leave your name and email and we will write when the Bookmarkt beta opens.">
+  <meta property="og:url" content="https://bookmarkt.io/waitlist">
+  <meta name="theme-color" content="#2a1c11">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container nav">
+      <a href="/" class="brand" aria-label="Bookmarkt home">
+        <span class="ribbon" aria-hidden="true"></span>
+        <span class="wordmark">Bookmarkt</span>
+      </a>
+      <a href="/" class="btn btn-outline btn-small">Back to the page</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="signup">
+      <div class="container signup-inner">
+        <p class="eyebrow">Private beta</p>
+        <h1>Join the waitlist.</h1>
+        <p class="lede">
+          Bookmarkt is in private testing on Android, with iOS to follow. Leave your details and
+          we will write when a place opens — nothing else, no newsletter.
+        </p>
+
+        <form id="waitlist-form" class="card form-card" novalidate>
+          <div class="field">
+            <label for="name">Your name</label>
+            <input id="name" name="name" type="text" autocomplete="name" required maxlength="120"
+              placeholder="What should we call you?">
+          </div>
+
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email" inputmode="email"
+              required maxlength="254" placeholder="you@example.com">
+          </div>
+
+          <fieldset class="field">
+            <legend>Where do you read?</legend>
+            <div class="chips">
+              <label class="chip">
+                <input type="radio" name="platform" value="android">
+                <span>Android</span>
+              </label>
+              <label class="chip">
+                <input type="radio" name="platform" value="ios">
+                <span>iPhone</span>
+              </label>
+              <label class="chip">
+                <input type="radio" name="platform" value="both">
+                <span>Both</span>
+              </label>
+              <label class="chip">
+                <input type="radio" name="platform" value="unsure" checked>
+                <span>Not sure yet</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="field">
+            <label for="currently_reading">What are you reading right now? <span class="optional">optional</span></label>
+            <input id="currently_reading" name="currently_reading" type="text" maxlength="200"
+              autocomplete="off" placeholder="Title, author — whatever you like">
+          </div>
+
+          <div class="hp" aria-hidden="true">
+            <label for="website">Leave this field empty</label>
+            <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
+          </div>
+
+          <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+
+          <button id="submit-button" class="btn btn-gold" type="submit">Join the waitlist</button>
+          <p class="fine-print">
+            We use this only to tell you about the Bookmarkt beta and launch. Reply to any email
+            and we remove you.
+          </p>
+        </form>
+
+        <div id="form-done" class="card form-card form-done" tabindex="-1" hidden>
+          <span class="card-mark" aria-hidden="true">&#10003;</span>
+          <h2 id="done-title">You are on the list.</h2>
+          <p id="done-copy">We will write when a place opens.</p>
+          <a href="/" class="btn btn-gold">Back to Bookmarkt</a>
+        </div>
+
+        <noscript>
+          <p class="form-status is-error">
+            This form needs JavaScript. You can also email
+            <a href="mailto:support@bookmarkt.io?subject=Bookmarkt%20waitlist">support@bookmarkt.io</a>
+            with your name and whether you read on Android or iPhone.
+          </p>
+        </noscript>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span class="wordmark">Bookmarkt</span>
+      <a href="mailto:support@bookmarkt.io">support@bookmarkt.io</a>
+      <span>&copy; 2026 Bookmarkt</span>
+    </div>
+  </footer>
+
+  <script src="waitlist.js" defer></script>
+</body>
+</html>
