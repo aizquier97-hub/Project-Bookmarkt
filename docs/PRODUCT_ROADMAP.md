@@ -1342,6 +1342,9 @@ only the store product, the `goog_` key swap, and the trial policy.
       trial card at 0/5 and, after five entries, the plan buttons with the
       store's trial wording (D-070 - the Bookmarkt "Start free trial" card
       appears only if `bookmarkt_trial_enabled` is set back to true).
+      *(2026-10-04: the first attempt stalled because the confirmation
+      email linked to the prototype PWA; fixed by D-072 and shipped OTA -
+      delete the half-created user in Supabase and sign up again.)*
 - [x] After the pricing decision: set `companion_trial_policy`. *(Done
       2026-10-04, D-070: the store runs the trial, so the Bookmarkt trial is
       switched off by the new `bookmarkt_trial_enabled` flag; 7 days / 5

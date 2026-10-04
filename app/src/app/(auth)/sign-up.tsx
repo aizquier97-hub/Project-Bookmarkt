@@ -1,3 +1,4 @@
+import * as Linking from 'expo-linking';
 import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -36,9 +37,9 @@ export default function SignUpScreen() {
 
     setSubmitting(true);
     try {
-      await signUp(email, password);
+      await signUp(email, password, Linking.createURL('/email-confirmed'));
       setNotice(
-        'Account created. If email confirmation is required, check your inbox before signing in.',
+        'Account created. Check your inbox and open the confirmation link on this phone to finish signing in.',
       );
     } catch (err) {
       setError(friendlyAuthMessage(err, 'Signup failed. Try again.'));

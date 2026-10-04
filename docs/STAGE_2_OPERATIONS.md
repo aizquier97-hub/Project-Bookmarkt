@@ -298,7 +298,10 @@ Steps run in this order — later steps depend on earlier ones:
    clean device before proceeding.
 7. **Drop the Netlify origin from Supabase Auth redirect URLs** — only after
    the sunset page is confirmed live, so no one hits an unexplained auth
-   error mid-transition. This blocks link-based flows (recovery, OAuth) from
+   error mid-transition. At the same time move **Site URL** off the Netlify
+   origin (to `https://bookmarkt.io`): the app's own links already name
+   their redirect (`bookmarkt:///reset-password`, `bookmarkt:///email-confirmed`,
+   D-072), so Site URL is only the fallback. This blocks link-based flows (recovery, OAuth) from
    the old origin; new sign-ins stop because the sunset page has no login
    form. Existing tokens expire naturally (access-token TTL, ~1 hour) and RLS
    enforces correct data access throughout; a hard stop, if ever needed, is
