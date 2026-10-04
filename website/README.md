@@ -11,11 +11,11 @@ build step, no framework, no third-party fonts or scripts. Decision D-069 in
 | --- | --- |
 | `index.html` | Landing page (hero, three pillars, promises, waitlist call to action). |
 | `waitlist.html` + `waitlist.js` | `/waitlist` signup form; posts to Supabase. |
-| `privacy.html` | `/privacy` Privacy Policy for store listing & web compliance. |
+| `privacy.html` | `/privacy` Privacy Policy embedded via Termly Pro snippet (store listing & web compliance). |
 | `cookie-policy.html` | `/cookie-policy` Cookie Policy embedded via Termly Pro snippet. |
 | `data-deletion.html` | `/data-deletion` Data deletion instructions for Google Play & GDPR/CCPA. |
 | `style.css` | Tokens mirror `app/src/lib/theme.ts` (walnut, paper, ink, gold; serif). |
-| `_headers` | Security headers for Cloudflare Pages, including the CSP. `/cookie-policy` gets its own relaxed CSP (`'unsafe-eval'`, inline styles, Termly origins) because Termly's embed script needs them; every other page keeps the strict policy. |
+| `_headers` | Security headers for Cloudflare Pages, including the CSP. `/privacy` and `/cookie-policy` get their own relaxed CSP (`'unsafe-eval'`, inline styles, Termly origins) because Termly's embed script needs them; every other page keeps the strict policy. |
 | `_redirects` | Cloudflare Pages route redirects (e.g. `/cookies` to `/cookie-policy`). |
 | `favicon.png` | Copy of `icons/icon-192.png`. |
 
