@@ -67,6 +67,20 @@ jobs:
           echo "Checked $(ls *.sql | wc -l) migrations."
           exit $status
 
+  edge-functions:
+    name: Edge Functions (Deno test + check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Unit tests (RevenueCat webhook lifecycle)
+        run: deno test --allow-env --allow-net=esm.sh supabase/functions/revenuecat-webhook
+      - name: Type-check deployed functions
+        run: deno check supabase/functions/revenuecat-webhook/index.ts supabase/functions/companion/index.ts
+
   ai-flag-live:
     name: Image-generation flag disabled (live)
     runs-on: ubuntu-latest

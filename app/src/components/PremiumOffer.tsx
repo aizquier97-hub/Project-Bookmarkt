@@ -1,14 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, fonts, gold } from '@/lib/theme';
 
 /**
- * The locked-state card for premium companion features (Phase-3 billing is
- * not live yet, so this explains the feature without a buy button). Shared
- * by the Book Club, Recall match, and story-so-far screens.
+ * The locked-state card for premium companion features. Shared by the Book
+ * Club, Recall match, and story-so-far screens. It never decides access
+ * itself - the caller renders it only after the server said "not entitled"
+ * - and it hands off to the Subscription screen, where the free trial and
+ * plans live (D-068).
  */
 export function PremiumOffer({ title, body }: { title: string; body: string }) {
+  const router = useRouter();
   return (
     <View style={styles.container}>
       <View style={styles.card}>
@@ -18,12 +22,17 @@ export function PremiumOffer({ title, body }: { title: string; body: string }) {
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.body}>{body}</Text>
         <Text style={styles.body}>
-          This is part of the paid plan. Subscriptions are coming soon — your notes and character
-          maps stay free forever.
+          This is part of the Book Club plan. Your notes, character maps, and bookmarks stay free
+          forever, subscription or not.
         </Text>
-        <View style={styles.pill}>
-          <Text style={styles.pillText}>Coming soon</Text>
-        </View>
+        <Pressable
+          style={styles.pill}
+          onPress={() => router.push('/subscription')}
+          accessibilityRole="button"
+          accessibilityLabel="View plans and free trial"
+        >
+          <Text style={styles.pillText}>View plans</Text>
+        </Pressable>
       </View>
     </View>
   );

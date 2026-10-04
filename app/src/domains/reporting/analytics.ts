@@ -26,7 +26,17 @@ export type AnalyticsEventName =
   | 'trophy_piece_unlocked'
   | 'quote_favorited'
   | 'quote_reflection_saved'
-  | 'difficulty_override_set';
+  | 'difficulty_override_set'
+  // Subscription analytics (D-068): lifecycle signals only - never prices,
+  // currencies, receipts, or store account details.
+  | 'subscription_viewed'
+  | 'purchase_started'
+  | 'purchase_completed'
+  | 'purchase_cancelled'
+  | 'purchase_failed'
+  | 'purchases_restored'
+  | 'trial_started'
+  | 'trial_locked_viewed';
 
 export function trackAnalyticsEvent(
   eventName: AnalyticsEventName,

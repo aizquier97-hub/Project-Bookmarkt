@@ -132,13 +132,14 @@ function CompanionOffer() {
           came from your notes or its general knowledge.
         </Text>
         <Text style={styles.offerBody}>
-          The Book Club is part of the paid plan — your notes and character maps stay free forever.
+          The Book Club is the paid part of Bookmarkt, with a free trial once you have a few entries
+          down. Your notes and character maps stay free forever.
         </Text>
         <Pressable
           style={styles.offerButton}
           onPress={() => router.push('/subscription')}
           accessibilityRole="button"
-          accessibilityLabel="View subscription plans"
+          accessibilityLabel="View plans and free trial"
         >
           <Text style={styles.offerButtonText}>View plans</Text>
         </Pressable>

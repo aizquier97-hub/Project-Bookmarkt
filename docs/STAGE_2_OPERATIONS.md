@@ -97,7 +97,8 @@ Policy:
 ### Application deployment
 
 1. PR to `main` must pass CI (typecheck, lint, jest, Android export sanity,
-   migration checks; the live 410 probe guards `main`).
+   migration checks, Deno test + check of the Edge Functions; the live 410
+   probe guards `main`).
 2. Apply any migration first (additive), then deploy any changed Edge
    Function (`npx --yes supabase@latest functions deploy <name>
    --project-ref bfallxtcxxyykcnkedom`; `supabase/config.toml` carries each
@@ -122,6 +123,27 @@ Policy:
    the function and the client (`fitness/comprehension.ts`): the hash
    suffix changes, every cached grade goes stale, and each reader's books
    re-grade at most four per launch within the daily quota (D-066).
+5. Billing (D-061 / D-068). `revenuecat-webhook` is the only writer of
+   store-sourced `companion_entitlements` rows; RevenueCat authenticates
+   with a fixed `Authorization` header equal to the `REVENUECAT_WEBHOOK_SECRET`
+   function secret (its value lives in the RevenueCat dashboard; Supabase
+   shows only a digest - do not rotate it casually, both sides must change
+   together). Every delivery lands in `companion_billing_events` (event id
+   primary key; `applied` / `skip_reason` say what happened), so a
+   re-delivery is a `duplicate_event` no-op and an out-of-order event is a
+   `stale_event` no-op - to re-apply a lost event, re-send it from the
+   RevenueCat dashboard rather than editing rows. The `companion` gate and
+   the client both lapse an `active` row 7 days past its period end
+   (`ACTIVE_LAPSE_TOLERANCE_MS`, keep the two constants equal). The free
+   trial is server-side: `companion_trial_policy` (one row: `trial_days`,
+   `qualifying_entries`) is read by `companion_trial_eligibility()` /
+   `start_companion_trial()`, so the trial length and entry threshold change
+   with one `update` and no release - record any change in the decision log.
+   The webhook's decision logic is pure (`lifecycle.ts`) and covered by Deno
+   tests that CI runs (`edge-functions` job); a live integration smoke with
+   a throwaway user (trial RPCs, the full event sequence through the handler,
+   the deployed 402 gate, the deployed 405/401 endpoint) was the D-068
+   verification and is the pattern to repeat after any webhook change.
 
 ### Application rollback
 

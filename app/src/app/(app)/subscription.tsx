@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/domains/auth/AuthProvider';
@@ -14,15 +14,25 @@ import {
   type BillingPackage,
 } from '@/domains/billing/purchases';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
+import {
+  describeSubscriptionState,
+  describeTrialOffer,
+  formatSubscriptionDate,
+} from '@/domains/companion/subscriptionCopy';
+import { fetchTrialEligibility, startCompanionTrial } from '@/domains/companion/trial';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 /**
- * Companion subscription (Stage 4 Phase 3). The purchase runs through the
- * store sheet; access itself is granted server-side when RevenueCat's
- * webhook activates the reader's entitlement row - this screen only ever
- * renders what the server already decided (D-047: no client-only
- * entitlement decisions).
+ * Companion subscription (Stage 4 Phase 3, D-061 + D-068). The purchase runs
+ * through the store sheet; access itself is granted server-side when
+ * RevenueCat's webhook activates the reader's entitlement row - this screen
+ * only ever renders what the server already decided (D-047: no client-only
+ * entitlement decisions). The free trial is likewise a server decision
+ * (`start_companion_trial`), offered only after the qualifying entries
+ * exist and once per account. A declined, canceled, or failed purchase
+ * changes nothing: the reader is told so and stays right here.
  */
 export default function SubscriptionScreen() {
   const queryClient = useQueryClient();
@@ -32,6 +42,7 @@ export default function SubscriptionScreen() {
   const [offerings, setOfferings] = useState<BillingOfferings | null>(null);
   const [busyPackage, setBusyPackage] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [startingTrial, setStartingTrial] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +50,42 @@ export default function SubscriptionScreen() {
     queryKey: queryKeys.companionEntitlement,
     queryFn: fetchCompanionEntitlement,
   });
-  const entitled = entitlementQuery.data?.entitled === true;
+  const entitlement = entitlementQuery.data ?? null;
+  const entitled = entitlement?.entitled === true;
+
+  const eligibilityQuery = useQuery({
+    queryKey: queryKeys.companionTrialEligibility,
+    queryFn: fetchTrialEligibility,
+    enabled: entitlement !== null && !entitled,
+  });
+
+  const viewedRef = useRef(false);
+  useEffect(() => {
+    if (!entitlement || viewedRef.current) {
+      return;
+    }
+    viewedRef.current = true;
+    trackAnalyticsEvent('subscription_viewed', {
+      entitled: entitlement.entitled,
+      state: entitlement.entitled ? entitlement.status : entitlement.reason,
+    });
+  }, [entitlement]);
+
+  const lockedViewedRef = useRef(false);
+  useEffect(() => {
+    const eligibility = eligibilityQuery.data;
+    if (!eligibility || eligibility.eligible || eligibility.reason !== 'needs_entries') {
+      return;
+    }
+    if (lockedViewedRef.current) {
+      return;
+    }
+    lockedViewedRef.current = true;
+    trackAnalyticsEvent('trial_locked_viewed', {
+      entries_logged: eligibility.entriesLogged,
+      entries_required: eligibility.entriesRequired,
+    });
+  }, [eligibilityQuery.data]);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,8 +119,10 @@ export default function SubscriptionScreen() {
     };
   }, [userId]);
 
-  const refreshEntitlement = () =>
-    queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
+  const refreshEntitlement = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.companionTrialEligibility });
+  };
 
   const handlePurchase = async (pkg: BillingPackage) => {
     if (busyPackage) {
@@ -83,17 +131,27 @@ export default function SubscriptionScreen() {
     setError(null);
     setNotice(null);
     setBusyPackage(pkg.identifier);
+    trackAnalyticsEvent('purchase_started', { package: pkg.identifier, period: pkg.periodLabel });
     try {
       const outcome = await purchaseBillingPackage(pkg);
       if (outcome === 'completed') {
+        trackAnalyticsEvent('purchase_completed', { package: pkg.identifier });
         setNotice(
           'Purchase received. Your Book Club access activates within a few moments - pull back in if it has not appeared yet.',
         );
         // The webhook writes the row; give it a beat, then re-read.
-        setTimeout(() => void refreshEntitlement(), 4000);
+        setTimeout(() => refreshEntitlement(), 4000);
+      } else {
+        trackAnalyticsEvent('purchase_cancelled', { package: pkg.identifier });
+        setNotice('No charge was made and nothing changed. Your notes are exactly where you left them.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'The purchase could not be completed.');
+      trackAnalyticsEvent('purchase_failed', { package: pkg.identifier });
+      setError(
+        err instanceof Error && err.message
+          ? `${err.message} Nothing was charged - you can try again or come back later.`
+          : 'The purchase could not be completed. Nothing was charged - you can try again or come back later.',
+      );
     } finally {
       setBusyPackage(null);
     }
@@ -108,14 +166,59 @@ export default function SubscriptionScreen() {
     setRestoring(true);
     try {
       await restoreBillingPurchases();
+      trackAnalyticsEvent('purchases_restored', {});
       setNotice('Restore requested. Any past purchase re-activates within a few moments.');
-      setTimeout(() => void refreshEntitlement(), 4000);
+      setTimeout(() => refreshEntitlement(), 4000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Purchases could not be restored.');
     } finally {
       setRestoring(false);
     }
   };
+
+  const handleStartTrial = async () => {
+    if (startingTrial) {
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setStartingTrial(true);
+    try {
+      const result = await startCompanionTrial();
+      if (result.started) {
+        trackAnalyticsEvent('trial_started', { trial_days: result.eligibility.trialDays });
+        const ends = formatSubscriptionDate(result.trialExpiresAt);
+        setNotice(
+          ends
+            ? `Your free trial has started - the Book Club is open until ${ends}.`
+            : 'Your free trial has started - the Book Club is open.',
+        );
+      } else {
+        setNotice(
+          result.reason === 'needs_entries'
+            ? 'A few more entries first - the trial unlocks once the companion has notes to work from.'
+            : 'This account has already used its trial. Plans are below whenever you are ready.',
+        );
+      }
+      refreshEntitlement();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The trial could not be started.');
+    } finally {
+      setStartingTrial(false);
+    }
+  };
+
+  const statusCard = entitlement ? describeSubscriptionState(entitlement) : null;
+  const eligibility = eligibilityQuery.data ?? null;
+  const trialCard = !entitled && eligibility ? describeTrialOffer(eligibility) : null;
+  // The entries-before-offer rule (roadmap section 13): plans wait until the
+  // companion has notes to work from. Readers with any subscription history
+  // always see them; an eligibility hiccup fails open to the plans.
+  const plansLocked =
+    !entitled &&
+    entitlement?.reason === 'no_subscription' &&
+    trialCard?.kind === 'locked';
+  const showPlans = !entitled || entitlement.status === 'trial';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -135,57 +238,133 @@ export default function SubscriptionScreen() {
         </Text>
       </View>
 
-      {entitled ? (
-        <View style={[styles.card, styles.activeCard]}>
-          <Text style={styles.activeTitle}>Your access is active</Text>
-          <Text style={styles.body}>
-            {entitlementQuery.data?.entitled && entitlementQuery.data.status === 'comped'
-              ? 'This account has complimentary access.'
-              : entitlementQuery.data?.entitled && entitlementQuery.data.status === 'trial'
-                ? 'You are on a trial.'
-                : 'Your subscription is active.'}
-          </Text>
-        </View>
-      ) : null}
-
-      <Text style={styles.sectionLabel}>Plans</Text>
-      {offerings === null ? (
+      {entitlementQuery.isPending ? (
         <View style={styles.card}>
           <ActivityIndicator color={gold.base} />
         </View>
-      ) : offerings.status === 'ready' ? (
-        offerings.packages.map((pkg) => (
-          <Pressable
-            key={pkg.identifier}
-            style={styles.planButton}
-            onPress={() => void handlePurchase(pkg)}
-            disabled={busyPackage !== null}
-            accessibilityRole="button"
-            accessibilityLabel={`Subscribe ${pkg.priceString} ${pkg.periodLabel}`}
-          >
-            {busyPackage === pkg.identifier ? (
-              <ActivityIndicator color={gold.onFill} />
-            ) : (
-              <>
-                <Text style={styles.planPrice}>{pkg.priceString}</Text>
-                {pkg.periodLabel ? <Text style={styles.planPeriod}>{pkg.periodLabel}</Text> : null}
-              </>
-            )}
-          </Pressable>
-        ))
-      ) : offerings.status === 'empty' ? (
-        <View style={styles.card}>
-          <Text style={styles.body}>
-            No plans are on offer right now. Check back soon - your notes are safe either way.
+      ) : null}
+
+      {statusCard ? (
+        <View
+          style={[
+            styles.card,
+            statusCard.tone === 'active' && styles.activeCard,
+            statusCard.tone === 'warning' && styles.warningCard,
+            statusCard.tone === 'ended' && styles.endedCard,
+          ]}
+          accessibilityRole="summary"
+        >
+          <Text style={[styles.statusTitle, statusCard.tone === 'active' && styles.activeTitle]}>
+            {statusCard.title}
           </Text>
+          <Text style={styles.body}>{statusCard.body}</Text>
         </View>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.body}>
-            Purchases are not available in this build. Update the app to subscribe.
-          </Text>
+      ) : null}
+
+      {trialCard ? (
+        <View style={[styles.card, styles.trialCard]}>
+          <View style={styles.trialHeader}>
+            <Ionicons
+              name={trialCard.kind === 'offer' ? 'sparkles-outline' : 'lock-closed-outline'}
+              size={18}
+              color={gold.deep}
+            />
+            <Text style={styles.trialTitle}>{trialCard.title}</Text>
+          </View>
+          <Text style={styles.body}>{trialCard.body}</Text>
+          {trialCard.kind === 'locked' && trialCard.entriesRequired > 0 ? (
+            <View
+              style={styles.progressTrack}
+              accessibilityRole="progressbar"
+              accessibilityValue={{
+                min: 0,
+                max: trialCard.entriesRequired,
+                now: Math.min(trialCard.entriesLogged, trialCard.entriesRequired),
+              }}
+            >
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.round(
+                      (Math.min(trialCard.entriesLogged, trialCard.entriesRequired) /
+                        trialCard.entriesRequired) *
+                        100,
+                    )}%`,
+                  },
+                ]}
+              />
+            </View>
+          ) : null}
+          {trialCard.kind === 'offer' ? (
+            <Pressable
+              style={styles.planButton}
+              onPress={() => void handleStartTrial()}
+              disabled={startingTrial}
+              accessibilityRole="button"
+              accessibilityLabel="Start your free trial"
+            >
+              {startingTrial ? (
+                <ActivityIndicator color={gold.onFill} />
+              ) : (
+                <Text style={styles.planPrice}>Start free trial</Text>
+              )}
+            </Pressable>
+          ) : null}
         </View>
-      )}
+      ) : null}
+
+      {showPlans && !plansLocked ? (
+        <>
+          <Text style={styles.sectionLabel}>Plans</Text>
+          {offerings === null ? (
+            <View style={styles.card}>
+              <ActivityIndicator color={gold.base} />
+            </View>
+          ) : offerings.status === 'ready' ? (
+            offerings.packages.map((pkg) => (
+              <Pressable
+                key={pkg.identifier}
+                style={styles.planButton}
+                onPress={() => void handlePurchase(pkg)}
+                disabled={busyPackage !== null}
+                accessibilityRole="button"
+                accessibilityLabel={`Subscribe ${pkg.priceString} ${pkg.periodLabel}`}
+              >
+                {busyPackage === pkg.identifier ? (
+                  <ActivityIndicator color={gold.onFill} />
+                ) : (
+                  <>
+                    <Text style={styles.planPrice}>{pkg.priceString}</Text>
+                    {pkg.periodLabel ? (
+                      <Text style={styles.planPeriod}>{pkg.periodLabel}</Text>
+                    ) : null}
+                  </>
+                )}
+              </Pressable>
+            ))
+          ) : offerings.status === 'empty' ? (
+            <View style={styles.card}>
+              <Text style={styles.body}>
+                No plans are on offer right now. Check back soon - your notes are safe either way.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <Text style={styles.body}>
+                Purchases are not available in this build. Update the app to subscribe.
+              </Text>
+            </View>
+          )}
+        </>
+      ) : null}
+
+      {entitled && entitlement.status !== 'trial' ? (
+        <Text style={styles.manageHint}>
+          Plan changes and cancellation happen in your store account (Google Play or the App
+          Store); this screen reflects them within a few minutes.
+        </Text>
+      ) : null}
 
       <Pressable
         style={styles.restoreButton}
@@ -229,6 +408,39 @@ const styles = StyleSheet.create({
   activeCard: {
     borderColor: gold.base,
   },
+  warningCard: {
+    borderColor: colors.accent,
+  },
+  endedCard: {
+    borderColor: colors.border,
+  },
+  trialCard: {
+    borderColor: gold.base,
+    borderWidth: 1.5,
+  },
+  trialHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trialTitle: {
+    flex: 1,
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: gold.glowSoft,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: gold.base,
+  },
   badge: {
     width: 44,
     height: 44,
@@ -243,11 +455,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
-  activeTitle: {
+  statusTitle: {
     fontFamily: fonts.serif,
-    color: gold.deep,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '700',
+  },
+  activeTitle: {
+    color: gold.deep,
   },
   body: {
     fontFamily: fonts.serif,
@@ -286,6 +501,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  manageHint: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginHorizontal: 8,
+  },
   restoreButton: {
     alignItems: 'center',
     paddingVertical: 12,
@@ -308,5 +531,6 @@ const styles = StyleSheet.create({
     color: colors.danger,
     textAlign: 'center',
     fontSize: 13.5,
+    lineHeight: 19,
   },
 });

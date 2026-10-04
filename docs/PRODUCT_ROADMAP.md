@@ -984,17 +984,27 @@ operations, and app-store distribution.
 - [ ] Set the companion price, billing period, and introductory offer. The trial
       is server-authorized, time-bound, limited to one per account, and begins
       only after the qualifying number of entries exists.
+      *(The trial mechanics shipped 2026-10-05, D-068:
+      `companion_trial_eligibility()` / `start_companion_trial()` with the
+      length and entry count in `companion_trial_policy` - placeholders 7 days
+      / 5 entries until the price and model land. Only the numbers, the store
+      product, and any store introductory offer remain.)*
 - [ ] Build a financial model for AI cost per companion session, infrastructure,
       app-store commission, taxes, refunds, support, and target margin.
-- [ ] Decide the native billing architecture before implementation. Evaluate
+- [x] Decide the native billing architecture before implementation. Evaluate
       StoreKit and Google Play Billing with a shared entitlement provider such as
       RevenueCat. Do not add web purchase flows without a separate approved
-      product and store-policy decision.
+      product and store-policy decision. *(Done 2026-09-06, D-061: RevenueCat
+      over react-native-purchases; no web purchase flow.)*
 - [x] Verify current Apple and Google rules for digital subscriptions; do not
       route native users around required in-app purchase mechanisms.
 - [x] Create a server-authoritative entitlement model in Supabase.
       *(Done 2026-09-02, D-047.)*
-- [ ] Implement idempotent signed webhooks and transaction reconciliation.
+- [x] Implement idempotent signed webhooks and transaction reconciliation.
+      *(Done 2026-09-06, D-061; hardened 2026-10-05, D-068: event-id ledger
+      makes re-deliveries no-ops, `last_event_at` ordering guard, grace
+      periods, reasons, pause and transfer handling, 20 Deno tests + a live
+      29-check integration smoke.)*
 - [x] Map the companion entitlement to server-checked feature access plus usage
       quotas (for example dialogue turns and recap/quiz generations per day) as
       cost controls. *(Done 2026-09-02, D-047 + per-feature quotas D-049..D-052.)*
@@ -1011,12 +1021,22 @@ operations, and app-store distribution.
       entries never leave user-owned RLS rows, and no reader content is used to
       train models. *(Done 2026-09-02, D-047; embeddings follow the same RLS
       scoping, D-052.)*
-- [ ] Implement purchase, restore purchase, cancellation, grace period, expiry,
-      refund, and billing-retry states.
-- [ ] After subscribing, require verified App Store/Google Play purchase state
+- [x] Implement purchase, restore purchase, cancellation, grace period, expiry,
+      refund, and billing-retry states. *(Done 2026-10-05, D-068: lifecycle
+      columns on the entitlement row and a tested sentence for each state on
+      the Subscription screen. Real store sandbox cycles wait on the Play
+      product.)*
+- [x] After subscribing, require verified App Store/Google Play purchase state
       before companion access; canceled, failed, or abandoned purchases return
-      safely to capture.
-- [ ] Build subscription and account-management screens.
+      safely to capture. *(Structural since D-047/D-061 - the webhook is the
+      only store writer and the gate re-checks every request; 2026-10-05
+      the gate also lapses active rows 7 days past their period end, and a
+      canceled or failed purchase now shows "No charge was made and nothing
+      changed", D-068.)*
+- [x] Build subscription and account-management screens. *(Subscription
+      screen 2026-09-06, D-061; lifecycle states, trial card, and the
+      entries-before-offer rule 2026-10-05, D-068; account rows 2026-09-02,
+      D-053.)*
 - [x] Prevent client-only entitlement decisions. *(Structural since
       2026-09-02, D-047: the client's entitlement read is render-only; the
       Edge Function re-checks on every request.)*
@@ -1027,11 +1047,21 @@ operations, and app-store distribution.
       character maps, images, and voice transcripts. *(Done 2026-09-02,
       D-053: JSON export via the share sheet; server-side deletion Edge
       Function that also releases bookmark codes.)*
-- [ ] Add subscription analytics without exposing payment details.
+- [x] Add subscription analytics without exposing payment details. *(Done
+      2026-10-05, D-068: `subscription_viewed`, `purchase_started / completed
+      / cancelled / failed`, `purchases_restored`, `trial_started`,
+      `trial_locked_viewed` - states and package identifiers only.)*
 - [ ] Test sandbox purchases, duplicate events, delayed webhooks, refunds,
       revocations, offline receipts, and cross-platform account restoration.
+      *(Partially done 2026-10-05, D-068: duplicate events, delayed and
+      out-of-order webhooks, refunds, revocations, billing retry, pause, and
+      transfer are covered by unit tests and a live integration smoke against
+      the deployed schema. Real sandbox purchases, offline receipts, and
+      cross-platform restore wait for the Play product and the iOS build.)*
 - [x] Document customer-support procedures for billing disputes.
-      *(Done 2026-09-02: [SUPPORT_BILLING_DISPUTES.md](SUPPORT_BILLING_DISPUTES.md).)*
+      *(Done 2026-09-02: [SUPPORT_BILLING_DISPUTES.md](SUPPORT_BILLING_DISPUTES.md);
+      revised 2026-10-05 for the billing ledger, lapse tolerance, and trial
+      cases, D-068.)*
 - [ ] Open Apple Developer and Google Play Console accounts early enough to avoid
       approval delays in Stage 5.
 
@@ -1076,8 +1106,10 @@ retention in beta. Formulas live in [READING_METRICS.md](READING_METRICS.md).
       reopen the app twice first).
 - [ ] Keep the screen awake during the glass (`expo-keep-awake`) in the next
       binary build.
-- [ ] Post-beta: model-scored reflection quality as the comprehension
-      factor's v2; vocabulary-richness metric once note volume supports it.
+- [x] Post-beta: model-scored reflection quality as the comprehension
+      factor's v2. *(Pulled forward on owner request 2026-10-04: D-065 /
+      D-066 model-assessed comprehension with the r2 rubric.)* Vocabulary-
+      richness metric once note volume supports it - still post-beta.
 
 #### Difficulty Index v2 (D-063, added 2026-10-03 from owner feedback)
 
@@ -1256,7 +1288,60 @@ place. Display only; no formula, stored value, or server code changes.
 - [ ] Owner on-device check: the Comprehension tile shows a percentage with
       a word under it; book rows read "notes graded N%".
 
+#### Billing lifecycle, trial, and subscription states (D-068, added 2026-10-05)
+
+Done while the owner finished the financial model: every billing item that
+does not depend on the price. The price now only sets the Play product, the
+`goog_` key swap, any store introductory offer, and the final numbers in
+`companion_trial_policy`.
+
+- [x] `revenuecat-webhook` hardened: `companion_billing_events` ledger
+      (duplicate deliveries are no-ops), `last_event_at` ordering guard,
+      grace periods, cancel/expiration reasons, pause, refund reversal,
+      extension, product change, non-renewing and temporary grants,
+      TRANSFER between accounts; dev_comp rows and Bookmarkt trial columns
+      never touched by store events. Pure `lifecycle.ts` with 20 Deno tests;
+      CI `edge-functions` job.
+- [x] Companion gate + client resolver lapse an `active` row 7 days past its
+      recorded period end (grace included) - belt and braces for a lost
+      EXPIRATION; comps and lifetime rows untouched.
+- [x] Server-authorized trial: `companion_trial_eligibility()` /
+      `start_companion_trial()` (SECURITY DEFINER, advisory lock, once per
+      account ever, former subscribers ineligible), `companion_trial_policy`
+      with **placeholder 7 days / 5 entries**.
+- [x] Subscription screen states: comped / trial with days left / renews on
+      / will not renew (ends on) / payment issue (fix before grace end) /
+      scheduled pause / store intro period / ended by reason (refunded,
+      payment failed, paused, unsubscribed). Entries-before-offer rule: a
+      reader with no subscription history sees a locked trial card with an
+      entries progress bar instead of plan buttons; history or an
+      eligibility error fails open to plans; Restore purchases always
+      available; canceled or failed purchase -> "No charge was made and
+      nothing changed". Premium lock card: "View plans" replaces "coming
+      soon".
+- [x] Analytics: `subscription_viewed`, `purchase_started / completed /
+      cancelled / failed`, `purchases_restored`, `trial_started`,
+      `trial_locked_viewed` - never prices or receipts.
+- [x] Migration `20261005090000_add_billing_lifecycle_and_trial.sql` applied
+      (history 24/24); both functions deployed; 29-check live integration
+      smoke passed and cleaned up; 363 tests across 30 suites. DECISION_LOG
+      D-068; SUPPORT_BILLING_DISPUTES, STAGE_2_OPERATIONS, STAGE_4_BUILD_PLAN
+      updated; `gates/STAGE_4_EXIT.md` drafted.
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #PRNUM,
+      published 2026-10-05 to `preview`: runtime 1.0.1 group `GROUP101`,
+      runtime 1.0.0 group `GROUP100`.
+- [ ] Owner check with a **fresh account** (the owner's own account is
+      `dev_comp`, so it never sees the trial): Subscription shows the locked
+      trial card at 0/5, unlocks after five entries, "Start free trial"
+      opens the Book Club for 7 days, a second account cannot start twice.
+- [ ] After the pricing decision: set `companion_trial_policy`, create the
+      Play product, swap the `goog_` key, run one real sandbox cycle
+      (purchase -> cancel -> expire -> restore), close the exit gate.
+
 ### Stage 4 exit gate
+
+Review record: [gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md) (drafted
+2026-10-05; open until the pricing decision and one real sandbox cycle).
 
 - Entitlements are consistent across iOS and Android test contexts and the
   server-authoritative account state.
