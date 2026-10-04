@@ -86,6 +86,7 @@ Criteria are the roadmap §13 exit gate. "Pass" means evidenced today;
 | One real Play Store sandbox purchase cycle (purchase -> cancel -> expire -> restore) with a license-tester account recorded in this gate | This gate (closes it) | RevenueCat setup, Play credentials, and `goog_` key OTA shipped (D-071) - running the sandbox cycle on device is the remaining step to close Stage 4 | None - development ran on RevenueCat's Test Store meanwhile | Product owner & Engineering |
 | iOS billing verification (StoreKit sandbox, cross-platform restore) | Stage 5 exit | Apple Developer account approval | Stage 4 exits on Android evidence (D-020) | Engineering |
 | Offline receipt handling | Stage 5 exit | First store sandbox cycle | RevenueCat SDK caches receipts; the server stays authoritative | Engineering |
+| Custom SMTP for auth emails (Resend via `bookmarkt.io`) - lifts Supabase's built-in hourly email cap and enables branded templates (D-073, STAGE_2_OPERATIONS §8) | Stage 5 exit (before testers beyond the owner) | Any tester hitting "email rate limit exceeded" | Owner-only testing stays under the cap | Product owner |
 | Keep-awake during the Sandglass timer (native module) | Stage 5 (next binary) | Next EAS build | Screen may dim during a sitting (D-062) | Engineering |
 | Pattern recognition across books (embeddings + clustering) | Post-beta | Closed-beta buy-in (D-039) | None | Product |
 | Social features from the September 2026 feedback (ghost bookmarks, feed, multi-user clubs) | Post-beta | Solo habit loops prove retention (D-062) | None | Product |

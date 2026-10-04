@@ -348,3 +348,12 @@ now sits in the receiving stage's roadmap work plan:
   `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY`; the first
   preview build is in the Stage 3 work plan (dev builds get these from
   Metro; release builds embed them).
+- **Auth emails go out through Supabase's built-in sender**, which caps the
+  project at a handful of messages an hour (confirmation and recovery share
+  the cap) and surfaces as "email rate limit exceeded" (D-073). Before any
+  tester beyond the owner creates an account, configure **custom SMTP** in
+  Supabase → Authentication → SMTP Settings: Resend (free tier is ample),
+  domain `bookmarkt.io` verified in Resend with its DNS records added in
+  Cloudflare, sender `noreply@bookmarkt.io`, then raise the hourly email
+  rate limit under Authentication → Rate Limits. This also unlocks the
+  branded email templates `config.toml` notes as deferred. Owner action.

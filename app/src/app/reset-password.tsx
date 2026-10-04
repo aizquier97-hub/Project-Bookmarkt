@@ -13,6 +13,7 @@ import {
 import { createSessionFromRecoveryUrl, updatePassword } from '@/domains/auth/service';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { KeyboardPane } from '@/components/KeyboardPane';
+import { PasswordRules } from '@/components/PasswordRules';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 /**
@@ -124,6 +125,7 @@ function PasswordForm({ onDone }: { onDone: () => void }) {
         value={password}
         onChangeText={setPassword}
       />
+      <PasswordRules password={password} />
       <TextInput
         style={styles.input}
         placeholder="Confirm new password"
@@ -133,9 +135,6 @@ function PasswordForm({ onDone }: { onDone: () => void }) {
         value={confirmPassword}
         onChangeText={setConfirmPassword}
       />
-      <Text style={styles.policyHint}>
-        At least 12 characters with an uppercase letter, lowercase letter, number, and symbol.
-      </Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <Pressable style={styles.button} onPress={submit} disabled={submitting}>
         {submitting ? (
@@ -182,12 +181,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-  },
-  policyHint: {
-    fontFamily: fonts.serif,
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
   },
   error: {
     fontFamily: fonts.serif,

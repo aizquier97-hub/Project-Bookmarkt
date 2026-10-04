@@ -37,6 +37,9 @@ export function friendlyAuthMessage(error: unknown, fallback: string): string {
   if (lowered.includes('already registered') || lowered.includes('already been registered')) {
     return 'That email already has an account. Sign in instead.';
   }
+  if (lowered.includes('email rate limit') || lowered.includes('over_email_send_rate_limit')) {
+    return 'We have sent this address several emails recently - wait about an hour before requesting another.';
+  }
   if (lowered.includes('rate limit') || lowered.includes('too many requests')) {
     return 'Too many attempts - wait a minute, then try again.';
   }
