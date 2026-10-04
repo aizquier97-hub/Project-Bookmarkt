@@ -28,6 +28,14 @@ URL/anon values live in `.env`/EAS env per profile, the service-role key exists
 only in operator hands (never in the repository, app bundle, or CI), and edge
 function secrets live in Supabase function config.
 
+The public website is a fourth, simpler surface (D-069): `bookmarkt.io` is
+the static `website/` folder served by the Cloudflare Pages project
+`project-bookmarkt` (production branch `main`, no build command). It carries
+no secrets - the waitlist form posts to Supabase with the publishable key
+only, and the `waitlist_signups` table is insert-only for anonymous callers.
+Operating details (deploy loop, previews, rollback, reading signups) are in
+§3 and in [website/README.md](../website/README.md).
+
 ## 2. Version compatibility and over-the-air updates
 
 Expo distinguishes the **native runtime** (compiled binary) from the
@@ -163,6 +171,26 @@ Policy:
   flags (for example `AI_GENERATION_ENABLED`) flip in function config without
   a deploy. Material flag flips require a decision-log entry (D-012).
 
+### Website deployment and rollback (bookmarkt.io, D-069)
+
+- Deploy = merge to `main`. Cloudflare Pages publishes `website/` within a
+  minute; every pull request that touches the folder gets a preview URL as
+  the "Cloudflare Pages" check. There is no build, so the only failure mode
+  is a missing `website/` folder - the dashboard's "Retry deployment" rebuilds
+  the *same* old commit, so retrying a pre-D-069 row fails forever and means
+  nothing; deploy by merging instead.
+- Rollback → Cloudflare Pages → Deployments → "Rollback to this deployment"
+  on the previous green row (instant), then fix forward on `main`.
+- Waitlist data: `waitlist_signups` is readable only with the service role
+  (Supabase Table Editor or `db query`); anonymous callers may only insert
+  `email`, `name`, `platform`, `currently_reading`. A trigger normalises the
+  row and refuses more than 300 signups an hour (`waitlist_rate_limited`), so
+  a flood shows as 400s on the site, not as rows. Signups are personal data:
+  they belong in the Stage 6 data inventory and are deleted on request from
+  `support@bookmarkt.io`.
+- Email: `support@bookmarkt.io` is the address printed on the site; it needs
+  Cloudflare Email Routing (owner task) before it delivers anywhere.
+
 ### Data reconciliation
 
 After any restore: rejoin `book_images` rows to restored Storage objects by
@@ -287,7 +315,10 @@ rows under the same RLS. Retirement is a client shutdown; no data migrates at
 any step.
 
 Minimal web endpoints that outlive the PWA (per D-008): smart links, install
-guidance, privacy, support, and account-deletion obligations.
+guidance, privacy, support, and account-deletion obligations. Their home is
+`bookmarkt.io` (D-069): the landing page and waitlist are live there now; the
+privacy, support, and account pages land in Stage 6, and the smart-link
+service (D-015) can sit under the same domain when it is built.
 
 ## 8. Known open items (carried forward at the Stage 2 exit gate)
 

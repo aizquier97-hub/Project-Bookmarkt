@@ -1,7 +1,9 @@
 # bookmarkt.io
 
 The official Bookmarkt site: a static landing page plus a waitlist form. No
-build step, no framework, no third-party fonts or scripts.
+build step, no framework, no third-party fonts or scripts. Decision D-069 in
+[docs/DECISION_LOG.md](../docs/DECISION_LOG.md); deploy and rollback notes in
+[docs/STAGE_2_OPERATIONS.md](../docs/STAGE_2_OPERATIONS.md) §3.
 
 ## Files
 
@@ -25,7 +27,15 @@ Cloudflare Pages project `project-bookmarkt`, connected to this repository.
 - Clean URLs are on by default, so `waitlist.html` is served at `/waitlist`.
 
 To change the site: edit files here, open a pull request, merge. Nothing to
-deploy by hand.
+deploy by hand. Rollback is Cloudflare Pages -> Deployments -> "Rollback to
+this deployment" on the last green row. "Retry deployment" rebuilds the same
+old commit, so a retry of a row from before this folder existed fails with
+`Output directory "website" not found` and can be ignored or deleted.
+
+## Contact
+
+The site prints `support@bookmarkt.io`. Cloudflare Email Routing must forward
+that address to a real inbox (owner task; until then mail to it bounces).
 
 ## Waitlist data
 
