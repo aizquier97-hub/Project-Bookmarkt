@@ -3,4 +3,11 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://app.termly.io; style-src 'self' 'unsafe-inline' https://app.termly.io; img-src 'self' data: https://app.termly.io https://*.termly.io; frame-src 'self' https://app.termly.io https://*.termly.io; connect-src 'self' https://bfallxtcxxyykcnkedom.supabase.co https://app.termly.io https://*.termly.io; font-src 'self' https://app.termly.io https://*.termly.io; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://bfallxtcxxyykcnkedom.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+
+# Termly's embed-policy.min.js injects inline <style> tags, renders the policy in an
+# app.termly.io iframe, and calls new Function() internally, so this page alone needs
+# 'unsafe-inline' styles, 'unsafe-eval' scripts, and the Termly origins.
+/cookie-policy
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' https://app.termly.io; style-src 'self' 'unsafe-inline' https://app.termly.io; img-src 'self' data: https://app.termly.io; frame-src https://app.termly.io; connect-src 'self' https://app.termly.io; font-src 'self' https://app.termly.io; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
