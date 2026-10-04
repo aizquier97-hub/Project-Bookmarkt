@@ -15,9 +15,8 @@ import type { PurchasesPackage } from 'react-native-purchases';
 import { freeTrialLabel, readFreeTrial } from '@/domains/billing/planCopy';
 
 // RevenueCat *publishable* SDK key (safe to ship in the app, like the
-// Supabase anon key). Currently the Test Store key; swap for the goog_ key
-// once the Play Store app is linked in RevenueCat.
-const REVENUECAT_API_KEY = 'test_WzMWTIcJaHRlSYWivInmCqzNFWA';
+// Supabase anon key). Configured with Google Play Store app key (D-071).
+const REVENUECAT_API_KEY = 'goog_acdCtFcKInxdmAvZqOmGVrNHLBu';
 
 export type BillingPackage = {
   identifier: string;

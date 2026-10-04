@@ -1390,27 +1390,24 @@ store's trial is the trial.
       offer), 7-day grace period, active in 175 countries/regions. The
       internal-testing build is live (download link verified); Play review
       pending.
-- [ ] **Owner:** Play service credentials for RevenueCat (service account
-      invited in Play Console with view-app-info, financial-data,
-      manage-orders, and store-presence permissions); in RevenueCat link
-      Google Play, import the products (`premium:monthly`,
-      `premium:yearly`), attach both to entitlement `companion`, and place
-      them in the `default` offering as `$rc_monthly` / `$rc_annual`; paste
-      RevenueCat's Pub/Sub topic into Play's Monetization setup; share the
-      `goog_` public SDK key.
+- [x] **Owner (2026-10-04):** Play service credentials for RevenueCat,
+      Google Play linked in RevenueCat, products imported, Pub/Sub topic
+      connected, and shared the `goog_` public SDK key.
 - [x] **Owner (2026-10-04):** added their own Google account as a license
       tester in the Play Console, so sandbox purchases will not be charged.
-- [ ] Swap the `test_` Test Store key in `purchases.ts` for the `goog_` key
-      (one-line change, OTA), then one sandbox cycle with a license-tester
-      account (purchase -> cancel -> expire -> restore) recorded in
-      `gates/STAGE_4_EXIT.md`; close the gate.
+- [x] Swap the `test_` Test Store key in `purchases.ts` for the `goog_` key
+      (D-071, key `goog_acdCtFcKInxdmAvZqOmGVrNHLBu`); shipped OTA to
+      `preview` for both runtimes (1.0.1 group `a3c3eb86-9d4a-4917-bbfd-55c12920c632`,
+      1.0.0 group `db83ed9a-f4c4-42a3-9671-5cd9112b3495`).
+- [ ] One sandbox cycle with a license-tester account (purchase -> cancel
+      -> expire -> restore) recorded in `gates/STAGE_4_EXIT.md`; close the
+      gate.
 
 ### Stage 4 exit gate
 
 Review record: [gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md) (drafted
 2026-10-04; pricing decided 2026-10-04, D-070; Play subscription `premium`
-created 2026-10-04, D-071; open until the RevenueCat mapping and `goog_`
-key are in place and one real sandbox cycle is recorded).
+created 2026-10-04, D-071; open until one real sandbox cycle is recorded).
 
 - Entitlements are consistent across iOS and Android test contexts and the
   server-authoritative account state.
