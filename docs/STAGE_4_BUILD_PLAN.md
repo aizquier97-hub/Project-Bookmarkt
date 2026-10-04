@@ -562,9 +562,9 @@ policy flag, not deleted.
 - [x] Docs: DECISION_LOG D-070; roadmap §13 ticks + D-070 checklist;
       `gates/STAGE_4_EXIT.md` pricing rows; SUPPORT_BILLING_DISPUTES trial
       row; STAGE_2_OPERATIONS flag note; DESIGN_REQUIREMENTS plan-button row.
-- [x] Ship the OTA for both runtimes; record group IDs - PR #PRNUM, published
-      2026-10-04 to `preview`: runtime 1.0.1 group `GROUP101`, runtime 1.0.0
-      group `GROUP100`.
+- [x] Ship the OTA for both runtimes; record group IDs - PR #114, published
+      2026-10-04 to `preview`: runtime 1.0.1 group `a9a254b9-6e01-4b1e-bd9f-541c9b75fb11`, runtime 1.0.0
+      group `2eef106c-732f-46e2-aacf-dc6794e42578`.
 
 **Store setup identifiers (owner side, then one line of code):**
 

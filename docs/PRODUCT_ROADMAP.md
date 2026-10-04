@@ -1376,9 +1376,9 @@ trial**. One trial, one sentence: the store's trial is the trial.
       setup identifiers; `gates/STAGE_4_EXIT.md` pricing rows;
       SUPPORT_BILLING_DISPUTES trial row; STAGE_2_OPERATIONS flag note;
       DESIGN_REQUIREMENTS plan-button row.
-- [x] Ship the OTA for both runtimes; record the group IDs - PR #PRNUM,
-      published 2026-10-04 to `preview`: runtime 1.0.1 group `GROUP101`,
-      runtime 1.0.0 group `GROUP100`.
+- [x] Ship the OTA for both runtimes; record the group IDs - PR #114,
+      published 2026-10-04 to `preview`: runtime 1.0.1 group `a9a254b9-6e01-4b1e-bd9f-541c9b75fb11`,
+      runtime 1.0.0 group `2eef106c-732f-46e2-aacf-dc6794e42578`.
 - [ ] **Owner:** in the Play Console create one subscription (suggested
       product id `companion`) with base plans `monthly` ($7.99, 7-day free
       trial offer) and `yearly` ($59.99, 7-day free trial offer), grace
