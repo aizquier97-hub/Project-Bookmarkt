@@ -56,6 +56,14 @@ const FEATURES: Feature[] = [
 ];
 
 /**
+ * How long an `active` row stays entitled past its recorded period end
+ * (D-068). Covers delayed webhooks (RevenueCat can lag ~1h without store
+ * server notifications) and a missed EXPIRATION; mirrored by the client
+ * resolver in app/src/domains/companion/entitlement.ts.
+ */
+const ACTIVE_LAPSE_TOLERANCE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
  * Tools that persist their result as a companion message (revisitable).
  * cue_cards left this list in Interface v2.0 (D-055); club_prep left it in
  * the Socratic deck redesign (D-057): the primer is transient, regenerated
@@ -881,7 +889,17 @@ serve(async (req) => {
       status === "trial" &&
       !!entitlementRow?.trial_expires_at &&
       new Date(entitlementRow.trial_expires_at).getTime() > now;
-    const entitled = status === "comped" || status === "active" || trialLive;
+    // Belt and braces for a lost EXPIRATION webhook (D-068): an active row
+    // whose recorded period (grace included) ended more than
+    // ACTIVE_LAPSE_TOLERANCE_MS ago is treated as lapsed. Lifetime access
+    // (no period end) and comps are untouched.
+    const periodEndMs = entitlementRow?.current_period_end
+      ? new Date(entitlementRow.current_period_end).getTime()
+      : NaN;
+    const activeLive =
+      status === "active" &&
+      (!Number.isFinite(periodEndMs) || periodEndMs + ACTIVE_LAPSE_TOLERANCE_MS > now);
+    const entitled = status === "comped" || activeLive || trialLive;
     if (!entitled) {
       await auditDenied("denied_unentitled", 402);
       return jsonResponse(

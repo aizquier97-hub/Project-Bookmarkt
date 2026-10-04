@@ -394,36 +394,114 @@ export type Database = {
           },
         ]
       }
+      companion_billing_events: {
+        Row: {
+          applied: boolean
+          cancel_reason: string | null
+          environment: string | null
+          event_at: string
+          event_id: string
+          event_type: string
+          expiration_at: string | null
+          expiration_reason: string | null
+          period_type: string | null
+          product_id: string | null
+          received_at: string
+          skip_reason: string | null
+          store: string | null
+          user_id: string | null
+        }
+        Insert: {
+          applied?: boolean
+          cancel_reason?: string | null
+          environment?: string | null
+          event_at: string
+          event_id: string
+          event_type: string
+          expiration_at?: string | null
+          expiration_reason?: string | null
+          period_type?: string | null
+          product_id?: string | null
+          received_at?: string
+          skip_reason?: string | null
+          store?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          applied?: boolean
+          cancel_reason?: string | null
+          environment?: string | null
+          event_at?: string
+          event_id?: string
+          event_type?: string
+          expiration_at?: string | null
+          expiration_reason?: string | null
+          period_type?: string | null
+          product_id?: string | null
+          received_at?: string
+          skip_reason?: string | null
+          store?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       companion_entitlements: {
         Row: {
+          billing_issue_detected_at: string | null
+          cancel_reason: string | null
           created_at: string
           current_period_end: string | null
+          expiration_reason: string | null
+          grace_period_expires_at: string | null
+          last_event_at: string | null
+          period_type: string | null
+          product_id: string | null
           source: string
           status: string
+          store_environment: string | null
           trial_expires_at: string | null
           trial_started_at: string | null
           updated_at: string
           user_id: string
+          will_renew: boolean
         }
         Insert: {
+          billing_issue_detected_at?: string | null
+          cancel_reason?: string | null
           created_at?: string
           current_period_end?: string | null
+          expiration_reason?: string | null
+          grace_period_expires_at?: string | null
+          last_event_at?: string | null
+          period_type?: string | null
+          product_id?: string | null
           source?: string
           status?: string
+          store_environment?: string | null
           trial_expires_at?: string | null
           trial_started_at?: string | null
           updated_at?: string
           user_id: string
+          will_renew?: boolean
         }
         Update: {
+          billing_issue_detected_at?: string | null
+          cancel_reason?: string | null
           created_at?: string
           current_period_end?: string | null
+          expiration_reason?: string | null
+          grace_period_expires_at?: string | null
+          last_event_at?: string | null
+          period_type?: string | null
+          product_id?: string | null
           source?: string
           status?: string
+          store_environment?: string | null
           trial_expires_at?: string | null
           trial_started_at?: string | null
           updated_at?: string
           user_id?: string
+          will_renew?: boolean
         }
         Relationships: []
       }
@@ -470,6 +548,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      companion_trial_policy: {
+        Row: {
+          id: number
+          qualifying_entries: number
+          trial_days: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          qualifying_entries?: number
+          trial_days?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          qualifying_entries?: number
+          trial_days?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       companion_usage_events: {
         Row: {
@@ -865,6 +964,16 @@ export type Database = {
       }
     }
     Functions: {
+      companion_trial_eligibility: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          eligible: boolean
+          entries_logged: number
+          entries_required: number
+          reason: string
+          trial_days: number
+        }[]
+      }
       consume_ai_daily_quota: {
         Args: {
           p_audit_id: string
@@ -906,6 +1015,18 @@ export type Database = {
           user_limit: number
           user_remaining: number
           user_used: number
+        }[]
+      }
+      start_companion_trial: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          entries_logged: number
+          entries_required: number
+          reason: string
+          started: boolean
+          status: string
+          trial_days: number
+          trial_expires_at: string | null
         }[]
       }
     }

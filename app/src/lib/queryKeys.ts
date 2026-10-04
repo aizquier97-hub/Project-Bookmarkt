@@ -19,6 +19,8 @@ export const queryKeys = {
   bookmark: (code: string) => ['bookmark', code] as const,
   issueReports: ['issue-reports'] as const,
   companionEntitlement: ['companion-entitlement'] as const,
+  /** Server answer to "may this reader start the companion trial?" (D-068). */
+  companionTrialEligibility: ['companion-trial-eligibility'] as const,
   companionMessages: (bookId: number) => ['companion-messages', bookId] as const,
   companionRecap: (bookId: number) => ['companion-recap', bookId] as const,
   companionObservations: (bookId: number) => ['companion-observations', bookId] as const,
