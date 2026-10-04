@@ -3,9 +3,14 @@
  * calls are Postgres RPCs running as SECURITY DEFINER: the server decides
  * eligibility (once per account, only after the qualifying number of
  * entries exists) and writes the row; the client renders the answer and
- * never computes eligibility itself (D-047). The trial length and the
- * qualifying-entry count live in `companion_trial_policy`, tunable by the
- * owner without a release.
+ * never computes eligibility itself (D-047). The trial length, the
+ * qualifying-entry count, and whether this no-card trial is on at all live
+ * in `companion_trial_policy`, tunable by the owner without a release.
+ *
+ * Since D-069 the store's own free trial on the plans is the trial, so the
+ * policy flag is off and an otherwise-eligible reader is answered
+ * `store_trial`: no offer card, the plans speak. The `needs_entries` gate
+ * still fires first - it guards the plan buttons as well.
  */
 
 import { supabase } from '@/lib/supabase';
@@ -14,7 +19,8 @@ export type TrialIneligibilityReason =
   | 'needs_entries'
   | 'trial_used'
   | 'entitled_already'
-  | 'subscription_history';
+  | 'subscription_history'
+  | 'store_trial';
 
 export interface TrialEligibility {
   eligible: boolean;
@@ -44,6 +50,7 @@ const INELIGIBILITY_REASONS: readonly TrialIneligibilityReason[] = [
   'trial_used',
   'entitled_already',
   'subscription_history',
+  'store_trial',
 ];
 
 function foldReason(reason: string): TrialIneligibilityReason {

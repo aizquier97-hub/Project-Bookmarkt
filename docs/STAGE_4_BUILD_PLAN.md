@@ -26,12 +26,18 @@ Do these before or alongside Phase 1; none require code.
       and Google Play Console accounts early.")
       *Play Console opened 2026-09-03; the Apple account is deliberately
       deferred to Stage 5 (Android-first, D-020).*
-- [ ] **Financial model**: AI cost per companion session (provider pricing x
+- [x] **Financial model**: AI cost per companion session (provider pricing x
       expected usage), infrastructure, app-store commission (~15% small
       business tier), taxes, refunds, support, and target margin.
-- [ ] **Set the price, billing period, and introductory offer.** The trial
+      *Done 2026-10-04 by the owner; outputs recorded in D-069.*
+- [x] **Set the price, billing period, and introductory offer.** The trial
       is server-authorized, time-bound, one per account, and begins only
       after the qualifying number of entries exists.
+      *Done 2026-10-04 (D-069): Monthly $7.99 USD / Yearly $59.99 USD
+      (saves 37%), auto-renewing, a 7-day free trial on each Play base plan.
+      The store trial is the trial - Bookmarkt's no-card trial is switched
+      off by `companion_trial_policy.bookmarkt_trial_enabled`; the 5-entry
+      gate still guards the plan buttons.*
 - [x] **Billing architecture decision**: evaluate StoreKit and Google Play
       Billing with a shared entitlement provider (RevenueCat is the leading
       candidate - free at MVP scale, handles receipts, webhooks, and
@@ -178,20 +184,21 @@ Build order within the phase:
       *Done 2026-09-06: react-native-purchases in the 1.0.1 binary, lazy-loaded
       with graceful degradation on older runtimes (D-061).*
 - [ ] Create the subscription product in the Play Console; Apple's side
-      waits for Stage 5's iOS builds. *Blocked on the pricing decision
-      (Phase 0); development runs against RevenueCat's Test Store meanwhile.*
+      waits for Stage 5's iOS builds. *Pricing decided 2026-10-04 (D-069);
+      owner-side setup is specified under "Store setup identifiers" below.
+      Development runs against RevenueCat's Test Store meanwhile.*
 - [x] Webhooks -> Supabase entitlement activation: idempotent, signed, with
       transaction reconciliation.
       *Done 2026-09-06: `revenuecat-webhook` Edge Function - shared-secret
       auth, absolute idempotent upserts, dev_comp rows preserved (D-061).
-      Hardened 2026-10-05: `companion_billing_events` ledger (duplicate
+      Hardened 2026-10-04: `companion_billing_events` ledger (duplicate
       deliveries are no-ops), `last_event_at` ordering guard (a late
       EXPIRATION cannot undo a later RENEWAL), TRANSFER handling, pure
       decision module with 20 Deno tests (D-068).*
 - [x] Purchase, restore, cancellation, grace period, expiry, refund, and
       billing-retry states; a declined/canceled/abandoned purchase returns
       safely to capture without losing work.
-      *Done 2026-10-05 (D-068): the row carries will_renew, billing issue +
+      *Done 2026-10-04 (D-068): the row carries will_renew, billing issue +
       grace end, cancel/expiration reasons, period type; the Subscription
       screen renders a tested sentence for every state; a canceled or failed
       purchase shows "No charge was made and nothing changed" and the reader
@@ -200,21 +207,23 @@ Build order within the phase:
 - [x] Server-verified purchase state required before companion access.
       *Structural since D-047: the Edge Function re-checks the entitlement
       row on every request; the webhook is that row's only store writer.
-      2026-10-05: the gate also treats an active row lapsed more than 7 days
+      2026-10-04: the gate also treats an active row lapsed more than 7 days
       past its period end as unentitled (D-068).*
 - [x] Subscription and account-management screens (Settings gains a
       subscription row); the companion offer appears only after a few
       entries exist, matching the trial rule.
       *2026-09-06: Subscription screen (plans, purchase, restore) + Settings
-      row + the offer's View plans button shipped (D-061). 2026-10-05: the
+      row + the offer's View plans button shipped (D-061). 2026-10-04: the
       server-authorized trial (`start_companion_trial`, policy table with
       placeholder 7 days / 5 entries) and the entries-before-offer rule
       (locked trial card with progress bar until the qualifying entries
-      exist; subscription history fails open to plans) shipped (D-068). Only
-      the final trial length and entry count wait on the pricing decision.*
+      exist; subscription history fails open to plans) shipped (D-068).
+      2026-10-04: the store's 7-day trial became the trial - the Bookmarkt
+      trial is off by policy flag and the plan buttons print "7 days free,
+      then $7.99 per month" / "Save 37%" from the store's phases (D-069).*
 - [x] Free capture is never paywalled and never degraded by subscription
       state.
-      *Confirmed 2026-10-05: no capture, character, bookmark, timer, or
+      *Confirmed 2026-10-04: no capture, character, bookmark, timer, or
       profile path reads the entitlement; only companion features and their
       offer cards do (D-068 review).*
 
@@ -222,14 +231,14 @@ Build order within the phase:
 
 - [ ] Sandbox purchase test matrix: duplicate events, delayed webhooks,
       refunds, revocations, offline receipts, cross-platform restoration.
-      *Partially done 2026-10-05 (D-068): duplicate events, delayed/out-of-
+      *Partially done 2026-10-04 (D-068): duplicate events, delayed/out-of-
       order webhooks, refunds (CANCELLATION + EXPIRATION), revocations,
       billing retry, pause, and transfer are covered by the Deno unit tests
       and a 29-check live integration smoke against the deployed schema. Real
       store sandbox purchases, offline receipts, and cross-platform restore
       need the Play product (pricing) and the iOS build (Stage 5).*
 - [x] Subscription analytics without exposing payment details.
-      *Done 2026-10-05 (D-068): `subscription_viewed`, `purchase_started /
+      *Done 2026-10-04 (D-068): `subscription_viewed`, `purchase_started /
       completed / cancelled / failed`, `purchases_restored`, `trial_started`,
       `trial_locked_viewed` - package identifiers and states only.*
 - [x] Account email/password recovery and secure sensitive-account changes.
@@ -243,14 +252,14 @@ Build order within the phase:
       `delete-account` Edge Function (D-053).*
 - [x] Customer-support procedures for billing disputes.
       *Done 2026-09-02: [SUPPORT_BILLING_DISPUTES.md](SUPPORT_BILLING_DISPUTES.md);
-      revisited 2026-10-05 for the ledger, lapse tolerance, and trial cases
+      revisited 2026-10-04 for the ledger, lapse tolerance, and trial cases
       (D-068).*
 - [ ] Walk the Stage 4 exit gate (roadmap §13) and record the review in
       `gates/STAGE_4_EXIT.md`.
-      *Draft opened 2026-10-05 ([gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md)):
-      every criterion that does not depend on the price is evidenced; the
-      review stays open until the pricing decision, the Play product, and
-      one real sandbox purchase cycle.*
+      *Draft opened 2026-10-04 ([gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md)):
+      every criterion that does not depend on the price is evidenced; pricing
+      decided 2026-10-04 (D-069); the review stays open until the Play
+      product exists and one real sandbox purchase cycle is recorded.*
 
 ## Phase 5 - Beta engagement layer (added 2026-10-03, D-062)
 
@@ -458,12 +467,12 @@ into the Recall match.
       2026-10-04 to `preview`: runtime 1.0.1 group `20b42395-d1f5-4fec-9a70-96fe445ad60d`, runtime 1.0.0
       group `c89f7b3c-4259-4ca4-9008-4566574a2dd1`.
 
-### Phase 3/4 follow-through - billing lifecycle, trial, states (added 2026-10-05, D-068)
+### Phase 3/4 follow-through - billing lifecycle, trial, states (added 2026-10-04, D-068)
 
 Price-independent billing work done while the owner finishes the financial
-model. Nothing here changes with the price; the price only sets the Play
-product, the `goog_` key swap, any store introductory offer, and the final
-numbers in `companion_trial_policy`.
+model. Nothing here changes with the price; the price landed the next day
+(D-069, below) and set only the store product, the `goog_` key swap, and the
+trial policy.
 
 - [x] Migration `20261005090000_add_billing_lifecycle_and_trial.sql`:
       `companion_entitlements` + `will_renew`, `billing_issue_detected_at`,
@@ -473,16 +482,16 @@ numbers in `companion_trial_policy`.
       `companion_trial_policy` single row (`trial_days` 7, `qualifying_entries`
       5 - **placeholders**); RPCs `companion_trial_eligibility()` and
       `start_companion_trial()` (SECURITY DEFINER, advisory lock, one trial
-      per account ever, former subscribers ineligible). Applied 2026-10-05,
+      per account ever, former subscribers ineligible). Applied 2026-10-04,
       history 24/24.
 - [x] `revenuecat-webhook` split: `lifecycle.ts` (pure: parse, store
       mapping, `decideEntitlementWrite`, `planTransfer`, `ledgerRow`),
       `handler.ts` (auth -> dedupe via ledger -> read row -> apply ->
       record), 13-line `index.ts`. 20 Deno tests in `lifecycle_test.ts`.
-      Deployed 2026-10-05.
+      Deployed 2026-10-04.
 - [x] `companion` gate: `ACTIVE_LAPSE_TOLERANCE_MS` (7 days) for active rows
       whose period end has passed; comps and lifetime rows untouched.
-      Deployed 2026-10-05.
+      Deployed 2026-10-04.
 - [x] Client: `entitlement.ts` reads the lifecycle columns
       (`ENTITLEMENT_SELECT`, `readLifecycle`, `foldEndReason`) and mirrors the
       lapse rule; `trial.ts` wraps the RPCs; `subscriptionCopy.ts` is the
@@ -495,7 +504,7 @@ numbers in `companion_trial_policy`.
       folding), `trial.test.ts`, `subscriptionCopy.test.ts` (every state
       sentence). 363 tests / 30 suites; tsc and lint clean. CI gains the
       `edge-functions` Deno job.
-- [x] Live integration smoke 2026-10-05 (throwaway user, cleaned up): 29
+- [x] Live integration smoke 2026-10-04 (throwaway user, cleaned up): 29
       checks - trial locked -> eligible after 5 entries -> started (7 days)
       -> second start refused -> eligibility `trial_used`; client select
       under RLS; policy + ledger invisible to readers; handler 405/401/400 +
@@ -509,11 +518,66 @@ numbers in `companion_trial_policy`.
       SUPPORT_BILLING_DISPUTES (ledger, lapse, trial), STAGE_2_OPERATIONS
       (function + table notes), `gates/STAGE_4_EXIT.md` draft.
 - [x] Ship the OTA for both runtimes; record group IDs - PR #111, published
-      2026-10-05 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`, runtime 1.0.0
+      2026-10-04 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`, runtime 1.0.0
       group `8dbe2974-6742-4de5-b465-27d9466f7bcd`.
-- [ ] After the pricing decision: set `companion_trial_policy`, create the
-      Play product, swap the `goog_` key, run one real sandbox purchase cycle
-      (purchase -> cancel -> expire -> restore), close the exit gate.
+- [x] After the pricing decision: set `companion_trial_policy`. *Done
+      2026-10-04 (D-069): `bookmarkt_trial_enabled = false` - the store runs
+      the trial; 7 days / 5 entries stay as the gate and the lever.*
+- [ ] After the pricing decision (owner side): create the Play product, swap
+      the `goog_` key, run one real sandbox purchase cycle (purchase ->
+      cancel -> expire -> restore), close the exit gate. *See the D-069
+      block.*
+
+### Pricing decision and the store trial (added 2026-10-04, D-069)
+
+Owner's financial model: **Monthly $7.99 USD, Yearly $59.99 USD** (saves
+37%), auto-renewing, each Play base plan with a **7-day free trial**. The
+store's trial is the trial; Bookmarkt's own no-card trial (D-068) is off by
+policy flag, not deleted.
+
+- [x] Migration `20261005130000_store_trial_is_the_trial.sql`:
+      `companion_trial_policy.bookmarkt_trial_enabled boolean not null
+      default false`; `companion_trial_eligibility()` returns reason
+      `store_trial` after the `needs_entries` check when the flag is off;
+      `start_companion_trial()` refuses with `store_trial` and writes nothing.
+      Applied 2026-10-04 (the version follows a sibling session's waitlist
+      migration `20261005120000` already in the remote history).
+- [x] Client: `billing/planCopy.ts` (pure: `readFreeTrial` from Play
+      `defaultOption.freePhase` or a zero-priced `introPrice`, WEEK
+      normalized to days; `freeTrialLabel` -> "7 days free";
+      `annualSavingsPercent` -> 37 for 7.99 / 59.99); `BillingPackage` gains
+      `packageType`, `price`, `trialLabel`; `subscription.tsx` plan buttons
+      render "7 days free, then $7.99 per month" / "then $59.99 per year",
+      a "Save 37%" badge on the annual plan, and the store-trial note;
+      `purchase_started` carries `store_trial`; `trial.ts` /
+      `subscriptionCopy.ts` know the `store_trial` reason (no card).
+- [x] Tests: `planCopy.test.ts` (Play phase, intro-price fallback, week
+      normalization, no-trial, savings rounding and guards), `trial.test.ts`
+      and `subscriptionCopy.test.ts` extended. 372 tests across 31 suites pass; tsc and lint
+      clean.
+- [x] Live smoke 2026-10-04 (throwaway user, cleaned up): policy row as
+      applied; `needs_entries` at 0 -> `store_trial` at 5 ->
+      `start_companion_trial` refused with no entitlement row -> flag on
+      `eligible` -> flag off `store_trial`; policy unreadable by readers.
+- [x] Docs: DECISION_LOG D-069; roadmap §13 ticks + D-069 checklist;
+      `gates/STAGE_4_EXIT.md` pricing rows; SUPPORT_BILLING_DISPUTES trial
+      row; STAGE_2_OPERATIONS flag note; DESIGN_REQUIREMENTS plan-button row.
+- [x] Ship the OTA for both runtimes; record group IDs - PR #PRNUM, published
+      2026-10-04 to `preview`: runtime 1.0.1 group `GROUP101`, runtime 1.0.0
+      group `GROUP100`.
+
+**Store setup identifiers (owner side, then one line of code):**
+
+| Where | Create | Notes |
+| --- | --- | --- |
+| Play Console -> Monetize -> Subscriptions | Subscription **`companion`** ("Book Club companion") | One subscription, two base plans; the client never hard-codes the id (it reads RevenueCat offerings), so any id works - keep it short and permanent. |
+| Base plan 1 | **`monthly`**, auto-renewing, monthly, **$7.99 USD**; offer: **7-day free trial**, eligibility "new customer" | Turn the grace period on (the webhook handles BILLING_ISSUE, D-068). |
+| Base plan 2 | **`yearly`**, auto-renewing, yearly, **$59.99 USD**; offer: **7-day free trial**, eligibility "new customer" | Google computes and enforces one trial per account across both plans. |
+| RevenueCat -> Project -> Apps | Link the Play app (service-account JSON) | Then **Products**: import `companion:monthly` and `companion:yearly`. |
+| RevenueCat -> Entitlements | **`companion`** <- both products | The webhook maps entitlement `companion` to the row; nothing else to change. |
+| RevenueCat -> Offerings | **`default`**: `$rc_monthly` = `companion:monthly`, `$rc_annual` = `companion:yearly` | The screen orders by package type and computes the 37% saving from the two prices. |
+| RevenueCat -> API keys | Copy the **`goog_`** public SDK key | Replace the `test_` Test Store key in `app/src/domains/billing/purchases.ts` (one line, ships OTA). Never the secret key. |
+| Play Console -> License testing | Add the fresh test account | Sandbox cycle: purchase (trial) -> cancel -> expire -> restore; record it in `gates/STAGE_4_EXIT.md`. |
 
 ---
 

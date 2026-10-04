@@ -22,7 +22,13 @@ describe('readTrialEligibility (D-068 server-authorized trial)', () => {
   });
 
   it('keeps the server reason when not eligible', () => {
-    for (const reason of ['needs_entries', 'trial_used', 'entitled_already', 'subscription_history']) {
+    for (const reason of [
+      'needs_entries',
+      'trial_used',
+      'entitled_already',
+      'subscription_history',
+      'store_trial',
+    ]) {
       expect(
         readTrialEligibility({
           eligible: false,

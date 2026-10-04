@@ -12,6 +12,8 @@
 import type PurchasesType from 'react-native-purchases';
 import type { PurchasesPackage } from 'react-native-purchases';
 
+import { freeTrialLabel, readFreeTrial } from '@/domains/billing/planCopy';
+
 // RevenueCat *publishable* SDK key (safe to ship in the app, like the
 // Supabase anon key). Currently the Test Store key; swap for the goog_ key
 // once the Play Store app is linked in RevenueCat.
@@ -19,9 +21,13 @@ const REVENUECAT_API_KEY = 'test_WzMWTIcJaHRlSYWivInmCqzNFWA';
 
 export type BillingPackage = {
   identifier: string;
+  packageType: string;
   title: string;
+  price: number;
   priceString: string;
   periodLabel: string;
+  /** "7 days free" when the store will run a free trial for this reader (D-069). */
+  trialLabel: string | null;
   raw: PurchasesPackage;
 };
 
@@ -107,9 +113,12 @@ export async function fetchBillingOfferings(): Promise<BillingOfferings> {
     status: 'ready',
     packages: packages.map((pkg) => ({
       identifier: pkg.identifier,
+      packageType: String(pkg.packageType),
       title: pkg.product.title,
+      price: pkg.product.price,
       priceString: pkg.product.priceString,
       periodLabel: packagePeriodLabel(pkg.packageType),
+      trialLabel: freeTrialLabel(readFreeTrial(pkg.product)),
       raw: pkg,
     })),
   };

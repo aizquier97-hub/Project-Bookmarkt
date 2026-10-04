@@ -3,8 +3,9 @@
 **Scope:** customer-support procedures for subscription billing disputes
 (Stage 4 Phase 4, [STAGE_4_BUILD_PLAN.md](STAGE_4_BUILD_PLAN.md)). Written
 before billing ships so the procedures exist the day the first real charge
-does. Revised 2026-10-05 alongside the D-068 lifecycle hardening (billing
-ledger, lapse tolerance, server-authorized trial).
+does. Revised 2026-10-04 alongside the D-068 lifecycle hardening (billing
+ledger, lapse tolerance, server-authorized trial) and again for D-069 (the
+store's 7-day free trial is the trial; prices $7.99 monthly / $59.99 yearly).
 
 **Ground rules**
 
@@ -38,7 +39,8 @@ happened.
 | "I didn't authorize this purchase" | Nothing on our side proves authorization | Always route to the store's refund process; never argue authorization ourselves. |
 | "The companion didn't work during my subscription" | `companion_usage_events` for error rates/denials in the claimed window | If our audit confirms a real outage or systemic denial, support the refund request with the store and say so plainly. |
 | "I want a refund, no specific complaint" | Subscription age, prior refunds | Point to the store flow; the store decides. Be gracious - a reader who refunds today may subscribe again later. |
-| "Where is my free trial?" | `companion_trial_eligibility()` result for the account (`needs_entries` with the count, `trial_used`, `subscription_history`, `entitled_already`); `trial_started_at` on the row | The trial opens once the qualifying entries exist (the Subscription screen shows the progress bar) and once per account ever; a former subscriber does not get one. We do not hand out second trials - a goodwill extension of an existing one is the exception, logged. |
+| "Where is my free trial?" | Which trial? The **store trial** (D-069, the live one): the Play/App Store subscription offer - 7 days free, then $7.99 monthly or $59.99 yearly; the store shows it only to an account that never used one. Check RevenueCat's customer view for the trial purchase and the row's `period_type = trial`. The **Bookmarkt trial** (D-068) is switched off (`companion_trial_policy.bookmarkt_trial_enabled = false`); `companion_trial_eligibility()` answers `store_trial` for an eligible reader, `needs_entries` with the count before five entries. | Plan buttons appear once five entries exist (the Subscription screen shows the progress bar until then). If the store offered no trial, the reader's store account already used one - we cannot grant a second store trial and do not hand out Bookmarkt trials while the flag is off; a goodwill extension is the exception, logged. |
+| "I was charged when the free trial ended" | Store subscription history: trial start, conversion date, cancellation (if any); row `period_type` moved from `trial` to `normal` on the RENEWAL | Expected behaviour: the store converts a trial that was not cancelled before its end and sends its own reminder beforehand. Route refund requests to the store (links below); Google often grants a first refund within 48 hours. Cancelling now stops the next charge; access runs to the period end. |
 | "I switched phones / accounts and lost access" | Ledger for a TRANSFER event; rows for both accounts | Restore purchases on the new device moves store access (TRANSFER expires the old row with `expiration_reason = TRANSFER`). Bookmarkt trials and comps never move. |
 
 ## 3. Store refund routes

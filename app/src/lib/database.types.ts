@@ -551,18 +551,21 @@ export type Database = {
       }
       companion_trial_policy: {
         Row: {
+          bookmarkt_trial_enabled: boolean
           id: number
           qualifying_entries: number
           trial_days: number
           updated_at: string
         }
         Insert: {
+          bookmarkt_trial_enabled?: boolean
           id?: number
           qualifying_entries?: number
           trial_days?: number
           updated_at?: string
         }
         Update: {
+          bookmarkt_trial_enabled?: boolean
           id?: number
           qualifying_entries?: number
           trial_days?: number
