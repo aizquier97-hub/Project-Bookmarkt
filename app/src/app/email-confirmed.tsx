@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { createSessionFromRecoveryUrl } from '@/domains/auth/service';
+import { createSessionFromRecoveryUrl, hasSessionTokens } from '@/domains/auth/service';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
@@ -19,8 +19,12 @@ export default function EmailConfirmedScreen() {
   const url = Linking.useURL();
   const { session } = useAuth();
   const [linkError, setLinkError] = useState<string | null>(null);
-  const [confirmedOnly, setConfirmedOnly] = useState(false);
   const handledUrl = useRef<string | null>(null);
+
+  // Supabase only redirects here after verifying the token, so the address is
+  // confirmed regardless; the spinner shows only while a session is actually
+  // being established from tokens carried in the URL.
+  const establishing = Boolean(url && hasSessionTokens(url)) && !linkError;
 
   useEffect(() => {
     if (!url || handledUrl.current === url) {
@@ -31,10 +35,6 @@ export default function EmailConfirmedScreen() {
       .then((established) => {
         if (established) {
           router.replace('/');
-        } else {
-          // Supabase only redirects here after verifying the token, so a URL
-          // without session tokens still means the address is confirmed.
-          setConfirmedOnly(true);
         }
       })
       .catch((err) => {
@@ -45,16 +45,6 @@ export default function EmailConfirmedScreen() {
         );
       });
   }, [router, url]);
-
-  // Cold-start fallback: if no URL reaches the hook, do not spin forever.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!handledUrl.current) {
-        setConfirmedOnly(true);
-      }
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Already signed in (e.g., the link was opened twice): nothing left to do.
   useEffect(() => {
@@ -68,7 +58,7 @@ export default function EmailConfirmedScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.form}>
         <Text style={styles.title}>
-          {confirmedOnly && !linkError ? 'Email confirmed' : 'Confirming your email'}
+          {establishing || linkError ? 'Confirming your email' : 'Email confirmed'}
         </Text>
         {linkError ? (
           <>
@@ -80,7 +70,12 @@ export default function EmailConfirmedScreen() {
               <Text style={styles.buttonText}>Go to sign in</Text>
             </Pressable>
           </>
-        ) : confirmedOnly ? (
+        ) : establishing ? (
+          <>
+            <ActivityIndicator color={colors.accent} />
+            <Text style={styles.subtitle}>One moment...</Text>
+          </>
+        ) : (
           <>
             <Text style={styles.subtitle}>
               Your address is verified. Sign in with your email and password to open your library.
@@ -88,13 +83,6 @@ export default function EmailConfirmedScreen() {
             <Pressable style={styles.button} onPress={() => router.replace('/sign-in')}>
               <Text style={styles.buttonText}>Sign in</Text>
             </Pressable>
-          </>
-        ) : (
-          <>
-            <ActivityIndicator color={colors.accent} />
-            <Text style={styles.subtitle}>
-              One moment... If nothing happens, open the link from the email on this phone.
-            </Text>
           </>
         )}
       </View>
