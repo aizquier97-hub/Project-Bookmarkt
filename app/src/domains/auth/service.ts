@@ -84,6 +84,12 @@ export function isRecoveryUrl(url: string): boolean {
   );
 }
 
+/** True when the redirect URL carries the tokens needed to establish a session. */
+export function hasSessionTokens(url: string): boolean {
+  const params = parseUrlParams(url);
+  return Boolean(params.get('access_token') && params.get('refresh_token'));
+}
+
 function parseUrlParams(url: string): URLSearchParams {
   // Tokens may arrive in the fragment (implicit flow) or the query string.
   const merged = new URLSearchParams();

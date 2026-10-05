@@ -1341,8 +1341,9 @@ only the store product, the `goog_` key swap, and the trial policy.
 - [x] Ship the OTA for both runtimes; record the group IDs - PR #111,
       published 2026-10-04 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`,
       runtime 1.0.0 group `8dbe2974-6742-4de5-b465-27d9466f7bcd`.
-- [ ] Owner check with a **fresh account** (the owner's own account is
-      `dev_comp`, so it never sees the plans): Subscription shows the
+- [ ] Owner check with a **fresh account** (the owner's main account is
+      `dev_comp`, so it never sees the plans; `aizquier97@gmail.com` had its
+      comp removed 2026-10-05, D-076, and is the sandbox account): Subscription shows the
       paywall - free-versus-Book-Club table, then the plan buttons with
       the store's trial wording - from the first launch, no entries needed
       (D-074; the Bookmarkt "Start free trial" card appears only if
