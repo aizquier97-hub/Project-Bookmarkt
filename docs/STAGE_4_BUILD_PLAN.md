@@ -623,6 +623,31 @@ every 5 minutes (monthly) / 30 minutes (yearly), and the trial lasts
 minutes rather than days - that is what makes the
 purchase -> cancel -> expire -> restore cycle a same-evening test.
 
+**What "sandbox" looks like (D-075).** License testing is keyed on the
+**Google account signed in to Play on the phone**, not on the Bookmarkt
+account - creating fresh Bookmarkt accounts changes nothing. The paywall
+always shows the real store price (that is the price Google quotes); the
+test status appears only on the **Google Play purchase sheet**, which says
+"Test card, always approves" / "You will not be charged" instead of asking
+for a payment method. If that sheet shows a real card, the phone's Play
+account is not on Setup -> License testing (allow up to 15 minutes after
+adding it; sign out/in of Play if needed) or the build was not installed
+from the Internal testing track.
+
+**Closed-group rollout checklist (friends and family, D-075):**
+
+1. Custom SMTP live (STAGE_2_OPERATIONS §8) - otherwise the second or
+   third sign-up of the evening hits "email rate limit exceeded".
+2. Testing -> Internal testing -> Testers: add each tester's Gmail (the
+   one on their phone's Play Store) to the email list; up to 100.
+3. Setup -> License testing: add the same Gmails, so a tap on a plan is a
+   test order rather than a real charge. Tell them it is safe to try.
+4. Send the opt-in URL with three lines: accept, install from Play, open
+   the app twice after installing (the second launch picks up the latest
+   OTA update).
+5. Point them at **Settings -> Report an issue** in the app for feedback;
+   reports land in `issue_reports`.
+
 ---
 
 ## Distribution notes

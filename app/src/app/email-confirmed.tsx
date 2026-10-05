@@ -19,6 +19,7 @@ export default function EmailConfirmedScreen() {
   const url = Linking.useURL();
   const { session } = useAuth();
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [confirmedOnly, setConfirmedOnly] = useState(false);
   const handledUrl = useRef<string | null>(null);
 
   useEffect(() => {
@@ -30,6 +31,10 @@ export default function EmailConfirmedScreen() {
       .then((established) => {
         if (established) {
           router.replace('/');
+        } else {
+          // Supabase only redirects here after verifying the token, so a URL
+          // without session tokens still means the address is confirmed.
+          setConfirmedOnly(true);
         }
       })
       .catch((err) => {
@@ -40,6 +45,16 @@ export default function EmailConfirmedScreen() {
         );
       });
   }, [router, url]);
+
+  // Cold-start fallback: if no URL reaches the hook, do not spin forever.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!handledUrl.current) {
+        setConfirmedOnly(true);
+      }
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Already signed in (e.g., the link was opened twice): nothing left to do.
   useEffect(() => {
@@ -52,7 +67,9 @@ export default function EmailConfirmedScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.form}>
-        <Text style={styles.title}>Confirming your email</Text>
+        <Text style={styles.title}>
+          {confirmedOnly && !linkError ? 'Email confirmed' : 'Confirming your email'}
+        </Text>
         {linkError ? (
           <>
             <Text style={styles.error}>{linkError}</Text>
@@ -61,6 +78,15 @@ export default function EmailConfirmedScreen() {
             </Text>
             <Pressable style={styles.button} onPress={() => router.replace('/sign-in')}>
               <Text style={styles.buttonText}>Go to sign in</Text>
+            </Pressable>
+          </>
+        ) : confirmedOnly ? (
+          <>
+            <Text style={styles.subtitle}>
+              Your address is verified. Sign in with your email and password to open your library.
+            </Text>
+            <Pressable style={styles.button} onPress={() => router.replace('/sign-in')}>
+              <Text style={styles.buttonText}>Sign in</Text>
             </Pressable>
           </>
         ) : (

@@ -31,6 +31,22 @@ otp_length = 8
 # NOTE: custom email templates require a paid plan or custom SMTP; the
 # recovery flow therefore uses the default link email + deep-link redirect.
 
+# Custom SMTP (Resend) - lifts the built-in sender's hourly cap (D-073/D-075).
+# Uncomment once the bookmarkt.io domain is verified in Resend and set
+# RESEND_API_KEY in the shell before `supabase config push`; the key itself
+# never enters the repo. Runbook: STAGE_2_OPERATIONS §8.
+# [auth.email.smtp]
+# enabled = true
+# host = "smtp.resend.com"
+# port = 465
+# user = "resend"
+# pass = "env(RESEND_API_KEY)"
+# admin_email = "noreply@bookmarkt.io"
+# sender_name = "Bookmarkt"
+#
+# [auth.rate_limit]
+# email_sent = 100
+
 [storage.vector]
 enabled = false
 

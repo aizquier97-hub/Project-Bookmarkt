@@ -56,10 +56,11 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Stored images: collect paths from the user's rows, then remove.
+    // 1. Stored images: the table keeps only the public URL (no path
+    //    column), so derive each object's path the way the client does.
     const { data: imageRows, error: imagesError } = await admin
       .from("book_images")
-      .select("storage_path, image_url")
+      .select("image_url")
       .eq("user_id", userId);
     if (imagesError) {
       throw new Error(`image rows: ${imagesError.message}`);
@@ -68,7 +69,6 @@ serve(async (req) => {
       new Set(
         (imageRows ?? [])
           .map((row) => {
-            if (row.storage_path) return String(row.storage_path);
             const url = String(row.image_url ?? "");
             const marker = `/object/public/${BOOK_IMAGES_BUCKET}/`;
             const index = url.indexOf(marker);
