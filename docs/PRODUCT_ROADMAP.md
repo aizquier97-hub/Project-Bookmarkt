@@ -991,9 +991,11 @@ operations, and app-store distribution.
       and 14 days on the yearly plan (D-071), run by the store. The store
       trial is the trial: Bookmarkt's own no-card
       trial from D-068 is switched off by `companion_trial_policy.
-      bookmarkt_trial_enabled = false` (the RPCs answer `store_trial`), and
-      the entries-before-offer rule still gates the plan buttons at 5
-      entries. Plan buttons print the store's own phases - "7 days free,
+      bookmarkt_trial_enabled = false` (the RPCs answer `store_trial`).
+      The entries-before-offer rule gated the plan buttons at 5 entries
+      until D-074 (2026-10-04) opened the plans to every reader; it now
+      applies only to the no-card Bookmarkt trial. Plan buttons print the
+      store's own phases - "7 days free,
       then $7.99 per month" / "14 days free, then $79.99 per year".)*
 - [x] Build a financial model for AI cost per companion session, infrastructure,
       app-store commission, taxes, refunds, support, and target margin.
@@ -1043,7 +1045,9 @@ operations, and app-store distribution.
 - [x] Build subscription and account-management screens. *(Subscription
       screen 2026-09-06, D-061; lifecycle states, trial card, and the
       entries-before-offer rule 2026-10-04, D-068; plan buttons with the
-      store's trial and savings wording 2026-10-04, D-070; account rows
+      store's trial and savings wording 2026-10-04, D-070; paywall layout
+      with the free-versus-Book-Club table and plans always open
+      2026-10-04, D-074; account rows
       2026-09-02, D-053.)*
 - [x] Prevent client-only entitlement decisions. *(Structural since
       2026-09-02, D-047: the client's entitlement read is render-only; the
@@ -1338,13 +1342,15 @@ only the store product, the `goog_` key swap, and the trial policy.
       published 2026-10-04 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`,
       runtime 1.0.0 group `8dbe2974-6742-4de5-b465-27d9466f7bcd`.
 - [ ] Owner check with a **fresh account** (the owner's own account is
-      `dev_comp`, so it never sees the trial): Subscription shows the locked
-      trial card at 0/5 and, after five entries, the plan buttons with the
-      store's trial wording (D-070 - the Bookmarkt "Start free trial" card
-      appears only if `bookmarkt_trial_enabled` is set back to true).
+      `dev_comp`, so it never sees the plans): Subscription shows the
+      paywall - free-versus-Book-Club table, then the plan buttons with
+      the store's trial wording - from the first launch, no entries needed
+      (D-074; the Bookmarkt "Start free trial" card appears only if
+      `bookmarkt_trial_enabled` is set back to true).
       *(2026-10-04: the first attempt stalled because the confirmation
-      email linked to the prototype PWA; fixed by D-072 and shipped OTA -
-      delete the half-created user in Supabase and sign up again.)*
+      email linked to the prototype PWA; fixed by D-072 and the hosted
+      allowlist push in D-074 - delete the half-created user in Supabase
+      and sign up again.)*
 - [x] After the pricing decision: set `companion_trial_policy`. *(Done
       2026-10-04, D-070: the store runs the trial, so the Bookmarkt trial is
       switched off by the new `bookmarkt_trial_enabled` flag; 7 days / 5

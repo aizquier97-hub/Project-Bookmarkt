@@ -101,6 +101,12 @@ Policy:
   editing or deleting an applied file. If data was damaged, restore from the
   Supabase backup (metadata) plus the Storage object backup (§4), then
   reconcile (below).
+- **Auth and project settings in `supabase/config.toml`** (redirect
+  allowlist, password policy, email settings) do not reach the hosted
+  project on their own: run `supabase config push` from `supabase/`, review
+  the printed diff (it should name only the keys you changed), and confirm.
+  D-072 shipped a new redirect URL in the file alone and the confirmation
+  link kept falling back to the Site URL until D-074 pushed it.
 
 ### Application deployment
 

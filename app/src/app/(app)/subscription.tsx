@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/domains/auth/AuthProvider';
+import { PAYWALL_FEATURES } from '@/domains/billing/paywallFeatures';
 import { annualSavingsPercent } from '@/domains/billing/planCopy';
 import {
   ensureBillingReady,
@@ -26,17 +27,17 @@ import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 /**
- * Companion subscription (Stage 4 Phase 3, D-061 + D-068 + D-070). The
- * purchase runs through the store sheet; access itself is granted
- * server-side when RevenueCat's webhook activates the reader's entitlement
- * row - this screen only ever renders what the server already decided
- * (D-047: no client-only entitlement decisions). Since D-070 the store's
- * free trial on each plan is the trial: the buttons read "7 days free, then
- * $7.99 per month" from the store's own pricing phases, and the plans stay
- * behind the entries-before-offer gate until the qualifying entries exist.
- * The no-card Bookmarkt trial (`start_companion_trial`) is a policy lever
- * that is currently off. A declined, canceled, or failed purchase changes
- * nothing: the reader is told so and stays right here.
+ * Companion subscription paywall (Stage 4 Phase 3, D-061 + D-068 + D-070 +
+ * D-074). The purchase runs through the store sheet; access itself is
+ * granted server-side when RevenueCat's webhook activates the reader's
+ * entitlement row - this screen only ever renders what the server already
+ * decided (D-047: no client-only entitlement decisions). The store's free
+ * trial on each plan is the trial: the buttons read "7 days free, then
+ * $7.99 per month" from the store's own pricing phases. Since D-074 the
+ * plans are always on offer - the entries-before-offer gate applies only to
+ * the no-card Bookmarkt trial, a policy lever that is currently off. A
+ * declined, canceled, or failed purchase changes nothing: the reader is
+ * told so and stays right here.
  */
 export default function SubscriptionScreen() {
   const queryClient = useQueryClient();
@@ -74,22 +75,6 @@ export default function SubscriptionScreen() {
       state: entitlement.entitled ? entitlement.status : entitlement.reason,
     });
   }, [entitlement]);
-
-  const lockedViewedRef = useRef(false);
-  useEffect(() => {
-    const eligibility = eligibilityQuery.data;
-    if (!eligibility || eligibility.eligible || eligibility.reason !== 'needs_entries') {
-      return;
-    }
-    if (lockedViewedRef.current) {
-      return;
-    }
-    lockedViewedRef.current = true;
-    trackAnalyticsEvent('trial_locked_viewed', {
-      entries_logged: eligibility.entriesLogged,
-      entries_required: eligibility.entriesRequired,
-    });
-  }, [eligibilityQuery.data]);
 
   useEffect(() => {
     let cancelled = false;
@@ -204,7 +189,7 @@ export default function SubscriptionScreen() {
       } else {
         setNotice(
           result.reason === 'needs_entries'
-            ? 'A few more entries first - the trial unlocks once the companion has notes to work from.'
+            ? 'A few more entries first - the no-card trial unlocks once the companion has notes to work from. The plans below are open now.'
             : result.reason === 'store_trial'
               ? 'The free trial comes with the plans below - your store runs it, and nothing is charged until it ends.'
               : 'This account has already used its trial. Plans are below whenever you are ready.',
@@ -220,14 +205,10 @@ export default function SubscriptionScreen() {
 
   const statusCard = entitlement ? describeSubscriptionState(entitlement) : null;
   const eligibility = eligibilityQuery.data ?? null;
-  const trialCard = !entitled && eligibility ? describeTrialOffer(eligibility) : null;
-  // The entries-before-offer rule (roadmap section 13): plans wait until the
-  // companion has notes to work from. Readers with any subscription history
-  // always see them; an eligibility hiccup fails open to the plans.
-  const plansLocked =
-    !entitled &&
-    entitlement?.reason === 'no_subscription' &&
-    trialCard?.kind === 'locked';
+  // Only the no-card Bookmarkt trial *offer* gets a card; its entries gate
+  // (the "locked" kind) is never shown - plans are always open (D-074).
+  const trialOffer = !entitled && eligibility ? describeTrialOffer(eligibility) : null;
+  const showTrialOffer = trialOffer?.kind === 'offer';
   const showPlans = !entitled || entitlement.status === 'trial';
   const readyPackages = offerings?.status === 'ready' ? offerings.packages : [];
   const savings = annualSavingsPercent(readyPackages);
@@ -237,17 +218,14 @@ export default function SubscriptionScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: 'Subscription' }} />
 
-      <View style={styles.card}>
+      <View style={styles.hero}>
         <View style={styles.badge}>
-          <Ionicons name="book-outline" size={22} color={gold.deep} />
+          <Ionicons name="book-outline" size={24} color={gold.deep} />
         </View>
-        <Text style={styles.title}>The Book Club</Text>
-        <Text style={styles.body}>
-          Socratic discussions, retellings from your own notes, the Recall match, and search by
-          meaning - all grounded in what you have written, never past where you have read.
-        </Text>
-        <Text style={styles.body}>
-          Capturing notes, character maps, and bookmarks stays free forever, subscription or not.
+        <Text style={styles.title}>Join the Book Club</Text>
+        <Text style={styles.tagline}>
+          A reading companion that works only from what you have written - and never reads ahead
+          of your bookmark.
         </Text>
       </View>
 
@@ -274,62 +252,70 @@ export default function SubscriptionScreen() {
         </View>
       ) : null}
 
-      {trialCard ? (
+      <View style={styles.table} accessibilityRole="list">
+        <View style={styles.tableHeader}>
+          <Text style={[styles.tableHeading, styles.featureHeading]}>What you get</Text>
+          <Text style={[styles.tableHeading, styles.tierHeading]}>Free</Text>
+          <Text style={[styles.tableHeading, styles.tierHeading, styles.premiumHeading]}>
+            Book Club
+          </Text>
+        </View>
+        {PAYWALL_FEATURES.map((feature, index) => (
+          <View
+            key={feature.id}
+            style={[
+              styles.tableRow,
+              !feature.free && styles.premiumRow,
+              index === PAYWALL_FEATURES.length - 1 && styles.lastRow,
+            ]}
+            accessibilityLabel={`${feature.label}: ${feature.free ? 'free and Book Club' : 'Book Club only'}`}
+          >
+            <View style={styles.featureColumn}>
+              <Text style={[styles.featureLabel, !feature.free && styles.premiumLabel]}>
+                {feature.label}
+              </Text>
+              {feature.detail ? <Text style={styles.featureDetail}>{feature.detail}</Text> : null}
+            </View>
+            <View style={styles.tierColumn}>
+              {feature.free ? (
+                <Ionicons name="checkmark" size={18} color={colors.muted} />
+              ) : (
+                <Text style={styles.dash}>{'\u2014'}</Text>
+              )}
+            </View>
+            <View style={styles.tierColumn}>
+              <Ionicons name="checkmark-circle" size={20} color={gold.deep} />
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {showTrialOffer && trialOffer ? (
         <View style={[styles.card, styles.trialCard]}>
           <View style={styles.trialHeader}>
-            <Ionicons
-              name={trialCard.kind === 'offer' ? 'sparkles-outline' : 'lock-closed-outline'}
-              size={18}
-              color={gold.deep}
-            />
-            <Text style={styles.trialTitle}>{trialCard.title}</Text>
+            <Ionicons name="sparkles-outline" size={18} color={gold.deep} />
+            <Text style={styles.trialTitle}>{trialOffer.title}</Text>
           </View>
-          <Text style={styles.body}>{trialCard.body}</Text>
-          {trialCard.kind === 'locked' && trialCard.entriesRequired > 0 ? (
-            <View
-              style={styles.progressTrack}
-              accessibilityRole="progressbar"
-              accessibilityValue={{
-                min: 0,
-                max: trialCard.entriesRequired,
-                now: Math.min(trialCard.entriesLogged, trialCard.entriesRequired),
-              }}
-            >
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.round(
-                      (Math.min(trialCard.entriesLogged, trialCard.entriesRequired) /
-                        trialCard.entriesRequired) *
-                        100,
-                    )}%`,
-                  },
-                ]}
-              />
-            </View>
-          ) : null}
-          {trialCard.kind === 'offer' ? (
-            <Pressable
-              style={styles.planButton}
-              onPress={() => void handleStartTrial()}
-              disabled={startingTrial}
-              accessibilityRole="button"
-              accessibilityLabel="Start your free trial"
-            >
-              {startingTrial ? (
-                <ActivityIndicator color={gold.onFill} />
-              ) : (
-                <Text style={styles.planPrice}>Start free trial</Text>
-              )}
-            </Pressable>
-          ) : null}
+          <Text style={styles.body}>{trialOffer.body}</Text>
+          <Pressable
+            style={styles.planButton}
+            onPress={() => void handleStartTrial()}
+            disabled={startingTrial}
+            accessibilityRole="button"
+            accessibilityLabel="Start your free trial"
+          >
+            {startingTrial ? (
+              <ActivityIndicator color={gold.onFill} />
+            ) : (
+              <Text style={styles.planPrice}>Start free trial</Text>
+            )}
+          </Pressable>
         </View>
       ) : null}
 
-      {showPlans && !plansLocked ? (
+      {showPlans ? (
         <>
-          <Text style={styles.sectionLabel}>Plans</Text>
+          <Text style={styles.sectionLabel}>Choose a plan</Text>
           {offerings === null ? (
             <View style={styles.card}>
               <ActivityIndicator color={gold.base} />
@@ -384,12 +370,12 @@ export default function SubscriptionScreen() {
                   </Pressable>
                 );
               })}
-              {anyStoreTrial ? (
-                <Text style={styles.planNote}>
-                  Your store runs the free trial: cancel before it ends from Google Play or the App
-                  Store and nothing is charged. One trial per store account.
-                </Text>
-              ) : null}
+              <Text style={styles.planNote}>
+                {anyStoreTrial
+                  ? 'Your store runs the free trial: cancel before it ends from Google Play or the App Store and nothing is charged. One trial per store account. '
+                  : ''}
+                Cancel any time from your store account.
+              </Text>
             </>
           ) : offerings.status === 'empty' ? (
             <View style={styles.card}>
@@ -407,6 +393,10 @@ export default function SubscriptionScreen() {
         </>
       ) : null}
 
+      <Text style={styles.freeForever}>
+        Capturing notes, character maps, and bookmarks stays free forever, subscription or not.
+      </Text>
+
       {entitled && entitlement.status !== 'trial' ? (
         <Text style={styles.manageHint}>
           Plan changes and cancellation happen in your store account (Google Play or the App
@@ -414,22 +404,25 @@ export default function SubscriptionScreen() {
         </Text>
       ) : null}
 
+      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <Pressable
         style={styles.restoreButton}
         onPress={() => void handleRestore()}
         disabled={restoring}
         accessibilityRole="button"
         accessibilityLabel="Restore purchases"
+        accessibilityHint="Reconnects a subscription bought on another device or before reinstalling"
       >
         {restoring ? (
           <ActivityIndicator size="small" color={colors.muted} />
         ) : (
-          <Text style={styles.restoreText}>Restore purchases</Text>
+          <Text style={styles.restoreText}>
+            Already subscribed on another device? <Text style={styles.restoreLink}>Restore purchases</Text>
+          </Text>
         )}
       </Pressable>
-
-      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
     </ScrollView>
   );
 }
@@ -443,6 +436,36 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
     gap: 12,
+  },
+  hero: {
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  badge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: gold.glowSoft,
+    borderWidth: 1,
+    borderColor: gold.base,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  tagline: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
   },
   card: {
     backgroundColor: colors.card,
@@ -462,6 +485,83 @@ const styles = StyleSheet.create({
   endedCard: {
     borderColor: colors.border,
   },
+  table: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...cardShadow,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  tableHeading: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  premiumHeading: {
+    color: gold.deep,
+  },
+  featureHeading: {
+    flex: 1,
+  },
+  tierHeading: {
+    width: 64,
+    textAlign: 'center',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  premiumRow: {
+    backgroundColor: gold.glowSoft,
+  },
+  lastRow: {
+    borderBottomWidth: 0,
+  },
+  featureColumn: {
+    flex: 1,
+    gap: 2,
+    paddingRight: 8,
+  },
+  tierColumn: {
+    width: 64,
+    alignItems: 'center',
+  },
+  featureLabel: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 14.5,
+  },
+  premiumLabel: {
+    fontWeight: '700',
+  },
+  featureDetail: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 12.5,
+    lineHeight: 17,
+  },
+  dash: {
+    fontFamily: fonts.serif,
+    color: colors.border,
+    fontSize: 16,
+  },
   trialCard: {
     borderColor: gold.base,
     borderWidth: 1.5,
@@ -476,31 +576,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 16,
-    fontWeight: '700',
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: gold.glowSoft,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: gold.base,
-  },
-  badge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: gold.glowSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontFamily: fonts.serif,
-    color: colors.text,
-    fontSize: 20,
     fontWeight: '700',
   },
   statusTitle: {
@@ -583,6 +658,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     fontStyle: 'italic',
   },
+  freeForever: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 13.5,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginHorizontal: 8,
+    marginTop: 4,
+  },
   manageHint: {
     fontFamily: fonts.serif,
     color: colors.muted,
@@ -597,8 +681,12 @@ const styles = StyleSheet.create({
   },
   restoreText: {
     fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  restoreLink: {
     color: colors.accent,
-    fontSize: 14.5,
     fontWeight: '600',
   },
   notice: {

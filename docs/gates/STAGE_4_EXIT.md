@@ -76,7 +76,7 @@ Criteria are the roadmap §13 exit gate. "Pass" means evidenced today;
 | ID | Severity | Summary | Mitigation or disposition | Owner |
 | --- | --- | --- | --- | --- |
 | R-1 | P2 | The live `REVENUECAT_WEBHOOK_SECRET` is visible only as a digest in Supabase, so the deployed endpoint cannot be smoke-tested with a real signed payload from here. | Handler logic is exercised directly with a fake secret against the live database (D-068 smoke); the deployed endpoint is probed for 405/401. RevenueCat's dashboard "send test event" is the owner-side check once the product exists. | Engineering |
-| R-2 | P3 | The owner's own account is `dev_comp`, so the plan buttons and the entries gate never appear for it. | Verify the flow with a fresh account (roadmap D-070 checklist): locked card at 0/5, then the plan buttons with "7 days free, then $7.99 per month". | Product owner |
+| R-2 | P3 | The owner's own account is `dev_comp`, so the plan buttons never appear for it. | Verify the flow with a fresh account (roadmap D-070 checklist): the paywall table, then the plan buttons with "7 days free, then $7.99 per month" from the first launch (D-074: no entries gate on purchase). | Product owner |
 | R-3 | P3 | Plan-button wording comes from the store's pricing phases; until the Play product `premium` is linked in RevenueCat and the `goog_` key is in place, the Test Store shows prices without a trial phase, so the "7 days free" / "14 days free" lines are verified by unit tests (`planCopy.test.ts`) rather than on a device. | First sandbox cycle with the `goog_` key confirms it on-device; a missing phase degrades to the price alone, never to wrong copy. | Engineering |
 
 ## Deferred work
