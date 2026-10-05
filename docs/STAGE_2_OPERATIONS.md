@@ -363,3 +363,15 @@ now sits in the receiving stage's roadmap work plan:
   Cloudflare, sender `noreply@bookmarkt.io`, then raise the hourly email
   rate limit under Authentication → Rate Limits. This also unlocks the
   branded email templates `config.toml` notes as deferred. Owner action.
+  **Runbook (D-075):** (1) resend.com → sign up → *Domains → Add domain*
+  `bookmarkt.io` (region closest to the project) → copy the DKIM/SPF/MX
+  records it shows into Cloudflare DNS (proxy **off**) → wait for
+  "Verified"; (2) *API Keys → Create*, permission *Sending access*, domain
+  `bookmarkt.io` - the key is shown once; (3) hand the key over out of band
+  (never into the repo); the agent sets `RESEND_API_KEY` in the shell,
+  uncomments the `[auth.email.smtp]` block in `supabase/config.toml` (host
+  `smtp.resend.com`, port 465, user `resend`, `pass = "env(RESEND_API_KEY)"`)
+  and the `[auth.rate_limit] email_sent = 100` line, runs `supabase config
+  push`, and confirms with a password-reset email. Alternatively paste the
+  same values into the dashboard SMTP page yourself - the push diff will
+  then show them as remote-only and leave them alone.
