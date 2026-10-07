@@ -469,6 +469,43 @@ into the Recall match.
       2026-10-04 to `preview`: runtime 1.0.1 group `20b42395-d1f5-4fec-9a70-96fe445ad60d`, runtime 1.0.0
       group `c89f7b3c-4259-4ca4-9008-4566574a2dd1`.
 
+### Phase 5d - Sandglass feedback round (added 2026-10-05, D-077)
+
+Owner feedback from the first timed sitting: the end of the glass should
+be heard, the wrap-up note should be speakable, and the people met in the
+sitting should reach the character map without a detour. Also the first
+companion tool that writes toward the map (still reader-confirmed).
+
+- [x] **Bell at zero.** `assets/sounds/bell.wav` (original synthesized
+      singing-bowl chime, 2.4 s, 528 Hz, soft) played through `expo-audio`
+      from `domains/fitness/bell.ts`, lazily required so older runtimes
+      buzz without sound. `app.json` version -> **1.0.2**; the bell needs
+      the new Internal-testing binary (native module).
+- [x] **Dictation on the wrap-up note** via the reusable
+      `components/DictationPanel.tsx`; raw transcript stored on the entry.
+- [x] **"Did you meet someone new?"** card on the saved screen: *Add a
+      character* / *Speak one* -> `/book/[id]?tab=characters&composeCharacter=write|speak`.
+- [x] **Custom sitting length** (Custom chip, 1-240 minutes).
+- [x] **Companion `character_extract`** (premium, transient): one saved
+      note + current map -> up to five people not yet mapped, with
+      role/description/relationships where the note gives them. Rendered by
+      `components/CharacterSuggestions.tsx` on the saved screen and under the
+      book composer after a save; *Add to map* / *Skip* per card. Migration
+      `20261010120000_add_character_extract.sql` pushed; function deployed.
+- [x] Tests: `api.test.ts` character parsing + `hashNoteText`. 385 tests /
+      34 suites; tsc and lint clean.
+- [ ] EAS build `80c31888-fa15-42f1-b7b2-455e18d4968a` (runtime 1.0.2) ->
+      owner uploads the `.aab` to Internal testing (step 4 below) and
+      re-installs from Play to hear the bell.
+- [x] Ship the OTA for runtimes 1.0.1 and 1.0.0 (everything but the bell) -
+      published 2026-10-05 to `preview`: runtime 1.0.1 group `db174e1e-8610-44d9-a34f-832d17d959a4`, runtime 1.0.0 group `2b23e527-8134-4f25-9eee-54ddf4bcbc23`.
+
+**Sandbox price, answered (owner question, D-077).** The paywall shows
+CAD 10.99 because Google quotes the real localised list price to every
+account; $0 never appears in the app. A license tester is told "Test card,
+always approves" only on the Google Play purchase sheet after tapping a
+plan. The webhook accepts SANDBOX events, so the test order grants Book
+Club and the cancel -> expire -> restore cycle can be recorded.
 ### Phase 3/4 follow-through - billing lifecycle, trial, states (added 2026-10-04, D-068)
 
 Price-independent billing work done while the owner finishes the financial

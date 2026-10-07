@@ -48,6 +48,17 @@ export interface CompanionObservation {
   stems: string[];
 }
 
+/**
+ * A character the companion spotted in one saved note (D-077). Every field
+ * beyond the name may be empty: the model fills only what the note says.
+ */
+export interface CompanionCharacterSuggestion {
+  name: string;
+  role: string;
+  description: string;
+  relationships: string;
+}
+
 export interface CompanionQuota {
   used: number;
   remaining: number;
@@ -88,6 +99,8 @@ export interface CompanionSendResult {
   stems: string[];
   /** Present only for observations: grounded conversation openers (D-056). */
   observations: CompanionObservation[];
+  /** Present only for character_extract (D-077): people the note mentions. */
+  characters: CompanionCharacterSuggestion[];
   /** Convergence arc (D-059), dialogue only: the one-sentence validation. */
   mirror: string;
   /** Convergence arc (D-059), dialogue only: the wedge question or affirmation. */
@@ -223,7 +236,7 @@ export function mapCompanionMessageRow(row: {
   };
 }
 
-interface RawSendResponse {
+export interface RawSendResponse {
   reply?: { content?: unknown; provenance?: unknown; declined?: unknown };
   boundaryLabel?: unknown;
   quota?: unknown;
@@ -235,6 +248,7 @@ interface RawSendResponse {
   summaries?: unknown;
   stems?: unknown;
   observations?: unknown;
+  characters?: unknown;
   mirror?: unknown;
   probe?: unknown;
   isConvergence?: unknown;
@@ -284,7 +298,8 @@ function parseComprehension(raw: unknown): CompanionComprehension | null {
   };
 }
 
-function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
+/** Exported for tests: shapes a raw edge-function body into a client result. */
+export function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
   const provenanceRaw = String(data.reply?.provenance ?? '');
   const provenance: CompanionProvenance =
     provenanceRaw === 'general_knowledge' || provenanceRaw === 'mixed'
@@ -345,6 +360,23 @@ function normalizeSendResponse(data: RawSendResponse): CompanionSendResult {
       })
       .filter((item) => item.prompt.length > 0)
       .slice(0, 3),
+    characters: (Array.isArray(data.characters) ? data.characters : [])
+      .map((raw) => {
+        const item = (raw ?? {}) as {
+          name?: unknown;
+          role?: unknown;
+          description?: unknown;
+          relationships?: unknown;
+        };
+        return {
+          name: String(item.name ?? '').trim(),
+          role: String(item.role ?? '').trim(),
+          description: String(item.description ?? '').trim(),
+          relationships: String(item.relationships ?? '').trim(),
+        };
+      })
+      .filter((item) => item.name.length > 0)
+      .slice(0, 5),
     mirror: typeof data.mirror === 'string' ? data.mirror.trim() : '',
     probe: typeof data.probe === 'string' ? data.probe.trim() : '',
     isConvergence: data.isConvergence === true,
@@ -365,7 +397,8 @@ async function invokeCompanion(body: {
     | 'observations'
     | 'observation_open'
     | 'insight'
-    | 'comprehension';
+    | 'comprehension'
+    | 'character_extract';
   bookId: number;
   message?: string;
   detail?: string;
@@ -483,6 +516,24 @@ export function requestStructureAid(bookId: number, draft: string): Promise<Comp
 /** Transient: which notes look like pivotal moments (nothing is saved). */
 export function requestFlagSuggestions(bookId: number): Promise<CompanionSendResult> {
   return invokeCompanion({ feature: 'suggest_flags', bookId });
+}
+
+/**
+ * Character extraction (D-077, premium): the companion reads one just-saved
+ * note and proposes the people it mentions who are not yet on the map. The
+ * result is transient; the reader accepts each suggestion onto the map.
+ */
+export function extractCharacters(bookId: number, noteText: string): Promise<CompanionSendResult> {
+  return invokeCompanion({ feature: 'character_extract', bookId, message: noteText.trim() });
+}
+
+/** Stable cache key for one note's extraction (djb2, hex). */
+export function hashNoteText(text: string): string {
+  let hash = 5381;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(16);
 }
 
 /** Search the reader's own notes by meaning; returns entry ids, best first. */

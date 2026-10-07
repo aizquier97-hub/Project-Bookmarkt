@@ -89,6 +89,7 @@ import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
 import { useDictation } from '@/domains/voice/useDictation';
 import { EntryBookmark } from '@/components/EntryBookmark';
+import { CharacterSuggestions } from '@/components/CharacterSuggestions';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { TrophyStrip } from '@/components/TrophyStrip';
@@ -136,13 +137,24 @@ export default function BookScreen() {
     character?: string;
     compose?: string;
     page?: string;
+    composeCharacter?: string;
   }>();
   const bookId = Number(params.id);
   const validId = Number.isInteger(bookId) && bookId > 0;
+  // The Sandglass's "Did you meet someone new?" card (D-077) hands off with
+  // /book/[id]?tab=characters&composeCharacter=write|speak.
+  const composeCharacterParam: ComposerMode =
+    params.composeCharacter === 'write' || params.composeCharacter === 'speak'
+      ? params.composeCharacter
+      : null;
   // Deep-link groundwork (D-045): /book/[id]?tab=characters&character=<id>
   // opens the Characters tab focused on that card.
   const [tab, setTab] = useState<'entries' | 'characters' | 'photos'>(
-    params.tab === 'characters' || params.tab === 'photos' ? params.tab : 'entries',
+    params.tab === 'characters' || params.tab === 'photos'
+      ? params.tab
+      : composeCharacterParam
+        ? 'characters'
+        : 'entries',
   );
   const [focusCharacterId, setFocusCharacterId] = useState<number | null>(() => {
     const parsed = Number(params.character);
@@ -160,7 +172,7 @@ export default function BookScreen() {
     // Read once: the handoff page should not re-apply on later re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [characterMode, setCharacterMode] = useState<ComposerMode>(null);
+  const [characterMode, setCharacterMode] = useState<ComposerMode>(composeCharacterParam);
   const addPhotosRef = useRef<(() => void) | null>(null);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -534,6 +546,11 @@ function EntriesTab({
   const [entryKind, setEntryKind] = useState<EntryKind>('note');
   const [formError, setFormError] = useState<string | null>(null);
   const [rawTranscripts, setRawTranscripts] = useState<string[]>([]);
+  const [lastSavedNote, setLastSavedNote] = useState<{
+    id: number;
+    text: string;
+    firstNoted: string;
+  } | null>(null);
   const dictation = useDictation();
 
   // "Speak" opens the composer with dictation already running - one tap from
@@ -619,6 +636,17 @@ function EntriesTab({
       setEntryKind('note');
       setFormError(null);
       onComposerModeChange(null);
+      // Book Club readers get the companion's pass over the fresh note for
+      // people to add to the map (D-077); dismissed on the next save.
+      setLastSavedNote(
+        created.text.trim().length > 0
+          ? {
+              id: created.id,
+              text: created.text,
+              firstNoted: formatFirstNoted(getCurrentPosition([created, ...entries])),
+            }
+          : null,
+      );
       // Segment trophies (D-062): compare the furthest page before and after
       // this entry; a crossed quarter earns a piece and a moment of praise.
       const book = queryClient.getQueryData<Book>(queryKeys.book(bookId));
@@ -1055,6 +1083,25 @@ function EntriesTab({
       ListHeaderComponent={
         <View>
           {composer}
+          {lastSavedNote && companionEntitled ? (
+            <View style={styles.aidCard}>
+              <Text style={styles.aidLabel}>Anyone new in that note?</Text>
+              <CharacterSuggestions
+                key={lastSavedNote.id}
+                bookId={bookId}
+                noteText={lastSavedNote.text}
+                firstNoted={lastSavedNote.firstNoted}
+              />
+              <Pressable
+                style={styles.smallButtonGhost}
+                onPress={() => setLastSavedNote(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss character suggestions"
+              >
+                <Text style={styles.smallButtonGhostText}>Done</Text>
+              </Pressable>
+            </View>
+          ) : null}
           {goldBookmark}
           {entries.length >= 6 ? (
             <TextInput

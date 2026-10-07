@@ -23,6 +23,8 @@ export type AnalyticsEventName =
   | 'semantic_search_used'
   | 'reading_session_completed'
   | 'reading_session_abandoned'
+  // Sandglass → character map handoff (D-077); mode only, no names.
+  | 'timer_character_prompt_used'
   | 'trophy_piece_unlocked'
   | 'quote_favorited'
   | 'quote_reflection_saved'

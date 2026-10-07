@@ -27,11 +27,13 @@ export async function listCharacters(bookId: number): Promise<Character[]> {
   return data ?? [];
 }
 
+export type CharacterAddVia = 'form' | 'quick' | 'suggestion' | 'companion';
+
 export async function addCharacter(
   bookId: number,
   name: string,
   details: CharacterDetails,
-  via: 'form' | 'quick' | 'suggestion' = 'form',
+  via: CharacterAddVia = 'form',
 ): Promise<Character> {
   const trimmedName = name.trim();
   if (!trimmedName) {
