@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bookmarkt",
     "slug": "bookmarkt",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "bookmarkt",
@@ -56,6 +56,13 @@
         "expo-camera",
         {
           "cameraPermission": "Bookmarkt uses the camera to scan a book's barcode so the details fill in for you."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Bookmarkt uses the microphone so you can dictate reading notes.",
+          "recordAudioAndroid": false
         }
       ]
     ],

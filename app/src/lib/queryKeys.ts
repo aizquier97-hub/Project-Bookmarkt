@@ -25,6 +25,9 @@ export const queryKeys = {
   companionRecap: (bookId: number) => ['companion-recap', bookId] as const,
   companionObservations: (bookId: number) => ['companion-observations', bookId] as const,
   companionPrimer: (bookId: number) => ['companion-primer', bookId] as const,
+  /** Characters the companion spotted in one saved note (D-077); keyed by note hash. */
+  companionCharacterExtract: (bookId: number, noteHash: string) =>
+    ['companion-character-extract', bookId, noteHash] as const,
   /** Every entry across the library, for the Reading Fitness model (D-062). */
   activityEntries: ['activity-entries'] as const,
   readingSessions: ['reading-sessions'] as const,

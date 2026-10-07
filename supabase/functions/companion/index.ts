@@ -36,7 +36,8 @@ type Feature =
   | "observations"
   | "observation_open"
   | "insight"
-  | "comprehension";
+  | "comprehension"
+  | "character_extract";
 
 const FEATURES: Feature[] = [
   "dialogue",
@@ -53,6 +54,7 @@ const FEATURES: Feature[] = [
   "observation_open",
   "insight",
   "comprehension",
+  "character_extract",
 ];
 
 /**
@@ -400,6 +402,16 @@ function buildToolPrompt(
         'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "suggestions": [{"entryId": number, "reason": string}]}.',
         "reply is one short deadpan line introducing the suggestions. Each reason is one line naming why that note looks pivotal, in the reader's terms. If nothing qualifies, return an empty suggestions array and say so plainly.",
       ].join("\n");
+    case "character_extract":
+      return [
+        "The reader just saved a new note and asks which characters it mentions so they can be added to their character map. The note, verbatim:",
+        `"""${opts.message}"""`,
+        `Their character map above already lists ${opts.characterCount} ${opts.characterCount === 1 ? "character" : "characters"}. Propose ONLY people (or named beings) who appear in THIS note and are NOT already on the map - match names loosely (first name, surname, nickname, @mention) and skip anyone already listed.`,
+        "For each proposed character, fill ONLY what the note itself states or clearly implies, in the reader's own terms: name (as the reader wrote it, without any leading @), role (a few words - e.g. 'the narrator's uncle', 'ship's doctor'), description (one or two lines of what the note says about them), relationships (who they are connected to, if the note says). Leave a field an empty string when the note gives nothing for it. Never invent, never draw on knowledge of the book, never go past the boundary.",
+        "Skip the reader themself, the author, and generic unnamed groups ('the soldiers'). At most 5 characters.",
+        "reply is one short deadpan line introducing the proposals, or saying plainly that the note names nobody new.",
+        'Respond ONLY with JSON: {"reply": string, "provenance": "your_notes", "declined": false, "characters": [{"name": string, "role": string, "description": string, "relationships": string}]}.',
+      ].join("\n");
     case "observations":
       return [
         `The reader has opened the Book Club and said nothing yet. From their ${opts.entryCount} notes and character map above, prepare 1-3 observation cards: specific, grounded conversation openers that spare them a blank page.`,
@@ -672,6 +684,7 @@ function parseCompanionJson(raw: string): {
   cards: { front: string; back: string }[];
   stems: string[];
   observations: { prompt: string; stems: string[] }[];
+  characters: { name: string; role: string; description: string; relationships: string }[];
   mirror: string;
   probe: string;
   isConvergence: boolean;
@@ -729,16 +742,29 @@ function parseCompanionJson(raw: string): {
             .filter((o: { prompt: string }) => o.prompt.length > 0)
             .slice(0, 3)
         : [];
-      return { reply, provenance, declined: parsed?.declined === true, suggestions, cards, stems, observations, mirror, probe, isConvergence, insight };
+      // character_extract (D-077): names are required; the other fields stay
+      // empty when the note gives nothing, never filled from model knowledge.
+      const characters = Array.isArray(parsed?.characters)
+        ? parsed.characters
+            .map((c: any) => ({
+              name: String(c?.name ?? "").trim().replace(/^@+/, "").slice(0, 80),
+              role: String(c?.role ?? "").trim().slice(0, 120),
+              description: String(c?.description ?? "").trim().slice(0, 600),
+              relationships: String(c?.relationships ?? "").trim().slice(0, 300),
+            }))
+            .filter((c: { name: string }) => c.name.length > 0)
+            .slice(0, 5)
+        : [];
+      return { reply, provenance, declined: parsed?.declined === true, suggestions, cards, stems, observations, characters, mirror, probe, isConvergence, insight };
     }
   }
   // A plain-text reply is acceptable; JSON-shaped wreckage is not - an empty
   // reply triggers a clean retry instead of a card full of braces.
   const trimmedRaw = raw.trim();
   if (trimmedRaw.startsWith("{") || trimmedRaw.startsWith("```")) {
-    return { reply: "", provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [], mirror: "", probe: "", isConvergence: false, insight: "" };
+    return { reply: "", provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [], characters: [], mirror: "", probe: "", isConvergence: false, insight: "" };
   }
-  return { reply: trimmedRaw, provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [], mirror: "", probe: "", isConvergence: false, insight: "" };
+  return { reply: trimmedRaw, provenance: "mixed", declined: false, suggestions: [], cards: [], stems: [], observations: [], characters: [], mirror: "", probe: "", isConvergence: false, insight: "" };
 }
 
 serve(async (req) => {
@@ -805,6 +831,9 @@ serve(async (req) => {
   }
   if (feature === "observation_open" && !message) {
     return jsonResponse({ error: "An observation card is required.", code: "BAD_REQUEST" }, 400);
+  }
+  if (feature === "character_extract" && !message) {
+    return jsonResponse({ error: "Save a note first, then ask who appears in it.", code: "BAD_REQUEST" }, 400);
   }
   const detail =
     feature === "word_bank"
@@ -987,6 +1016,7 @@ serve(async (req) => {
       observation_open: { env: "COMPANION_DIALOGUE_DAILY_LIMIT", fallback: 50, max: 1000 },
       insight: { env: "COMPANION_INSIGHT_DAILY_LIMIT", fallback: 30, max: 500 },
       comprehension: { env: "COMPANION_COMPREHENSION_DAILY_LIMIT", fallback: 20, max: 500 },
+      character_extract: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 30, max: 500 },
     };
     const limitSpec = TOOL_LIMITS[feature] ?? TOOL_LIMITS.dialogue!;
     const userDailyLimit = readPositiveLimit(
@@ -1566,6 +1596,11 @@ serve(async (req) => {
       // Socratic deck primer (D-057): orient from the last few notes only,
       // so the summary stays a glance, never a wall of text.
       contextRows = oldestFirst.slice(-5);
+    } else if (feature === "character_extract") {
+      // Character extraction (D-077) reads the one note in the message; a
+      // couple of recent notes give the model the reader's spelling of
+      // names, nothing more.
+      contextRows = oldestFirst.slice(-3);
     }
     if ((hasEntryRange || hasDateRange) && contextRows.length === 0) {
       await finalize("succeeded", 200, { grounding_entries: 0, grounding_characters: 0 });
@@ -1705,8 +1740,10 @@ serve(async (req) => {
           generationConfig: {
             // Cue cards (D-066) run cooler: the match game needs precise,
             // distinct pairs more than it needs variety, and 0.5 still
-            // varies the deck enough for "New cards" to differ.
-            temperature: feature === "cue_cards" ? 0.5 : 0.7,
+            // varies the deck enough for "New cards" to differ. Character
+            // extraction (D-077) is colder still: it transcribes, never riffs.
+            temperature:
+              feature === "character_extract" ? 0.2 : feature === "cue_cards" ? 0.5 : 0.7,
             // Thinking tokens share this budget on 2.5 models; a tight cap
             // is what truncated the primer JSON mid-document.
             maxOutputTokens: 8192,
@@ -1737,9 +1774,16 @@ serve(async (req) => {
       feature === "suggest_flags"
         ? parsed.suggestions.filter((s) => contextEntryIds.has(s.entryId))
         : [];
+    // character_extract: drop anyone already on the map (case-insensitive
+    // name match) - the client re-checks, but the model does slip.
+    const existingNames = new Set(characterRows.map((c) => String(c.name ?? "").trim().toLowerCase()));
+    const extractedCharacters =
+      feature === "character_extract"
+        ? parsed.characters.filter((c) => !existingNames.has(c.name.toLowerCase()))
+        : [];
 
     // Persist the exchange under the user's JWT so RLS owns the rows.
-    // structure_aid and suggest_flags are transient aids - nothing is saved.
+    // structure_aid, suggest_flags and character_extract are transient aids - nothing is saved.
     const provenanceMeta = {
       sources: parsed.provenance,
       declined: parsed.declined,
@@ -1796,6 +1840,7 @@ serve(async (req) => {
       quota,
       messages: savedMessages,
       ...(feature === "suggest_flags" ? { suggestions } : {}),
+      ...(feature === "character_extract" ? { characters: extractedCharacters } : {}),
       ...(feature === "cue_cards" ? { cards: parsed.cards } : {}),
       ...(feature === "dialogue"
         ? {

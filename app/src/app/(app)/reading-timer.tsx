@@ -10,13 +10,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  Vibration,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { addEntry } from '@/domains/entries/service';
 import { computeComprehensionFactor, computeEffort } from '@/domains/fitness/activity';
+import { playTimerBell } from '@/domains/fitness/bell';
 import { countWords } from '@/domains/fitness/difficulty';
 import { sessionPacePagesPerMinute } from '@/domains/fitness/fitness';
 import type { BookFitness } from '@/domains/fitness/model';
@@ -30,7 +30,10 @@ import {
 import { READING_MODEL_KEYS, useReadingModel } from '@/domains/fitness/useReadingModel';
 import type { Book } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
+import { useDictation } from '@/domains/voice/useDictation';
 import { BookPickerRow } from '@/components/BookPickerRow';
+import { CharacterSuggestions } from '@/components/CharacterSuggestions';
+import { DictationPanel } from '@/components/DictationPanel';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { Sandglass } from '@/components/Sandglass';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
@@ -40,6 +43,9 @@ import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 const DURATION_CHOICES_MIN = [10, 15, 20, 25, 30, 45, 60] as const;
+/** Custom sittings (D-077) accept anything from one minute to four hours. */
+const CUSTOM_MIN_MINUTES = 1;
+const CUSTOM_MAX_MINUTES = 240;
 /** Sessions shorter than this are discarded rather than logged. */
 const MIN_SESSION_SECONDS = 60;
 
@@ -53,6 +59,8 @@ interface SavedSummary {
   unlocked: TrophySegment[];
   noteSaved: boolean;
   noteError: string | null;
+  /** The note as saved, for the companion's character pass (D-077). */
+  noteText: string;
   /** Page the reader stopped on, when they told us. */
   endPage: number | null;
 }
@@ -139,15 +147,25 @@ function TimerFlow({
   const book = fitness.book;
 
   const [phase, setPhase] = useState<Phase>('setup');
-  const [plannedMinutes, setPlannedMinutes] = useState<number>(20);
+  const [chipMinutes, setChipMinutes] = useState<number>(20);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState('');
   const [startPage, setStartPage] = useState(fitness.currentPage > 0 ? String(fitness.currentPage) : '');
   const [endPage, setEndPage] = useState('');
   const [note, setNote] = useState('');
+  const [rawTranscripts, setRawTranscripts] = useState<string[]>([]);
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const [endedAt, setEndedAt] = useState<Date | null>(null);
   const [now, setNow] = useState(Date.now());
   const [saved, setSaved] = useState<SavedSummary | null>(null);
   const finishedRef = useRef(false);
+  const dictation = useDictation();
+
+  // A custom length (D-077) replaces the chip while its field is open; an
+  // empty or out-of-range value simply disables "Turn the glass".
+  const customValue = parseCustomMinutes(customMinutes);
+  const plannedMinutes = customOpen ? customValue ?? 0 : chipMinutes;
+  const canStart = plannedMinutes >= CUSTOM_MIN_MINUTES;
 
   const plannedSeconds = plannedMinutes * 60;
   const elapsedSeconds = startedAt
@@ -169,7 +187,7 @@ function TimerFlow({
   useEffect(() => {
     if (phase === 'running' && remainingSeconds === 0 && !finishedRef.current) {
       finishedRef.current = true;
-      Vibration.vibrate([0, 350, 150, 350]);
+      playTimerBell();
       setEndedAt(new Date());
       setPhase('wrapup');
     }
@@ -254,6 +272,7 @@ function TimerFlow({
             text: trimmedNote,
             progressType: 'page',
             progressValue: endValue,
+            rawTranscript: rawTranscripts.length > 0 ? rawTranscripts.join('\n') : null,
           });
           noteSaved = true;
         } catch (err) {
@@ -289,6 +308,7 @@ function TimerFlow({
         unlocked,
         noteSaved,
         noteError,
+        noteText: noteSaved ? trimmedNote : '',
         endPage: endValue,
       };
     },
@@ -396,6 +416,16 @@ function TimerFlow({
             placeholder="A thought, a question, where the story left you…"
             placeholderTextColor={colors.muted}
           />
+          <DictationPanel
+            dictation={dictation}
+            startLabel={note.trim() ? 'Add by voice' : 'Speak it instead'}
+            listeningLabel="Listening - say where the story left you"
+            confirmLabel="Use this"
+            onConfirm={(raw, cleaned) => {
+              setNote((current) => (current.trim() ? `${current.trimEnd()}\n${cleaned}` : cleaned));
+              setRawTranscripts((current) => [...current, raw]);
+            }}
+          />
           <Text style={styles.hint}>
             Saved as a bookmark entry at the page above. Notes lift your comprehension score.
           </Text>
@@ -433,6 +463,17 @@ function TimerFlow({
           ...(saved.endPage !== null ? { page: String(saved.endPage) } : {}),
         },
       });
+    // After the note, the people in it (D-077): Book Club readers get the
+    // companion's pass over the note; everyone gets a one-tap path into the
+    // character composer, typed or spoken.
+    const addCharacter = (mode: 'write' | 'speak') => {
+      trackAnalyticsEvent('timer_character_prompt_used', { mode }, book.id);
+      router.replace({
+        pathname: '/book/[id]',
+        params: { id: String(book.id), tab: 'characters', composeCharacter: mode },
+      });
+    };
+    const firstNoted = saved.endPage !== null ? `page ${saved.endPage}` : '';
     return (
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <Stack.Screen options={{ title: 'Session saved', headerShown: true, gestureEnabled: true }} />
@@ -485,6 +526,41 @@ function TimerFlow({
             >
               <Text style={styles.primaryButtonText}>Write an entry</Text>
             </Pressable>
+          </View>
+        ) : null}
+
+        {saved.noteSaved ? (
+          <View style={[styles.card, styles.promptCard]}>
+            <View style={styles.wrapHeader}>
+              <Ionicons name="people-outline" size={26} color={colors.accent} />
+              <View style={styles.flex}>
+                <Text style={styles.cardTitle}>Did you meet someone new?</Text>
+                <Text style={styles.cardBody}>
+                  Add them to the character map while the name is fresh.
+                </Text>
+              </View>
+            </View>
+            <CharacterSuggestions bookId={book.id} noteText={saved.noteText} firstNoted={firstNoted} />
+            <View style={styles.buttonRow}>
+              <Pressable
+                style={[styles.secondaryButton, styles.flex, styles.rowButton]}
+                onPress={() => addCharacter('write')}
+                accessibilityRole="button"
+                accessibilityLabel="Add a character by typing"
+              >
+                <Ionicons name="create-outline" size={18} color={colors.accent} />
+                <Text style={styles.secondaryButtonText}>Add a character</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.secondaryButton, styles.flex, styles.rowButton]}
+                onPress={() => addCharacter('speak')}
+                accessibilityRole="button"
+                accessibilityLabel="Add a character by voice"
+              >
+                <Ionicons name="mic-outline" size={18} color={colors.accent} />
+                <Text style={styles.secondaryButtonText}>Speak one</Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
 
@@ -545,12 +621,15 @@ function TimerFlow({
         <Text style={styles.label}>How long is this sitting?</Text>
         <View style={styles.chipRow}>
           {DURATION_CHOICES_MIN.map((minutes) => {
-            const active = plannedMinutes === minutes;
+            const active = !customOpen && chipMinutes === minutes;
             return (
               <Pressable
                 key={minutes}
                 style={[styles.chip, active && styles.chipActive]}
-                onPress={() => setPlannedMinutes(minutes)}
+                onPress={() => {
+                  setCustomOpen(false);
+                  setChipMinutes(minutes);
+                }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 accessibilityLabel={`${minutes} minutes`}
@@ -559,7 +638,35 @@ function TimerFlow({
               </Pressable>
             );
           })}
+          <Pressable
+            style={[styles.chip, customOpen && styles.chipActive]}
+            onPress={() => setCustomOpen(true)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: customOpen }}
+            accessibilityLabel="Custom length"
+          >
+            <Text style={[styles.chipText, customOpen && styles.chipTextActive]}>Custom</Text>
+          </Pressable>
         </View>
+        {customOpen ? (
+          <>
+            <TextInput
+              style={styles.input}
+              value={customMinutes}
+              onChangeText={setCustomMinutes}
+              keyboardType="number-pad"
+              placeholder="minutes, e.g., 35"
+              placeholderTextColor={colors.muted}
+              autoFocus
+              accessibilityLabel="Custom length in minutes"
+            />
+            <Text style={styles.hint}>
+              {customValue === null && customMinutes.trim()
+                ? `Pick between ${CUSTOM_MIN_MINUTES} and ${CUSTOM_MAX_MINUTES} minutes.`
+                : `Anything from ${CUSTOM_MIN_MINUTES} minute to ${CUSTOM_MAX_MINUTES / 60} hours.`}
+            </Text>
+          </>
+        ) : null}
 
         <Text style={styles.label}>Page you are starting on</Text>
         <TextInput
@@ -577,13 +684,16 @@ function TimerFlow({
         </Text>
 
         <Pressable
-          style={styles.primaryButton}
+          style={[styles.primaryButton, !canStart && styles.disabled]}
           onPress={start}
+          disabled={!canStart}
           accessibilityRole="button"
           accessibilityLabel="Turn the glass"
         >
           <Ionicons name="hourglass-outline" size={20} color={gold.onFill} />
-          <Text style={styles.primaryButtonText}>Turn the glass</Text>
+          <Text style={styles.primaryButtonText}>
+            {canStart ? `Turn the glass - ${plannedMinutes} min` : 'Turn the glass'}
+          </Text>
         </Pressable>
         <Text style={styles.footnote}>
           The screen stays on the glass until the sand runs out. One exit button, no feed.
@@ -612,6 +722,18 @@ function parseOptionalPage(value: string): number | null {
     return null;
   }
   return Math.floor(parsed);
+}
+
+function parseCustomMinutes(value: string): number | null {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  if (parsed < CUSTOM_MIN_MINUTES || parsed > CUSTOM_MAX_MINUTES) {
+    return null;
+  }
+  return parsed;
 }
 
 function formatClock(totalSeconds: number): string {
@@ -784,6 +906,16 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '600',
     fontSize: 15,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  rowButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 4,
   },
   disabled: {
     opacity: 0.6,

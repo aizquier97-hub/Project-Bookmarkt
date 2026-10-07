@@ -1300,6 +1300,39 @@ place. Display only; no formula, stored value, or server code changes.
 - [ ] Owner on-device check: the Comprehension tile shows a percentage with
       a word under it; book rows read "notes graded N%".
 
+#### Sandglass feedback round - bell, voice, characters (D-077, added 2026-10-05)
+
+First timed sitting on the Internal-testing build. Six items; the first
+five ship in one round, the sixth is an answer.
+
+- [x] The glass **rings** at zero: an original soft singing-bowl chime
+      (`assets/sounds/bell.wav`) over the existing buzz. `expo-audio` is
+      native, so the bell arrives with the **1.0.2** binary; the same OTA
+      bundle stays silent on 1.0.1/1.0.0 (lazy require, swallowed).
+- [x] The wrap-up note can be **spoken** (shared `DictationPanel`, raw
+      transcript kept on the entry as in the book composer).
+- [x] After a sitting with a note: **"Did you meet someone new?"** - *Add a
+      character* / *Speak one* land in the Characters tab with the composer
+      open (`composeCharacter` param).
+- [x] **Custom** sitting length, 1-240 minutes.
+- [x] **Companion character extraction** (Book Club): the companion reads
+      the just-saved note and the current map and proposes up to five
+      unmapped people with role/description/relationships where the note
+      supports them. Every card is reader-confirmed (*Add to map* / *Skip*,
+      D-012); runs on the Sandglass saved screen and under the book
+      composer. Free readers see a one-line nudge; the manual path is free.
+      Server: `character_extract` tool, migration
+      `20261010120000_add_character_extract.sql`, 30/day shared tool quota.
+- [ ] Owner: upload EAS build `80c31888-fa15-42f1-b7b2-455e18d4968a`
+      (1.0.2) to Internal testing and reinstall from Play to hear the bell.
+- [x] Ship the OTA for runtimes 1.0.1 and 1.0.0 - published 2026-10-05 to
+      `preview`: runtime 1.0.1 group `db174e1e-8610-44d9-a34f-832d17d959a4`, runtime 1.0.0 group `2b23e527-8134-4f25-9eee-54ddf4bcbc23`.
+- [x] **Why the paywall says $10.99 and not $0** (owner question): Google
+      quotes the real localised price (CAD 10.99 ≈ US$7.99) to every
+      account; the license-tester status shows only on the Play purchase
+      sheet ("Test card, always approves"). The webhook keeps SANDBOX
+      orders, so the test purchase grants Book Club and the exit-gate cycle
+      can be recorded in `gates/STAGE_4_EXIT.md`.
 #### Billing lifecycle, trial, and subscription states (D-068, added 2026-10-04)
 
 Done while the owner finished the financial model: every billing item that

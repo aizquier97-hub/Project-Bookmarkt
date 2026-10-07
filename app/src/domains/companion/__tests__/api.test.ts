@@ -1,7 +1,9 @@
 import {
   companionErrorFromPayload,
   CompanionRequestError,
+  hashNoteText,
   mapCompanionMessageRow,
+  normalizeSendResponse,
 } from '@/domains/companion/api';
 
 jest.mock('@/lib/supabase', () => ({ supabase: {} }));
@@ -116,5 +118,50 @@ describe('mapCompanionMessageRow', () => {
       created_at: '2026-09-02T12:02:00Z',
     });
     expect(declined.declined).toBe(true);
+  });
+});
+
+describe('normalizeSendResponse character extraction (D-077)', () => {
+  it('keeps named suggestions, trims fields, and caps at five', () => {
+    const result = normalizeSendResponse({
+      reply: { content: '', provenance: 'your_notes' },
+      characters: [
+        { name: '  Kvothe ', role: 'narrator', description: ' red-haired ', relationships: '' },
+        { name: '', role: 'nobody' },
+        { name: 'Denna' },
+        null,
+        { name: 'Bast', role: 1 },
+        { name: 'Auri' },
+        { name: 'Elodin' },
+        { name: 'Ambrose' },
+        { name: 'Simmon' },
+      ],
+    });
+    expect(result.characters).toHaveLength(5);
+    expect(result.characters[0]).toEqual({
+      name: 'Kvothe',
+      role: 'narrator',
+      description: 'red-haired',
+      relationships: '',
+    });
+    expect(result.characters[1]).toEqual({ name: 'Denna', role: '', description: '', relationships: '' });
+    expect(result.characters[2].role).toBe('1');
+    expect(result.characters.map((c) => c.name)).not.toContain('Simmon');
+  });
+
+  it('yields an empty list when the field is missing or malformed', () => {
+    expect(normalizeSendResponse({}).characters).toEqual([]);
+    expect(normalizeSendResponse({ characters: 'nope' }).characters).toEqual([]);
+  });
+});
+
+describe('hashNoteText', () => {
+  it('is stable for the same text and differs for different text', () => {
+    expect(hashNoteText('Kvothe met Denna at the Eolian.')).toBe(
+      hashNoteText('Kvothe met Denna at the Eolian.'),
+    );
+    expect(hashNoteText('a')).not.toBe(hashNoteText('b'));
+    expect(hashNoteText('')).toBe((5381).toString(16));
+    expect(hashNoteText('anything')).toMatch(/^[0-9a-f]+$/);
   });
 });
