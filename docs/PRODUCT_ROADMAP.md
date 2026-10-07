@@ -1323,7 +1323,7 @@ five ship in one round, the sixth is an answer.
       composer. Free readers see a one-line nudge; the manual path is free.
       Server: `character_extract` tool, migration
       `20261010120000_add_character_extract.sql`, 30/day shared tool quota.
-- [ ] Owner: upload EAS build `80c31888-fa15-42f1-b7b2-455e18d4968a`
+- [ ] Owner: upload EAS build `0685c332-d523-435a-a290-d6e8e71459de`
       (1.0.2) to Internal testing and reinstall from Play to hear the bell.
 - [x] Ship the OTA for runtimes 1.0.1 and 1.0.0 - published 2026-10-05 to
       `preview`: runtime 1.0.1 group `db174e1e-8610-44d9-a34f-832d17d959a4`, runtime 1.0.0 group `2b23e527-8134-4f25-9eee-54ddf4bcbc23`.
