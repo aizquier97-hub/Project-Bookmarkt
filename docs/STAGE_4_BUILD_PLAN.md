@@ -494,7 +494,7 @@ companion tool that writes toward the map (still reader-confirmed).
       `20261010120000_add_character_extract.sql` pushed; function deployed.
 - [x] Tests: `api.test.ts` character parsing + `hashNoteText`. 385 tests /
       34 suites; tsc and lint clean.
-- [ ] EAS build `80c31888-fa15-42f1-b7b2-455e18d4968a` (runtime 1.0.2) ->
+- [ ] EAS build `0685c332-d523-435a-a290-d6e8e71459de` (runtime 1.0.2) ->
       owner uploads the `.aab` to Internal testing (step 4 below) and
       re-installs from Play to hear the bell.
 - [x] Ship the OTA for runtimes 1.0.1 and 1.0.0 (everything but the bell) -
@@ -654,6 +654,8 @@ Supabase project baked in.
    to become purchasable; a license-tester account sees them sooner.
 8. Later builds: repeat step 2 and 4 (**Create new release** on the same
    track). JS-only changes still arrive OTA over the `preview` channel.
+   The `play-internal` profile auto-increments the Android `versionCode`
+   (remote, D-077) - Play rejects a bundle whose code was already uploaded.
 
 Sandbox purchases with a license-tester account are not charged, renew
 every 5 minutes (monthly) / 30 minutes (yearly), and the trial lasts
