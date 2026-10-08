@@ -1,6 +1,5 @@
-import * as Linking from 'expo-linking';
 import { Stack, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,77 +9,79 @@ import {
   View,
 } from 'react-native';
 
-import { createSessionFromRecoveryUrl, updatePassword } from '@/domains/auth/service';
+import { updatePassword } from '@/domains/auth/service';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { PasswordRules } from '@/components/PasswordRules';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
+// Storing the session from the link is local work, so anything longer than
+// this means the link never reached us and the reader should not keep waiting.
+const VERIFY_TIMEOUT_MS = 12_000;
+
 /**
  * Landing screen for the emailed recovery link. Lives outside the (auth)
  * group because a session appears mid-flow and must not trigger a redirect
- * before the user has chosen their new password.
+ * before the user has chosen their new password. The link itself is handled
+ * by AuthProvider (it is registered from launch, so a warm-start deep link
+ * cannot slip past it); this screen only reflects that progress.
  */
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const url = Linking.useURL();
-  const { session } = useAuth();
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
-  const handledUrl = useRef<string | null>(null);
+  const { session, initializing, authLink } = useAuth();
+  const [timedOut, setTimedOut] = useState(false);
+
+  const verifying =
+    !timedOut &&
+    !session &&
+    (initializing || authLink.status === 'pending' || authLink.status === 'establishing');
 
   useEffect(() => {
-    if (!url || handledUrl.current === url) {
+    if (!verifying) {
       return;
     }
-    handledUrl.current = url;
-    createSessionFromRecoveryUrl(url)
-      .then((established) => {
-        if (established) {
-          setLinkError(null);
-          setReady(true);
-        }
-      })
-      .catch((err) => {
-        setLinkError(
-          err instanceof Error ? err.message : 'This reset link is invalid or has expired.',
-        );
-      });
-  }, [url]);
+    const timer = setTimeout(() => setTimedOut(true), VERIFY_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [verifying]);
 
-  // A live session also unlocks the form (e.g., the effect finished before render).
-  const canSetPassword = ready || Boolean(session);
+  const problem = session
+    ? null
+    : authLink.status === 'error'
+      ? authLink.error
+      : timedOut
+        ? 'Verifying is taking longer than expected. Check your connection, or request a new link.'
+        : 'We could not read this reset link. Links work once and expire after an hour - request a new one and open it on this phone.';
 
   return (
     <KeyboardPane style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.form}>
-        <Text style={styles.title}>Choose a new password</Text>
-        {canSetPassword ? (
+        <Text style={styles.title}>
+          {session ? 'Choose a new password' : verifying ? 'Checking your link' : "That link didn't work"}
+        </Text>
+        {session ? (
           <PasswordForm
             onDone={() => {
               router.replace('/');
             }}
           />
-        ) : linkError ? (
+        ) : verifying ? (
           <>
-            <Text style={styles.error}>{linkError}</Text>
-            <Pressable
-              style={styles.button}
-              onPress={() => router.replace('/forgot-password')}
-            >
-              <Text style={styles.buttonText}>Request a new link</Text>
-            </Pressable>
+            <ActivityIndicator color={colors.accent} />
+            <Text style={styles.subtitle}>Verifying your reset link...</Text>
           </>
         ) : (
           <>
-            <ActivityIndicator color={colors.accent} />
-            <Text style={styles.subtitle}>
-              Verifying your reset link... If nothing happens, request a new link and open it on
-              this phone.
-            </Text>
-            <Pressable onPress={() => router.replace('/forgot-password')}>
-              <Text style={styles.link}>Request a new link</Text>
+            <Text style={styles.error}>{problem}</Text>
+            <Pressable
+              style={styles.button}
+              onPress={() => router.replace('/forgot-password')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.buttonText}>Request a new link</Text>
+            </Pressable>
+            <Pressable onPress={() => router.replace('/sign-in')} accessibilityRole="button">
+              <Text style={styles.link}>Back to sign in</Text>
             </Pressable>
           </>
         )}

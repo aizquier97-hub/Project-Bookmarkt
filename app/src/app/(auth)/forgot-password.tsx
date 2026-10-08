@@ -12,23 +12,26 @@ import {
 
 import { requestPasswordReset } from '@/domains/auth/service';
 import { friendlyAuthMessage } from '@/domains/auth/policy';
+import { EmailSentCard } from '@/components/EmailSentCard';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [linkSent, setLinkSent] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const resetRedirect = Linking.createURL('/reset-password');
 
   const sendLink = async () => {
     if (submitting) return;
     setError(null);
     setSubmitting(true);
     try {
-      await requestPasswordReset(email, Linking.createURL('/reset-password'));
-      setLinkSent(true);
+      await requestPasswordReset(email, resetRedirect);
+      setSentTo(email.trim());
     } catch (err) {
       setError(friendlyAuthMessage(err, 'Could not send the recovery email.'));
     } finally {
@@ -36,54 +39,54 @@ export default function ForgotPasswordScreen() {
     }
   };
 
+  if (sentTo) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ title: 'Reset password' }} />
+        <EmailSentCard
+          email={sentTo}
+          purpose="reset"
+          onResend={() => requestPasswordReset(sentTo, resetRedirect)}
+          onChangeEmail={() => setSentTo(null)}
+          onBackToSignIn={() => router.replace('/sign-in')}
+        />
+      </View>
+    );
+  }
+
   return (
     <KeyboardPane style={styles.container}>
       <Stack.Screen options={{ title: 'Reset password' }} />
       <View style={styles.form}>
         <Text style={styles.title}>Reset your password</Text>
+        <Text style={styles.subtitle}>
+          Enter your account email and we will send you a reset link.
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor={colors.muted}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Pressable
+          style={styles.button}
+          onPress={sendLink}
+          disabled={submitting}
+          accessibilityRole="button"
+        >
+          {submitting ? (
+            <ActivityIndicator color={colors.background} />
+          ) : (
+            <Text style={styles.buttonText}>Send reset link</Text>
+          )}
+        </Pressable>
 
-        {!linkSent ? (
-          <>
-            <Text style={styles.subtitle}>
-              Enter your account email and we will send you a reset link.
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={colors.muted}
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-            />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Pressable style={styles.button} onPress={sendLink} disabled={submitting}>
-              {submitting ? (
-                <ActivityIndicator color={colors.background} />
-              ) : (
-                <Text style={styles.buttonText}>Send reset link</Text>
-              )}
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <Text style={styles.subtitle}>
-              Check {email.trim() || 'your email'} and open the reset link on this phone. It will
-              bring you back here to choose a new password.
-            </Text>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Pressable style={styles.button} onPress={sendLink} disabled={submitting}>
-              {submitting ? (
-                <ActivityIndicator color={colors.background} />
-              ) : (
-                <Text style={styles.buttonText}>Send the link again</Text>
-              )}
-            </Pressable>
-          </>
-        )}
-
-        <Pressable onPress={() => router.back()}>
+        <Pressable onPress={() => router.back()} accessibilityRole="button">
           <Text style={styles.link}>Back to sign in</Text>
         </Pressable>
       </View>
