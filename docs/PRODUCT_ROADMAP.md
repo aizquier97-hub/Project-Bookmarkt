@@ -1362,7 +1362,11 @@ and the sign-up confirmation was a line lost under the form.
       reset link: the address it went to, what to tap, *Send it again*
       (60 s countdown), *Wrong address? Change it*, *Back to sign in*. The
       form and its fields are gone from that step.
-- [ ] Ship the OTA for runtimes 1.0.3, 1.0.1 and 1.0.0; record group IDs.
+- [x] Ship the OTA for runtimes 1.0.3, 1.0.1 and 1.0.0 - published
+      2026-10-07 to `preview` (PR #136): runtime 1.0.3 group
+      `bc6e34ef-ea14-4cb9-bf2f-198a8d10de4a`, runtime 1.0.1 group
+      `3caeab69-ca83-4131-9737-f3df215d2cf0`, runtime 1.0.0 group
+      `fa773212-4eef-49cd-81e4-c58582533cd1`.
 - [ ] Owner on-device check: reset link with the app already open; the same
       link twice; a fresh sign-up landing on the new screen.
 #### Billing lifecycle, trial, and subscription states (D-068, added 2026-10-04)
