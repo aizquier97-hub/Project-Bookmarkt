@@ -279,11 +279,15 @@ with **no data migration**.
 - Deploys (D-082): Netlify builds the site only when a PWA file
   (`index.html`, `sw.js`, `manifest.json`, `supabase.js`, `icons/`) or
   `netlify.toml` changed since its last deploy - the `[build] ignore` rule in
-  the root `netlify.toml`. Every other push to `main` keeps the last deploy,
-  so docs- and app-only pull requests carry no Netlify checks. A freeze-breach
-  fix touches those files and therefore builds and deploys on merge as
-  before; to redeploy without a file change use "Trigger deploy" in the
-  Netlify UI (manual deploys bypass the rule).
+  the root `netlify.toml`. Every other push to `main` keeps the last deploy.
+  On such pull requests Netlify still posts one green
+  `netlify/inkmarkt-dev/deploy-preview` status reading "Deploy Preview
+  canceled" (that is the rule firing), and its "Header rules" / "Redirect
+  rules" check runs stay grey/pending because no deploy ran - none of them
+  is required, so they never block a merge (first observed on PR #140). A
+  freeze-breach fix touches those files and therefore builds and deploys on
+  merge as before; to redeploy without a file change use "Trigger deploy"
+  in the Netlify UI (manual deploys bypass the rule).
 
 ### Retirement (executes in Stage 8; approved here so it is ready)
 

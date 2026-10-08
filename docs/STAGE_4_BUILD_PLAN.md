@@ -615,7 +615,9 @@ nothing until Bookmarkt is brought back.
       and inexact rules, graceful degradation without the native modules).
       402 tests / 36 suites; tsc and lint clean.
 - [x] EAS build `2da11619-ab65-4143-9ea1-5d14a4dc9225` (runtime 1.0.4,
-      versionCode 4) queued 2026-10-08 - see the D-083 row for the outcome.
+      versionCode 4) finished 2026-10-08. Artifact inspected before merge:
+      `ExactAlarmsModule` present in the dex, `res/raw/bell.wav` bundled,
+      manifest declares `SCHEDULE_EXACT_ALARM` and `POST_NOTIFICATIONS`.
 - [ ] Owner: upload the 1.0.4 `.aab` as Internal-testing release 4; on the
       first *Turn the glass* allow notifications and, on Android 14+, take
       *Open settings* and switch on *Alarms & reminders*; then run a
