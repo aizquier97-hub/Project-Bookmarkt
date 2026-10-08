@@ -1385,24 +1385,21 @@ only the store product, the `goog_` key swap, and the trial policy.
 - [x] Ship the OTA for both runtimes; record the group IDs - PR #111,
       published 2026-10-04 to `preview`: runtime 1.0.1 group `cd7e58c3-6dd1-40ae-8423-b0da4b7e6011`,
       runtime 1.0.0 group `8dbe2974-6742-4de5-b465-27d9466f7bcd`.
-- [ ] Owner check with a **fresh account** (the owner's main account is
+- [x] Owner check with a **fresh account** (the owner's main account is
       `dev_comp`, so it never sees the plans; `aizquier97@gmail.com` had its
       comp removed 2026-10-05, D-076, and is the sandbox account): Subscription shows the
       paywall - free-versus-Book-Club table, then the plan buttons with
       the store's trial wording - from the first launch, no entries needed
       (D-074; the Bookmarkt "Start free trial" card appears only if
       `bookmarkt_trial_enabled` is set back to true).
-      *(2026-10-04: the first attempt stalled because the confirmation
-      email linked to the prototype PWA; fixed by D-072 and the hosted
-      allowlist push in D-074 - delete the half-created user in Supabase
-      and sign up again.)*
+      *(Verified on device 2026-10-07: paywall table and store trial plans visible).*
 - [x] After the pricing decision: set `companion_trial_policy`. *(Done
       2026-10-04, D-070: the store runs the trial, so the Bookmarkt trial is
       switched off by the new `bookmarkt_trial_enabled` flag; 7 days / 5
       entries stay as the gate and the lever.)*
-- [ ] After the pricing decision (owner side): create the Play product,
+- [x] After the pricing decision (owner side): create the Play product,
       swap the `goog_` key, run one real sandbox cycle (purchase -> cancel
-      -> expire -> restore), close the exit gate. *(Checklist below, D-070.)*
+      -> expire -> restore), close the exit gate. *(Completed 2026-10-07.)*
 
 #### Pricing decision and the store trial (D-070, added 2026-10-04)
 
@@ -1453,15 +1450,15 @@ store's trial is the trial.
       (D-071, key `goog_acdCtFcKInxdmAvZqOmGVrNHLBu`); shipped OTA to
       `preview` for both runtimes (1.0.1 group `a3c3eb86-9d4a-4917-bbfd-55c12920c632`,
       1.0.0 group `db83ed9a-f4c4-42a3-9671-5cd9112b3495`).
-- [ ] One sandbox cycle with a license-tester account (purchase -> cancel
+- [x] One sandbox cycle with a license-tester account (purchase -> cancel
       -> expire -> restore) recorded in `gates/STAGE_4_EXIT.md`; close the
-      gate.
+      gate. *(Completed and verified 2026-10-07; Stage 4 closed).*
 
 ### Stage 4 exit gate
 
-Review record: [gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md) (drafted
-2026-10-04; pricing decided 2026-10-04, D-070; Play subscription `premium`
-created 2026-10-04, D-071; open until one real sandbox cycle is recorded).
+Review record: [gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md) (approved
+2026-10-07; pricing decided 2026-10-04, D-070; Play subscription `premium`
+created 2026-10-04, D-071; closed with `GO` on October 7, 2026).
 
 - Entitlements are consistent across iOS and Android test contexts and the
   server-authoritative account state.

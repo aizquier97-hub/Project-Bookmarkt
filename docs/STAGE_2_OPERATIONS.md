@@ -362,7 +362,9 @@ now sits in the receiving stage's roadmap work plan:
   domain `bookmarkt.io` verified in Resend with its DNS records added in
   Cloudflare, sender `noreply@bookmarkt.io`, then raise the hourly email
   rate limit under Authentication → Rate Limits. This also unlocks the
-  branded email templates `config.toml` notes as deferred. Owner action.
+  branded email templates `config.toml` notes as deferred. *(Done 2026-10-07:
+  domain `bookmarkt.io` verified in Resend and credentials configured in
+  Supabase; reset password and test emails delivered).*
   **Runbook (D-075):** (1) resend.com → sign up → *Domains → Add domain*
   `bookmarkt.io` (region closest to the project) → copy the DKIM/SPF/MX
   records it shows into Cloudflare DNS (proxy **off**) → wait for
