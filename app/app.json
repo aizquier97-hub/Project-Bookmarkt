@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bookmarkt",
     "slug": "bookmarkt",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "bookmarkt",
@@ -64,7 +64,8 @@
           "microphonePermission": "Bookmarkt uses the microphone so you can dictate reading notes.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
