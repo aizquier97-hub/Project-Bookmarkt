@@ -510,6 +510,9 @@ companion tool that writes toward the map (still reader-confirmed).
       `node_modules/expo/bundledNativeModules.json` before building.
 - [x] Ship the OTA for runtimes 1.0.1 and 1.0.0 (everything but the bell) -
       published 2026-10-05 to `preview`: runtime 1.0.1 group `db174e1e-8610-44d9-a34f-832d17d959a4`, runtime 1.0.0 group `2b23e527-8134-4f25-9eee-54ddf4bcbc23`.
+      Republished 2026-10-07 from the corrected dependency tree (D-078):
+      runtime 1.0.1 group `727dba4e-53f7-40d2-90f4-0d2f5d71a14a`, runtime
+      1.0.0 group `0e4fd8d4-0b96-4394-8d7d-55c59843657e`.
 
 **Sandbox price, answered (owner question, D-077).** The paywall shows
 CAD 10.99 because Google quotes the real localised list price to every
