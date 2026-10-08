@@ -7,6 +7,8 @@ does. Revised 2026-10-04 alongside the D-068 lifecycle hardening (billing
 ledger, lapse tolerance, server-authorized trial) and again for D-070 (the
 store's free trial is the trial; prices $7.99 monthly / $79.99 yearly) and
 D-071 (Play product `premium`: 7-day trial monthly, 14-day trial yearly).
+Prices revised 2026-10-07 to **$6.99 monthly / $69.99 yearly** (D-081);
+subscribers from before then keep the legacy price.
 
 **Ground rules**
 
