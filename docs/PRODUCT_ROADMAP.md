@@ -1329,10 +1329,10 @@ five ship in one round, the sixth is an answer.
       peer dependency of `expo-audio` had hoisted `expo-asset@57` (a later
       SDK's native module) into the build. `expo-asset` is now pinned to
       the SDK 54 version.
-- [ ] Owner: upload EAS build `56b394ef-8228-42b7-aa82-b588b314b7d9`
+- [x] Owner: upload EAS build `56b394ef-8228-42b7-aa82-b588b314b7d9`
       (**1.0.3**, versionCode 3) as Internal-testing release 3 and
-      reinstall from Play to hear the bell. Release 1 (1.0.1) keeps working
-      meanwhile with every item above except the bell.
+      reinstall from Play to hear the bell - done and verified on device
+      2026-10-07: clean launch and bell sound plays at timer completion.
 - [x] Ship the OTA for runtimes 1.0.1 and 1.0.0 - published 2026-10-05 to
       `preview`: runtime 1.0.1 group `db174e1e-8610-44d9-a34f-832d17d959a4`, runtime 1.0.0 group `2b23e527-8134-4f25-9eee-54ddf4bcbc23`.
       Republished 2026-10-07 from the corrected dependency tree (D-078):
