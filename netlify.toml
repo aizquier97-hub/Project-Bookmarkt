@@ -1,0 +1,14 @@
+# Netlify serves the frozen prototype PWA (D-008/D-012) from the repository
+# root. The PWA's files have not changed since D-012, yet every push to main
+# and every pull request used to trigger a deploy that republished the same
+# files and added four Netlify rows to the PR checks.
+#
+# D-082: build only when a PWA file - or this file - changed since the last
+# deploy; otherwise keep the last deploy. Exit code 0 from `ignore` tells
+# Netlify to skip the build. The Stage 8 retirement runbook
+# (docs/STAGE_2_OPERATIONS.md section 7) still works unchanged: a freeze-breach
+# fix or the self-destructing service worker touches these paths, so it builds
+# and gets its deploy preview. Manual "Trigger deploy" in the Netlify UI
+# bypasses this rule.
+[build]
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- index.html sw.js manifest.json supabase.js icons netlify.toml"
