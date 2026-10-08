@@ -695,16 +695,16 @@ from the Internal testing track.
 
 **Closed-group rollout checklist (friends and family, D-075):**
 
-1. Custom SMTP live (STAGE_2_OPERATIONS §8) - otherwise the second or
-   third sign-up of the evening hits "email rate limit exceeded".
-2. Testing -> Internal testing -> Testers: add each tester's Gmail (the
+1. [x] Custom SMTP live (STAGE_2_OPERATIONS §8) - verified with domain
+   `bookmarkt.io` in Resend 2026-10-07; emails delivered reliably.
+2. [ ] Testing -> Internal testing -> Testers: add each tester's Gmail (the
    one on their phone's Play Store) to the email list; up to 100.
-3. Setup -> License testing: add the same Gmails, so a tap on a plan is a
+3. [ ] Setup -> License testing: add the same Gmails, so a tap on a plan is a
    test order rather than a real charge. Tell them it is safe to try.
-4. Send the opt-in URL with three lines: accept, install from Play, open
+4. [ ] Send the opt-in URL with three lines: accept, install from Play, open
    the app twice after installing (the second launch picks up the latest
    OTA update).
-5. Point them at **Settings -> Report an issue** in the app for feedback;
+5. [ ] Point them at **Settings -> Report an issue** in the app for feedback;
    reports land in `issue_reports`.
 
 ---
