@@ -497,16 +497,16 @@ companion tool that writes toward the map (still reader-confirmed).
 - [x] EAS build `0685c332-d523-435a-a290-d6e8e71459de` (runtime 1.0.2) ->
       uploaded as Internal-testing release 2 on 2026-10-07. **Crashed on
       launch** ("this app has a bug") - superseded by 1.0.3 below (D-078).
-- [ ] **1.0.3 rebuild (D-078).** Cause: `expo-audio`'s peer dependency
+- [x] **1.0.3 rebuild (D-078).** Cause: `expo-audio`'s peer dependency
       `expo-asset: "*"` let npm hoist `expo-asset@57.0.19` (a later SDK's
       native module) to the root, and autolinking compiled it into 1.0.2.
       Pinned `expo-asset ~12.0.13` (`npx expo install expo-asset`),
       version -> **1.0.3**. EAS build
-      `56b394ef-8228-42b7-aa82-b588b314b7d9` (versionCode 3) -> owner
-      uploads the `.aab` as Internal-testing release 3 (step 4 below) and
-      reinstalls from Play. Guard for next time: after adding a native
-      module, diff `package-lock.json` for new root `node_modules/expo-*`
-      entries and scan root packages against
+      `56b394ef-8228-42b7-aa82-b588b314b7d9` (versionCode 3) -> uploaded by
+      owner as Internal-testing release 3 on 2026-10-07; verified working
+      on device with notification bell sound. Guard for next time: after
+      adding a native module, diff `package-lock.json` for new root
+      `node_modules/expo-*` entries and scan root packages against
       `node_modules/expo/bundledNativeModules.json` before building.
 - [x] Ship the OTA for runtimes 1.0.1 and 1.0.0 (everything but the bell) -
       published 2026-10-05 to `preview`: runtime 1.0.1 group `db174e1e-8610-44d9-a34f-832d17d959a4`, runtime 1.0.0 group `2b23e527-8134-4f25-9eee-54ddf4bcbc23`.

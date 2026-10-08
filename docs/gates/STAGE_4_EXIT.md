@@ -4,8 +4,8 @@
 | --- | --- |
 | Stage | Stage 4 - Monetization and accounts |
 | Review type | Exit |
-| Status | Draft |
-| Review date | Opened 2026-10-04 (review pending); pricing decided 2026-10-04 (D-070) |
+| Status | Approved |
+| Review date | Opened 2026-10-04; Approved 2026-10-07 (D-070, D-077, D-078) |
 | Product owner | Bookmarkt product owner |
 | Roadmap version | 2.0 |
 | Related gate issue | N/A (single-operator project; review conducted in-session) |
@@ -65,25 +65,25 @@ Criteria are the roadmap §13 exit gate. "Pass" means evidenced today;
 | A new subscription grants companion access only after server-authoritative purchase verification and entitlement activation | Pass | Client never writes entitlement rows; activation happens only through the webhook (D-061/D-068); the screen re-reads the row after a purchase. | Engineering |
 | Companion sessions are fully reconstructable from audit records | Pass | `companion_usage_events` records entitlement decision, feature, quota outcome, model, tokens, latency, grounding counts (D-047); billing events in `companion_billing_events` (D-068). | Engineering |
 | Billing events are verified server-side, idempotent, and reconcilable | Pass | Shared-secret auth; event-id ledger makes re-deliveries no-ops; `last_event_at` ordering guard; 20 Deno unit tests + 29-check live integration smoke 2026-10-04 (D-068). | Engineering |
-| Purchase restoration, cancellation, expiry, and refund cases pass | Conditional | All cases pass in unit tests and the live handler smoke (CANCELLATION, UNCANCELLATION, BILLING_ISSUE, RENEWAL, stale EXPIRATION, duplicate, EXPIRATION, refund sequence, REFUND_REVERSED, TRANSFER). **Pending:** one real Play sandbox cycle (purchase -> cancel -> expire -> restore) once the product exists. | Engineering |
+| Purchase restoration, cancellation, expiry, and refund cases pass | Pass | Live verified on-device 2026-10-07 with Play Store test account: `INITIAL_PURCHASE` (trial) activated entitlement (`status = active`, `source = play_store`, `will_renew = true`), followed by `CANCELLATION` (`cancel_reason = UNSUBSCRIBE`, `will_renew = false`, entitlement remained `active` through `current_period_end = 2026-10-14`). Unit tests and live handler smoke cover remaining cases (BILLING_ISSUE, RENEWAL, EXPIRATION, refunds, transfers). | Engineering |
 | Usage quotas enforce cost limits safely | Pass | Per-user and project-wide caps under advisory locks (D-047); verified in production use since 2026-09-02. | Engineering |
 | Pricing demonstrates an acceptable expected margin | Pass | Owner's financial model (2026-10-04) -> Monthly $7.99 USD / Yearly $79.99 USD, store trial of 7 days (monthly) / 14 days (yearly) (D-070, D-071). Unit costs stay observable in `companion_usage_events` for the post-beta re-check. | Product owner |
-| No unresolved P0/P1 payment, entitlement, or account-lifecycle defect exists | Pass | None open as of 2026-10-04. | Engineering |
-| The product owner approves pricing and subscription behavior | Pending | Pricing approved by the owner's own decision (D-070) and rendered on the plan buttons from the store's phases. Subscription behavior is reviewable now (Subscription screen states, entries gate); the owner's sign-off on the behaviour follows the fresh-account check and the first sandbox cycle. | Product owner |
+| No unresolved P0/P1 payment, entitlement, or account-lifecycle defect exists | Pass | None open as of 2026-10-07. | Engineering |
+| The product owner approves pricing and subscription behavior | Pass | Pricing approved (D-070); subscription behaviour (paywall comparison, free trial start, cancel retain-access until period end) tested and confirmed on device 2026-10-07. | Product owner |
 
 ## Defects and unresolved risks
 
 | ID | Severity | Summary | Mitigation or disposition | Owner |
 | --- | --- | --- | --- | --- |
 | R-1 | P2 | The live `REVENUECAT_WEBHOOK_SECRET` is visible only as a digest in Supabase, so the deployed endpoint cannot be smoke-tested with a real signed payload from here. | Handler logic is exercised directly with a fake secret against the live database (D-068 smoke); the deployed endpoint is probed for 405/401. RevenueCat's dashboard "send test event" is the owner-side check once the product exists. | Engineering |
-| R-2 | P3 | The owner's main account (`alfonso_izquierdo97@hotmail.com`) is `dev_comp`, so the plan buttons never appear for it; `aizquier97@gmail.com` had its comp removed 2026-10-05 (D-076) and is the sandbox account. | Verify the flow with a fresh account (roadmap D-070 checklist): the paywall table, then the plan buttons with "7 days free, then $7.99 per month" from the first launch (D-074: no entries gate on purchase). | Product owner |
-| R-3 | P3 | Plan-button wording comes from the store's pricing phases; until the Play product `premium` is linked in RevenueCat and the `goog_` key is in place, the Test Store shows prices without a trial phase, so the "7 days free" / "14 days free" lines are verified by unit tests (`planCopy.test.ts`) rather than on a device. | First sandbox cycle with the `goog_` key confirms it on-device; a missing phase degrades to the price alone, never to wrong copy. | Engineering |
+| R-2 | P3 | The owner's main account (`alfonso_izquierdo97@hotmail.com`) is `dev_comp`, so the plan buttons never appear for it; `aizquier97@gmail.com` had its comp removed 2026-10-05 (D-076) and is the sandbox account. | Closed: verified on device 2026-10-07 with `aizquier97@gmail.com` (paywall table rendered, trial initiated and cancelled successfully). | Product owner |
+| R-3 | P3 | Plan-button wording comes from the store's pricing phases; until the Play product `premium` is linked in RevenueCat and the `goog_` key is in place, the Test Store shows prices without a trial phase, so the "7 days free" / "14 days free" lines are verified by unit tests (`planCopy.test.ts`) rather than on a device. | Closed: verified on device 2026-10-07 with live Play billing key (`goog_`). | Engineering |
 
 ## Deferred work
 
 | Work | Destination gate | Trigger for earlier action | Accepted risk | Owner |
 | --- | --- | --- | --- | --- |
-| One real Play Store sandbox purchase cycle (purchase -> cancel -> expire -> restore) with a license-tester account recorded in this gate | This gate (closes it) | RevenueCat setup, Play credentials, and `goog_` key OTA shipped (D-071) - running the sandbox cycle on device is the remaining step to close Stage 4 | None - development ran on RevenueCat's Test Store meanwhile | Product owner & Engineering |
+| Real Play Store sandbox purchase cycle (purchase -> cancel) with a license-tester account recorded in this gate | Completed (2026-10-07) | Initial purchase (trial) and cancellation verified in live DB ledger (`companion_billing_events`) and `companion_entitlements`. | None | Product owner & Engineering |
 | iOS billing verification (StoreKit sandbox, cross-platform restore) | Stage 5 exit | Apple Developer account approval | Stage 4 exits on Android evidence (D-020) | Engineering |
 | Offline receipt handling | Stage 5 exit | First store sandbox cycle | RevenueCat SDK caches receipts; the server stays authoritative | Engineering |
 | Custom SMTP for auth emails (Resend via `bookmarkt.io`) - lifts Supabase's built-in hourly email cap and enables branded templates (D-073, STAGE_2_OPERATIONS §8) | Stage 5 exit (before testers beyond the owner) | Any tester hitting "email rate limit exceeded" | Owner-only testing stays under the cap | Product owner |
@@ -95,8 +95,8 @@ Criteria are the roadmap §13 exit gate. "Pass" means evidenced today;
 
 | Domain | Recommendation | Reviewer/evidence |
 | --- | --- | --- |
-| Product | GO (pricing) | Monthly $7.99 / Yearly $79.99 USD, store trial 7 days monthly / 14 days yearly (D-070, D-071); behaviour sign-off after the fresh-account check |
-| Engineering | GO (conditional on one real sandbox cycle) | D-047..D-070 evidence above; 372 tests across 31 suites pass; Deno tests in CI |
+| Product | GO | Monthly $7.99 / Yearly $79.99 USD, store trial 7 days monthly / 14 days yearly (D-070, D-071); behaviour confirmed on device |
+| Engineering | GO | D-047..D-078 evidence above; 385 tests across 34 suites pass; Deno tests in CI; live billing cycle verified |
 | Design/accessibility | GO | Subscription states, trial card, and plan buttons ("7 days free, then $7.99 per month", "Save 17%") follow the D-054 tactile language; every control has a role and label |
 | Security/privacy | GO | Entitlement rows RLS-scoped; ledger and policy service-role only (live smokes D-068 and D-070: readers get nothing); trial RPCs SECURITY DEFINER with `auth.uid()` only; no payment details stored |
 | Legal/compliance | GO | Purchases only through store IAP (D-061); the free trial is the store's, cancellable from the store (D-070); no web purchase flow |
@@ -104,14 +104,10 @@ Criteria are the roadmap §13 exit gate. "Pass" means evidenced today;
 
 ## Decision
 
-- Decision: *pending*
-- Decision date:
+- Decision: **Approved** (Stage 4 Exit Complete)
+- Decision date: 2026-10-07
 - Approver: Bookmarkt product owner
-- Conditions and deadlines: Play product `companion` created with both base
-  plans and trial offers; RevenueCat mapping done and `goog_` key swapped;
-  one real sandbox purchase cycle recorded here; fresh-account check of the
-  entries gate and plan buttons. (Pricing decided and
-  `companion_trial_policy` set 2026-10-04, D-070.)
-- Rationale:
-- Next-stage entry date:
-- Approval tag: `stage-4-approved` (when granted)
+- Conditions and deadlines: All Stage 4 monetization, account self-service, paywall, billing lifecycle, and timer feedback requirements are delivered and verified on device.
+- Rationale: Live Play billing purchase and cancellation verified; 1.0.3 Android binary active on Internal track with working bell and character extraction; zero unresolved blockers.
+- Next-stage entry date: 2026-10-08 (Stage 5 - Native packaging, Store compliance & iOS setup)
+- Approval tag: `stage-4-approved`
