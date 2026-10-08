@@ -1,5 +1,5 @@
 import * as Linking from 'expo-linking';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,26 +10,31 @@ import {
   View,
 } from 'react-native';
 
-import { passwordPolicyError, signUp } from '@/domains/auth/service';
+import { passwordPolicyError, resendSignUpEmail, signUp } from '@/domains/auth/service';
 import { friendlyAuthMessage } from '@/domains/auth/policy';
+import { EmailSentCard } from '@/components/EmailSentCard';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { PasswordRules } from '@/components/PasswordRules';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
 
 export default function SignUpScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Address the confirmation email went to; set once sign-up succeeds and
+  // swaps the form for the "check your email" card.
+  const [sentTo, setSentTo] = useState<string | null>(null);
+
+  const confirmationRedirect = Linking.createURL('/email-confirmed');
 
   const submit = async () => {
     if (submitting) {
       return;
     }
     setError(null);
-    setNotice(null);
 
     const policyError = passwordPolicyError(password);
     if (policyError) {
@@ -43,16 +48,32 @@ export default function SignUpScreen() {
 
     setSubmitting(true);
     try {
-      await signUp(email, password, Linking.createURL('/email-confirmed'));
-      setNotice(
-        'Account created. Check your inbox and open the confirmation link on this phone to finish signing in.',
-      );
+      await signUp(email, password, confirmationRedirect);
+      setSentTo(email.trim());
     } catch (err) {
       setError(friendlyAuthMessage(err, 'Signup failed. Try again.'));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (sentTo) {
+    return (
+      <View style={styles.container}>
+        <EmailSentCard
+          email={sentTo}
+          purpose="confirm"
+          onResend={() => resendSignUpEmail(sentTo, confirmationRedirect)}
+          onChangeEmail={() => {
+            setSentTo(null);
+            setPassword('');
+            setConfirmPassword('');
+          }}
+          onBackToSignIn={() => router.replace('/sign-in')}
+        />
+      </View>
+    );
+  }
 
   return (
     <KeyboardPane style={styles.container}>
@@ -93,9 +114,13 @@ export default function SignUpScreen() {
         ) : null}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
-        <Pressable style={styles.button} onPress={submit} disabled={submitting}>
+        <Pressable
+          style={styles.button}
+          onPress={submit}
+          disabled={submitting}
+          accessibilityRole="button"
+        >
           {submitting ? (
             <ActivityIndicator color={colors.background} />
           ) : (
@@ -149,11 +174,6 @@ const styles = StyleSheet.create({
   error: {
     fontFamily: fonts.serif,
     color: colors.danger,
-    fontSize: 14,
-  },
-  notice: {
-    fontFamily: fonts.serif,
-    color: colors.accent,
     fontSize: 14,
   },
   button: {

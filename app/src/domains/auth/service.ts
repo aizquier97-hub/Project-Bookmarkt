@@ -1,3 +1,4 @@
+import { parseAuthLink, parseUrlParams } from '@/domains/auth/authLink';
 import { passwordPolicyError } from '@/domains/auth/policy';
 import { supabase } from '@/lib/supabase';
 
@@ -17,6 +18,21 @@ export async function signUp(
     email: email.trim(),
     password,
     options: emailRedirectTo ? { emailRedirectTo } : undefined,
+  });
+  if (error) {
+    throw error;
+  }
+}
+
+/**
+ * Sends the confirmation email again for an unconfirmed account. Supabase
+ * enforces one email per address per minute; the caller shows a cooldown.
+ */
+export async function resendSignUpEmail(email: string, emailRedirectTo: string): Promise<void> {
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: email.trim(),
+    options: { emailRedirectTo },
   });
   if (error) {
     throw error;
@@ -54,19 +70,16 @@ export async function requestPasswordReset(email: string, redirectTo: string): P
  * to after the emailed link is verified (implicit flow: tokens in fragment).
  */
 export async function createSessionFromRecoveryUrl(url: string): Promise<boolean> {
-  const params = parseUrlParams(url);
-  const errorDescription = params.get('error_description');
-  if (errorDescription) {
-    throw new Error(errorDescription.replace(/\+/g, ' '));
+  const link = parseAuthLink(url);
+  if (link.kind === 'error') {
+    throw new Error(link.message);
   }
-  const accessToken = params.get('access_token');
-  const refreshToken = params.get('refresh_token');
-  if (!accessToken || !refreshToken) {
+  if (link.kind === 'none') {
     return false;
   }
   const { error } = await supabase.auth.setSession({
-    access_token: accessToken,
-    refresh_token: refreshToken,
+    access_token: link.accessToken,
+    refresh_token: link.refreshToken,
   });
   if (error) {
     throw error;
@@ -86,26 +99,7 @@ export function isRecoveryUrl(url: string): boolean {
 
 /** True when the redirect URL carries the tokens needed to establish a session. */
 export function hasSessionTokens(url: string): boolean {
-  const params = parseUrlParams(url);
-  return Boolean(params.get('access_token') && params.get('refresh_token'));
-}
-
-function parseUrlParams(url: string): URLSearchParams {
-  // Tokens may arrive in the fragment (implicit flow) or the query string.
-  const merged = new URLSearchParams();
-  const [withoutFragment, fragment] = url.split('#');
-  const queryIndex = withoutFragment.indexOf('?');
-  if (queryIndex >= 0) {
-    new URLSearchParams(withoutFragment.slice(queryIndex + 1)).forEach((value, key) => {
-      merged.set(key, value);
-    });
-  }
-  if (fragment) {
-    new URLSearchParams(fragment).forEach((value, key) => {
-      merged.set(key, value);
-    });
-  }
-  return merged;
+  return parseAuthLink(url).kind === 'tokens';
 }
 
 /** Sets a new password for the signed-in (recovery) session. */

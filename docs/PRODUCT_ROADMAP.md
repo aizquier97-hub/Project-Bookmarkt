@@ -1344,6 +1344,27 @@ five ship in one round, the sixth is an answer.
       sheet ("Test card, always approves"). The webhook keeps SANDBOX
       orders, so the test purchase grants Book Club and the exit-gate cycle
       can be recorded in `gates/STAGE_4_EXIT.md`.
+
+#### Auth link and email-sent round (D-080, added 2026-10-07)
+
+Closed-group rehearsal feedback: the reset link hung on "Verifying...",
+and the sign-up confirmation was a line lost under the form.
+
+- [x] **Reset and confirmation links resolve at once**, warm or cold start.
+      The screens had read the link through a hook that only knows the
+      launch intent plus a listener mounted too late to hear a warm-start
+      link; the link is now caught once, at the app root, from Expo's
+      latest-URL API, and the screens just show the result. If anything
+      still stalls, 12 s later the screen says *That link didn't work* with
+      *Request a new link* - never an endless spinner. Expired or reused
+      links read as such in plain words.
+- [x] **"Check your email" screen** after Create account and after Send
+      reset link: the address it went to, what to tap, *Send it again*
+      (60 s countdown), *Wrong address? Change it*, *Back to sign in*. The
+      form and its fields are gone from that step.
+- [ ] Ship the OTA for runtimes 1.0.3, 1.0.1 and 1.0.0; record group IDs.
+- [ ] Owner on-device check: reset link with the app already open; the same
+      link twice; a fresh sign-up landing on the new screen.
 #### Billing lifecycle, trial, and subscription states (D-068, added 2026-10-04)
 
 Done while the owner finished the financial model: every billing item that

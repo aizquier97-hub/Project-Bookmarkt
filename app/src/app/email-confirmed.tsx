@@ -1,57 +1,46 @@
-import * as Linking from 'expo-linking';
 import { Stack, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { createSessionFromRecoveryUrl, hasSessionTokens } from '@/domains/auth/service';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
+
+const VERIFY_TIMEOUT_MS = 12_000;
 
 /**
  * Landing screen for the emailed sign-up confirmation link. Supabase verifies
  * the token server-side and redirects here with a session in the URL fragment
- * (implicit flow); we store it and send the user straight into the library.
- * Lives outside the (auth) group so the group's session redirect does not
- * race the URL handling.
+ * (implicit flow); AuthProvider stores it and this screen sends the reader
+ * straight into the library. Lives outside the (auth) group so the group's
+ * session redirect does not race the URL handling.
  */
 export default function EmailConfirmedScreen() {
   const router = useRouter();
-  const url = Linking.useURL();
-  const { session } = useAuth();
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const handledUrl = useRef<string | null>(null);
+  const { session, initializing, authLink } = useAuth();
+  const [timedOut, setTimedOut] = useState(false);
 
   // Supabase only redirects here after verifying the token, so the address is
-  // confirmed regardless; the spinner shows only while a session is actually
-  // being established from tokens carried in the URL.
-  const establishing = Boolean(url && hasSessionTokens(url)) && !linkError;
+  // confirmed regardless; the spinner shows only while the session carried in
+  // the link is still being stored.
+  const establishing =
+    !timedOut &&
+    (initializing || authLink.status === 'pending' || authLink.status === 'establishing');
+  const linkError = authLink.status === 'error' ? authLink.error : null;
 
   useEffect(() => {
-    if (!url || handledUrl.current === url) {
+    if (!establishing) {
       return;
     }
-    handledUrl.current = url;
-    createSessionFromRecoveryUrl(url)
-      .then((established) => {
-        if (established) {
-          router.replace('/');
-        }
-      })
-      .catch((err) => {
-        setLinkError(
-          err instanceof Error
-            ? err.message
-            : 'This confirmation link is invalid or has expired.',
-        );
-      });
-  }, [router, url]);
+    const timer = setTimeout(() => setTimedOut(true), VERIFY_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [establishing]);
 
-  // Already signed in (e.g., the link was opened twice): nothing left to do.
+  // Signed in - from this link or already before it was opened.
   useEffect(() => {
-    if (session && !linkError) {
+    if (session) {
       router.replace('/');
     }
-  }, [linkError, router, session]);
+  }, [router, session]);
 
   return (
     <View style={styles.container}>
@@ -66,7 +55,11 @@ export default function EmailConfirmedScreen() {
             <Text style={styles.subtitle}>
               Sign in with your email and password to receive a fresh confirmation link.
             </Text>
-            <Pressable style={styles.button} onPress={() => router.replace('/sign-in')}>
+            <Pressable
+              style={styles.button}
+              onPress={() => router.replace('/sign-in')}
+              accessibilityRole="button"
+            >
               <Text style={styles.buttonText}>Go to sign in</Text>
             </Pressable>
           </>
@@ -80,7 +73,11 @@ export default function EmailConfirmedScreen() {
             <Text style={styles.subtitle}>
               Your address is verified. Sign in with your email and password to open your library.
             </Text>
-            <Pressable style={styles.button} onPress={() => router.replace('/sign-in')}>
+            <Pressable
+              style={styles.button}
+              onPress={() => router.replace('/sign-in')}
+              accessibilityRole="button"
+            >
               <Text style={styles.buttonText}>Sign in</Text>
             </Pressable>
           </>

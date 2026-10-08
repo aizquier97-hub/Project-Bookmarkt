@@ -520,6 +520,42 @@ account; $0 never appears in the app. A license tester is told "Test card,
 always approves" only on the Google Play purchase sheet after tapping a
 plan. The webhook accepts SANDBOX events, so the test order grants Book
 Club and the cancel -> expire -> restore cycle can be recorded.
+
+### Phase 5e - Auth link and email-sent round (added 2026-10-07, D-080)
+
+Owner feedback from the closed-group rehearsal: the password-reset link
+left the app "stuck loading", and the Create-account confirmation was a
+single line lost under the form.
+
+- [x] **Root cause of the hang.** The landing screens used
+      `Linking.useURL()` = RN `getInitialURL()` (launch intent only) + a
+      `url` listener registered on mount. On a warm start expo-router
+      navigates to the screen in response to the same `url` event, so the
+      screen's listener misses it; URL stays null, `setSession` never runs,
+      spinner forever. Cold starts worked (D-076's "sometimes token-less").
+- [x] **Fix at the root.** `AuthProvider` seeds from
+      `Linking.getLinkingURL()` (Expo's native latest URL) and keeps a
+      root-level `url` listener; links parsed by the pure
+      `domains/auth/authLink.ts` (`parseAuthLink`, Supabase `error_code`
+      mapping). Context now exposes `authLink`
+      (`pending | idle | establishing | established | error`);
+      `reset-password` and `email-confirmed` only reflect it, with a 12 s
+      safety timeout to "That link didn't work" (*Request a new link* /
+      *Back to sign in*).
+- [x] **Email-sent screens.** `components/EmailSentCard.tsx` replaces the
+      form after sign-up and after a reset request: address, instructions,
+      *Send it again* (60 s cooldown = Supabase `max_frequency`; sign-up
+      uses `auth.resend({ type: 'signup' })`), *Wrong address? Change it*,
+      *Back to sign in*.
+- [x] Tests: `authLink.test.ts` (fragment/query tokens, type mapping, none,
+      `otp_expired`, description passthrough, error precedence,
+      `parseUrlParams` merge). 394 tests / 35 suites; tsc and lint clean.
+- [ ] Ship the OTA for runtimes 1.0.3, 1.0.1 and 1.0.0; record group IDs.
+- [ ] Owner re-test on device: (a) with the app already open on the sign-in
+      screen, request a reset and tap the link - "Choose a new password"
+      appears without a wait; (b) tap the same link a second time - the
+      expired-link message appears, not a spinner; (c) Create account lands
+      on the "Check your email" card and *Send it again* counts down.
 ### Phase 3/4 follow-through - billing lifecycle, trial, states (added 2026-10-04, D-068)
 
 Price-independent billing work done while the owner finishes the financial
