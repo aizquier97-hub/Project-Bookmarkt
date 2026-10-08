@@ -1323,10 +1323,21 @@ five ship in one round, the sixth is an answer.
       composer. Free readers see a one-line nudge; the manual path is free.
       Server: `character_extract` tool, migration
       `20261010120000_add_character_extract.sql`, 30/day shared tool quota.
-- [ ] Owner: upload EAS build `0685c332-d523-435a-a290-d6e8e71459de`
-      (1.0.2) to Internal testing and reinstall from Play to hear the bell.
+- [x] Owner: upload EAS build `0685c332-d523-435a-a290-d6e8e71459de`
+      (1.0.2) to Internal testing - done 2026-10-07 as release 2, but the
+      binary **crashed on launch**. Superseded by 1.0.3 (D-078): a wildcard
+      peer dependency of `expo-audio` had hoisted `expo-asset@57` (a later
+      SDK's native module) into the build. `expo-asset` is now pinned to
+      the SDK 54 version.
+- [ ] Owner: upload EAS build `56b394ef-8228-42b7-aa82-b588b314b7d9`
+      (**1.0.3**, versionCode 3) as Internal-testing release 3 and
+      reinstall from Play to hear the bell. Release 1 (1.0.1) keeps working
+      meanwhile with every item above except the bell.
 - [x] Ship the OTA for runtimes 1.0.1 and 1.0.0 - published 2026-10-05 to
       `preview`: runtime 1.0.1 group `db174e1e-8610-44d9-a34f-832d17d959a4`, runtime 1.0.0 group `2b23e527-8134-4f25-9eee-54ddf4bcbc23`.
+      Republished 2026-10-07 from the corrected dependency tree (D-078):
+      runtime 1.0.1 group `727dba4e-53f7-40d2-90f4-0d2f5d71a14a`, runtime
+      1.0.0 group `0e4fd8d4-0b96-4394-8d7d-55c59843657e`.
 - [x] **Why the paywall says $10.99 and not $0** (owner question): Google
       quotes the real localised price (CAD 10.99 ≈ US$7.99) to every
       account; the license-tester status shows only on the Play purchase

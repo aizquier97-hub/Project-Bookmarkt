@@ -494,11 +494,25 @@ companion tool that writes toward the map (still reader-confirmed).
       `20261010120000_add_character_extract.sql` pushed; function deployed.
 - [x] Tests: `api.test.ts` character parsing + `hashNoteText`. 385 tests /
       34 suites; tsc and lint clean.
-- [ ] EAS build `0685c332-d523-435a-a290-d6e8e71459de` (runtime 1.0.2) ->
-      owner uploads the `.aab` to Internal testing (step 4 below) and
-      re-installs from Play to hear the bell.
+- [x] EAS build `0685c332-d523-435a-a290-d6e8e71459de` (runtime 1.0.2) ->
+      uploaded as Internal-testing release 2 on 2026-10-07. **Crashed on
+      launch** ("this app has a bug") - superseded by 1.0.3 below (D-078).
+- [ ] **1.0.3 rebuild (D-078).** Cause: `expo-audio`'s peer dependency
+      `expo-asset: "*"` let npm hoist `expo-asset@57.0.19` (a later SDK's
+      native module) to the root, and autolinking compiled it into 1.0.2.
+      Pinned `expo-asset ~12.0.13` (`npx expo install expo-asset`),
+      version -> **1.0.3**. EAS build
+      `56b394ef-8228-42b7-aa82-b588b314b7d9` (versionCode 3) -> owner
+      uploads the `.aab` as Internal-testing release 3 (step 4 below) and
+      reinstalls from Play. Guard for next time: after adding a native
+      module, diff `package-lock.json` for new root `node_modules/expo-*`
+      entries and scan root packages against
+      `node_modules/expo/bundledNativeModules.json` before building.
 - [x] Ship the OTA for runtimes 1.0.1 and 1.0.0 (everything but the bell) -
       published 2026-10-05 to `preview`: runtime 1.0.1 group `db174e1e-8610-44d9-a34f-832d17d959a4`, runtime 1.0.0 group `2b23e527-8134-4f25-9eee-54ddf4bcbc23`.
+      Republished 2026-10-07 from the corrected dependency tree (D-078):
+      runtime 1.0.1 group `727dba4e-53f7-40d2-90f4-0d2f5d71a14a`, runtime
+      1.0.0 group `0e4fd8d4-0b96-4394-8d7d-55c59843657e`.
 
 **Sandbox price, answered (owner question, D-077).** The paywall shows
 CAD 10.99 because Google quotes the real localised list price to every
@@ -656,6 +670,12 @@ Supabase project baked in.
    track). JS-only changes still arrive OTA over the `preview` channel.
    The `play-internal` profile auto-increments the Android `versionCode`
    (remote, D-077) - Play rejects a bundle whose code was already uploaded.
+   Before building after a new native dependency, confirm no package from
+   another SDK was hoisted: `git diff -- package-lock.json` should add no
+   unexpected root `node_modules/expo-*` entry, and every root `expo-*`
+   package must satisfy `node_modules/expo/bundledNativeModules.json`
+   (D-078 - a wildcard peer dependency pulled in `expo-asset@57` and the
+   1.0.2 binary crashed on launch).
 
 Sandbox purchases with a license-tester account are not charged, renew
 every 5 minutes (monthly) / 30 minutes (yearly), and the trial lasts
