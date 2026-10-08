@@ -563,6 +563,72 @@ single line lost under the form.
       appears without a wait; (b) tap the same link a second time - the
       expired-link message appears, not a spinner; (c) Create account lands
       on the "Check your email" card and *Send it again* counts down.
+
+### Phase 5f - Background bell (added 2026-10-08, D-083)
+
+Owner feedback after the 1.0.3 install: the bell rings only while the timer
+screen is open; with the phone locked or another app in front there is
+nothing until Bookmarkt is brought back.
+
+- [x] **Cause.** The Sandglass ticks with `setInterval` and plays the bell
+      when the derived `remainingSeconds` hits zero. Android freezes JS
+      timers once the app leaves the foreground, so the zero is only seen
+      on return (the clock itself is wall-clock-derived and catches up).
+- [x] **Fix: the OS rings it.** When the glass is turned, a local
+      notification is scheduled for the planned end (`expo-notifications`,
+      `SchedulableTriggerInputTypes.DATE`) on an Android channel
+      `reading-timer` whose sound is the same `bell.wav` (copied into
+      `res/raw` by the config plugin), importance HIGH, alarm audio usage,
+      vibration `[0,350,150,350]`. Title *The glass has run out*, body
+      *Your N-minute sitting with <book> is done. Where did you stop?*
+      Cancelled on leave-early, on finish, and when the screen unmounts. In
+      the foreground the notification handler swallows it (`shouldPlaySound`
+      false) and the in-app bell plays as before; when the app catches up
+      after the notification already rang, the bell is **vibrate-only** so
+      the reader never hears two chimes (`settleTimerAlarm`: more than 2 s
+      past an exact alarm, or the notification is still in the tray).
+      All of it lives in `domains/fitness/timerAlarm.ts`, lazily required
+      inside try/catch (D-077 pattern), so the same JS bundle on 1.0.3 and
+      earlier behaves exactly as before.
+- [x] **Notifications permission.** Asked on the first *Turn the glass*
+      (Android 13+ runtime prompt); the glass starts the moment the prompt
+      closes. If refused, one toast per app run: *Notifications are off, so
+      the bell only rings while Bookmarkt is open.*
+- [x] **Exact alarms on Android 14+.** Android 14 denies
+      `SCHEDULE_EXACT_ALARM` by default and would push the bell into a
+      10-minute-plus window. The permission is declared in `app.json`
+      and a 40-line local Expo module `modules/exact-alarms` (Kotlin,
+      autolinked from `app/modules`) exposes
+      `canScheduleExactAlarms()` / `openExactAlarmSettings()`. When the
+      alarm could only be queued inexactly, a one-time alert offers *Open
+      settings* (the system "Alarms & reminders" page) or *Not now*
+      (remembered in AsyncStorage). On return to the app the alarm is
+      re-queued as exact if the switch is now on. `USE_EXACT_ALARM` was
+      avoided (Play restricts it to alarm-clock apps).
+- [x] `app.json`: `expo-notifications` plugin (small icon =
+      `android-icon-monochrome.png`, colour `#c9962f`, sound `bell.wav`),
+      `android.permission.SCHEDULE_EXACT_ALARM`, version -> **1.0.4**.
+      Dependency tree checked after `npx expo install expo-notifications`
+      (D-078 guard): single `expo-asset@12.0.13`, `expo-constants@18.0.14`,
+      `expo-modules-core@3.0.30`.
+- [x] Tests: `timerAlarm.test.ts` (content copy, `bellAlreadyRang` grace
+      and inexact rules, graceful degradation without the native modules).
+      402 tests / 36 suites; tsc and lint clean.
+- [x] EAS build `2da11619-ab65-4143-9ea1-5d14a4dc9225` (runtime 1.0.4,
+      versionCode 4) queued 2026-10-08 - see the D-083 row for the outcome.
+- [ ] Owner: upload the 1.0.4 `.aab` as Internal-testing release 4; on the
+      first *Turn the glass* allow notifications and, on Android 14+, take
+      *Open settings* and switch on *Alarms & reminders*; then run a
+      2-minute sitting with the screen off and confirm the chime plus a
+      tray notification at the end.
+- [ ] No OTA for 1.0.3/1.0.1/1.0.0: this round is native, and the JS change
+      is a no-op without the modules.
+
+**Residual.** If Android kills the process during a long sitting the
+notification still rings (AlarmManager owns it) but the wrap-up screen is
+gone; persisting the running session so it can be resumed is a follow-up.
+iOS gets the same notification path for free in Stage 5 (sound bundled by
+the same plugin; exact timing needs no permission there).
 ### Phase 3/4 follow-through - billing lifecycle, trial, states (added 2026-10-04, D-068)
 
 Price-independent billing work done while the owner finishes the financial
