@@ -988,7 +988,8 @@ operations, and app-store distribution.
       only after the qualifying number of entries exists.
       *(Done 2026-10-04, D-070: Monthly $7.99 USD / Yearly $79.99 USD
       (saves 17%), auto-renewing, a 7-day free trial on the monthly plan
-      and 14 days on the yearly plan (D-071), run by the store. The store
+      and 14 days on the yearly plan (D-071), run by the store. Repriced
+      2026-10-07 to Monthly $6.99 USD / Yearly $69.99 USD, D-081. The store
       trial is the trial: Bookmarkt's own no-card
       trial from D-068 is switched off by `companion_trial_policy.
       bookmarkt_trial_enabled = false` (the RPCs answer `store_trial`).
@@ -1431,7 +1432,10 @@ only the store product, the `goog_` key swap, and the trial policy.
 The owner's financial model landed: **Monthly $7.99 USD, Yearly $79.99 USD**
 (saves 17%), auto-renewing, a **7-day free trial** on the monthly plan and
 **14 days** on the yearly plan (D-071). One trial, one sentence: the
-store's trial is the trial.
+store's trial is the trial. **Repriced 2026-10-07 (D-081): Monthly $6.99
+USD / Yearly $69.99 USD**, matched to Garmin Connect+ as a comparable
+premium layer on a free core; still 17%; trials unchanged; no app change -
+the buttons read the store.
 
 - [x] Migration `20261005130000_store_trial_is_the_trial.sql`:
       `companion_trial_policy.bookmarkt_trial_enabled` (default false);
@@ -1465,7 +1469,7 @@ store's trial is the trial.
       7-day free-trial offer) and `yearly` ($79.99, 14-day free-trial
       offer), 7-day grace period, active in 175 countries/regions. The
       internal-testing build is live (download link verified); Play review
-      pending.
+      pending. *(Repriced 2026-10-07 to $6.99 / $69.99, D-081.)*
 - [x] **Owner (2026-10-04):** Play service credentials for RevenueCat,
       Google Play linked in RevenueCat, products imported, Pub/Sub topic
       connected, and shared the `goog_` public SDK key.

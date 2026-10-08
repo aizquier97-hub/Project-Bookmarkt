@@ -67,7 +67,7 @@ Criteria are the roadmap §13 exit gate. "Pass" means evidenced today;
 | Billing events are verified server-side, idempotent, and reconcilable | Pass | Shared-secret auth; event-id ledger makes re-deliveries no-ops; `last_event_at` ordering guard; 20 Deno unit tests + 29-check live integration smoke 2026-10-04 (D-068). | Engineering |
 | Purchase restoration, cancellation, expiry, and refund cases pass | Pass | Live verified on-device 2026-10-07 with Play Store test account: `INITIAL_PURCHASE` (trial) activated entitlement (`status = active`, `source = play_store`, `will_renew = true`), followed by `CANCELLATION` (`cancel_reason = UNSUBSCRIBE`, `will_renew = false`, entitlement remained `active` through `current_period_end = 2026-10-14`). Unit tests and live handler smoke cover remaining cases (BILLING_ISSUE, RENEWAL, EXPIRATION, refunds, transfers). | Engineering |
 | Usage quotas enforce cost limits safely | Pass | Per-user and project-wide caps under advisory locks (D-047); verified in production use since 2026-09-02. | Engineering |
-| Pricing demonstrates an acceptable expected margin | Pass | Owner's financial model (2026-10-04) -> Monthly $7.99 USD / Yearly $79.99 USD, store trial of 7 days (monthly) / 14 days (yearly) (D-070, D-071). Unit costs stay observable in `companion_usage_events` for the post-beta re-check. | Product owner |
+| Pricing demonstrates an acceptable expected margin | Pass | Owner's financial model (2026-10-04) -> Monthly $7.99 USD / Yearly $79.99 USD, store trial of 7 days (monthly) / 14 days (yearly) (D-070, D-071); repriced 2026-10-07 to Monthly $6.99 USD / Yearly $69.99 USD to match Garmin Connect+ (D-081). Unit costs stay observable in `companion_usage_events` for the post-beta re-check. | Product owner |
 | No unresolved P0/P1 payment, entitlement, or account-lifecycle defect exists | Pass | None open as of 2026-10-07. | Engineering |
 | The product owner approves pricing and subscription behavior | Pass | Pricing approved (D-070); subscription behaviour (paywall comparison, free trial start, cancel retain-access until period end) tested and confirmed on device 2026-10-07. | Product owner |
 
@@ -95,7 +95,7 @@ Criteria are the roadmap §13 exit gate. "Pass" means evidenced today;
 
 | Domain | Recommendation | Reviewer/evidence |
 | --- | --- | --- |
-| Product | GO | Monthly $7.99 / Yearly $79.99 USD, store trial 7 days monthly / 14 days yearly (D-070, D-071); behaviour confirmed on device |
+| Product | GO | Monthly $7.99 / Yearly $79.99 USD at approval, repriced 2026-10-07 to $6.99 / $69.99 USD (D-081); store trial 7 days monthly / 14 days yearly (D-070, D-071); behaviour confirmed on device |
 | Engineering | GO | D-047..D-078 evidence above; 385 tests across 34 suites pass; Deno tests in CI; live billing cycle verified |
 | Design/accessibility | GO | Subscription states, trial card, and plan buttons ("7 days free, then $7.99 per month", "Save 17%") follow the D-054 tactile language; every control has a role and label |
 | Security/privacy | GO | Entitlement rows RLS-scoped; ledger and policy service-role only (live smokes D-068 and D-070: readers get nothing); trial RPCs SECURITY DEFINER with `auth.uid()` only; no payment details stored |

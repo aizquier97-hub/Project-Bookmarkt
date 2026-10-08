@@ -36,6 +36,8 @@ Do these before or alongside Phase 1; none require code.
       *Done 2026-10-04 (D-070): Monthly $7.99 USD / Yearly $79.99 USD
       (saves 17%), auto-renewing, a 7-day free trial on the monthly plan
       and 14 days on the yearly plan (D-071; D-070 first said 7 on both).
+      Repriced 2026-10-07 to **Monthly $6.99 USD / Yearly $69.99 USD**
+      (D-081, still 17%; no app change).
       The store trial is the trial - Bookmarkt's no-card trial is switched
       off by `companion_trial_policy.bookmarkt_trial_enabled`; the 5-entry
       gate still guards the plan buttons.*
@@ -628,7 +630,9 @@ Owner's financial model: **Monthly $7.99 USD, Yearly $79.99 USD** (saves
 17%), auto-renewing, a **7-day free trial** on the monthly plan and **14
 days** on the yearly plan (D-071; D-070 first said 7 on both). The
 store's trial is the trial; Bookmarkt's own no-card trial (D-068) is off by
-policy flag, not deleted.
+policy flag, not deleted. **Repriced 2026-10-07 (D-081): Monthly $6.99 USD /
+Yearly $69.99 USD**, matched to Garmin Connect+; still 17%; trials
+unchanged; existing subscribers keep the legacy price; no app change.
 
 - [x] Migration `20261005130000_store_trial_is_the_trial.sql`:
       `companion_trial_policy.bookmarkt_trial_enabled boolean not null
@@ -667,8 +671,8 @@ policy flag, not deleted.
 | Where | Create | Notes |
 | --- | --- | --- |
 | Play Console -> Monetize -> Subscriptions | Subscription **`premium`** (buyer-facing name "Bookmarkt Premium") - **created 2026-10-04 (D-071)** | One subscription, two base plans; the client never hard-codes the id (it reads RevenueCat offerings), so the id names the tier rather than the app. Permanent. |
-| Base plan 1 | **`monthly`**, auto-renewing, monthly, **$7.99 USD**; offer `free-trial`: **7-day free trial**, eligibility "new customer" - **created 2026-10-04** | Grace period 7 days with automatic account hold (the webhook handles BILLING_ISSUE, D-068); charge immediately on plan changes; resubscribe allowed. |
-| Base plan 2 | **`yearly`**, auto-renewing, yearly, **$79.99 USD**; offer `free-trial`: **14-day free trial**, eligibility "new customer" - **created 2026-10-04** | Google computes and enforces one trial per account across both plans. |
+| Base plan 1 | **`monthly`**, auto-renewing, monthly, **$6.99 USD** (was $7.99 until 2026-10-07, D-081; legacy price point kept for existing subscribers); offer `free-trial`: **7-day free trial**, eligibility "new customer" - **created 2026-10-04** | Grace period 7 days with automatic account hold (the webhook handles BILLING_ISSUE, D-068); charge immediately on plan changes; resubscribe allowed. |
+| Base plan 2 | **`yearly`**, auto-renewing, yearly, **$69.99 USD** (was $79.99 until 2026-10-07, D-081); offer `free-trial`: **14-day free trial**, eligibility "new customer" - **created 2026-10-04** | Google computes and enforces one trial per account across both plans. |
 | Google Cloud + Play Console -> Users and permissions | A service account (RevenueCat's Cloud Shell script or manual: Android Publisher, Play Developer Reporting, and Pub/Sub APIs enabled; JSON key downloaded), invited to the Play developer account with *View app information*, *View financial data*, *Manage orders and subscriptions*, and *Manage store presence* | Credentials can take up to 36 hours to validate against the Play Developer API. |
 | RevenueCat -> Project -> Apps | Link the Play app `com.inkmarkt.bookmarkt` (service-account JSON) | Then **Products**: import `premium:monthly` and `premium:yearly`. |
 | RevenueCat -> Entitlements | **`companion`** <- both products | The webhook maps any store event to the reader's row; the entitlement keeps RevenueCat's customer view meaningful. |
