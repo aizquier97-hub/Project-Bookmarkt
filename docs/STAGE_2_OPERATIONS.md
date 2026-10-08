@@ -276,6 +276,14 @@ with **no data migration**.
   2. Bump the service-worker cache name (`bookmarkt-v3` → `-v4`, …) so
      installed clients fetch the fix instead of serving stale caches.
   3. Verify the fix on the live URL after deploy.
+- Deploys (D-082): Netlify builds the site only when a PWA file
+  (`index.html`, `sw.js`, `manifest.json`, `supabase.js`, `icons/`) or
+  `netlify.toml` changed since its last deploy - the `[build] ignore` rule in
+  the root `netlify.toml`. Every other push to `main` keeps the last deploy,
+  so docs- and app-only pull requests carry no Netlify checks. A freeze-breach
+  fix touches those files and therefore builds and deploys on merge as
+  before; to redeploy without a file change use "Trigger deploy" in the
+  Netlify UI (manual deploys bypass the rule).
 
 ### Retirement (executes in Stage 8; approved here so it is ready)
 
@@ -285,7 +293,8 @@ Steps run in this order — later steps depend on earlier ones:
    beta (Stage 7) with install links; the sunset deploy waits at least
    14 days after the notice is live. The sunset page repeats the notice.
 2. **Test the self-destructing service worker** on a Netlify deploy preview
-   before production: confirm it installs, deletes all `bookmarkt-*` caches,
+   before production (a pull request that changes `sw.js` builds one
+   automatically under D-082): confirm it installs, deletes all `bookmarkt-*` caches,
    and completes `registration.unregister()`. A broken self-destruct can only
    be fixed by shipping another worker, so it is proven before the final
    deploy.
