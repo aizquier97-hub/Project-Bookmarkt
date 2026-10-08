@@ -550,7 +550,12 @@ single line lost under the form.
 - [x] Tests: `authLink.test.ts` (fragment/query tokens, type mapping, none,
       `otp_expired`, description passthrough, error precedence,
       `parseUrlParams` merge). 394 tests / 35 suites; tsc and lint clean.
-- [ ] Ship the OTA for runtimes 1.0.3, 1.0.1 and 1.0.0; record group IDs.
+- [x] Ship the OTA for runtimes 1.0.3, 1.0.1 and 1.0.0 - published
+      2026-10-07 to `preview` after PR #136: runtime 1.0.3 group
+      `bc6e34ef-ea14-4cb9-bf2f-198a8d10de4a`, runtime 1.0.1 group
+      `3caeab69-ca83-4131-9737-f3df215d2cf0` (an identical earlier group
+      `8d8b31aa-beeb-4a47-b824-1d0c02f2fb14` was superseded within the
+      minute), runtime 1.0.0 group `fa773212-4eef-49cd-81e4-c58582533cd1`.
 - [ ] Owner re-test on device: (a) with the app already open on the sign-in
       screen, request a reset and tap the link - "Choose a new password"
       appears without a wait; (b) tap the same link a second time - the
