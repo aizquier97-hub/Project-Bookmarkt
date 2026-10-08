@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,15 @@ import { countWords } from '@/domains/fitness/difficulty';
 import { sessionPacePagesPerMinute } from '@/domains/fitness/fitness';
 import type { BookFitness } from '@/domains/fitness/model';
 import { createReadingSession } from '@/domains/fitness/service';
+import {
+  clearTimerAlarm,
+  ensureTimerAlarmPermission,
+  maybePromptForExactAlarms,
+  rescheduleTimerAlarmIfNowExact,
+  scheduleTimerAlarm,
+  settleTimerAlarm,
+  type TimerAlarmHandle,
+} from '@/domains/fitness/timerAlarm';
 import {
   computeTrophyProgress,
   newlyUnlockedSegments,
@@ -48,6 +58,9 @@ const CUSTOM_MIN_MINUTES = 1;
 const CUSTOM_MAX_MINUTES = 240;
 /** Sessions shorter than this are discarded rather than logged. */
 const MIN_SESSION_SECONDS = 60;
+
+/** Shown once per app run when notifications are refused (D-083). */
+let bellPermissionToastShown = false;
 
 type Phase = 'setup' | 'running' | 'wrapup' | 'saved';
 
@@ -159,6 +172,9 @@ function TimerFlow({
   const [now, setNow] = useState(Date.now());
   const [saved, setSaved] = useState<SavedSummary | null>(null);
   const finishedRef = useRef(false);
+  const runningRef = useRef(false);
+  // The background bell (D-083): a local notification queued for the planned end.
+  const alarmRef = useRef<TimerAlarmHandle | null>(null);
   const dictation = useDictation();
 
   // A custom length (D-077) replaces the chip while its field is open; an
@@ -187,11 +203,50 @@ function TimerFlow({
   useEffect(() => {
     if (phase === 'running' && remainingSeconds === 0 && !finishedRef.current) {
       finishedRef.current = true;
-      playTimerBell();
+      runningRef.current = false;
+      const alarm = alarmRef.current;
+      alarmRef.current = null;
+      // If the notification already rang while the app was away, only buzz.
+      void settleTimerAlarm(alarm).then((alreadyRang) => playTimerBell({ vibrateOnly: alreadyRang }));
       setEndedAt(new Date());
       setPhase('wrapup');
     }
   }, [phase, remainingSeconds]);
+
+  // Coming back to the screen: catch the clock up at once and, if the reader
+  // just enabled "Alarms & reminders", re-queue the bell as an exact alarm.
+  useEffect(() => {
+    if (phase !== 'running') {
+      return;
+    }
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') {
+        return;
+      }
+      setNow(Date.now());
+      void rescheduleTimerAlarmIfNowExact(alarmRef.current, {
+        bookTitle: book.name,
+        plannedMinutes,
+      }).then((next) => {
+        if (runningRef.current) {
+          alarmRef.current = next;
+        } else {
+          void clearTimerAlarm(next);
+        }
+      });
+    });
+    return () => subscription.remove();
+  }, [phase, book.name, plannedMinutes]);
+
+  // Leaving the screen for any reason drops a pending bell.
+  useEffect(
+    () => () => {
+      runningRef.current = false;
+      void clearTimerAlarm(alarmRef.current);
+      alarmRef.current = null;
+    },
+    [],
+  );
 
   // While the glass runs, back navigation asks first (D-062: exit button only).
   useEffect(() => {
@@ -206,16 +261,45 @@ function TimerFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation, phase, elapsedSeconds]);
 
-  const start = () => {
+  const start = async () => {
+    // Ask for notifications first so the glass is turned the moment the
+    // prompt closes; on runtimes without the module this resolves at once.
+    const permission = await ensureTimerAlarmPermission();
+    if (permission === 'denied' && !bellPermissionToastShown) {
+      bellPermissionToastShown = true;
+      showToast('Notifications are off, so the bell only rings while Bookmarkt is open.', 'info');
+    }
+
     finishedRef.current = false;
+    runningRef.current = true;
     const begun = new Date();
     setStartedAt(begun);
     setEndedAt(null);
     setNow(begun.getTime());
     setPhase('running');
+
+    if (permission !== 'granted') {
+      return;
+    }
+    const alarm = await scheduleTimerAlarm({
+      endsAt: new Date(begun.getTime() + plannedSeconds * 1000),
+      bookTitle: book.name,
+      plannedMinutes,
+    });
+    if (!runningRef.current) {
+      void clearTimerAlarm(alarm);
+      return;
+    }
+    alarmRef.current = alarm;
+    if (alarm && !alarm.exact) {
+      void maybePromptForExactAlarms();
+    }
   };
 
   const endEarly = () => {
+    runningRef.current = false;
+    void clearTimerAlarm(alarmRef.current);
+    alarmRef.current = null;
     if (elapsedSeconds < MIN_SESSION_SECONDS) {
       trackAnalyticsEvent('reading_session_abandoned', { elapsedSeconds, plannedSeconds }, book.id);
       showToast('Session discarded - it was under a minute.', 'info');
@@ -685,7 +769,7 @@ function TimerFlow({
 
         <Pressable
           style={[styles.primaryButton, !canStart && styles.disabled]}
-          onPress={start}
+          onPress={() => void start()}
           disabled={!canStart}
           accessibilityRole="button"
           accessibilityLabel="Turn the glass"

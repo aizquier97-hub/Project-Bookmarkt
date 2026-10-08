@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bookmarkt",
     "slug": "bookmarkt",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "bookmarkt",
@@ -23,7 +23,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ],
       "package": "com.inkmarkt.bookmarkt"
     },
@@ -63,6 +64,16 @@
         {
           "microphonePermission": "Bookmarkt uses the microphone so you can dictate reading notes.",
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#c9962f",
+          "sounds": [
+            "./assets/sounds/bell.wav"
+          ]
         }
       ],
       "expo-asset"

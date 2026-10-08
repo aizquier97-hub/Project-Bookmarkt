@@ -1370,6 +1370,31 @@ and the sign-up confirmation was a line lost under the form.
       `fa773212-4eef-49cd-81e4-c58582533cd1`.
 - [ ] Owner on-device check: reset link with the app already open; the same
       link twice; a fresh sign-up landing on the new screen.
+
+#### Background bell (D-083, added 2026-10-08)
+
+After the 1.0.3 install the owner noticed the bell rings only while the
+timer screen is open; with the phone locked or another app in front, the
+sitting ends in silence until Bookmarkt is brought back.
+
+- [x] **The phone rings the glass, not the app.** When the glass is turned,
+      Bookmarkt asks Android to sound the same chime at the planned end as a
+      notification (*The glass has run out - Your 20-minute sitting with
+      <book> is done. Where did you stop?*). It rings with the screen off
+      or another app in front; opening the app shows the usual wrap-up, and
+      the catch-up only buzzes so the chime is never heard twice. Leaving
+      early or closing the screen cancels it.
+- [x] **One permission, one switch.** The first *Turn the glass* asks for
+      notifications. On Android 14 and later the phone also keeps a
+      per-app *Alarms & reminders* switch that decides whether the bell can
+      land on the minute or may drift by ten minutes or more; the app offers
+      the settings page once and remembers *Not now*.
+- [x] Needs the **1.0.4** Internal-testing build (new native modules);
+      older installs keep the in-app bell they have.
+- [ ] Owner: install 1.0.4, allow notifications and *Alarms & reminders*,
+      and run a short sitting with the screen off.
+- [ ] Follow-up: survive a process kill mid-sitting (the ring still happens;
+      the wrap-up screen does not yet).
 #### Billing lifecycle, trial, and subscription states (D-068, added 2026-10-04)
 
 Done while the owner finished the financial model: every billing item that

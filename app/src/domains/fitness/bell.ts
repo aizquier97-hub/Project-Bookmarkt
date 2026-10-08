@@ -15,13 +15,22 @@ interface AudioApi {
 }
 
 const BELL_RELEASE_MS = 4000;
-const BUZZ_PATTERN = [0, 350, 150, 350];
+export const BUZZ_PATTERN = [0, 350, 150, 350];
 
 let loadFailed = false;
 
-export function playTimerBell(): void {
+export interface PlayTimerBellOptions {
+  /**
+   * Buzz without the chime. Used when the Sandglass catches up after the
+   * scheduled notification (D-083) has already rung in the background, so the
+   * reader does not hear the bell twice.
+   */
+  vibrateOnly?: boolean;
+}
+
+export function playTimerBell(options: PlayTimerBellOptions = {}): void {
   Vibration.vibrate(BUZZ_PATTERN);
-  if (loadFailed) {
+  if (options.vibrateOnly || loadFailed) {
     return;
   }
   try {
