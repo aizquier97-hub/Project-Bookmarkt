@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform } from 'react-native';
 
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
+
 import { BUZZ_PATTERN } from './bell';
 import {
   canScheduleExactAlarms,
@@ -153,6 +155,11 @@ export async function ensureTimerAlarmPermission(): Promise<TimerAlarmPermission
     if (current.granted) return 'granted';
     if (!current.canAskAgain) return 'denied';
     const requested = await mod.requestPermissionsAsync();
+    // Only the actual prompt is a signal (D-086); a settled answer is not.
+    trackAnalyticsEvent('notification_permission_result', {
+      granted: requested.granted,
+      context: 'reading_timer',
+    });
     return requested.granted ? 'granted' : 'denied';
   } catch {
     return 'unavailable';
@@ -268,12 +275,14 @@ export async function maybePromptForExactAlarms(): Promise<void> {
         text: 'Not now',
         style: 'cancel',
         onPress: () => {
+          trackAnalyticsEvent('exact_alarm_prompt', { choice: 'not_now' });
           void AsyncStorage.setItem(EXACT_ALARM_PROMPT_DECLINED_KEY, '1').catch(() => undefined);
         },
       },
       {
         text: 'Open settings',
         onPress: () => {
+          trackAnalyticsEvent('exact_alarm_prompt', { choice: 'open_settings' });
           openExactAlarmSettings();
         },
       },

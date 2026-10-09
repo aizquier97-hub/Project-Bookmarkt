@@ -86,6 +86,7 @@ export default function MatchScreen() {
         {screenTitle}
         <PremiumOffer
           title="Recall match"
+          source="match_lock"
           body="A memory-match board dealt only from your own entries and character maps, timed against your best. Pairing each cue with its answer is the little effort that makes the book stick."
         />
       </View>

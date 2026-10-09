@@ -1630,6 +1630,13 @@ QR app-or-store routing for the native iOS and Android applications.
       Stage 3 early if the manual performance budgets are breached. Stage 3
       shipped an interim JS crash flight recorder into `analytics_events`,
       D-030; this item adds a real native crash SDK on top.)
+- [x] Measure how readers actually use the app during internal testing, so
+      the polish round after Stage 5 is driven by evidence rather than
+      guesswork. *(D-086: first-party `analytics_events` now cover app
+      opens/DAU, tab and screen views, the add-book funnel, dictation
+      lifecycle and draft abandonment, paywall attribution, QR bookmark
+      journeys, permission prompts and settings actions. Catalogue and
+      ready-made SQL in [ANALYTICS_EVENTS.md](ANALYTICS_EVENTS.md).)*
 - [x] ~~Switch the Expo runtime version from the fixed string to the
       fingerprint policy at the first Stage 5 native build~~, so an OTA update
       can never again reach a binary that lacks the native modules the update

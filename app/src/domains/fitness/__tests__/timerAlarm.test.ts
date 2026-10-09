@@ -14,6 +14,8 @@ import { canScheduleExactAlarms, isExactAlarmsAvailable } from '../../../../modu
 jest.mock('@react-native-async-storage/async-storage', () =>
   jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
+// Permission prompts report a usage signal (D-086); keep Supabase out of it.
+jest.mock('@/domains/reporting/analytics', () => ({ trackAnalyticsEvent: jest.fn() }));
 
 // The native bridges are absent under Jest, exactly like an OTA bundle landing
 // on a binary older than 1.0.4.

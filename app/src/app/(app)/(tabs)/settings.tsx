@@ -21,7 +21,9 @@ import { fetchExportPayload, serializeExport } from '@/domains/account/export';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { requestPasswordReset, signOut } from '@/domains/auth/service';
 import { PRIVACY_POLICY_URL } from '@/domains/billing/legalLinks';
+import { openSubscription } from '@/domains/billing/paywallSource';
 import { replayOnboarding } from '@/domains/onboarding/firstRun';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cardShadow, colors, fonts } from '@/lib/theme';
 
 /**
@@ -55,8 +57,10 @@ export default function SettingsScreen() {
           try {
             setError(null);
             await requestPasswordReset(address, Linking.createURL('/reset-password'));
+            trackAnalyticsEvent('settings_action', { action: 'change_password', status: 'sent' });
             Alert.alert('Check your email', 'The reset link opens back in Bookmarkt.');
           } catch (err) {
+            trackAnalyticsEvent('settings_action', { action: 'change_password', status: 'failed' });
             setError(err instanceof Error ? err.message : 'The reset email could not be sent.');
           }
         },
@@ -75,7 +79,9 @@ export default function SettingsScreen() {
     try {
       const payload = await fetchExportPayload();
       await Share.share({ title: 'Bookmarkt export', message: serializeExport(payload) });
+      trackAnalyticsEvent('settings_action', { action: 'export', status: 'shared' });
     } catch (err) {
+      trackAnalyticsEvent('settings_action', { action: 'export', status: 'failed' });
       setError(err instanceof Error ? err.message : 'The export could not be prepared.');
     } finally {
       setExporting(false);
@@ -102,6 +108,12 @@ export default function SettingsScreen() {
                 onPress: async () => {
                   setError(null);
                   setDeleting(true);
+                  // Logged before the erase: afterwards there is no account
+                  // for the row to belong to.
+                  trackAnalyticsEvent('settings_action', {
+                    action: 'delete_account',
+                    status: 'confirmed',
+                  });
                   try {
                     await deleteAccount();
                     try {
@@ -133,6 +145,8 @@ export default function SettingsScreen() {
         text: 'Sign out',
         style: 'destructive',
         onPress: async () => {
+          // Fired first: there is no signed-in reader to log it for after.
+          trackAnalyticsEvent('settings_action', { action: 'sign_out', status: 'confirmed' });
           try {
             await signOut();
             // Cross-account hygiene: drop every cached row before the next user.
@@ -177,7 +191,7 @@ export default function SettingsScreen() {
       <View style={styles.group}>
         <Pressable
           style={styles.row}
-          onPress={() => router.push('/subscription')}
+          onPress={() => openSubscription(router, 'settings')}
           accessibilityRole="button"
           accessibilityLabel="Companion subscription"
         >
@@ -194,7 +208,10 @@ export default function SettingsScreen() {
       <View style={styles.group}>
         <Pressable
           style={styles.row}
-          onPress={() => router.push('/bookmarks')}
+          onPress={() => {
+            trackAnalyticsEvent('settings_action', { action: 'open_bookmarks' });
+            router.push('/bookmarks');
+          }}
           accessibilityRole="button"
           accessibilityLabel="Your QR bookmarks"
         >
@@ -249,7 +266,10 @@ export default function SettingsScreen() {
       <View style={styles.group}>
         <Pressable
           style={[styles.row, styles.rowDivider]}
-          onPress={replayOnboarding}
+          onPress={() => {
+            trackAnalyticsEvent('settings_action', { action: 'replay_tour' });
+            replayOnboarding();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Replay the welcome tour"
         >
@@ -262,7 +282,10 @@ export default function SettingsScreen() {
         </Pressable>
         <Pressable
           style={[styles.row, styles.rowDivider]}
-          onPress={() => router.push('/report-issue')}
+          onPress={() => {
+            trackAnalyticsEvent('settings_action', { action: 'report_issue' });
+            router.push('/report-issue');
+          }}
           accessibilityRole="button"
           accessibilityLabel="Report an issue"
         >
@@ -275,7 +298,10 @@ export default function SettingsScreen() {
         </Pressable>
         <Pressable
           style={[styles.row, styles.rowDivider]}
-          onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL)}
+          onPress={() => {
+            trackAnalyticsEvent('settings_action', { action: 'privacy_policy' });
+            void WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL);
+          }}
           accessibilityRole="link"
           accessibilityLabel="Privacy policy"
         >

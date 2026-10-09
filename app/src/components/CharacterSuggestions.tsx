@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useToast } from '@/components/toast';
+import { openSubscription } from '@/domains/billing/paywallSource';
 import {
   CompanionRequestError,
   extractCharacters,
@@ -126,7 +127,7 @@ export function CharacterSuggestions({
     return (
       <Pressable
         style={styles.nudge}
-        onPress={() => router.push('/subscription')}
+        onPress={() => openSubscription(router, 'character_suggestions')}
         accessibilityRole="button"
         accessibilityLabel="Book Club: the companion spots new characters in your notes. View plans"
       >

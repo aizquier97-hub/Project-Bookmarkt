@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { subscriptionLegalLinks } from '@/domains/billing/legalLinks';
 import { PAYWALL_FEATURES } from '@/domains/billing/paywallFeatures';
+import { normalizePaywallSource } from '@/domains/billing/paywallSource';
 import { annualSavingsPercent } from '@/domains/billing/planCopy';
 import {
   ensureBillingReady,
@@ -53,6 +54,9 @@ export default function SubscriptionScreen() {
   const queryClient = useQueryClient();
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
+  // Entry point attribution (D-086): which lock or link brought the reader.
+  const params = useLocalSearchParams<{ source?: string }>();
+  const source = normalizePaywallSource(params.source);
 
   const [offerings, setOfferings] = useState<BillingOfferings | null>(null);
   const [busyPackage, setBusyPackage] = useState<string | null>(null);
@@ -83,8 +87,9 @@ export default function SubscriptionScreen() {
     trackAnalyticsEvent('subscription_viewed', {
       entitled: entitlement.entitled,
       state: entitlement.entitled ? entitlement.status : entitlement.reason,
+      source,
     });
-  }, [entitlement]);
+  }, [entitlement, source]);
 
   useEffect(() => {
     let cancelled = false;
