@@ -22,7 +22,10 @@ import {
 } from '@/domains/entries/quotes';
 import { countWords } from '@/domains/fitness/difficulty';
 import { READING_MODEL_KEYS } from '@/domains/fitness/useReadingModel';
+import { summarizeEntriesByBook } from '@/domains/entries/display';
+import { listEntrySummaryRows } from '@/domains/entries/service';
 import { listBooks, type Book } from '@/domains/library/service';
+import { sortBooksForShelf } from '@/domains/library/shelf';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
@@ -48,6 +51,16 @@ export default function QuotesScreen() {
 
   const quotesQuery = useQuery({ queryKey: queryKeys.quotes, queryFn: listQuotes });
   const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
+  // Shelf order for the picker (D-090): the book being read now first, then
+  // the one before it, finished books last - the same order as the Library.
+  const summariesQuery = useQuery({
+    queryKey: queryKeys.entrySummaries,
+    queryFn: listEntrySummaryRows,
+  });
+  const summaries = useMemo(
+    () => summarizeEntriesByBook(summariesQuery.data ?? []),
+    [summariesQuery.data],
+  );
 
   const bookNames = useMemo(() => {
     const map = new Map<number, string>();
@@ -90,7 +103,10 @@ export default function QuotesScreen() {
 
   // The circular "+" (D-089): one tap to log a quote. A single book goes
   // straight to its composer in quote mode; more than one asks which book.
-  const books = useMemo(() => booksQuery.data ?? [], [booksQuery.data]);
+  const books = useMemo(
+    () => sortBooksForShelf(booksQuery.data ?? [], summaries),
+    [booksQuery.data, summaries],
+  );
   const openQuoteComposer = (bookId: number) => {
     setPickingBook(false);
     router.push({
@@ -406,13 +422,7 @@ function BookPickerSheet({
   onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const ordered = useMemo(
-    () =>
-      [...books].sort(
-        (a, b) => Number(Boolean(a.finished_at)) - Number(Boolean(b.finished_at)),
-      ),
-    [books],
-  );
+  const ordered = books;
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityLabel="Close">

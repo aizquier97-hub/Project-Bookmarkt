@@ -24,7 +24,6 @@ import {
   CompanionRequestError,
   fetchCompanionMessages,
   openObservation,
-  requestClubPrimer,
   requestObservations,
   requestSalonInsight,
   sendCompanionMessage,
@@ -289,17 +288,10 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     setPhase(salons.length > 0 ? 'hub' : 'primer');
   }, [phase, messagesQuery.isPending, salons, bookId]);
 
-  // The primer (D-057): a max-3-bullet orientation from the last few notes.
-  // Transient - regenerated per visit, never persisted. Only fetched when the
-  // reader is actually opening a fresh discussion (it spends quota).
-  const primerQuery = useQuery({
-    queryKey: queryKeys.companionPrimer(bookId),
-    queryFn: () => requestClubPrimer(bookId),
-    staleTime: 10 * 60_000,
-    retry: false,
-    enabled: phase === 'primer',
-  });
   // Observation cards (D-056): grounded openers, each now carrying stems.
+  // Only fetched when the reader is opening a fresh discussion (it spends
+  // quota). The D-057 primer call that used to run beside it is gone (D-090):
+  // its bullets are no longer shown, so the deck opens one call sooner.
   const observationsQuery = useQuery({
     queryKey: queryKeys.companionObservations(bookId),
     queryFn: () => requestObservations(bookId),
@@ -311,35 +303,54 @@ function SocraticDeck({ bookId }: { bookId: number }) {
 
   // If the server gate disagrees with our cached entitlement, re-render as
   // the offer instead of failing quietly.
-  const primerError = primerQuery.error;
   const observationsError = observationsQuery.error;
   useEffect(() => {
-    const err = primerError ?? observationsError;
-    if (err instanceof CompanionRequestError && err.subscriptionRequired) {
+    if (observationsError instanceof CompanionRequestError && observationsError.subscriptionRequired) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
     }
-  }, [primerError, observationsError, queryClient]);
+  }, [observationsError, queryClient]);
 
-  const boundaryLabel = latestBoundary ?? primerQuery.data?.boundaryLabel ?? null;
+  const boundaryLabel = latestBoundary ?? observationsQuery.data?.boundaryLabel ?? null;
 
-  // Primer outcome (D-087): did the orientation land, come back empty
-  // (NO_ENTRIES), or fail - once per visit, only while the primer is shown.
-  const primerTrackedRef = useRef(false);
-  const primerData = primerQuery.data;
+  // Straight into the dialogue (D-090): the "Where you stand" card was a
+  // stop the owner judged redundant. Once the openers arrive the discussion
+  // starts itself; the card remains only as the loading face and for the
+  // NO_ENTRIES / error explanations that still need a sentence.
+  const autoStartedRef = useRef(false);
+  const observationsReady = observationsQuery.isSuccess;
+  const noEntries = observationsQuery.data?.code === 'NO_ENTRIES';
   useEffect(() => {
-    if (phase !== 'primer' || primerTrackedRef.current || (!primerData && !primerError)) {
+    if (phase !== 'primer' || autoStartedRef.current || !observationsReady || noEntries) {
       return;
     }
-    primerTrackedRef.current = true;
-    const status = primerError
-      ? primerError instanceof CompanionRequestError
-        ? primerError.code
+    autoStartedRef.current = true;
+    handleStart();
+    // handleStart is recreated every render; the ref guards the single fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, observationsReady, noEntries]);
+
+  // Opener outcome (D-087, was the primer's): did the openers land, come
+  // back empty (NO_ENTRIES), or fail - once per visit.
+  const openersTrackedRef = useRef(false);
+  const observationsData = observationsQuery.data;
+  useEffect(() => {
+    if (
+      phase !== 'primer' ||
+      openersTrackedRef.current ||
+      (!observationsData && !observationsError)
+    ) {
+      return;
+    }
+    openersTrackedRef.current = true;
+    const status = observationsError
+      ? observationsError instanceof CompanionRequestError
+        ? observationsError.code
         : 'error'
-      : primerData?.code === 'NO_ENTRIES'
+      : noEntries
         ? 'NO_ENTRIES'
         : 'succeeded';
-    trackAnalyticsEvent('companion_tool_used', { tool: 'primer', status }, bookId);
-  }, [phase, primerData, primerError, bookId]);
+    trackAnalyticsEvent('companion_tool_used', { tool: 'observations', status }, bookId);
+  }, [phase, observationsData, observationsError, noEntries, bookId]);
 
   // Composer dictation (D-016): spoken words land in the draft verbatim,
   // with only casing/punctuation cleanup. The reader still edits and sends.
@@ -575,6 +586,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
 
   const handleNewDiscussion = () => {
     setSendError(null);
+    autoStartedRef.current = false;
     advance(() => setPhase('primer'));
   };
 
@@ -632,13 +644,6 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   };
 
   const bookName = bookQuery.data?.name ?? null;
-  const primer = primerQuery.data ?? null;
-  const noEntries = primer?.code === 'NO_ENTRIES';
-  const primerLines = (primer?.reply.content ?? '')
-    .split('\n')
-    .map((line) => line.replace(/^[-•*]\s*/, '').trim())
-    .filter((line) => line.length > 0)
-    .slice(0, 3);
 
   const slideX = slide.interpolate({ inputRange: [-1, 1], outputRange: [-380, 380] });
   const slideRotate = slide.interpolate({ inputRange: [-1, 1], outputRange: ['-7deg', '7deg'] });
@@ -792,48 +797,36 @@ function SocraticDeck({ bookId }: { bookId: number }) {
             </View>
           ) : phase === 'primer' ? (
             <View style={styles.paperCard}>
-              <Text style={styles.cardLabel}>Where you stand</Text>
-              {primerQuery.isPending ? (
+              {observationsQuery.isError ? (
+                <>
+                  <Text style={styles.cardLabel}>Before we begin</Text>
+                  <Text style={styles.cardBody}>
+                    {observationsError instanceof CompanionRequestError &&
+                    observationsError.quotaExceeded
+                      ? observationsError.message
+                      : 'I could not read your notes just now — we can still talk.'}
+                  </Text>
+                  <Pressable
+                    style={styles.goldButton}
+                    onPress={handleStart}
+                    accessibilityRole="button"
+                    accessibilityLabel="Start the discussion"
+                  >
+                    <Ionicons name="chatbubble-ellipses" size={15} color={colors.onAccent} />
+                    <Text style={styles.goldButtonText}>Start discussion</Text>
+                  </Pressable>
+                </>
+              ) : noEntries ? (
+                <>
+                  <Text style={styles.cardLabel}>Before we begin</Text>
+                  <Text style={styles.cardBody}>{observationsQuery.data?.reply.content}</Text>
+                </>
+              ) : (
                 <View style={styles.cardLoadingRow}>
                   <ActivityIndicator size="small" color={colors.muted} />
                   <Text style={styles.cardLoadingText}>Reading your recent notes…</Text>
                 </View>
-              ) : primerQuery.isError ? (
-                <Text style={styles.cardBody}>
-                  {primerError instanceof CompanionRequestError && primerError.quotaExceeded
-                    ? primerError.message
-                    : 'I could not prepare your primer just now — we can still talk.'}
-                </Text>
-              ) : noEntries ? (
-                <Text style={styles.cardBody}>{primer?.reply.content}</Text>
-              ) : (
-                <View style={styles.primerList}>
-                  {primerLines.map((line) => (
-                    <View key={line} style={styles.primerLineRow}>
-                      <Text style={styles.primerBullet}>•</Text>
-                      <Text style={styles.primerLineText}>{line}</Text>
-                    </View>
-                  ))}
-                </View>
               )}
-              {!primerQuery.isPending && !noEntries ? (
-                <Pressable
-                  style={[styles.goldButton, observationsQuery.isPending && styles.goldButtonDisabled]}
-                  onPress={handleStart}
-                  disabled={observationsQuery.isPending}
-                  accessibilityRole="button"
-                  accessibilityLabel="Start the discussion"
-                >
-                  {observationsQuery.isPending ? (
-                    <ActivityIndicator size="small" color={colors.onAccent} />
-                  ) : (
-                    <>
-                      <Ionicons name="chatbubble-ellipses" size={15} color={colors.onAccent} />
-                      <Text style={styles.goldButtonText}>Start discussion</Text>
-                    </>
-                  )}
-                </Pressable>
-              ) : null}
             </View>
           ) : phase === 'deck' && card ? (
             <View style={styles.deckStack}>
@@ -1375,6 +1368,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 21,
   },
+
 
   goldButton: {
     flexDirection: 'row',
