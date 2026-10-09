@@ -148,7 +148,8 @@ with a pointer to the replacement.
 
 | Requirement | Look and feel | Research / proven pattern | Status | Refs |
 | --- | --- | --- | --- | --- |
-| First-run welcome | A brand-new account's empty shelf greets instead of apologizing: serif "Welcome to Bookmarkt", the one-line promise ("Your reading, in your own words..."), one gold **Add your first book** button, and an italic reassurance that one sentence per sitting is plenty. Teaching happens by invitation - no tutorial screens, no permission asks until a feature needs them (mic on first dictation). | Stage 3 foundation J2: "progressive hints, not a tutorial; empty states that teach." Bookly/StoryGraph onboard by inviting the first book, not by touring; R3's north star is judgment-free momentum. | Shipped 2026-08-22 | D-036 |
+| First-run welcome | A brand-new account's empty shelf greets instead of apologizing: serif "Welcome to Bookmarkt", the one-line promise ("Your reading, in your own words..."), one gold **Add your first book** button, and an italic reassurance that one sentence per sitting is plenty. Teaching happens by invitation - no permission asks until a feature needs them (mic on first dictation). | Stage 3 foundation J2: "progressive hints, not a tutorial; empty states that teach." Bookly/StoryGraph onboard by inviting the first book, not by touring; R3's north star is judgment-free momentum. | Shipped 2026-08-22 | D-036 |
+| First-run welcome tour | Once per device after sign-in, a six-card carousel in a modal over the app: walnut header strip with the wordmark and **Skip**, one paper card per page (icon badge, small-caps eyebrow naming the tab, serif title, two-line body, two to four check-marked points), gold dots, Back / **Next**, and **Start reading** on the last card. One card per tab in tab-bar order; the Book Club card alone carries the gold-bordered lock treatment, sells on reading performance ("Read deeper. Remember more."), and offers **See plans**. No prices in the copy. Replayable from Settings → Support. | Owner request before sharing with friends (2026-10-08). The paged-cards-with-dots pattern is the first-open convention readers already know (Kindle, StoryGraph, Bookly); a modal rather than a route keeps the destination loaded underneath. Amends the D-036 "no tutorial screens" stance for the first-open moment only. | Shipped 2026-10-08 | D-084 |
 | Plain-language auth errors | Sign-in, sign-up, and forgot-password never surface raw API phrasing: "Invalid login credentials" becomes "That email and password don't match...", unconfirmed email, duplicate account, rate limits, and network failures all get human copy via a unit-tested mapper; unknown errors fall back gracefully. | NN/g error-message guidelines (human language, say how to recover); J1 design gap "error states in plain language". | Shipped 2026-08-22 | D-036 |
 | Report confirmation and status | Submitting a report confirms in-line ("Thanks - your report is in. You can track its status below.") and the screen lists the reader's reports with status chips (Received / In review / Resolved) and resolution notes when present. Entry point lives in Settings (D-035). | J10: "we got it" acknowledgment - readers need to feel heard; status visibility is the support-ticket convention. | Shipped (Stage 2/3) | J10, D-035 |
 | QR bookmark states | Every scan outcome has a plain-language screen: linked bookmarks jump straight to the book (scan audited), unregistered codes offer "Add this bookmark to my account", unclaimed ones offer claiming, unlinked ones list the shelf to link, and conflicts explain that the code belongs to another account. Full physical-QR payoff arrives with Stage 5 smart links. | J3 design gap (landing / wrong-account / unclaimed states); frictionless re-entry is R1's north star. | Shipped (Stage 2/3) | J3 |
@@ -164,9 +165,10 @@ with a pointer to the replacement.
 - Final-version investments awaiting beta validation (D-038): professional
   mascot animation (~$5k, specced) and an outsourced professional UI/UX
   redesign.
-- Onboarding polish beyond the first-run welcome (J2 shipped 2026-08-22,
-  D-036) - a fuller multi-screen welcome only if usage shows the need;
-  premium onboarding must also explain semantic search clearly (D-039).
+- ~~Onboarding polish beyond the first-run welcome~~ - the six-card
+  first-run welcome tour shipped 2026-10-08 (D-084), replayable from
+  Settings; the semantic-search explainer D-039 asked for shipped with
+  D-052. Remaining: illustrations for the cards once the brand pass lands.
 - QR scan-to-book transition states (J3; full payoff with Stage 5 smart links).
 - Empty-state illustrations (J10) - deferred to the professionally
   outsourced UI/UX pass (D-038); the clean D-040 empty states (plain

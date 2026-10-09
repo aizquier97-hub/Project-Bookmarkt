@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { ComprehensionBackfill } from '@/domains/fitness/ComprehensionBackfill';
 import { DifficultyBackfill } from '@/domains/fitness/DifficultyBackfill';
+import { FirstRunTour } from '@/components/FirstRunTour';
 import { colors, fonts } from '@/lib/theme';
 
 export default function AppLayout() {
@@ -34,6 +35,8 @@ export default function AppLayout() {
         {/* The tab navigator draws its own header per tab. */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
+      {/* Once per device, over whatever screen the reader landed on (D-084). */}
+      <FirstRunTour />
     </>
   );
 }
