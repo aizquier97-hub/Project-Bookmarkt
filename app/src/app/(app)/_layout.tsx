@@ -47,6 +47,12 @@ export default function AppLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         {/* The entry composer's own page (D-092); title set per kind on the screen. */}
         <Stack.Screen name="compose-entry" options={{ title: 'Save an entry' }} />
+        {/* The book's sections as their own screens (D-093); each sets its
+            "‹ Book" back label itself. */}
+        <Stack.Screen name="book-journal" options={{ title: 'Journal' }} />
+        <Stack.Screen name="book-characters" options={{ title: 'Characters' }} />
+        <Stack.Screen name="book-photos" options={{ title: 'Photos' }} />
+        <Stack.Screen name="add-photo" options={{ title: 'Add a photo' }} />
       </Stack>
       {/* Once per device, over whatever screen the reader landed on (D-084). */}
       <FirstRunTour />

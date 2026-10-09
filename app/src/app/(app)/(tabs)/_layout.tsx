@@ -43,6 +43,15 @@ function tabLabel({
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  // Two-tone background (D-093): the bar's own 52pt stays walnut; the strip
+  // under the system navigation inset steps a shade darker so the reader
+  // sees a lean bar with centered glyphs, not one tall slab.
+  const tabBarBackground = () => (
+    <View style={styles.barBackground}>
+      <View style={styles.barOwn} />
+      {insets.bottom > 0 ? <View style={[styles.barInset, { height: insets.bottom }]} /> : null}
+    </View>
+  );
   return (
     <Tabs
       screenOptions={{
@@ -51,17 +60,18 @@ export default function TabsLayout() {
         tabBarActiveTintColor: gold.base,
         tabBarInactiveTintColor: colors.onWalnut,
         // Bar content is 52pt (D-092: icon 22 + label 14 + underline 2 +
-        // breathing room) over the system inset; on Android's 3-button
-        // navigation that inset is walnut too, so the bar itself stays lean.
+        // breathing room) over the system inset; D-093 centers each item in
+        // that 52pt and draws the inset strip in a deeper walnut.
         tabBarStyle: {
-          backgroundColor: colors.walnut,
-          borderTopColor: colors.walnutBorder,
-          borderTopWidth: StyleSheet.hairlineWidth,
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
           height: 52 + insets.bottom,
-          paddingTop: 4,
+          paddingTop: 0,
           paddingBottom: insets.bottom,
         },
-        tabBarItemStyle: { paddingVertical: 0, gap: 0 },
+        tabBarBackground,
+        tabBarItemStyle: { paddingVertical: 0, gap: 0, justifyContent: 'center' },
         tabBarLabel: tabLabel,
       }}
       // Which tabs readers actually visit (D-086): the tab's route name only.
@@ -85,6 +95,14 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
+  barBackground: { flex: 1 },
+  barOwn: {
+    flex: 1,
+    backgroundColor: colors.walnut,
+    borderTopColor: colors.walnutBorder,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  barInset: { backgroundColor: colors.walnutDeep },
   labelWrap: { alignItems: 'center', gap: 2 },
   label: { fontSize: 11, lineHeight: 14, fontFamily: fonts.sansMedium },
   labelActive: { fontFamily: fonts.sansSemiBold },
