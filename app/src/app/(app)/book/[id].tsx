@@ -344,6 +344,13 @@ export default function BookScreen() {
       : tab === 'entries'
         ? composerMode === null
         : characterMode === null;
+  // Writing mode (D-091): the hero (cover, progress, trophies, actions) is
+  // fixed above the pane and with the keyboard up it left the composer with
+  // almost no room - the text box scrolled clean out of view. While a
+  // composer is open the hero folds to a one-line title so the page the
+  // reader is typing on is the one they can see.
+  const composing =
+    tab === 'entries' ? composerMode !== null : tab === 'characters' ? characterMode !== null : false;
 
   return (
     <KeyboardPane style={styles.flex}>
@@ -371,116 +378,128 @@ export default function BookScreen() {
           }}
         />
 
-        <View style={styles.headerRow}>
-          {book?.cover_url ? (
-            <CoverImage
-              source={{ uri: book.cover_url }}
-              style={styles.headerCover}
-              contentFit="cover"
-              accessibilityLabel={`Cover of ${book.name}`}
-            />
-          ) : null}
-          <View style={styles.headerInfo}>
+        {composing ? (
+          <View style={styles.composingHeader}>
             {book ? (
-              <Text style={styles.heroTitle} accessibilityRole="header">
+              <Text style={styles.composingTitle} numberOfLines={1} accessibilityRole="header">
                 {book.name}
               </Text>
             ) : null}
-            {book?.author || metaParts.length ? (
-              <Text style={styles.author}>
-                {[book?.author, ...metaParts].filter(Boolean).join(' · ')}
-              </Text>
-            ) : null}
-
-            {/* Difficulty Index (D-062/D-063): the book's knowledge rating, or
-                the reader's own setting from Edit book. */}
-            {difficulty ? (
-              <View style={styles.difficultyRow}>
-                <View style={styles.difficultyChip}>
-                  <Text style={styles.difficultyChipText}>
-                    {difficultyLabel(difficulty.score)} · {difficulty.score}/10
+          </View>
+        ) : (
+          <>
+            <View style={styles.headerRow}>
+              {book?.cover_url ? (
+                <CoverImage
+                  source={{ uri: book.cover_url }}
+                  style={styles.headerCover}
+                  contentFit="cover"
+                  accessibilityLabel={`Cover of ${book.name}`}
+                />
+              ) : null}
+              <View style={styles.headerInfo}>
+                {book ? (
+                  <Text style={styles.heroTitle} accessibilityRole="header">
+                    {book.name}
                   </Text>
+                ) : null}
+                {book?.author || metaParts.length ? (
+                  <Text style={styles.author}>
+                    {[book?.author, ...metaParts].filter(Boolean).join(' · ')}
+                  </Text>
+                ) : null}
+
+                {/* Difficulty Index (D-062/D-063): the book's knowledge rating, or
+                    the reader's own setting from Edit book. */}
+                {difficulty ? (
+                  <View style={styles.difficultyRow}>
+                    <View style={styles.difficultyChip}>
+                      <Text style={styles.difficultyChipText}>
+                        {difficultyLabel(difficulty.score)} · {difficulty.score}/10
+                      </Text>
+                    </View>
+                    <Text style={styles.difficultyMeta} numberOfLines={1}>
+                      {describeDifficultySource(difficulty)}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            {currentPosition ? (
+              <View style={styles.positionBlock}>
+                <View style={styles.positionRow}>
+                  <Text style={styles.positionText}>
+                    {formatBoundaryPosition(currentPosition)}
+                    {progressPercent !== null ? ` · ${progressPercent}%` : ''}
+                  </Text>
+                  {lastEntryRelative ? (
+                    <Text style={styles.positionMeta}>Last entry {lastEntryRelative}</Text>
+                  ) : null}
                 </View>
-                <Text style={styles.difficultyMeta} numberOfLines={1}>
-                  {describeDifficultySource(difficulty)}
-                </Text>
+                {progressPercent !== null ? (
+                  <View style={styles.progressTrack} accessible accessibilityRole="progressbar">
+                    <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+                  </View>
+                ) : null}
               </View>
             ) : null}
-          </View>
-        </View>
 
-        {currentPosition ? (
-          <View style={styles.positionBlock}>
-            <View style={styles.positionRow}>
-              <Text style={styles.positionText}>
-                {formatBoundaryPosition(currentPosition)}
-                {progressPercent !== null ? ` · ${progressPercent}%` : ''}
-              </Text>
-              {lastEntryRelative ? (
-                <Text style={styles.positionMeta}>Last entry {lastEntryRelative}</Text>
+            {trophy ? (
+              <View style={styles.trophyRow}>
+                <TrophyStrip progress={trophy} compact />
+              </View>
+            ) : null}
+
+            <View style={styles.detailsRow}>
+              {book ? (
+                book.finished_at ? (
+                  <Pressable
+                    style={[styles.finishButton, styles.finishButtonDone]}
+                    onPress={() => finishMutation.mutate(false)}
+                    disabled={finishMutation.isPending}
+                    accessibilityRole="button"
+                    accessibilityLabel="Finished. Tap to mark as still reading"
+                  >
+                    <Ionicons name="trophy" size={14} color="#fffdf6" />
+                    <Text style={styles.finishTextDone}>
+                      Finished {new Date(book.finished_at).toLocaleDateString()} · undo
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={styles.finishButton}
+                    onPress={() => finishMutation.mutate(true)}
+                    disabled={finishMutation.isPending}
+                    accessibilityRole="button"
+                    accessibilityLabel="Mark this book as finished"
+                  >
+                    <Ionicons name="flag-outline" size={16} color={colors.accent} />
+                    <Text style={styles.finishText}>Mark as finished</Text>
+                  </Pressable>
+                )
+              ) : null}
+              {book && !book.finished_at ? (
+                <Pressable
+                  style={styles.sessionButton}
+                  onPress={() => router.push({ pathname: '/reading-timer', params: { id: String(bookId) } })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Start a timed reading session with this book"
+                >
+                  <Ionicons name="hourglass-outline" size={16} color={colors.onAccent} />
+                  <Text style={styles.sessionText}>Reading session</Text>
+                </Pressable>
               ) : null}
             </View>
-            {progressPercent !== null ? (
-              <View style={styles.progressTrack} accessible accessibilityRole="progressbar">
-                <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-              </View>
+            {finishMutation.isError ? (
+              <Text style={styles.error}>
+                {finishMutation.error instanceof Error
+                  ? finishMutation.error.message
+                  : 'Could not update the book.'}
+              </Text>
             ) : null}
-          </View>
-        ) : null}
-
-        {trophy ? (
-          <View style={styles.trophyRow}>
-            <TrophyStrip progress={trophy} compact />
-          </View>
-        ) : null}
-
-        <View style={styles.detailsRow}>
-          {book ? (
-            book.finished_at ? (
-              <Pressable
-                style={[styles.finishButton, styles.finishButtonDone]}
-                onPress={() => finishMutation.mutate(false)}
-                disabled={finishMutation.isPending}
-                accessibilityRole="button"
-                accessibilityLabel="Finished. Tap to mark as still reading"
-              >
-                <Ionicons name="trophy" size={14} color="#fffdf6" />
-                <Text style={styles.finishTextDone}>
-                  Finished {new Date(book.finished_at).toLocaleDateString()} · undo
-                </Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                style={styles.finishButton}
-                onPress={() => finishMutation.mutate(true)}
-                disabled={finishMutation.isPending}
-                accessibilityRole="button"
-                accessibilityLabel="Mark this book as finished"
-              >
-                <Ionicons name="flag-outline" size={16} color={colors.accent} />
-                <Text style={styles.finishText}>Mark as finished</Text>
-              </Pressable>
-            )
-          ) : null}
-          {book && !book.finished_at ? (
-            <Pressable
-              style={styles.sessionButton}
-              onPress={() => router.push({ pathname: '/reading-timer', params: { id: String(bookId) } })}
-              accessibilityRole="button"
-              accessibilityLabel="Start a timed reading session with this book"
-            >
-              <Ionicons name="hourglass-outline" size={16} color={colors.onAccent} />
-              <Text style={styles.sessionText}>Reading session</Text>
-            </Pressable>
-          ) : null}
-        </View>
-        {finishMutation.isError ? (
-          <Text style={styles.error}>
-            {finishMutation.error instanceof Error
-              ? finishMutation.error.message
-              : 'Could not update the book.'}
-          </Text>
-        ) : null}
+          </>
+        )}
 
         <View style={styles.tabRow}>
           <Pressable
@@ -646,6 +665,15 @@ function EntriesTab({
       speakStartedRef.current = false;
     }
   }, [composerMode, dictation.status, dictation]);
+
+  // The composer sits at the head of the list; opening it brings the list
+  // back to the top so the whole card - selector, hint, text box - shows.
+  const listRef = useRef<FlatList<Entry>>(null);
+  useEffect(() => {
+    if (composerMode !== null) {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, [composerMode]);
 
   const entriesQuery = useQuery({
     queryKey: queryKeys.entries(bookId),
@@ -1179,6 +1207,7 @@ function EntriesTab({
 
   return (
     <FlatList
+      ref={listRef}
       data={visibleEntries}
       keyExtractor={(entry) => String(entry.id)}
       contentContainerStyle={styles.list}
@@ -2213,6 +2242,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     fontSize: 25,
     lineHeight: 32,
+    color: colors.text,
+  },
+  composingHeader: {
+    paddingBottom: spacing.sm,
+  },
+  composingTitle: {
+    fontFamily: fonts.serif,
+    fontSize: 20,
+    lineHeight: 26,
     color: colors.text,
   },
   author: {

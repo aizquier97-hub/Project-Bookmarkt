@@ -773,6 +773,10 @@ capture.
         picker, X axis on the fitness chart, Profile trimmed of "By book"
         and the explainer. The Recall deal's EMPTY_REPLY failure fixed
         server-side (parser tolerance + one thinking-off retry).
+    - Revised 2026-10-10 (D-091): second pass - the tab bar on walnut with
+        gold active state after the Figma crop, the book hero folds to a
+        title while a composer is open so the text box stays above the
+        keyboard, and the Recall tab's illustrative tile pair is removed.
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs

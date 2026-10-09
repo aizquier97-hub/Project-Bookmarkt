@@ -13,7 +13,9 @@ import { colors, fonts, gold } from '@/lib/theme';
 // tab; Library sits beside it. Quotes joined the bar in D-062 and QR
 // bookmarks moved under Settings. D-089 moved the bar onto parchment; D-090
 // swapped the icons for thin-line Lucide glyphs after the Figma reference and
-// put the antique-gold underline beneath the active label.
+// put the antique-gold underline beneath the active label. D-091 set the bar
+// on walnut, as the Figma crop shows: parchment glyphs at rest, gold when
+// active, the underline in the same gold.
 function tabIcon(Icon: LucideIcon) {
   return function TabIcon({ color }: { color: string }) {
     return <Icon size={22} color={color} strokeWidth={1.6} />;
@@ -46,11 +48,11 @@ export default function TabsLayout() {
       screenOptions={{
         header: renderTabHeader,
         sceneStyle: { backgroundColor: colors.background },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.muted,
+        tabBarActiveTintColor: gold.base,
+        tabBarInactiveTintColor: colors.onWalnut,
         tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
+          backgroundColor: colors.walnut,
+          borderTopColor: colors.walnutBorder,
           borderTopWidth: StyleSheet.hairlineWidth,
           height: 64 + insets.bottom,
           paddingTop: 8,
