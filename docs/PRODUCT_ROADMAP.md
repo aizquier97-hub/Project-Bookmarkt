@@ -1635,7 +1635,12 @@ QR app-or-store routing for the native iOS and Android applications.
       guesswork. *(D-086: first-party `analytics_events` now cover app
       opens/DAU, tab and screen views, the add-book funnel, dictation
       lifecycle and draft abandonment, paywall attribution, QR bookmark
-      journeys, permission prompts and settings actions. Catalogue and
+      journeys, permission prompts and settings actions. D-087 added the
+      behaviour depth on top: Socratic salon flow (start, answer method,
+      convergence, fork, how and when it ends), recap views against
+      entitlement, the Sandglass from start to next step, composer entry
+      points and Book Club / Recall shelf picks, plus the SQL for
+      time-to-first-milestone. Catalogue and
       ready-made SQL in [ANALYTICS_EVENTS.md](ANALYTICS_EVENTS.md).)*
 - [x] ~~Switch the Expo runtime version from the fixed string to the
       fingerprint policy at the first Stage 5 native build~~, so an OTA update

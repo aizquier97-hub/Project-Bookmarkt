@@ -31,6 +31,17 @@ import {
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
 import { buildSalons, formatSalonDate } from '@/domains/companion/salons';
+import {
+  createSalonTracker,
+  endSalon,
+  noteDraftChanged,
+  noteDraftOrigin,
+  recordAnswerSent,
+  recordConvergence,
+  recordPushFurther,
+  type SalonEndReason,
+  type SalonTracker,
+} from '@/domains/companion/salonSignals';
 import { getLatestProgressBoundary } from '@/domains/entries/progress';
 import { addEntry, listEntries } from '@/domains/entries/service';
 import { getBook } from '@/domains/library/service';
@@ -185,6 +196,32 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   const [latestBoundary, setLatestBoundary] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  // Salon telemetry (D-087): one tally per discussion - answers, how they
+  // were seeded, convergences, duration - emitted when the salon ends,
+  // including when the reader simply leaves the screen mid-deck.
+  const trackerRef = useRef<SalonTracker | null>(null);
+  const finishSalon = (reason: SalonEndReason) => {
+    const tracker = trackerRef.current;
+    if (!tracker) {
+      return;
+    }
+    const summary = endSalon(tracker, reason);
+    if (summary) {
+      trackAnalyticsEvent('salon_ended', summary, bookId);
+    }
+  };
+  useEffect(() => {
+    return () => {
+      const tracker = trackerRef.current;
+      if (tracker) {
+        const summary = endSalon(tracker, 'left');
+        if (summary) {
+          trackAnalyticsEvent('salon_ended', summary, bookId);
+        }
+      }
+    };
+  }, [bookId]);
+
   // Card slide (PR #97 pattern): the old card exits left, the next springs
   // in from the right - the deck should feel like paper being dealt.
   const slide = useRef(new Animated.Value(0)).current;
@@ -237,8 +274,20 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     if (phase !== null || messagesQuery.isPending) {
       return;
     }
+    if (salons.length > 0) {
+      const latest = salons[0];
+      trackAnalyticsEvent(
+        'salon_hub_viewed',
+        {
+          salons: salons.length,
+          hasOpenProbe: Boolean(latest?.lastProbe),
+          hasTakeaway: Boolean(latest?.insight),
+        },
+        bookId,
+      );
+    }
     setPhase(salons.length > 0 ? 'hub' : 'primer');
-  }, [phase, messagesQuery.isPending, salons]);
+  }, [phase, messagesQuery.isPending, salons, bookId]);
 
   // The primer (D-057): a max-3-bullet orientation from the last few notes.
   // Transient - regenerated per visit, never persisted. Only fetched when the
@@ -273,6 +322,25 @@ function SocraticDeck({ bookId }: { bookId: number }) {
 
   const boundaryLabel = latestBoundary ?? primerQuery.data?.boundaryLabel ?? null;
 
+  // Primer outcome (D-087): did the orientation land, come back empty
+  // (NO_ENTRIES), or fail - once per visit, only while the primer is shown.
+  const primerTrackedRef = useRef(false);
+  const primerData = primerQuery.data;
+  useEffect(() => {
+    if (phase !== 'primer' || primerTrackedRef.current || (!primerData && !primerError)) {
+      return;
+    }
+    primerTrackedRef.current = true;
+    const status = primerError
+      ? primerError instanceof CompanionRequestError
+        ? primerError.code
+        : 'error'
+      : primerData?.code === 'NO_ENTRIES'
+        ? 'NO_ENTRIES'
+        : 'succeeded';
+    trackAnalyticsEvent('companion_tool_used', { tool: 'primer', status }, bookId);
+  }, [phase, primerData, primerError, bookId]);
+
   // Composer dictation (D-016): spoken words land in the draft verbatim,
   // with only casing/punctuation cleanup. The reader still edits and sends.
   const {
@@ -289,6 +357,9 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     }
     const spoken = cleanupTranscript(confirmDictation());
     if (spoken) {
+      if (trackerRef.current) {
+        noteDraftOrigin(trackerRef.current, 'voice');
+      }
       setDraft((prev) => (prev.trim() ? `${prev.trim()} ${spoken}` : spoken));
       setComposerOpen(true);
     }
@@ -325,16 +396,32 @@ function SocraticDeck({ bookId }: { bookId: number }) {
       if (result.boundaryLabel) {
         setLatestBoundary(result.boundaryLabel);
       }
-      trackAnalyticsEvent('companion_message_sent', { status: 'succeeded' }, bookId);
+      // The synthesis card (D-059): no chips, no probe - a fork instead.
+      const isConvergence =
+        result.isConvergence && Boolean(result.mirror || result.probe || result.insight);
+      // Answer depth and method (D-087): which card this was, how the reader
+      // seeded it, and how long it ran - never the words.
+      const tracker = trackerRef.current;
+      const sent = tracker ? recordAnswerSent(tracker, input.message.length) : null;
+      trackAnalyticsEvent(
+        'companion_message_sent',
+        {
+          status: 'succeeded',
+          turn: input.turn,
+          ...(sent ?? { chars: input.message.length }),
+          convergence: isConvergence,
+        },
+        bookId,
+      );
+      if (isConvergence && tracker) {
+        trackAnalyticsEvent('salon_convergence_reached', recordConvergence(tracker), bookId);
+      }
       void queryClient.invalidateQueries({ queryKey: queryKeys.companionMessages(bookId) });
       const question =
         result.probe ||
         result.reply.content ||
         result.messages.filter((m) => m.role === 'companion').at(-1)?.content ||
         FALLBACK_QUESTION;
-      // The synthesis card (D-059): no chips, no probe - a fork instead.
-      const isConvergence =
-        result.isConvergence && Boolean(result.mirror || result.probe || result.insight);
       if (isConvergence) {
         setPendingInsight(result.insight || result.reply.content || null);
       }
@@ -382,14 +469,21 @@ function SocraticDeck({ bookId }: { bookId: number }) {
         text: answers.join('\n\n'),
         progressType: journalBoundary.progressType,
         progressValue: journalBoundary.upper,
+        source: 'salon',
       });
     },
     onSuccess: () => {
       setSaved(true);
       setSendError(null);
+      trackAnalyticsEvent(
+        'salon_journal_saved',
+        { status: 'succeeded', answers: answers.length },
+        bookId,
+      );
       void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
     },
     onError: () => {
+      trackAnalyticsEvent('salon_journal_saved', { status: 'error', answers: answers.length }, bookId);
       setSendError('Could not save to your journal. Please try again.');
     },
   });
@@ -430,6 +524,13 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     setTakeaway(null);
     setSaved(false);
     const first = observations[0];
+    finishSalon('left');
+    trackerRef.current = createSalonTracker('new');
+    trackAnalyticsEvent(
+      'salon_started',
+      { mode: 'new', hasObservation: Boolean(first), priorSalons: salons.length },
+      bookId,
+    );
     if (first) {
       openMutation.mutate({ prompt: first.prompt, salonId: newSalonId });
     }
@@ -459,6 +560,13 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     setPendingInsight(null);
     setTakeaway(null);
     setSaved(false);
+    finishSalon('left');
+    trackerRef.current = createSalonTracker('resumed');
+    trackAnalyticsEvent(
+      'salon_started',
+      { mode: 'resumed', hasObservation: false, priorSalons: salons.length },
+      bookId,
+    );
     advance(() => {
       setPhase('deck');
       setCard({ question: probe, stems: [], mirror: null, isConvergence: false });
@@ -470,13 +578,16 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     advance(() => setPhase('primer'));
   };
 
-  const handleEndSession = () => {
+  // Both the ghost "End session" button and the post-nudge "Wrap up" land
+  // here; the reason tells them apart in the salon summary (D-087).
+  const handleEndSession = (reason: Extract<SalonEndReason, 'end_session' | 'wrap_up'>) => {
     if (sendMutation.isPending) {
       return;
     }
     if (salonId && answers.length > 0) {
       insightMutation.mutate(pendingInsight ?? undefined);
     }
+    finishSalon(reason);
     advance(() => setPhase('closing'));
   };
 
@@ -489,6 +600,8 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     if (salonId && (pendingInsight || answers.length > 0)) {
       insightMutation.mutate(pendingInsight ?? undefined);
     }
+    trackAnalyticsEvent('salon_fork', { choice: 'save_finish', answers: answers.length }, bookId);
+    finishSalon('save_finish');
     advance(() => setPhase('closing'));
   };
 
@@ -496,6 +609,10 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     if (!card) {
       return;
     }
+    if (trackerRef.current) {
+      recordPushFurther(trackerRef.current);
+    }
+    trackAnalyticsEvent('salon_fork', { choice: 'push_further', answers: answers.length }, bookId);
     // A fresh mini-arc: the reader reacts to the synthesis, the companion
     // wedges once more, then converges again - 1-2 extra cards, never a drift.
     setArcAnswers(0);
@@ -621,7 +738,21 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                     <View key={salon.id} style={styles.archiveCard}>
                       <Pressable
                         style={styles.archiveHeader}
-                        onPress={() => setExpandedSalonId(expanded ? null : salon.id)}
+                        onPress={() => {
+                          if (!expanded) {
+                            trackAnalyticsEvent(
+                              'salon_archive_opened',
+                              {
+                                index: salons.indexOf(salon),
+                                total: salons.length,
+                                hasTakeaway: Boolean(salon.insight),
+                                pairs: salon.pairs.length,
+                              },
+                              bookId,
+                            );
+                          }
+                          setExpandedSalonId(expanded ? null : salon.id);
+                        }}
                         accessibilityRole="button"
                         accessibilityLabel={`Discussion from ${formatSalonDate(salon.startedAt)}`}
                       >
@@ -835,6 +966,9 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                         // Seed an argument, not just grammar: the chip is an
                         // interpretive position, "because" invites the reader
                         // to reason it out in their own words.
+                        if (trackerRef.current) {
+                          noteDraftOrigin(trackerRef.current, 'chip');
+                        }
                         setDraft(`${stem} because `);
                         setComposerOpen(true);
                       }}
@@ -875,7 +1009,12 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                 ) : null}
                 <Pressable
                   style={styles.typeButton}
-                  onPress={() => setComposerOpen(true)}
+                  onPress={() => {
+                    if (trackerRef.current) {
+                      noteDraftOrigin(trackerRef.current, 'typed');
+                    }
+                    setComposerOpen(true);
+                  }}
                   accessibilityRole="button"
                   accessibilityLabel="Type your own thought"
                 >
@@ -907,7 +1046,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                   <Text style={styles.nudgeText}>A natural stopping point, if you want one.</Text>
                   <Pressable
                     style={styles.nudgeButton}
-                    onPress={handleEndSession}
+                    onPress={() => handleEndSession('wrap_up')}
                     accessibilityRole="button"
                     accessibilityLabel="Wrap up this session"
                   >
@@ -918,7 +1057,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
 
               <Pressable
                 style={styles.ghostButton}
-                onPress={handleEndSession}
+                onPress={() => handleEndSession('end_session')}
                 accessibilityRole="button"
                 accessibilityLabel="End this discussion session"
               >
@@ -955,7 +1094,12 @@ function SocraticDeck({ bookId }: { bookId: number }) {
           <TextInput
             style={styles.input}
             value={draft}
-            onChangeText={setDraft}
+            onChangeText={(text) => {
+              if (trackerRef.current) {
+                noteDraftChanged(trackerRef.current, text.length);
+              }
+              setDraft(text);
+            }}
             placeholder="Your answer, in your own words…"
             placeholderTextColor={colors.muted}
             multiline

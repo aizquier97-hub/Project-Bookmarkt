@@ -248,6 +248,35 @@ function TimerFlow({
     [],
   );
 
+  // Wrap-up abandonment (D-087): time was read but the sitting never saved -
+  // the reader backed out of "Time's up". Refs let the unmount cleanup see
+  // the final state (the snapshot is taken below, after saveMutation exists).
+  const wrapupRef = useRef<{
+    active: boolean;
+    elapsedSeconds: number;
+    plannedSeconds: number;
+    hadNote: boolean;
+    hadEndPage: boolean;
+  }>({ active: false, elapsedSeconds: 0, plannedSeconds: 0, hadNote: false, hadEndPage: false });
+  useEffect(
+    () => () => {
+      const state = wrapupRef.current;
+      if (state.active) {
+        trackAnalyticsEvent(
+          'timer_wrapup_abandoned',
+          {
+            elapsedSeconds: state.elapsedSeconds,
+            plannedSeconds: state.plannedSeconds,
+            hadNote: state.hadNote,
+            hadEndPage: state.hadEndPage,
+          },
+          book.id,
+        );
+      }
+    },
+    [book.id],
+  );
+
   // While the glass runs, back navigation asks first (D-062: exit button only).
   useEffect(() => {
     if (phase !== 'running') {
@@ -277,6 +306,18 @@ function TimerFlow({
     setEndedAt(null);
     setNow(begun.getTime());
     setPhase('running');
+    // Start of the funnel (D-087): completed/abandoned already exist; this
+    // gives them a denominator and shows which lengths readers choose.
+    trackAnalyticsEvent(
+      'reading_session_started',
+      {
+        plannedMinutes,
+        customLength: customOpen,
+        hasStartPage: parseOptionalPage(startPage) !== null,
+        bellPermission: permission,
+      },
+      book.id,
+    );
 
     if (permission !== 'granted') {
       return;
@@ -307,6 +348,9 @@ function TimerFlow({
       setStartedAt(null);
       return;
     }
+    // Left early but long enough to count (D-087): the sitting goes to
+    // wrap-up like a completed one, so the pair tells planned vs actual.
+    trackAnalyticsEvent('reading_session_ended_early', { elapsedSeconds, plannedSeconds }, book.id);
     setEndedAt(new Date());
     setPhase('wrapup');
   };
@@ -357,6 +401,7 @@ function TimerFlow({
             progressType: 'page',
             progressValue: endValue,
             rawTranscript: rawTranscripts.length > 0 ? rawTranscripts.join('\n') : null,
+            source: 'timer',
           });
           noteSaved = true;
         } catch (err) {
@@ -412,6 +457,13 @@ function TimerFlow({
       showToast(err instanceof Error ? err.message : 'Could not save the session.', 'error');
     },
   });
+  wrapupRef.current = {
+    active: phase === 'wrapup' && !saveMutation.isPending,
+    elapsedSeconds,
+    plannedSeconds,
+    hadNote: note.trim().length > 0,
+    hadEndPage: parseOptionalPage(endPage) !== null,
+  };
 
   const pagesPreview = useMemo(() => {
     const startValue = parseOptionalPage(startPage);
@@ -533,12 +585,23 @@ function TimerFlow({
   }
 
   if (phase === 'saved' && saved) {
-    const openBook = () =>
+    // Which door the reader takes after a sitting (D-087): the entry, the
+    // book, or the profile - with whether a note was already written.
+    const nextStep = (choice: 'write_entry' | 'open_book' | 'profile') =>
+      trackAnalyticsEvent(
+        'timer_next_step',
+        { choice, noteSaved: saved.noteSaved, hasEndPage: saved.endPage !== null },
+        book.id,
+      );
+    const openBook = () => {
+      nextStep('open_book');
       router.replace({ pathname: '/book/[id]', params: { id: String(book.id) } });
+    };
     // The sitting is logged; the next step is the entry (D-064). A sitting
     // without a note hands off straight into the book's composer with the
     // stopping page already filled in, before the thought fades.
-    const writeEntry = () =>
+    const writeEntry = () => {
+      nextStep('write_entry');
       router.replace({
         pathname: '/book/[id]',
         params: {
@@ -547,6 +610,7 @@ function TimerFlow({
           ...(saved.endPage !== null ? { page: String(saved.endPage) } : {}),
         },
       });
+    };
     // After the note, the people in it (D-077): Book Club readers get the
     // companion's pass over the note; everyone gets a one-tap path into the
     // character composer, typed or spoken.
@@ -670,7 +734,10 @@ function TimerFlow({
         )}
         <Pressable
           style={styles.secondaryButton}
-          onPress={() => router.replace('/')}
+          onPress={() => {
+            nextStep('profile');
+            router.replace('/');
+          }}
           accessibilityRole="button"
         >
           <Text style={styles.secondaryButtonText}>See my profile</Text>

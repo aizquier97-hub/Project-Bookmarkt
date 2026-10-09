@@ -8,6 +8,7 @@ import { summarizeEntriesByBook } from '@/domains/entries/display';
 import { listEntrySummaryRows } from '@/domains/entries/service';
 import { listBooks } from '@/domains/library/service';
 import { sortBooksForShelf } from '@/domains/library/shelf';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { BookPickerRow } from '@/components/BookPickerRow';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
@@ -82,10 +83,24 @@ export default function RecallTab() {
           <Text style={styles.pickHeading}>Which book should the board cover?</Text>
         </View>
       }
-      renderItem={({ item: book }) => (
+      renderItem={({ item: book, index }) => (
         <BookPickerRow
           book={book}
-          onPress={() => router.push({ pathname: '/match', params: { id: String(book.id) } })}
+          onPress={() => {
+            // Recall funnel (D-087): same shape as the club pick so the two
+            // premium doors can be compared side by side.
+            trackAnalyticsEvent(
+              'recall_book_picked',
+              {
+                shelfIndex: index,
+                shelfSize: sortedBooks.length,
+                hasEntries: summaries.has(book.id),
+                finished: Boolean(book.finished_at),
+              },
+              book.id,
+            );
+            router.push({ pathname: '/match', params: { id: String(book.id) } });
+          }}
         />
       )}
     />

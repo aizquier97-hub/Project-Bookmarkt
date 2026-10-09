@@ -189,6 +189,29 @@ export default function BookScreen() {
       trackAnalyticsEvent('book_opened', {}, bookId);
     }
   }, [validId, bookId]);
+  // Composers opened by a hand-off param (D-087) count like capture-bar taps,
+  // so entry points can be compared: the Sandglass hand-offs vs. the bar.
+  useEffect(() => {
+    if (!validId) {
+      return;
+    }
+    if (params.compose === 'write' || params.compose === 'speak') {
+      trackAnalyticsEvent(
+        'composer_opened',
+        { target: 'entry', mode: params.compose, source: 'timer_handoff' },
+        bookId,
+      );
+    }
+    if (composeCharacterParam) {
+      trackAnalyticsEvent(
+        'composer_opened',
+        { target: 'character', mode: composeCharacterParam, source: 'timer_handoff' },
+        bookId,
+      );
+    }
+    // Mount-only: the params describe how this screen was entered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validId, bookId]);
 
   const bookQuery = useQuery({
     queryKey: queryKeys.book(bookId),
@@ -267,8 +290,37 @@ export default function BookScreen() {
   const lastEntryRelative = formatRelativeTime(headerEntries[0]?.created_at);
 
   const openComposer = (mode: Exclude<ComposerMode, null>) => {
+    trackAnalyticsEvent(
+      'composer_opened',
+      { target: 'entry', mode, source: 'capture_bar' },
+      bookId,
+    );
     setTab('entries');
     setComposerMode(mode);
+  };
+  const openCharacterComposer = (mode: Exclude<ComposerMode, null>) => {
+    trackAnalyticsEvent(
+      'composer_opened',
+      { target: 'character', mode, source: 'capture_bar' },
+      bookId,
+    );
+    setCharacterMode(mode);
+  };
+  // Which pane readers actually visit (D-087): tab_viewed covers the app's
+  // bottom tabs; this covers the book's own Entries/Characters/Photos.
+  const selectTab = (next: typeof tab) => {
+    if (next !== tab) {
+      trackAnalyticsEvent(
+        'book_tab_viewed',
+        {
+          tab: next,
+          entries: entriesQuery.data?.length ?? null,
+          characters: charactersQuery.data?.length ?? null,
+        },
+        bookId,
+      );
+    }
+    setTab(next);
   };
   // A tapped @mention anywhere in the book jumps to that character's card.
   const openCharacter = (characterId: number) => {
@@ -410,7 +462,7 @@ export default function BookScreen() {
         <View style={styles.tabRow}>
           <Pressable
             style={[styles.tabButton, tab === 'entries' && styles.tabButtonActive]}
-            onPress={() => setTab('entries')}
+            onPress={() => selectTab('entries')}
           >
             <Text style={[styles.tabText, tab === 'entries' && styles.tabTextActive]}>
               Entries{entriesQuery.data ? ` (${entriesQuery.data.length})` : ''}
@@ -418,7 +470,7 @@ export default function BookScreen() {
           </Pressable>
           <Pressable
             style={[styles.tabButton, tab === 'characters' && styles.tabButtonActive]}
-            onPress={() => setTab('characters')}
+            onPress={() => selectTab('characters')}
           >
             <Text style={[styles.tabText, tab === 'characters' && styles.tabTextActive]}>
               Characters ({charactersQuery.data?.length ?? 0})
@@ -426,7 +478,7 @@ export default function BookScreen() {
           </Pressable>
           <Pressable
             style={[styles.tabButton, tab === 'photos' && styles.tabButtonActive]}
-            onPress={() => setTab('photos')}
+            onPress={() => selectTab('photos')}
           >
             <Text style={[styles.tabText, tab === 'photos' && styles.tabTextActive]}>
               Photos
@@ -489,7 +541,7 @@ export default function BookScreen() {
                 <Pressable
                   style={styles.captureAction}
                   onPress={() =>
-                    tab === 'characters' ? setCharacterMode('write') : openComposer('write')
+                    tab === 'characters' ? openCharacterComposer('write') : openComposer('write')
                   }
                   accessibilityRole="button"
                   accessibilityLabel={
@@ -504,7 +556,7 @@ export default function BookScreen() {
                 <Pressable
                   style={styles.captureAction}
                   onPress={() =>
-                    tab === 'characters' ? setCharacterMode('speak') : openComposer('speak')
+                    tab === 'characters' ? openCharacterComposer('speak') : openComposer('speak')
                   }
                   accessibilityRole="button"
                   accessibilityLabel={
