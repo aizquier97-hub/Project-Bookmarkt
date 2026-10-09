@@ -668,8 +668,10 @@ stance for the first-open moment only; the empty-shelf welcome stays.
       tsc and lint clean. A `react-test-renderer` walk-through (first card
       → Next ×5 → Start reading persists and unmounts; See plans pushes
       `/subscription`; seen flag renders nothing) was run and not kept.
-- [ ] OTA publish to preview for the 1.0.4 runtime (pure JS); existing
-      testers see the tour once after the update.
+- [x] OTA publish to preview for the 1.0.4 runtime (pure JS); existing
+      testers see the tour once after the update. *Done 2026-10-08 from
+      `7218746` (PR #141): update group
+      `3dc3e921-1761-4bbd-9656-148906b61609`, android + ios.*
 - [ ] Owner: open the app after the update, read through the six cards once
       as a stranger would, and send back any wording to change; then try
       *Settings → Replay the welcome tour*.
