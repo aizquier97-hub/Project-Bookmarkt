@@ -140,7 +140,10 @@ withheld from one binary that shares a version with another.
 `storeSetup.test.ts` (`revenueCatKeyFor`, `subscriptionLegalLinks`) and
 `recognition.test.ts` (`dictationOffered`, `dictationStartOptions`) added;
 **424 tests / 40 suites**, `tsc` and `eslint` clean, Android and iOS
-exports succeed.
+exports succeed. Shipped as PR #142 (`d28ae8b`); the JS-visible parts went
+OTA to runtime 1.0.4 on 2026-10-08, update group
+`61dcdd25-eff0-4049-8bc9-b0e166106487` (android + ios - the first iOS
+1.0.4 binary picks it up on launch).
 
 ### Export compliance - what the owner confirms
 
