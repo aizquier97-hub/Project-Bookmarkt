@@ -189,7 +189,22 @@ already on `main`.
    and tax forms. Subscriptions cannot be created, and sandbox purchases
    fail, until Paid Apps shows *Active*.
 
-### B. First build (one command, about 20 minutes on EAS)
+### B. Production Icon and Splash Artwork (can be done anytime before store submission)
+
+You can build with the placeholder icon for initial TestFlight testing, or drop in real artwork now:
+
+- **App Icon (Universal & iOS):** Place a **1024×1024 px PNG** (no transparency, no rounded corners) at `app/assets/images/icon.png` (or update `ios.icon` in `app/app.json`).
+- **Android Adaptive Icon:**
+  - Foreground: `app/assets/images/android-icon-foreground.png` (1024×1024 px with key logo inside the center 66% circle).
+  - Background: `app/assets/images/android-icon-background.png` or hex color in `app.json` (`backgroundColor`).
+  - Monochrome (optional, for Android 13+ themed icons): `app/assets/images/android-icon-monochrome.png`.
+- **Splash Screen:**
+  - Mark/logo: `app/assets/images/splash-icon.png` (centered transparent PNG).
+  - Brand background color: update `"backgroundColor": "#208AEF"` in `app/app.json` (under `expo-splash-screen` plugin).
+
+Whenever artwork files are updated, native builds (`eas build`) must be re-run since icons/splash are baked at build time.
+
+### C. First build (one command, about 20 minutes on EAS)
 
 3. In `app/`: `npx eas-cli@latest build --platform ios --profile testflight-internal`.
    EAS asks to log in with the Apple ID (two-factor code), then:
