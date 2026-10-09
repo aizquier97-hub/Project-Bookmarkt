@@ -10,6 +10,8 @@ type HeaderOptions = {
   headerTitleStyle?: { fontSize?: number } | unknown;
   headerRight?: (props: { tintColor?: string; canGoBack: boolean }) => ReactNode;
   headerBackVisible?: boolean;
+  /** "Library" / "Book": when set, the header shows "‹ Label" and the screen owns its title (D-093). */
+  headerBackTitle?: string;
 };
 
 function titleSizeFrom(options: HeaderOptions): number | undefined {
@@ -39,11 +41,13 @@ function titleFrom(options: HeaderOptions, routeName: string): string {
 export function renderStackHeader(props: HeaderProps) {
   const { options, route, navigation, back } = props;
   const canGoBack = options.headerBackVisible !== false && (back != null || navigation.canGoBack());
+  const backLabel = options.headerBackTitle;
   return (
     <AppHeader
-      title={titleFrom(options, route.name)}
+      title={backLabel ? '' : titleFrom(options, route.name)}
       variant="detail"
       onBack={canGoBack ? () => navigation.goBack() : undefined}
+      backLabel={backLabel}
       right={options.headerRight?.({ canGoBack })}
     />
   );

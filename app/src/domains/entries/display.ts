@@ -188,6 +188,36 @@ export function formatBookmarkCaption(
   return parts.join(', ');
 }
 
+/**
+ * The two header cells of a journal entry card (D-093): the day it was
+ * written ("Friday, Oct 9") and a compact position ("pp. 253–269",
+ * "ch. 12", or null when the entry carries no boundary).
+ */
+export function formatJournalCardHeader(
+  entry: { text: string | null; created_at: string | null },
+): { day: string | null; position: string | null } {
+  let day: string | null = null;
+  if (entry.created_at) {
+    const date = new Date(entry.created_at);
+    if (!Number.isNaN(date.getTime())) {
+      day = date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    }
+  }
+  const boundary = parseProgressBoundaryFromEntryText(entry.text);
+  let position: string | null = null;
+  if (boundary) {
+    const range =
+      boundary.lower !== null && boundary.lower !== boundary.upper
+        ? `${boundary.lower}–${boundary.upper}`
+        : String(boundary.upper);
+    position = boundary.progressType === 'chapter' ? `ch. ${range}` : `pp. ${range}`;
+  } else {
+    const { boundaryLabel } = splitEntryText(entry.text);
+    position = boundaryLabel;
+  }
+  return { day, position };
+}
+
 /** djb2 - must mirror the companion Edge Function's hashContent exactly. */
 function hashEntryText(text: string): string {
   let hash = 5381;

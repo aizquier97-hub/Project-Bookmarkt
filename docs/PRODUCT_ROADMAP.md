@@ -782,6 +782,13 @@ capture.
         moved onto its own screen (`/compose-entry`) with a sticky Save
         footer; the capture bar, the Sandglass hand-off and the Quotes "+"
         all open it, and saving returns to where the reader came from.
+    - Revised 2026-10-10 (D-093): fourth pass - the book screen becomes a
+        hub (hero, gold progress bar, Book Club recap card, Journal /
+        Characters / Photos rows, Start a reading session) with each
+        section on its own screen; journal cards take the Figma shape with
+        a one-line "Journal summary" label and a free-reader paywall state;
+        photos are added one at a time with a title and description on
+        `/add-photo`; the tab bar draws the system inset as a deeper band.
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs

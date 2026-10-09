@@ -3,6 +3,7 @@ import {
   entrySummaryIsStale,
   formatBookmarkCaption,
   formatBoundaryPosition,
+  formatJournalCardHeader,
   getCurrentPosition,
   splitEntryText,
   splitTextForHighlight,
@@ -48,6 +49,32 @@ describe('buildBookmarkLabel', () => {
   });
 });
 
+describe('formatJournalCardHeader', () => {
+  it('returns a day label and a compact page range', () => {
+    const header = formatJournalCardHeader({
+      text: '[Manual Entry - page 253-269]\nBody',
+      created_at: '2026-10-09T12:00:00Z',
+    });
+    expect(header.position).toBe('pp. 253–269');
+    expect(header.day).toMatch(/Oct 9/);
+  });
+
+  it('collapses a single page or chapter', () => {
+    expect(
+      formatJournalCardHeader({ text: '[Manual Entry - page 12]\nx', created_at: null }),
+    ).toEqual({ day: null, position: 'pp. 12' });
+    expect(
+      formatJournalCardHeader({ text: '[Manual Entry - chapter 3-4]\nx', created_at: null }),
+    ).toEqual({ day: null, position: 'ch. 3–4' });
+  });
+
+  it('is null-safe for entries without a header', () => {
+    expect(formatJournalCardHeader({ text: 'Just words', created_at: 'nope' })).toEqual({
+      day: null,
+      position: null,
+    });
+  });
+});
 describe('formatBookmarkCaption', () => {
   it('joins the boundary label and the written day', () => {
     const caption = formatBookmarkCaption({

@@ -10,6 +10,8 @@ type AppHeaderProps = {
   /** Large (32) for tab roots; detail (25) for pushed screens. */
   variant?: 'large' | 'detail';
   onBack?: () => void;
+  /** "Library" / "Book": renders "‹ Label" beside the arrow; the screen then owns its title (D-093). */
+  backLabel?: string;
   right?: ReactNode;
   /** Overrides the variant's title size (Settings uses 36). */
   titleSize?: number;
@@ -28,6 +30,7 @@ export function AppHeader({
   title,
   variant = 'detail',
   onBack,
+  backLabel,
   right,
   titleSize,
   ignoreInsets = false,
@@ -41,20 +44,25 @@ export function AppHeader({
         <Pressable
           onPress={onBack}
           hitSlop={8}
-          style={styles.back}
+          style={[styles.back, backLabel ? styles.backLabelled : null]}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={backLabel ? `Back to ${backLabel}` : 'Go back'}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.accent} />
+          <Ionicons name={backLabel ? 'chevron-back' : 'arrow-back'} size={24} color={colors.accent} />
+          {backLabel ? <Text style={styles.backLabel}>{backLabel}</Text> : null}
         </Pressable>
       ) : null}
-      <Text
-        style={[styles.title, large ? styles.titleLarge : styles.titleDetail, sizeOverride]}
-        accessibilityRole="header"
-        numberOfLines={2}
-      >
-        {title}
-      </Text>
+      {title ? (
+        <Text
+          style={[styles.title, large ? styles.titleLarge : styles.titleDetail, sizeOverride]}
+          accessibilityRole="header"
+          numberOfLines={2}
+        >
+          {title}
+        </Text>
+      ) : (
+        <View style={styles.title} />
+      )}
       {right ? <View style={styles.right}>{right}</View> : null}
     </View>
   );
@@ -101,6 +109,17 @@ const styles = StyleSheet.create({
     marginLeft: -12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  backLabelled: {
+    width: undefined,
+    flexDirection: 'row',
+    paddingRight: spacing.sm,
+    gap: 2,
+  },
+  backLabel: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 15,
+    color: colors.accent,
   },
   title: {
     flex: 1,

@@ -30,6 +30,9 @@ export const colors = {
   // Walnut is still the immersion surface for the reading timer and the
   // structural dark panels; `onWalnut` tokens are its ink.
   walnut: '#2A1C11',
+  // The band under Android's 3-button navigation (D-093): a step darker than
+  // the tab bar so the system's strip reads as the system's, not as ours.
+  walnutDeep: '#1C1109',
   walnutBorder: '#4A301C',
   onWalnut: '#F2E7CE',
   onWalnutMuted: '#B7A17F',

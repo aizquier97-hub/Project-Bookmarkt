@@ -621,8 +621,8 @@ function TimerFlow({
     const addCharacter = (mode: 'write' | 'speak') => {
       trackAnalyticsEvent('timer_character_prompt_used', { mode }, book.id);
       router.replace({
-        pathname: '/book/[id]',
-        params: { id: String(book.id), tab: 'characters', composeCharacter: mode },
+        pathname: '/book-characters',
+        params: { id: String(book.id), compose: mode },
       });
     };
     const firstNoted = saved.endPage !== null ? `page ${saved.endPage}` : '';

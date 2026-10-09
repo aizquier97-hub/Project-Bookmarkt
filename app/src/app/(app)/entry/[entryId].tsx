@@ -182,8 +182,8 @@ export default function EntryDetailScreen() {
 
   const openCharacter = (characterId: number) => {
     router.push({
-      pathname: '/book/[id]',
-      params: { id: String(bookId), tab: 'characters', character: String(characterId) },
+      pathname: '/book-characters',
+      params: { id: String(bookId), character: String(characterId) },
     });
   };
 
