@@ -350,8 +350,9 @@ hard-codes them.
       Icon Composer sample removed; notification small icon unchanged
       (monochrome file, white on transparent). `expo.version` -> **1.0.5**
       (runtime 1.0.5); `play-internal` build for the next Internal-testing
-      release - build ID in the decision log. No OTA for 1.0.4: the JS is
-      unchanged.)*
+      release - build ID in the decision log
+      (`34fdbe2e-598a-4040-b322-a2eb3c72df70`, versionCode 5). No OTA
+      for 1.0.4: the JS is unchanged.)*
 - [ ] Store listings: App Store Connect and Play Console copy, screenshots.
       *(Ready to upload under Play Console -> Store listing -> Graphics: the
       512² Play icon derived from `icon.png` and the owner's 1024×500
