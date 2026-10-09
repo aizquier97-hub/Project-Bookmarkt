@@ -38,7 +38,9 @@ export type AnalyticsEventName =
   | 'purchase_failed'
   | 'purchases_restored'
   | 'trial_started'
-  | 'trial_locked_viewed';
+  | 'trial_locked_viewed'
+  // First-run tour (D-084): outcome and how far the reader got, nothing else.
+  | 'onboarding_finished';
 
 export function trackAnalyticsEvent(
   eventName: AnalyticsEventName,

@@ -618,12 +618,13 @@ nothing until Bookmarkt is brought back.
       versionCode 4) finished 2026-10-08. Artifact inspected before merge:
       `ExactAlarmsModule` present in the dex, `res/raw/bell.wav` bundled,
       manifest declares `SCHEDULE_EXACT_ALARM` and `POST_NOTIFICATIONS`.
-- [ ] Owner: upload the 1.0.4 `.aab` as Internal-testing release 4; on the
+- [x] Owner: upload the 1.0.4 `.aab` as Internal-testing release 4; on the
       first *Turn the glass* allow notifications and, on Android 14+, take
       *Open settings* and switch on *Alarms & reminders*; then run a
       2-minute sitting with the screen off and confirm the chime plus a
-      tray notification at the end.
-- [ ] No OTA for 1.0.3/1.0.1/1.0.0: this round is native, and the JS change
+      tray notification at the end. *Done 2026-10-08: release 4 installed
+      and the bell rang at the end of the sitting.*
+- [x] No OTA for 1.0.3/1.0.1/1.0.0: this round is native, and the JS change
       is a no-op without the modules.
 
 **Residual.** If Android kills the process during a long sitting the
@@ -631,6 +632,47 @@ notification still rings (AlarmManager owns it) but the wrap-up screen is
 gone; persisting the running session so it can be resumed is a follow-up.
 iOS gets the same notification path for free in Stage 5 (sound bundled by
 the same plugin; exact timing needs no permission there).
+
+### Phase 5g - First-run welcome tour (added 2026-10-08, D-084)
+
+Owner request before sharing the app with friends: a first-open tour that
+says what the app does, what each section is for, and why the Book Club
+plan helps reading performance. Amends the D-036 "no tutorial screens"
+stance for the first-open moment only; the empty-shelf welcome stays.
+
+- [x] **Cards** (`domains/onboarding/slides.ts`, pure data, tab-bar order):
+      Welcome (what Bookmarkt is; one sentence per sitting; never
+      AI-written; capture free forever) → Profile (Reading Fitness as a
+      training log; the Sandglass bell with the screen off) → Library
+      (scan to add, per-book timeline, character maps) → Quotes
+      (reflections count toward comprehension) → **Book Club and Recall**
+      (the single premium card: *Read deeper. Remember more.* - discussion,
+      where you left off, Recall, search by meaning, comprehension score;
+      *Try it free from the store*; **See plans** closes the tour and opens
+      the Subscription screen) → Settings (QR bookmarks, export, delete,
+      replay). No prices in the copy - the store owns them (D-070, D-081).
+- [x] **Carousel** (`components/FirstRunTour.tsx`): a modal over the
+      signed-in navigator, mounted in `(app)/_layout.tsx`, so the reader's
+      destination (Profile tab or a bookmark deep link) is loaded
+      underneath and nothing is re-navigated on close. Paged `FlatList`,
+      dots, Back, Next, *Skip* until the last card, *Start reading* on it;
+      hardware back = Skip. Walnut header strip, paper cards, gold primary
+      button; the premium card carries the gold-bordered lock treatment of
+      `PremiumOffer`.
+- [x] **State** (`domains/onboarding/firstRun.ts`): AsyncStorage
+      `bookmarkt.onboarding.seen` = tour version (`ONBOARDING_VERSION`,
+      bump to re-show a materially new tour); per device; a storage failure
+      counts as seen. **Settings → Support → Replay the welcome tour.**
+- [x] Analytics: `onboarding_finished` with `outcome` and `slides_seen`.
+- [x] Tests: `slides.test.ts`, `firstRun.test.ts`; 414 tests / 38 suites;
+      tsc and lint clean. A `react-test-renderer` walk-through (first card
+      → Next ×5 → Start reading persists and unmounts; See plans pushes
+      `/subscription`; seen flag renders nothing) was run and not kept.
+- [ ] OTA publish to preview for the 1.0.4 runtime (pure JS); existing
+      testers see the tour once after the update.
+- [ ] Owner: open the app after the update, read through the six cards once
+      as a stranger would, and send back any wording to change; then try
+      *Settings → Replay the welcome tour*.
 ### Phase 3/4 follow-through - billing lifecycle, trial, states (added 2026-10-04, D-068)
 
 Price-independent billing work done while the owner finishes the financial

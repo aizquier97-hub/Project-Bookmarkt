@@ -1391,10 +1391,34 @@ sitting ends in silence until Bookmarkt is brought back.
       the settings page once and remembers *Not now*.
 - [x] Needs the **1.0.4** Internal-testing build (new native modules);
       older installs keep the in-app bell they have.
-- [ ] Owner: install 1.0.4, allow notifications and *Alarms & reminders*,
-      and run a short sitting with the screen off.
+- [x] Owner: install 1.0.4, allow notifications and *Alarms & reminders*,
+      and run a short sitting with the screen off. (Done 2026-10-08: the
+      bell rang with release 4 installed.)
 - [ ] Follow-up: survive a process kill mid-sitting (the ring still happens;
       the wrap-up screen does not yet).
+
+#### First-run welcome tour (D-084, added 2026-10-08)
+
+Before the app goes to friends, a first-open tour - the owner's request:
+"apps often show you instructions on how to use the app when you first open
+it." Amends the D-036 "no tutorial screens" stance for the first-open
+moment only; the empty-shelf welcome and teaching empty states stay.
+
+- [x] **Six cards, once per device.** What Bookmarkt is (a reading journal
+      for paper books; one sentence per sitting is plenty; never
+      AI-written; capture free forever), then one card per tab in tab-bar
+      order - Profile, Library, Quotes, Book Club and Recall, Settings. The
+      Book Club card is the only one that sells, and it sells on reading
+      performance: *Read deeper. Remember more.* - a companion that works
+      only from your own notes and never reads past your bookmark, with
+      *See plans* straight to the Subscription screen. No prices in the
+      copy; the store owns them.
+- [x] **Skip is always there**, *Start reading* ends it, and *Settings →
+      Replay the welcome tour* brings it back any time.
+- [x] Pure JavaScript - reaches the 1.0.4 build over the air; existing
+      testers see it once after updating.
+- [ ] Owner: read the six cards once as a stranger would and send back any
+      wording to change.
 #### Billing lifecycle, trial, and subscription states (D-068, added 2026-10-04)
 
 Done while the owner finished the financial model: every billing item that

@@ -19,6 +19,7 @@ import { deleteAccount } from '@/domains/account/service';
 import { fetchExportPayload, serializeExport } from '@/domains/account/export';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { requestPasswordReset, signOut } from '@/domains/auth/service';
+import { replayOnboarding } from '@/domains/onboarding/firstRun';
 import { cardShadow, colors, fonts } from '@/lib/theme';
 
 /**
@@ -244,6 +245,19 @@ export default function SettingsScreen() {
 
       <Text style={styles.sectionLabel}>Support</Text>
       <View style={styles.group}>
+        <Pressable
+          style={[styles.row, styles.rowDivider]}
+          onPress={replayOnboarding}
+          accessibilityRole="button"
+          accessibilityLabel="Replay the welcome tour"
+        >
+          <Ionicons name="compass-outline" size={22} color={colors.accent} />
+          <View style={styles.rowTextWrap}>
+            <Text style={styles.rowTitle}>Replay the welcome tour</Text>
+            <Text style={styles.rowSub}>What each tab does, and what the Book Club adds.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </Pressable>
         <Pressable
           style={[styles.row, styles.rowDivider]}
           onPress={() => router.push('/report-issue')}
