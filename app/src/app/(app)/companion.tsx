@@ -49,7 +49,7 @@ import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
 import { useDictation } from '@/domains/voice/useDictation';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/theme';
 
 const MAX_MESSAGE_CHARS = 2000;
 
@@ -660,7 +660,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
             {bookName}
           </Text>
           <View style={styles.boundaryChip}>
-            <Ionicons name="shield-checkmark-outline" size={12} color={colors.muted} />
+            <Ionicons name="shield-checkmark-outline" size={12} color={gold.deep} />
             <Text style={styles.boundaryText}>
               {boundaryLabel ? `Nothing past ${boundaryLabel}` : 'No spoilers past your notes'}
             </Text>
@@ -692,7 +692,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                     <Text style={styles.takeawayText}>{latestSalon.insight}</Text>
                   </View>
                 ) : latestSalon.lastProbe ? (
-                  <Text style={styles.cardBody}>
+                  <Text style={styles.questionText}>
                     A question is still on the table: “{latestSalon.lastProbe}”
                   </Text>
                 ) : (
@@ -707,7 +707,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                     accessibilityRole="button"
                     accessibilityLabel="Continue your last discussion"
                   >
-                    <Ionicons name="chatbubble-ellipses" size={15} color={gold.onFill} />
+                    <Ionicons name="chatbubble-ellipses" size={15} color={colors.onAccent} />
                     <Text style={styles.goldButtonText}>Continue discussion</Text>
                   </Pressable>
                 ) : null}
@@ -720,7 +720,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                   <Ionicons
                     name="add"
                     size={15}
-                    color={latestSalon.lastProbe ? colors.text : gold.onFill}
+                    color={latestSalon.lastProbe ? colors.text : colors.onAccent}
                   />
                   <Text
                     style={latestSalon.lastProbe ? styles.plainButtonText : styles.goldButtonText}
@@ -825,10 +825,10 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                   accessibilityLabel="Start the discussion"
                 >
                   {observationsQuery.isPending ? (
-                    <ActivityIndicator size="small" color={gold.onFill} />
+                    <ActivityIndicator size="small" color={colors.onAccent} />
                   ) : (
                     <>
-                      <Ionicons name="chatbubble-ellipses" size={15} color={gold.onFill} />
+                      <Ionicons name="chatbubble-ellipses" size={15} color={colors.onAccent} />
                       <Text style={styles.goldButtonText}>Start discussion</Text>
                     </>
                   )}
@@ -906,10 +906,10 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                   accessibilityLabel="Save your answers to the journal"
                 >
                   {saveMutation.isPending ? (
-                    <ActivityIndicator size="small" color={gold.onFill} />
+                    <ActivityIndicator size="small" color={colors.onAccent} />
                   ) : (
                     <>
-                      <Ionicons name="bookmark" size={15} color={gold.onFill} />
+                      <Ionicons name="bookmark" size={15} color={colors.onAccent} />
                       <Text style={styles.goldButtonText}>Save to journal</Text>
                     </>
                   )}
@@ -942,7 +942,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                 accessibilityRole="button"
                 accessibilityLabel="Save this insight and finish the session"
               >
-                <Ionicons name="bookmark" size={15} color={gold.onFill} />
+                <Ionicons name="bookmark" size={15} color={colors.onAccent} />
                 <Text style={styles.goldButtonText}>Save insight &amp; finish</Text>
               </Pressable>
               <Pressable
@@ -1003,7 +1003,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                     <Ionicons
                       name={dictationStatus === 'recording' ? 'stop' : 'mic'}
                       size={18}
-                      color={dictationStatus === 'recording' ? gold.onFill : colors.text}
+                      color={dictationStatus === 'recording' ? colors.onAccent : colors.text}
                     />
                   </Pressable>
                 ) : null}
@@ -1113,7 +1113,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
             accessibilityRole="button"
             accessibilityLabel="Send your answer"
           >
-            <Ionicons name="arrow-up" size={18} color={gold.onFill} />
+            <Ionicons name="arrow-up" size={18} color={colors.onAccent} />
           </Pressable>
         </View>
       ) : null}
@@ -1130,40 +1130,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  stateText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 15 },
+  stateText: { fontFamily: fonts.sans, color: colors.muted, fontSize: 15 },
 
   contextBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     backgroundColor: colors.background,
   },
   contextBook: {
-    flex: 1,
     fontFamily: fonts.serif,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 20,
+    lineHeight: 26,
     color: colors.text,
   },
   boundaryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
+    gap: spacing.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.chip,
+    backgroundColor: gold.glowSoft,
   },
-  boundaryText: { fontFamily: fonts.serif, fontSize: 11, color: colors.muted },
+  boundaryText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 12,
+    color: gold.deep,
+  },
 
-  deckContent: { paddingHorizontal: 16, paddingTop: 18, gap: 14 },
+  deckContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    gap: spacing.md,
+  },
   slideStage: { width: '100%' },
 
   // Answered cards collect behind the active one (D-058): paper on paper.
@@ -1195,37 +1200,39 @@ const styles = StyleSheet.create({
   takeawayText: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 14.5,
-    lineHeight: 21,
-    fontStyle: 'italic',
+    fontSize: 18,
+    lineHeight: 26,
   },
   plainButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
+    gap: spacing.sm,
+    minHeight: sizes.button,
     backgroundColor: colors.card,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    paddingVertical: 10,
-    ...buttonShadow,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
   },
-  plainButtonText: { fontFamily: fonts.serif, color: colors.text, fontSize: 14, fontWeight: '700' },
+  plainButtonText: {
+    fontFamily: fonts.sansSemiBold,
+    color: colors.accent,
+    fontSize: 15,
+  },
 
   archiveSection: { gap: 8, marginTop: 2 },
   archiveHeading: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     fontSize: 12,
-    fontWeight: '700',
+    lineHeight: 16,
     color: colors.muted,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    paddingHorizontal: 2,
+    letterSpacing: 0.8,
   },
   archiveCard: {
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     ...cardShadow,
@@ -1237,8 +1244,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
   },
-  archiveDate: { fontFamily: fonts.serif, fontSize: 12.5, fontWeight: '700', color: gold.deep },
-  archivePreview: { fontFamily: fonts.serif, flex: 1, fontSize: 13, color: colors.muted },
+  archiveDate: {
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 13,
+    color: colors.accent,
+  },
+  archivePreview: {
+    fontFamily: fonts.sans,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.muted,
+  },
   archiveBody: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
@@ -1248,13 +1265,12 @@ const styles = StyleSheet.create({
   },
   archivePair: { gap: 4 },
   archiveQuestion: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 13.5,
     color: colors.muted,
-    fontStyle: 'italic',
     lineHeight: 19,
   },
-  archiveAnswer: { fontFamily: fonts.serif, fontSize: 14, color: colors.text, lineHeight: 20 },
+  archiveAnswer: { fontFamily: fonts.sans, fontSize: 14, color: colors.text, lineHeight: 20 },
 
   // The wrap-up nudge (D-058): offered after a few turns, never forced.
   nudgeRow: {
@@ -1268,64 +1284,75 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: gold.base,
   },
-  nudgeText: { fontFamily: fonts.serif, flex: 1, fontSize: 13, color: colors.text, fontStyle: 'italic' },
+  nudgeText: { fontFamily: fonts.sans, flex: 1, fontSize: 13, color: colors.text },
   nudgeButton: {
     paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: gold.fill,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
     borderWidth: 1,
-    borderColor: gold.deep,
+    borderColor: colors.accent,
   },
-  nudgeButtonText: { fontFamily: fonts.serif, color: gold.onFill, fontSize: 12.5, fontWeight: '700' },
+  nudgeButtonText: { fontFamily: fonts.sansSemiBold, color: colors.onAccent, fontSize: 12.5 },
 
   // The deck's cards: paper inserts resting on the desk (D-054).
   paperCard: {
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 18,
-    gap: 12,
+    padding: spacing.md,
+    gap: spacing.md,
     ...cardShadow,
   },
   cardLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     fontSize: 12,
-    fontWeight: '700',
+    lineHeight: 16,
     color: colors.muted,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
   },
   cardLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   // The in-deck breadcrumb (D-058): a quiet count instead of a scroll trail.
   cardCount: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     fontSize: 12,
-    fontWeight: '700',
-    color: gold.deep,
-    letterSpacing: 0.4,
+    color: colors.text,
+    backgroundColor: gold.glowSoft,
+    borderRadius: radii.chip,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    overflow: 'hidden',
   },
-  cardBody: { fontFamily: fonts.serif, color: colors.text, fontSize: 14.5, lineHeight: 21 },
+  cardBody: {
+    fontFamily: fonts.sans,
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 22,
+  },
   cardLoadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardLoadingText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
-    fontStyle: 'italic',
   },
-  questionText: { fontFamily: fonts.serif, color: colors.text, fontSize: 17, lineHeight: 25 },
+  questionText: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 25,
+    lineHeight: 33,
+  },
   // The wedge card's one-sentence validation (D-059), quiet above the probe.
   mirrorText: {
-    fontFamily: fonts.serif,
-    fontStyle: 'italic',
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14.5,
     lineHeight: 21,
   },
   // The synthesis card's second line: how the realization reframes the book.
   affirmationText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 15,
     lineHeight: 22,
@@ -1340,9 +1367,9 @@ const styles = StyleSheet.create({
 
   primerList: { gap: 8 },
   primerLineRow: { flexDirection: 'row', gap: 8 },
-  primerBullet: { fontFamily: fonts.serif, color: gold.deep, fontSize: 14.5, lineHeight: 21 },
+  primerBullet: { fontFamily: fonts.sans, color: gold.deep, fontSize: 14.5, lineHeight: 21 },
   primerLineText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     flex: 1,
     color: colors.text,
     fontSize: 14.5,
@@ -1353,23 +1380,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    backgroundColor: gold.fill,
-    borderWidth: 1.5,
-    borderColor: gold.deep,
-    borderRadius: 10,
-    paddingVertical: 10,
-    marginTop: 4,
+    gap: spacing.sm,
+    minHeight: sizes.button,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.xs,
     ...buttonShadow,
   },
   goldButtonDisabled: { opacity: 0.5 },
-  goldButtonText: { fontFamily: fonts.serif, color: gold.onFill, fontSize: 14, fontWeight: '700' },
+  goldButtonText: {
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
+    fontSize: 15,
+  },
 
   ghostButton: { alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 8 },
-  ghostButtonText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13, fontWeight: '600' },
+  ghostButtonText: {
+    fontFamily: fonts.sansMedium,
+    color: colors.muted,
+    fontSize: 14,
+  },
 
   savedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  savedText: { fontFamily: fonts.serif, color: gold.deep, fontSize: 13.5, fontWeight: '700' },
+  savedText: { fontFamily: fonts.sansSemiBold, color: gold.deep, fontSize: 13.5 },
 
   thinkingRow: {
     flexDirection: 'row',
@@ -1378,49 +1412,63 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
   },
-  thinkingText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 14, fontStyle: 'italic' },
+  thinkingText: { fontFamily: fonts.sans, color: colors.muted, fontSize: 14 },
 
   answerArea: { gap: 10 },
 
   // Perspective stems (D-056/D-057): answer starters under the question.
-  stemRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  stemRow: {
+    flexDirection: 'column',
+    gap: spacing.sm,
+  },
   stemChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1.5,
+    minHeight: sizes.button,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    borderRadius: radii.card,
+    borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
-    ...buttonShadow,
   },
-  stemChipText: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontWeight: '600' },
+  stemChipText: {
+    fontFamily: fonts.sansSemiBold,
+    color: colors.accent,
+    fontSize: 14,
+    textAlign: 'center',
+  },
 
   answerActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   micButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: sizes.button,
+    height: sizes.button,
+    borderRadius: radii.field,
     backgroundColor: colors.card,
     borderColor: colors.border,
-    borderWidth: 1.5,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    ...buttonShadow,
   },
-  micButtonActive: { backgroundColor: gold.fill, borderColor: gold.deep },
+  micButtonActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   typeButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 999,
-    borderWidth: 1.5,
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: sizes.button,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.field,
+    borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
-    ...buttonShadow,
   },
-  typeButtonText: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontWeight: '600' },
+  typeButtonText: {
+    fontFamily: fonts.sansSemiBold,
+    color: colors.accent,
+    fontSize: 14,
+  },
 
   listeningRow: {
     flexDirection: 'row',
@@ -1434,21 +1482,20 @@ const styles = StyleSheet.create({
     borderColor: gold.base,
   },
   listeningText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     flex: 1,
     fontSize: 13,
     color: colors.text,
-    fontStyle: 'italic',
   },
   listeningStop: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: gold.fill,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
     borderWidth: 1,
-    borderColor: gold.deep,
+    borderColor: colors.accent,
   },
-  listeningStopText: { fontFamily: fonts.serif, color: gold.onFill, fontSize: 12, fontWeight: '700' },
+  listeningStopText: { fontFamily: fonts.sansSemiBold, color: colors.onAccent, fontSize: 12 },
 
   composerBar: {
     flexDirection: 'row',
@@ -1466,7 +1513,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -3 },
   },
   input: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     flex: 1,
     minHeight: 42,
     maxHeight: 120,
@@ -1483,9 +1530,9 @@ const styles = StyleSheet.create({
   sendButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1504,9 +1551,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  noticeText: { fontFamily: fonts.serif, flex: 1, fontSize: 13, color: colors.muted, lineHeight: 18 },
+  noticeText: { fontFamily: fonts.sans, flex: 1, fontSize: 13, color: colors.muted, lineHeight: 18 },
   errorBanner: { borderColor: colors.danger },
-  errorText: { fontFamily: fonts.serif, color: colors.danger },
+  errorText: { fontFamily: fonts.sans, color: colors.danger },
 
   offerContainer: {
     flex: 1,
@@ -1535,19 +1582,18 @@ const styles = StyleSheet.create({
   offerTitle: {
     fontFamily: fonts.serif,
     fontSize: 22,
-    fontWeight: '700',
     color: colors.text,
   },
-  offerBody: { fontFamily: fonts.serif, color: colors.muted, fontSize: 14.5, lineHeight: 22 },
+  offerBody: { fontFamily: fonts.sans, color: colors.muted, fontSize: 14.5, lineHeight: 22 },
   offerButton: {
     marginTop: 4,
     paddingHorizontal: 22,
     paddingVertical: 11,
-    borderRadius: 12,
-    backgroundColor: gold.fill,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
     borderWidth: 1,
-    borderColor: gold.deep,
+    borderColor: colors.accent,
     ...buttonShadow,
   },
-  offerButtonText: { fontFamily: fonts.serif, color: gold.onFill, fontSize: 15, fontWeight: '700' },
+  offerButtonText: { fontFamily: fonts.sansSemiBold, color: colors.onAccent, fontSize: 15 },
 });

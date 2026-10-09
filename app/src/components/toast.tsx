@@ -156,17 +156,16 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   toastText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     flex: 1,
     color: colors.text,
     fontSize: 14,
     lineHeight: 20,
   },
   actionText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
     fontSize: 14,
-    fontWeight: '800',
     letterSpacing: 0.4,
   },
 });

@@ -98,8 +98,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 6,
   },
   pieceUnlocked: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   pieceLocked: {
     backgroundColor: colors.accentSoft,
@@ -113,6 +113,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 12,
     color: colors.muted,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
   },
 });

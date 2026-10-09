@@ -22,7 +22,7 @@ import {
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, colors, fonts } from '@/lib/theme';
 
 const KIND_OPTIONS: { value: IssueKind; label: string }[] = [
   { value: 'bug', label: 'Bug' },
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     marginBottom: 20,
   },
@@ -175,7 +175,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 16,
-    fontWeight: '700',
     marginBottom: 10,
   },
   kindRow: {
@@ -192,21 +191,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   kindOptionSelected: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   kindOptionText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
-    fontWeight: '600',
   },
   kindOptionTextSelected: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
   },
   input: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     backgroundColor: colors.background,
     borderColor: colors.border,
     borderWidth: 1,
@@ -217,18 +214,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   primaryButton: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     ...buttonShadow,
   },
   primaryButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 16,
   },
   buttonDisabled: {
@@ -238,7 +234,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 16,
-    fontWeight: '700',
     marginBottom: 8,
   },
   listContent: {
@@ -248,7 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 12,
     marginBottom: 10,
   },
@@ -259,10 +254,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cardKind: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -275,42 +269,40 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   statusChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
     fontSize: 12,
-    fontWeight: '600',
   },
   cardText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 14,
     lineHeight: 20,
   },
   cardDate: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     marginTop: 6,
   },
   resolutionNotes: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     marginTop: 6,
-    fontStyle: 'italic',
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     marginBottom: 8,
   },
   success: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.accent,
     marginBottom: 8,
   },
   empty: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
     textAlign: 'center',

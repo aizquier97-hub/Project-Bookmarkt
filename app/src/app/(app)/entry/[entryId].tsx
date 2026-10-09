@@ -23,11 +23,13 @@ import {
   splitTextForMentions,
 } from '@/domains/entries/mentions';
 import { deleteEntry, listEntries, updateEntry } from '@/domains/entries/service';
+import { getBook } from '@/domains/library/service';
 import { ErrorState, LoadingState } from '@/components/states';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { HeaderAction } from '@/components/ui';
+import { buttonShadow, cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/theme';
 
 /**
  * One entry on its own premium paper (Interface v2.0): tapping a bookmark
@@ -54,6 +56,13 @@ export default function EntryDetailScreen() {
     enabled: Number.isFinite(bookId) && bookId > 0,
   });
   const mentionTargets = (charactersQuery.data ?? []).map((c) => ({ id: c.id, name: c.name }));
+  // Book name for the eyebrow line ("<Book> · Your journal"); quiet if it fails.
+  const bookQuery = useQuery({
+    queryKey: queryKeys.book(bookId),
+    queryFn: () => getBook(bookId),
+    enabled: Number.isFinite(bookId) && bookId > 0,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const entry = (entriesQuery.data ?? []).find((row) => row.id === entryId) ?? null;
 
@@ -101,7 +110,27 @@ export default function EntryDetailScreen() {
         )
       : [];
 
-  const screenTitle = <Stack.Screen options={{ title: 'Entry' }} />;
+  const screenTitle = (
+    <Stack.Screen
+      options={{
+        title: 'Entry',
+        headerRight:
+          entry && !editing
+            ? () => (
+                <HeaderAction
+                  label="Edit"
+                  accessibilityLabel="Edit the entry"
+                  onPress={() => {
+                    setDraft(entry.text);
+                    setError(null);
+                    setEditing(true);
+                  }}
+                />
+              )
+            : undefined,
+      }}
+    />
+  );
 
   if (entriesQuery.isPending) {
     return (
@@ -187,6 +216,9 @@ export default function EntryDetailScreen() {
     <KeyboardPane style={styles.flex}>
       {screenTitle}
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <Text style={styles.eyebrow}>
+          {[bookQuery.data?.name, 'Your journal'].filter(Boolean).join(' · ')}
+        </Text>
         <View style={styles.paper}>
           <View style={styles.chipRow}>
             {parts.boundaryLabel ? (
@@ -201,11 +233,18 @@ export default function EntryDetailScreen() {
             ) : null}
             {marked.kind === 'important' ? (
               <View style={styles.importantChip}>
-                <Ionicons name="flag" size={11} color={gold.onFill} />
+                <Ionicons name="flag" size={11} color={colors.onAccent} />
                 <Text style={styles.importantChipText}>Important</Text>
               </View>
             ) : null}
           </View>
+          {createdLabel ? (
+            <Text style={styles.dateLine}>
+              {createdLabel}
+              {edited ? ' (edited)' : ''}
+            </Text>
+          ) : null}
+          <View style={styles.divider} />
 
           {editing ? (
             <>
@@ -241,7 +280,7 @@ export default function EntryDetailScreen() {
                   accessibilityLabel="Save the entry"
                 >
                   {updateMutation.isPending ? (
-                    <ActivityIndicator size="small" color={gold.onFill} />
+                    <ActivityIndicator size="small" color={colors.onAccent} />
                   ) : (
                     <Text style={styles.goldButtonText}>Save</Text>
                   )}
@@ -268,12 +307,6 @@ export default function EntryDetailScreen() {
               ) : (
                 <Text style={styles.bodyText}>{renderBody()}</Text>
               )}
-              {createdLabel ? (
-                <Text style={styles.dateLine}>
-                  {createdLabel}
-                  {edited ? ' (edited)' : ''}
-                </Text>
-              ) : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <View style={styles.actionRow}>
                 <Pressable
@@ -323,57 +356,54 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    padding: 16,
+    padding: spacing.lg,
     flexGrow: 1,
+    gap: spacing.md,
   },
   paper: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: radii.card,
+    padding: spacing.md,
     ...cardShadow,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   chip: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: 10,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
+    backgroundColor: gold.glowSoft,
+    borderRadius: radii.chip,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   chipText: {
-    fontFamily: fonts.serif,
-    color: colors.accent,
+    fontFamily: fonts.sansMedium,
+    color: gold.deep,
     fontSize: 12,
-    fontWeight: '700',
   },
   importantChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: gold.fill,
-    borderWidth: 1,
-    borderColor: gold.deep,
-    borderRadius: 10,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
+    gap: spacing.xs,
+    backgroundColor: colors.accent,
+    borderRadius: radii.chip,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   importantChipText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 12,
-    fontWeight: '700',
   },
   bodyText: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 17,
-    lineHeight: 27,
+    fontSize: 22,
+    lineHeight: 32,
   },
   quoteBlock: {
     borderLeftWidth: 3,
@@ -383,22 +413,35 @@ const styles = StyleSheet.create({
   quoteText: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 17,
-    lineHeight: 27,
-    fontStyle: 'italic',
+    fontSize: 22,
+    lineHeight: 32,
   },
   mentionText: {
+    fontFamily: fonts.serif,
     color: colors.accent,
-    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   dateLine: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  eyebrow: {
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
-    marginTop: 16,
+    lineHeight: 16,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   editInput: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 16,
     lineHeight: 24,
@@ -423,10 +466,9 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   suggestionChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
     fontSize: 13,
-    fontWeight: '700',
   },
   actionRow: {
     flexDirection: 'row',
@@ -434,23 +476,19 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   goldButton: {
-    flexDirection: 'row',
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: gold.fill,
-    borderWidth: 1.5,
-    borderColor: gold.deep,
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
+    minHeight: sizes.button,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
     ...buttonShadow,
   },
   goldButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 14,
-    fontWeight: '700',
   },
   ghostButton: {
     flexDirection: 'row',
@@ -464,10 +502,9 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   ghostButtonText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
     fontSize: 14,
-    fontWeight: '600',
   },
   dangerButton: {
     borderWidth: 1,
@@ -478,13 +515,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   dangerButtonText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.danger,
     fontSize: 14,
-    fontWeight: '600',
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     fontSize: 13,
     marginTop: 10,

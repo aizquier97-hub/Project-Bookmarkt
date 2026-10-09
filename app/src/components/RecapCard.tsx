@@ -13,7 +13,7 @@ import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import { queryKeys } from '@/lib/queryKeys';
-import { cardShadow, buttonShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
 
 type Detail = 'brief' | 'detailed';
 
@@ -215,7 +215,7 @@ export function RecapCard({
                   accessibilityLabel="Retell the story so far"
                 >
                   {recapMutation.isPending ? (
-                    <ActivityIndicator size="small" color={gold.onFill} />
+                    <ActivityIndicator size="small" color={colors.onAccent} />
                   ) : (
                     <Text style={styles.retellText}>{recap ? 'Retell afresh' : 'Retell'}</Text>
                   )}
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 14,
@@ -254,7 +254,6 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontFamily: fonts.serif,
-    fontWeight: '700',
     fontSize: 15,
   },
   pill: {
@@ -264,9 +263,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   pillText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.background,
-    fontWeight: '700',
     fontSize: 11,
     letterSpacing: 0.5,
   },
@@ -276,16 +274,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderLeftWidth: 4,
     borderLeftColor: gold.base,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     marginTop: -8,
     marginBottom: 14,
     ...cardShadow,
   },
-  body: { fontFamily: fonts.serif, color: colors.text, fontSize: 14, lineHeight: 21 },
+  body: { fontFamily: fonts.sans, color: colors.text, fontSize: 14, lineHeight: 21 },
   recapArea: { gap: 12 },
   recapBlock: { gap: 8 },
-  recapText: { fontFamily: fonts.serif, color: colors.text, fontSize: 14.5, lineHeight: 22 },
+  recapText: { fontFamily: fonts.sans, color: colors.text, fontSize: 14.5, lineHeight: 22 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   metaChip: {
     flexDirection: 'row',
@@ -298,8 +296,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  metaChipText: { fontFamily: fonts.serif, fontSize: 10.5, color: colors.muted, fontWeight: '600' },
-  metaTime: { fontFamily: fonts.serif, fontSize: 11, color: colors.muted },
+  metaChipText: { fontFamily: fonts.sansSemiBold, fontSize: 10.5, color: colors.muted },
+  metaTime: { fontFamily: fonts.sans, fontSize: 11, color: colors.muted },
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -308,21 +306,26 @@ const styles = StyleSheet.create({
   },
   segment: {
     flexDirection: 'row',
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    backgroundColor: colors.card,
+    borderRadius: 10,
+    padding: 3,
+    gap: 2,
+    backgroundColor: colors.surface2,
   },
-  segmentItem: { paddingHorizontal: 12, paddingVertical: 6 },
-  segmentItemActive: { backgroundColor: gold.fill },
-  segmentText: { fontFamily: fonts.serif, fontSize: 12.5, fontWeight: '600', color: colors.muted },
-  segmentTextActive: { fontFamily: fonts.serif, color: gold.onFill, fontWeight: '700' },
+  segmentItem: {
+    paddingHorizontal: 12,
+    minHeight: 32,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentItemActive: { backgroundColor: colors.card, ...cardShadow },
+  segmentText: { fontFamily: fonts.sansMedium, fontSize: 13, color: colors.muted },
+  segmentTextActive: { fontFamily: fonts.sansSemiBold, color: colors.text },
   retellButton: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 999,
+    borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
     minWidth: 88,
@@ -330,7 +333,7 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   retellDisabled: { opacity: 0.6 },
-  retellText: { fontFamily: fonts.serif, color: gold.onFill, fontWeight: '700', fontSize: 13 },
-  workingText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13, fontStyle: 'italic' },
-  errorText: { fontFamily: fonts.serif, color: colors.danger, fontSize: 13, lineHeight: 19 },
+  retellText: { fontFamily: fonts.sansSemiBold, color: colors.onAccent, fontSize: 13 },
+  workingText: { fontFamily: fonts.sans, color: colors.muted, fontSize: 13 },
+  errorText: { fontFamily: fonts.sans, color: colors.danger, fontSize: 13, lineHeight: 19 },
 });

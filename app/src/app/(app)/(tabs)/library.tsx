@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'expo-router';
+import { Link, Stack, useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { summarizeEntriesByBook } from '@/domains/entries/display';
 import { listEntrySummaryRows } from '@/domains/entries/service';
@@ -11,13 +11,13 @@ import { buildLibraryRows, sortBooksForShelf, type LibraryRow } from '@/domains/
 import { BookCard } from '@/components/BookCard';
 import { ContinueReadingCard } from '@/components/ContinueReadingCard';
 import { ErrorState, LoadingState } from '@/components/states';
+import { Button, HeaderAction } from '@/components/ui';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
+import { colors, fonts, radii, spacing } from '@/lib/theme';
 
-// Three covers across, the grid density StoryGraph/Goodreads/Kindle use.
-// Without the old bookcase borders the full content width is available, so
-// covers stay generous at true 2:3.
-const COLUMNS = 3;
+// Two covers across (D-089): the Figma shelf gives each cover room to read
+// as an object, with the title and author set beneath it in Lora / Inter.
+const COLUMNS = 2;
 
 /**
  * The library shelf (D-040; moved from home to /library in D-064 when the
@@ -28,6 +28,7 @@ const COLUMNS = 3;
  * bar.
  */
 export default function LibraryScreen() {
+  const router = useRouter();
   const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
 
   // Per-book re-entry cues (J4): when each book was last touched and where
@@ -63,8 +64,10 @@ export default function LibraryScreen() {
     if (item.kind === 'section') {
       return (
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>{item.title}</Text>
-          <Text style={styles.sectionCount}>{item.count}</Text>
+          <Text style={styles.sectionTitle}>
+            {item.title}
+            <Text style={styles.sectionCount}> · {item.count}</Text>
+          </Text>
         </View>
       );
     }
@@ -85,6 +88,18 @@ export default function LibraryScreen() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: 'Library',
+          headerRight: () => (
+            <HeaderAction
+              label="+ Add book"
+              accessibilityLabel="Add a book"
+              onPress={() => router.push('/add-book')}
+            />
+          ),
+        }}
+      />
       {booksQuery.isPending ? (
         <LoadingState label="Loading your library…" />
       ) : booksQuery.isError ? (
@@ -104,14 +119,7 @@ export default function LibraryScreen() {
             where you are, and picking it back up - even weeks later - takes seconds, not pages.
           </Text>
           <Link href="/add-book" asChild>
-            <Pressable
-              style={styles.welcomeButton}
-              accessibilityRole="button"
-              accessibilityLabel="Add your first book"
-            >
-              <Ionicons name="add" size={20} color={gold.onFill} />
-              <Text style={styles.welcomeButtonText}>Add your first book</Text>
-            </Pressable>
+            <Button label="Add your first book" icon="add" style={styles.welcomeButton} />
           </Link>
           <Text style={styles.welcomeHint}>
             One sentence per sitting is plenty - your words, kept verbatim.
@@ -145,13 +153,6 @@ export default function LibraryScreen() {
         />
       )}
 
-      {/* Primary action floats bottom-right: the natural one-handed thumb
-          zone (Material FAB), sitting just above the tab bar. */}
-      <Link href="/add-book" asChild>
-        <Pressable style={styles.fab} accessibilityRole="button" accessibilityLabel="Add a book">
-          <Ionicons name="add" size={30} color={gold.onFill} />
-        </Pressable>
-      </Link>
     </View>
   );
 }
@@ -162,13 +163,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 96,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 40,
   },
   listHeader: {
-    gap: 12,
-    marginBottom: 4,
+    gap: spacing.md,
+    marginBottom: spacing.sm,
   },
   chipRow: {
     flexDirection: 'row',
@@ -177,66 +178,37 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
+    gap: 6,
+    backgroundColor: colors.surface2,
+    borderRadius: radii.chip,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   chipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.text,
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
   },
   sectionRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 7,
-    marginTop: 14,
-    marginBottom: 10,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
   },
   sectionCount: {
-    fontFamily: fonts.serif,
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: '600',
   },
   bookRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   spacer: {
     flex: 1,
-  },
-  // The one primary action on the shelf: a physical gold button (D-054).
-  fab: {
-    position: 'absolute',
-    right: 18,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-    elevation: 5,
-    shadowColor: '#2a1c11',
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
   },
   welcomeWrap: {
     flex: 1,
@@ -249,36 +221,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 22,
-    fontWeight: '700',
   },
   welcomeBody: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
   },
   welcomeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    marginTop: 6,
-    ...buttonShadow,
-  },
-  welcomeButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontSize: 16,
-    fontWeight: '700',
+    marginTop: spacing.sm,
   },
   welcomeHint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     textAlign: 'center',

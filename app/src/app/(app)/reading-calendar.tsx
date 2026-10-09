@@ -7,7 +7,7 @@ import { parseDayKey } from '@/domains/fitness/days';
 import { computeCalendarMonth, shiftMonth, type CalendarDay } from '@/domains/fitness/fitness';
 import { useReadingModel } from '@/domains/fitness/useReadingModel';
 import { ErrorState, LoadingState } from '@/components/states';
-import { cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { cardShadow, colors, fonts, gold, radii, spacing } from '@/lib/theme';
 
 const MONTH_NAMES = [
   'January',
@@ -282,20 +282,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: spacing.lg,
   },
   content: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   card: {
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    gap: 12,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.md,
     ...cardShadow,
   },
   pressed: {
@@ -312,41 +312,36 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   navButtonDisabled: {
     opacity: 0.5,
   },
   monthTitle: {
     fontFamily: fonts.serif,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
     color: colors.text,
   },
   totalsRow: {
     flexDirection: 'row',
-    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
   },
   total: {
     flex: 1,
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
     alignItems: 'center',
+    gap: spacing.xs,
   },
   totalValue: {
     fontFamily: fonts.serif,
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
     color: colors.text,
   },
   totalLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 11,
     color: colors.muted,
     textAlign: 'center',
@@ -357,9 +352,8 @@ const styles = StyleSheet.create({
   weekday: {
     flex: 1,
     textAlign: 'center',
-    fontFamily: fonts.serif,
-    fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.sansMedium,
+    fontSize: 11,
     color: colors.muted,
   },
   grid: {
@@ -382,8 +376,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   dayRead: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   dayCurrent: {
     backgroundColor: colors.accentSoft,
@@ -391,24 +385,24 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   dayToday: {
-    borderColor: colors.walnut,
+    borderColor: gold.base,
   },
   daySelected: {
     borderWidth: 2.5,
     borderColor: colors.walnut,
   },
   dayText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 14,
     color: colors.text,
   },
   dayTextRead: {
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
   },
   dayTextCurrent: {
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '600',
   },
   dayTextFuture: {
     color: colors.border,
@@ -416,7 +410,10 @@ const styles = StyleSheet.create({
   legend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
+    gap: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingTop: spacing.md,
   },
   legendItem: {
     flexDirection: 'row',
@@ -431,8 +428,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   swatchRead: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   swatchCurrent: {
     backgroundColor: colors.accentSoft,
@@ -440,30 +437,29 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   swatchToday: {
-    borderColor: colors.walnut,
+    borderColor: gold.base,
   },
   legendText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 12,
     color: colors.muted,
   },
   detailTitle: {
     fontFamily: fonts.serif,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 28,
     color: colors.text,
   },
   detailBody: {
-    fontFamily: fonts.serif,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.muted,
   },
   footnote: {
-    fontFamily: fonts.serif,
-    fontSize: 12,
-    lineHeight: 17,
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.muted,
-    paddingHorizontal: 4,
   },
 });

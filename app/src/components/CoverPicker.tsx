@@ -277,10 +277,9 @@ export function CoverPicker({
 
 const styles = StyleSheet.create({
   label: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '600',
     marginBottom: 6,
     marginTop: 14,
   },
@@ -297,13 +296,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   removeText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.danger,
-    fontWeight: '600',
     fontSize: 14,
   },
   noneText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
@@ -324,7 +322,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   isbnInput: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     flex: 1,
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -336,22 +334,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   lookupButton: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 14,
     justifyContent: 'center',
     ...buttonShadow,
   },
   lookupButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 13,
   },
   isbnNote: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
@@ -371,9 +368,8 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   searchButtonText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '700',
     fontSize: 14,
   },
   row: {
@@ -392,14 +388,14 @@ const styles = StyleSheet.create({
     borderColor: gold.base,
   },
   candidateYear: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 11,
     textAlign: 'center',
     marginTop: 3,
   },
   attribution: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 11,
     marginTop: 10,
@@ -417,7 +413,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   previewHint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 13,
     marginTop: 16,

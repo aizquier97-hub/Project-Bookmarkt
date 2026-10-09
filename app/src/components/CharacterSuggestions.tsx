@@ -201,7 +201,7 @@ export function CharacterSuggestions({
               accessibilityRole="button"
               accessibilityLabel={`Add ${suggestion.name} to your character map`}
             >
-              <Ionicons name="person-add-outline" size={14} color={gold.onFill} />
+              <Ionicons name="person-add-outline" size={14} color={colors.onAccent} />
               <Text style={styles.addButtonText}>Add to map</Text>
             </Pressable>
             <Pressable
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: gold.base,
     borderWidth: 1.5,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     marginTop: 12,
     gap: 10,
@@ -241,15 +241,13 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.serif,
     fontSize: 17,
-    fontWeight: '700',
     color: colors.text,
   },
   intro: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 14,
     lineHeight: 20,
     color: colors.muted,
-    fontStyle: 'italic',
   },
   suggestion: {
     borderTopWidth: 1,
@@ -258,19 +256,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   name: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     fontSize: 16,
-    fontWeight: '700',
     color: colors.text,
   },
   role: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     fontSize: 13,
     color: colors.accent,
-    fontWeight: '600',
   },
   detail: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 14,
     lineHeight: 20,
     color: colors.text,
@@ -284,18 +280,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   addButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 13,
-    fontWeight: '700',
   },
   skipButton: {
     borderColor: colors.border,
@@ -305,16 +300,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   skipButtonText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '600',
   },
   disabled: {
     opacity: 0.6,
   },
   footnote: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 12,
     lineHeight: 17,
     color: colors.muted,
@@ -326,12 +320,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   pendingText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 13,
     color: colors.muted,
   },
   quiet: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 13,
     lineHeight: 18,
     color: colors.muted,
@@ -350,13 +344,13 @@ const styles = StyleSheet.create({
   },
   nudgeText: {
     flex: 1,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 13,
     lineHeight: 18,
     color: colors.text,
   },
   nudgeLink: {
+    fontFamily: fonts.sansSemiBold,
     color: gold.deep,
-    fontWeight: '700',
   },
 });

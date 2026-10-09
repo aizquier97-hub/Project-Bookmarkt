@@ -283,10 +283,10 @@ function SummaryBuilder({ bookId }: { bookId: number }) {
               accessibilityLabel="Tell the story of the marked stretch"
             >
               {storyMutation.isPending ? (
-                <ActivityIndicator size="small" color={gold.onFill} />
+                <ActivityIndicator size="small" color={colors.onAccent} />
               ) : (
                 <>
-                  <Ionicons name="book-outline" size={15} color={gold.onFill} />
+                  <Ionicons name="book-outline" size={15} color={colors.onAccent} />
                   <Text style={styles.goldButtonText}>
                     {selected.length === 1 ? 'Tell this moment' : 'Tell the story'}
                   </Text>
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stateText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 15,
     textAlign: 'center',
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   intro: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
     lineHeight: 21,
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: gold.base,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 18,
     marginBottom: 16,
     gap: 12,
@@ -355,13 +355,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   boundaryChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: gold.deep,
     fontSize: 11,
-    fontWeight: '700',
   },
   storyText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 16,
     lineHeight: 25,
@@ -381,18 +380,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   detailChipActive: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   detailChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '600',
   },
   detailChipTextActive: {
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
   },
   actionRow: {
     flexDirection: 'row',
@@ -405,10 +403,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    backgroundColor: gold.fill,
+    backgroundColor: colors.accent,
     borderWidth: 1.5,
-    borderColor: gold.deep,
-    borderRadius: 10,
+    borderColor: colors.accent,
+    borderRadius: 8,
     paddingVertical: 11,
     ...buttonShadow,
   },
@@ -416,10 +414,9 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   goldButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 14,
-    fontWeight: '700',
   },
   ghostButton: {
     alignItems: 'center',
@@ -432,16 +429,14 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
   },
   ghostButtonText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
     fontSize: 13,
-    fontWeight: '600',
   },
   pickHeading: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 10,
@@ -466,12 +461,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pickRowLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 13,
   },
   pickRowCaption: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 11,
     marginTop: 1,
@@ -480,7 +475,7 @@ const styles = StyleSheet.create({
     height: 8,
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     fontSize: 13,
     marginBottom: 10,

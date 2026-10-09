@@ -12,7 +12,7 @@ import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { BookPickerRow } from '@/components/BookPickerRow';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, gold } from '@/lib/theme';
+import { colors, fonts, gold, radii, spacing } from '@/lib/theme';
 
 /**
  * The Recall tab (D-066, formerly Cue Cards): a timed memory-match game
@@ -70,15 +70,28 @@ export default function RecallTab() {
       ItemSeparatorComponent={() => <View style={styles.rowGap} />}
       ListHeaderComponent={
         <View style={styles.header}>
-          <View style={styles.badgeRow}>
-            <Ionicons name="extension-puzzle" size={16} color={gold.deep} />
-            <Text style={styles.badgeText}>Recall before you reread</Text>
+          <View style={styles.tilePair} accessible accessibilityLabel="A cue tile and an answer tile">
+            <View style={styles.tile}>
+              <Ionicons name="bookmark-outline" size={26} color={gold.base} />
+              <Text style={styles.tileLabel}>Cue</Text>
+            </View>
+            <View style={[styles.tile, styles.tileAnswer]}>
+              <Ionicons name="bookmark-outline" size={26} color={gold.base} />
+              <Text style={[styles.tileLabel, styles.tileLabelAnswer]}>Answer</Text>
+            </View>
           </View>
-          <Text style={styles.lede}>
+          <Text style={styles.eyebrow}>Your words, remembered</Text>
+          <Text style={styles.title} accessibilityRole="header">
+            Recall before you reread
+          </Text>
+          <Text style={styles.subtitle}>
             A memory-match board dealt from your own records: a cue on one tile, the answer from
-            your entries on another, all face down. Turn two at a time and pair them up against the
-            clock. Every card comes from what you wrote, nothing else - and the small effort of
-            recalling is what makes a book stay with you. Beat your best time, then deal new cards.
+            your entries on another, all face down.
+          </Text>
+          <Text style={styles.lede}>
+            Turn two at a time and pair them up against the clock. Every card comes from what you
+            wrote, nothing else - and the small effort of recalling is what makes a book stay with
+            you. Beat your best time, then deal new cards.
           </Text>
           <Text style={styles.pickHeading}>Which book should the board cover?</Text>
         </View>
@@ -110,51 +123,84 @@ export default function RecallTab() {
 const styles = StyleSheet.create({
   stateContainer: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
     justifyContent: 'center',
   },
   list: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   header: {
-    marginBottom: 14,
+    marginBottom: spacing.md,
+    gap: spacing.md,
   },
-  badgeRow: {
+  tilePair: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    alignSelf: 'flex-start',
-    backgroundColor: gold.glowSoft,
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  tile: {
+    width: 104,
+    height: 136,
+    borderRadius: radii.card,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: gold.base,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 12,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
   },
-  badgeText: {
-    fontFamily: fonts.serif,
-    color: gold.deep,
-    fontSize: 13,
-    fontWeight: '700',
+  tileAnswer: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
-  lede: {
-    fontFamily: fonts.serif,
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 16,
-  },
-  pickHeading: {
-    fontFamily: fonts.serif,
+  tileLabel: {
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+  },
+  tileLabelAnswer: {
+    color: colors.onAccent,
+  },
+  eyebrow: {
+    fontFamily: fonts.sansMedium,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  title: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 32,
+    lineHeight: 40,
+  },
+  subtitle: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 20,
+    lineHeight: 28,
+  },
+  lede: {
+    fontFamily: fonts.sans,
+    color: colors.muted,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  pickHeading: {
+    fontFamily: fonts.sansMedium,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: spacing.sm,
   },
   rowGap: {
-    height: 10,
+    height: spacing.md,
   },
 });

@@ -168,10 +168,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   hint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: '#fffdf6',
     fontSize: 14,
-    fontWeight: '600',
     marginTop: 16,
     textShadowColor: 'rgba(0, 0, 0, 0.6)',
     textShadowRadius: 5,
@@ -184,7 +183,7 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   permissionText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: '#fffdf6',
     fontSize: 15,
     lineHeight: 21,
@@ -204,9 +203,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   closeText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: '#fffdf6',
-    fontWeight: '700',
     fontSize: 15,
   },
 });

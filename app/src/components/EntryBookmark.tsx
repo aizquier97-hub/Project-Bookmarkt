@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 14,
     lineHeight: 19,
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     borderRightColor: colors.background,
   },
   caption: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 11,
     marginTop: 4,

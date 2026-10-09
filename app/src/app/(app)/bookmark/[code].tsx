@@ -24,7 +24,7 @@ import { bookmarkScanOutcome } from '@/domains/bookmarks/scanOutcome';
 import { listBooks } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, cardShadow, colors, fonts, gold, spineColorFor } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
 
 export default function BookmarkScanScreen() {
   const params = useLocalSearchParams<{ code: string }>();
@@ -286,14 +286,13 @@ const styles = StyleSheet.create({
   code: {
     color: colors.text,
     fontSize: 22,
-    fontFamily: fonts.serif,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
     textAlign: 'center',
     letterSpacing: 1,
     marginTop: 8,
   },
   hint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 15,
     lineHeight: 21,
@@ -302,7 +301,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     textAlign: 'center',
     marginTop: 8,
@@ -311,10 +310,10 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   primaryButton: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 22,
     alignItems: 'center',
@@ -323,9 +322,8 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   primaryButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 15,
   },
   list: {
@@ -356,19 +354,16 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontFamily: fonts.serif,
-    fontWeight: '700',
   },
   bookAuthor: {
     color: colors.muted,
     fontSize: 13,
-    fontFamily: fonts.serif,
-    fontStyle: 'italic',
+    fontFamily: fonts.sans,
     marginTop: 2,
   },
   linkAction: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '700',
     fontSize: 14,
     paddingHorizontal: 14,
   },

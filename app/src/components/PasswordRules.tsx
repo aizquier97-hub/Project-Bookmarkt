@@ -33,14 +33,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bullet: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
     width: 12,
     textAlign: 'center',
   },
   label: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
   },

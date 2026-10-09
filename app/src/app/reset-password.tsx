@@ -13,7 +13,7 @@ import { updatePassword } from '@/domains/auth/service';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { PasswordRules } from '@/components/PasswordRules';
-import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, colors, fonts } from '@/lib/theme';
 
 // Storing the session from the link is local work, so anything longer than
 // this means the link never reached us and the reader should not keep waiting.
@@ -162,18 +162,17 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 28,
     fontFamily: fonts.serif,
-    fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 15,
     lineHeight: 21,
     textAlign: 'center',
   },
   input: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
@@ -184,29 +183,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     fontSize: 14,
     textAlign: 'center',
   },
   button: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
     ...buttonShadow,
   },
   buttonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 16,
-    fontWeight: '700',
   },
   link: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.accent,
     textAlign: 'center',
     marginTop: 10,

@@ -104,7 +104,7 @@ export function EmailSentCard({
         accessibilityState={{ disabled: resendDisabled }}
       >
         {resending ? (
-          <ActivityIndicator color={gold.onFill} />
+          <ActivityIndicator color={colors.onAccent} />
         ) : (
           <Text style={styles.buttonText}>
             {cooldown > 0 ? `${copy.resend} in ${cooldown}s` : copy.resend}
@@ -151,24 +151,22 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 26,
-    fontWeight: '700',
     textAlign: 'center',
   },
   lead: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 15,
     textAlign: 'center',
   },
   email: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
     fontSize: 16,
-    fontWeight: '700',
     textAlign: 'center',
   },
   action: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 15,
     lineHeight: 22,
@@ -176,30 +174,30 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   hint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
     textAlign: 'center',
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     fontSize: 14,
     textAlign: 'center',
   },
   notice: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.accent,
     fontSize: 14,
     textAlign: 'center',
   },
   button: {
     alignSelf: 'stretch',
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
@@ -209,10 +207,9 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   buttonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 16,
-    fontWeight: '700',
   },
   links: {
     marginTop: 6,
@@ -220,7 +217,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   link: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.accent,
     fontSize: 15,
     textAlign: 'center',

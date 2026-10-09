@@ -95,7 +95,7 @@ import { useToast } from '@/components/toast';
 import { TrophyStrip } from '@/components/TrophyStrip';
 import { queryKeys } from '@/lib/queryKeys';
 import { formatRelativeTime } from '@/lib/relativeTime';
-import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/theme';
 
 // Capture composer states: closed (bar only), opened for typing, or opened
 // with dictation auto-started (J6: voice as prominent as typing).
@@ -138,6 +138,7 @@ export default function BookScreen() {
     tab?: string;
     character?: string;
     compose?: string;
+    kind?: string;
     page?: string;
     composeCharacter?: string;
   }>();
@@ -174,6 +175,9 @@ export default function BookScreen() {
     // Read once: the handoff page should not re-apply on later re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // The Quotes shelf's circular "+" (D-089) lands here with
+  // /book/[id]?compose=write&kind=quote so the composer saves a quote log.
+  const initialEntryKind: EntryKind = params.kind === 'quote' ? 'quote' : 'note';
   const [characterMode, setCharacterMode] = useState<ComposerMode>(composeCharacterParam);
   const addPhotosRef = useRef<(() => void) | null>(null);
   const queryClient = useQueryClient();
@@ -288,6 +292,11 @@ export default function BookScreen() {
 
   const currentPosition = getCurrentPosition(headerEntries);
   const lastEntryRelative = formatRelativeTime(headerEntries[0]?.created_at);
+  // Percent through the book, when the position is a page and the page count is known.
+  const progressPercent =
+    currentPosition && currentPosition.progressType !== 'chapter' && book?.total_pages
+      ? Math.min(100, Math.max(0, Math.round((currentPosition.upper / book.total_pages) * 100)))
+      : null;
 
   const openComposer = (mode: Exclude<ComposerMode, null>) => {
     trackAnalyticsEvent(
@@ -344,7 +353,7 @@ export default function BookScreen() {
             reading-status button right under the title block. */}
         <Stack.Screen
           options={{
-            title: book?.name ?? 'Book',
+            title: 'Reading journal',
             headerRight: () => (
               <Link
                 href={{ pathname: '/edit-book', params: { id: String(bookId) } }}
@@ -372,20 +381,15 @@ export default function BookScreen() {
             />
           ) : null}
           <View style={styles.headerInfo}>
-            {book?.author ? <Text style={styles.author}>by {book.author}</Text> : null}
-            {metaParts.length ? <Text style={styles.meta}>{metaParts.join(' · ')}</Text> : null}
-
-            {currentPosition ? (
-              <View style={styles.positionRow}>
-                <View style={styles.positionChip}>
-                  <Text style={styles.positionChipText}>
-                    {formatBoundaryPosition(currentPosition)}
-                  </Text>
-                </View>
-                {lastEntryRelative ? (
-                  <Text style={styles.positionMeta}>last entry {lastEntryRelative}</Text>
-                ) : null}
-              </View>
+            {book ? (
+              <Text style={styles.heroTitle} accessibilityRole="header">
+                {book.name}
+              </Text>
+            ) : null}
+            {book?.author || metaParts.length ? (
+              <Text style={styles.author}>
+                {[book?.author, ...metaParts].filter(Boolean).join(' · ')}
+              </Text>
             ) : null}
 
             {/* Difficulty Index (D-062/D-063): the book's knowledge rating, or
@@ -404,6 +408,25 @@ export default function BookScreen() {
             ) : null}
           </View>
         </View>
+
+        {currentPosition ? (
+          <View style={styles.positionBlock}>
+            <View style={styles.positionRow}>
+              <Text style={styles.positionText}>
+                {formatBoundaryPosition(currentPosition)}
+                {progressPercent !== null ? ` · ${progressPercent}%` : ''}
+              </Text>
+              {lastEntryRelative ? (
+                <Text style={styles.positionMeta}>Last entry {lastEntryRelative}</Text>
+              ) : null}
+            </View>
+            {progressPercent !== null ? (
+              <View style={styles.progressTrack} accessible accessibilityRole="progressbar">
+                <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {trophy ? (
           <View style={styles.trophyRow}>
@@ -434,7 +457,7 @@ export default function BookScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Mark this book as finished"
               >
-                <Ionicons name="flag" size={14} color={gold.deep} />
+                <Ionicons name="flag-outline" size={16} color={colors.accent} />
                 <Text style={styles.finishText}>Mark as finished</Text>
               </Pressable>
             )
@@ -446,7 +469,7 @@ export default function BookScreen() {
               accessibilityRole="button"
               accessibilityLabel="Start a timed reading session with this book"
             >
-              <Ionicons name="hourglass-outline" size={14} color={colors.accent} />
+              <Ionicons name="hourglass-outline" size={16} color={colors.onAccent} />
               <Text style={styles.sessionText}>Reading session</Text>
             </Pressable>
           ) : null}
@@ -495,6 +518,7 @@ export default function BookScreen() {
             onComposerModeChange={setComposerMode}
             onOpenCharacter={openCharacter}
             initialProgressPage={initialProgressPage}
+            initialEntryKind={initialEntryKind}
           />
         </View>
         <View style={[styles.tabPane, tab !== 'characters' && styles.tabPaneHidden]}>
@@ -533,7 +557,7 @@ export default function BookScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Add photos"
               >
-                <Ionicons name="images-outline" size={16} color={gold.onFill} />
+                <Ionicons name="images-outline" size={16} color={colors.onAccent} />
                 <Text style={styles.captureActionText}>Add photos</Text>
               </Pressable>
             ) : (
@@ -548,13 +572,13 @@ export default function BookScreen() {
                     tab === 'characters' ? 'Add a character' : 'Write an entry'
                   }
                 >
-                  <Ionicons name="create-outline" size={16} color={gold.onFill} />
+                  <Ionicons name="create-outline" size={16} color={colors.onAccent} />
                   <Text style={styles.captureActionText}>
                     {tab === 'characters' ? 'Add character' : 'Write'}
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={styles.captureAction}
+                  style={[styles.captureAction, styles.captureActionSecondary]}
                   onPress={() =>
                     tab === 'characters' ? openCharacterComposer('speak') : openComposer('speak')
                   }
@@ -563,8 +587,8 @@ export default function BookScreen() {
                     tab === 'characters' ? 'Speak a character' : 'Speak an entry'
                   }
                 >
-                  <Ionicons name="mic-outline" size={16} color={gold.onFill} />
-                  <Text style={styles.captureActionText}>
+                  <Ionicons name="mic-outline" size={16} color={colors.accent} />
+                  <Text style={[styles.captureActionText, styles.captureActionTextSecondary]}>
                     {tab === 'characters' ? 'Speak character' : 'Speak'}
                   </Text>
                 </Pressable>
@@ -583,6 +607,7 @@ function EntriesTab({
   onComposerModeChange,
   onOpenCharacter,
   initialProgressPage = '',
+  initialEntryKind = 'note',
 }: {
   bookId: number;
   composerMode: ComposerMode;
@@ -590,6 +615,8 @@ function EntriesTab({
   onOpenCharacter: (characterId: number) => void;
   /** Page prefilled in the composer (Sandglass handoff, D-064). */
   initialProgressPage?: string;
+  /** Entry kind the composer opens with (Quotes shelf handoff, D-089). */
+  initialEntryKind?: EntryKind;
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -597,7 +624,7 @@ function EntriesTab({
   const [progressType, setProgressType] = useState<ProgressType>('page');
   const [progressValue, setProgressValue] = useState(initialProgressPage);
   const [text, setText] = useState('');
-  const [entryKind, setEntryKind] = useState<EntryKind>('note');
+  const [entryKind, setEntryKind] = useState<EntryKind>(initialEntryKind);
   const [formError, setFormError] = useState<string | null>(null);
   const [rawTranscripts, setRawTranscripts] = useState<string[]>([]);
   const [lastSavedNote, setLastSavedNote] = useState<{
@@ -921,14 +948,14 @@ function EntriesTab({
         accessibilityRole="button"
         accessibilityLabel="The story so far - have any stretch of your bookmarks retold"
       >
-        <Ionicons name="bookmark" size={18} color={gold.onFill} />
+        <Ionicons name="bookmark" size={18} color={colors.onAccent} />
         <View style={styles.goldBookmarkBody}>
           <Text style={styles.goldBookmarkTitle}>The story so far</Text>
           <Text style={styles.goldBookmarkSub} numberOfLines={1}>
             Any stretch of your bookmarks, retold your way
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color={gold.onFill} />
+        <Ionicons name="chevron-forward" size={16} color={colors.onAccent} />
         <View style={styles.goldBookmarkNotch} pointerEvents="none" />
       </Pressable>
     ) : null;
@@ -937,7 +964,9 @@ function EntriesTab({
     composerMode !== null ? (
       <View style={styles.captureCard}>
         <View style={styles.composerHeader}>
-          <Text style={styles.captureTitle}>Save an entry</Text>
+          <Text style={styles.captureTitle}>
+            {entryKind === 'quote' ? 'Save a quote' : 'Save an entry'}
+          </Text>
           <Pressable
             style={styles.composerClose}
             onPress={() => {
@@ -954,6 +983,7 @@ function EntriesTab({
                   bookId,
                 );
               }
+              setEntryKind('note');
               onComposerModeChange(null);
             }}
             accessibilityRole="button"
@@ -963,45 +993,27 @@ function EntriesTab({
           </Pressable>
         </View>
 
-        {/* One choice per entry: plain note, quote log, or important moment
-            (D-039 free feeders — never paywalled per D-012). */}
-        <View style={styles.kindRow}>
-          {(
-            [
-              ['note', 'Note'],
-              ['quote', 'Quote'],
-              ['important', 'Important'],
-            ] as const
-          ).map(([kind, label]) => (
-            <Pressable
-              key={kind}
-              style={[styles.kindChip, entryKind === kind && styles.kindChipActive]}
-              onPress={() => setEntryKind(kind)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: entryKind === kind }}
-              accessibilityLabel={`Save this entry as a ${label.toLowerCase()}`}
-            >
-              <Text style={[styles.kindChipText, entryKind === kind && styles.kindChipTextActive]}>
-                {label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
+        {/* Note / Quote / Important chips were removed by design (D-089):
+            quotes arrive from the Quotes shelf's "+" with kind=quote, and
+            important moments come from the companion's suggestions. */}
         <View style={styles.segmentRow}>
-          {(['page', 'chapter'] as const).map((type) => (
-            <Pressable
-              key={type}
-              style={[styles.segment, progressType === type && styles.segmentActive]}
-              onPress={() => setProgressType(type)}
-            >
-              <Text
-                style={[styles.segmentText, progressType === type && styles.segmentTextActive]}
+          <View style={styles.segmentTrack} accessibilityRole="tablist">
+            {(['page', 'chapter'] as const).map((type) => (
+              <Pressable
+                key={type}
+                style={[styles.segment, progressType === type && styles.segmentActive]}
+                onPress={() => setProgressType(type)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: progressType === type }}
               >
-                {type === 'page' ? 'Page' : 'Chapter'}
-              </Text>
-            </Pressable>
-          ))}
+                <Text
+                  style={[styles.segmentText, progressType === type && styles.segmentTextActive]}
+                >
+                  {type === 'page' ? 'Page' : 'Chapter'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           <TextInput
             style={[styles.input, styles.progressInput]}
             placeholder={progressType === 'page' ? 'e.g., 12' : 'e.g., 3'}
@@ -2184,25 +2196,33 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 14,
+    gap: spacing.md,
   },
   headerCover: {
-    width: 56,
-    height: 84,
-    borderRadius: 5,
-    backgroundColor: colors.border,
+    width: 72,
+    height: 108,
+    borderRadius: 6,
+    backgroundColor: colors.surface2,
+    ...cardShadow,
   },
   headerInfo: {
     flex: 1,
+    gap: spacing.xs,
+  },
+  heroTitle: {
+    fontFamily: fonts.serif,
+    fontSize: 25,
+    lineHeight: 32,
+    color: colors.text,
   },
   author: {
     color: colors.muted,
-    fontSize: 16,
-    fontFamily: fonts.serif,
-    fontStyle: 'italic',
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.sans,
   },
   meta: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     marginTop: 2,
@@ -2210,24 +2230,23 @@ const styles = StyleSheet.create({
   difficultyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   difficultyChip: {
-    borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
+    borderRadius: radii.chip,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     backgroundColor: colors.accentSoft,
   },
   difficultyChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     fontSize: 11,
-    fontWeight: '700',
     color: colors.accent,
   },
   difficultyMeta: {
     flex: 1,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 11,
     color: colors.muted,
   },
@@ -2235,96 +2254,91 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   sessionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.card,
-    borderColor: colors.accent,
-    borderWidth: 1.5,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: sizes.button,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
+    ...buttonShadow,
   },
   sessionText: {
-    fontFamily: fonts.serif,
-    color: colors.accent,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 14,
   },
   detailsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   headerEditText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '700',
     fontSize: 15,
   },
   // Status pill styled like Bookly's bold finish control: soft gold fill
   // with a firm gold border so it reads as a milestone, not body text.
   finishButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: gold.glowSoft,
-    borderColor: gold.base,
-    borderWidth: 1.5,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    ...buttonShadow,
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: sizes.button,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
   },
   finishButtonDone: {
     backgroundColor: gold.base,
     borderColor: gold.base,
   },
   finishText: {
-    fontFamily: fonts.serif,
-    color: gold.deep,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.accent,
     fontSize: 14,
   },
   finishTextDone: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: '#fffdf6',
-    fontWeight: '700',
     fontSize: 14,
   },
   tabRow: {
     flexDirection: 'row',
-    gap: 4,
-    marginTop: 14,
-    marginBottom: 12,
-    backgroundColor: colors.accentSoft,
-    borderRadius: 12,
-    padding: 4,
+    gap: 2,
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: colors.surface2,
+    borderRadius: 10,
+    padding: 3,
   },
   tabButton: {
     flex: 1,
-    borderRadius: 9,
-    paddingVertical: 9,
+    borderRadius: 7,
+    minHeight: 36,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   tabButtonActive: {
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: gold.base,
     ...cardShadow,
   },
   tabText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
-    fontWeight: '600',
-    fontSize: 13,
+    fontSize: 14,
   },
   tabTextActive: {
-    fontFamily: fonts.serif,
-    color: gold.deep,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.text,
   },
   tabPane: {
     flex: 1,
@@ -2333,10 +2347,9 @@ const styles = StyleSheet.create({
     display: 'none',
   },
   dayHeading: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     marginTop: 14,
@@ -2344,65 +2357,75 @@ const styles = StyleSheet.create({
   },
   positionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  positionChip: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  positionChipText: {
-    fontFamily: fonts.serif,
-    color: colors.accent,
-    fontWeight: '700',
-    fontSize: 12,
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   positionMeta: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 13,
+  },
+  positionBlock: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  positionText: {
+    fontFamily: fonts.sansSemiBold,
+    color: colors.text,
+    fontSize: 14,
+  },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.surface2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: colors.accent,
   },
   // Anchored capture bar (D-054): a solid shelf fixed to the screen's bottom
   // edge - full-bleed against the container padding, separated from the
   // scroll by a firm top border and an upward shadow.
   captureBar: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.sm,
     marginHorizontal: -16,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    backgroundColor: colors.card,
-    borderTopWidth: 1.5,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
     borderTopColor: colors.border,
-    elevation: 8,
-    shadowColor: '#2a1c11',
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: -3 },
   },
-  // Primary capture actions are physical gold buttons (D-054): soft gold
-  // fill, firm dark-gold border, and real elevation.
+  // Sticky action footer (D-089): russet primary Write, outlined Speak.
   captureAction: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 13,
+    gap: spacing.sm,
+    minHeight: sizes.button,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
     ...buttonShadow,
   },
+  captureActionSecondary: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   captureActionText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 15,
+  },
+  captureActionTextSecondary: {
+    color: colors.accent,
   },
   composerHeader: {
     flexDirection: 'row',
@@ -2420,9 +2443,8 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   composerCloseText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.muted,
-    fontWeight: '700',
     fontSize: 13,
   },
   // The paid recap teaser dresses differently from entry cards on purpose:
@@ -2434,7 +2456,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.accent,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 14,
@@ -2446,10 +2468,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 6,
+    borderRadius: 8,
     paddingLeft: 14,
     paddingRight: 26,
     height: 60,
@@ -2465,13 +2487,12 @@ const styles = StyleSheet.create({
   },
   goldBookmarkTitle: {
     fontFamily: fonts.serif,
-    color: gold.onFill,
+    color: colors.onAccent,
     fontSize: 15,
-    fontWeight: '700',
   },
   goldBookmarkSub: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sans,
+    color: colors.onAccent,
     fontSize: 12,
     opacity: 0.85,
     marginTop: 1,
@@ -2493,7 +2514,6 @@ const styles = StyleSheet.create({
   companionRowTitle: {
     color: colors.accent,
     fontFamily: fonts.serif,
-    fontWeight: '700',
     fontSize: 15,
   },
   teaserRow: {
@@ -2517,7 +2537,6 @@ const styles = StyleSheet.create({
   teaserTitle: {
     color: colors.text,
     fontFamily: fonts.serif,
-    fontWeight: '700',
     fontSize: 15,
   },
   teaserPill: {
@@ -2527,9 +2546,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   teaserPillText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.background,
-    fontWeight: '700',
     fontSize: 11,
     letterSpacing: 0.5,
   },
@@ -2544,7 +2562,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   teaserBody: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 14,
     lineHeight: 21,
@@ -2563,9 +2581,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   entryChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '700',
     fontSize: 11,
   },
   // A flagged important moment earns the gold highlight (D-054).
@@ -2578,9 +2595,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   importantChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: gold.deep,
-    fontWeight: '700',
     fontSize: 11,
   },
   quoteBlock: {
@@ -2594,66 +2610,35 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
     fontFamily: fonts.serif,
-    fontStyle: 'italic',
-  },
-  kindRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  // Active selection states carry the gold highlight (D-054).
-  kindChip: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1.5,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    ...buttonShadow,
-  },
-  kindChipActive: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-  },
-  kindChipText: {
-    fontFamily: fonts.serif,
-    color: colors.muted,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  kindChipTextActive: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
   },
   filterRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 2,
     marginBottom: 12,
+    backgroundColor: colors.surface2,
+    borderRadius: 10,
+    padding: 3,
   },
   filterChip: {
-    borderColor: colors.border,
-    borderWidth: 1.5,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    backgroundColor: colors.card,
-    ...buttonShadow,
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
   },
   filterChipActive: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.card,
+    ...cardShadow,
   },
   filterChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
-    fontWeight: '600',
-    fontSize: 13,
+    fontSize: 14,
   },
   filterChipTextActive: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.text,
   },
   aidPendingRow: {
     flexDirection: 'row',
@@ -2661,27 +2646,26 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
-  aidPendingText: { fontFamily: fonts.serif, color: colors.muted, fontSize: 13 },
+  aidPendingText: { fontFamily: fonts.sans, color: colors.muted, fontSize: 13 },
   aidCard: {
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 12,
     marginBottom: 12,
     gap: 8,
     ...cardShadow,
   },
   aidLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     flex: 1,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  aidSuggestion: { fontFamily: fonts.serif, color: colors.text, fontSize: 14, lineHeight: 21 },
+  aidSuggestion: { fontFamily: fonts.sans, color: colors.text, fontSize: 14, lineHeight: 21 },
   flagsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2690,12 +2674,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: colors.card,
     marginBottom: 12,
     ...cardShadow,
   },
-  flagsRowText: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontWeight: '600' },
+  flagsRowText: { fontFamily: fonts.sansSemiBold, color: colors.text, fontSize: 13 },
   meaningBlock: { marginTop: 10 },
   meaningResultRow: {
     flexDirection: 'row',
@@ -2706,12 +2690,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: colors.card,
     ...cardShadow,
   },
-  meaningResultText: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, flex: 1 },
-  meaningClearText: { fontFamily: fonts.serif, color: colors.accent, fontSize: 13, fontWeight: '600' },
+  meaningResultText: { fontFamily: fonts.sans, color: colors.text, fontSize: 13, flex: 1 },
+  meaningClearText: { fontFamily: fonts.sansSemiBold, color: colors.accent, fontSize: 13 },
   flagsHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   flagSuggestion: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -2719,13 +2703,13 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     gap: 4,
   },
-  flagPreview: { fontFamily: fonts.serif, color: colors.text, fontSize: 13, fontStyle: 'italic' },
-  flagReason: { fontFamily: fonts.serif, color: colors.muted, fontSize: 12, lineHeight: 17 },
+  flagPreview: { fontFamily: fonts.sans, color: colors.text, fontSize: 13 },
+  flagReason: { fontFamily: fonts.sans, color: colors.muted, fontSize: 12, lineHeight: 17 },
   captureCard: {
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     marginBottom: 14,
     ...cardShadow,
@@ -2734,11 +2718,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 17,
     fontFamily: fonts.serif,
-    fontWeight: '700',
     marginBottom: 6,
   },
   captureHint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18,
@@ -2749,34 +2732,39 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'center',
   },
-  segment: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1.5,
+  segmentTrack: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface2,
     borderRadius: 10,
+    padding: 3,
+    gap: 2,
+  },
+  segment: {
+    minHeight: 40,
+    minWidth: 84,
+    borderRadius: 7,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    ...buttonShadow,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   segmentActive: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.card,
+    ...cardShadow,
   },
   segmentText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
+    fontSize: 14,
     color: colors.muted,
-    fontWeight: '600',
   },
   segmentTextActive: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.text,
   },
   progressInput: {
     flex: 1,
   },
   boundaryHint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     marginTop: 10,
@@ -2796,9 +2784,8 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   dictateButtonText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '600',
     fontSize: 13,
   },
   dictationCard: {
@@ -2810,35 +2797,32 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   dictationLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
-    fontWeight: '700',
     fontSize: 13,
     marginBottom: 6,
   },
   dictationPartial: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
-    fontStyle: 'italic',
     marginBottom: 8,
   },
   dictationPreview: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 15,
     lineHeight: 21,
     marginBottom: 8,
   },
   dictationRawNote: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
-    fontStyle: 'italic',
     marginBottom: 6,
   },
   dictationHint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 16,
@@ -2858,13 +2842,12 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   stopButtonText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.danger,
-    fontWeight: '700',
     fontSize: 13,
   },
   input: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     backgroundColor: colors.background,
     borderColor: colors.border,
     borderWidth: 1,
@@ -2890,39 +2873,37 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   highlightMatch: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     backgroundColor: gold.glow,
     color: colors.text,
-    fontWeight: '700',
     borderRadius: 3,
   },
   // Primary actions are physical gold buttons (D-054).
   primaryButton: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 12,
     ...buttonShadow,
   },
   primaryButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 15,
   },
   loader: {
     marginVertical: 16,
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     marginTop: 8,
   },
   empty: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
     marginTop: 4,
@@ -2936,18 +2917,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     ...cardShadow,
   },
   cardText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 15,
     lineHeight: 21,
   },
   cardDate: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     marginTop: 8,
@@ -2958,8 +2939,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   smallButton: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
     borderRadius: 8,
     paddingHorizontal: 14,
@@ -2967,9 +2948,8 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   smallButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 13,
   },
   smallButtonGhost: {
@@ -2982,9 +2962,8 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   smallButtonGhostText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
-    fontWeight: '600',
     fontSize: 13,
   },
   smallButtonDanger: {
@@ -2997,22 +2976,19 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   smallButtonDangerText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.danger,
-    fontWeight: '600',
     fontSize: 13,
   },
   characterName: {
     color: colors.text,
     fontSize: 17,
-    fontFamily: fonts.serif,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
   },
   firstNotedText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: gold.deep,
     fontSize: 12,
-    fontWeight: '700',
     marginTop: 2,
   },
   cardFocused: {
@@ -3033,7 +3009,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickAddHint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     marginTop: 6,
@@ -3043,9 +3019,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   detailsToggleText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '700',
     fontSize: 13,
   },
   suggestionBlock: {
@@ -3053,10 +3028,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   suggestionLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.accent,
     fontSize: 11,
-    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 6,
@@ -3077,9 +3051,8 @@ const styles = StyleSheet.create({
     ...buttonShadow,
   },
   suggestionChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '700',
     fontSize: 13,
   },
   mentionRow: {
@@ -3089,24 +3062,22 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   mentionText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '700',
   },
   characterSection: {
     marginTop: 8,
   },
   characterLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.accent,
     fontSize: 11,
-    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   photoStatus: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     marginTop: 8,
@@ -3115,7 +3086,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     ...cardShadow,
   },
@@ -3134,7 +3105,7 @@ const styles = StyleSheet.create({
   photoCaption: {
     color: colors.text,
     fontSize: 15,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     lineHeight: 21,
   },
 });

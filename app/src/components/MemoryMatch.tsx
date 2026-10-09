@@ -16,7 +16,7 @@ import {
   type MemoryBoard,
   type MemoryTile,
 } from '@/domains/cueCards/memoryGame';
-import { cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { cardShadow, colors, fonts, gold, radii, spacing } from '@/lib/theme';
 
 interface MemoryMatchProps {
   cards: readonly CompanionCueCard[];
@@ -151,7 +151,7 @@ function Tile({
           </Text>
         </View>
       ) : (
-        <Ionicons name="bookmark-outline" size={30} color={colors.onWalnutMuted} />
+        <Ionicons name="bookmark-outline" size={30} color={gold.base} />
       )}
     </Pressable>
   );
@@ -172,10 +172,9 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   status: {
-    fontFamily: fonts.serif,
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fonts.sansMedium,
+    color: colors.accent,
+    fontSize: 15,
   },
   clock: {
     flexDirection: 'row',
@@ -183,34 +182,32 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   clockText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 15,
-    fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   best: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
-    fontStyle: 'italic',
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: 12,
-    paddingBottom: 24,
+    rowGap: spacing.md,
+    paddingBottom: spacing.lg,
   },
   tile: {
     // Two across (D-066): a tile wide enough for a twelve-word answer at
     // body size, no font shrinking.
     width: '48.5%',
-    minHeight: 136,
-    borderRadius: 14,
+    minHeight: 104,
+    borderRadius: radii.card,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     ...cardShadow,
@@ -233,36 +230,33 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   tileAnswer: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: gold.glowSoft,
+    borderColor: gold.glow,
   },
   tileMatched: {
     borderWidth: 2,
     borderColor: gold.deep,
   },
   tileTag: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     textAlign: 'center',
   },
   tileTagAnswer: {
-    color: gold.onFill,
-    opacity: 0.8,
+    color: colors.muted,
   },
   tileText: {
     width: '100%',
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: '600',
+    fontSize: 17,
+    lineHeight: 24,
     textAlign: 'center',
   },
   tileTextAnswer: {
-    color: gold.onFill,
-    fontWeight: '500',
+    color: colors.text,
   },
 });

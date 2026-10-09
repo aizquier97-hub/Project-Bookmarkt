@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/domains/auth/AuthProvider';
-import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, colors, fonts } from '@/lib/theme';
 
 const VERIFY_TIMEOUT_MS = 12_000;
 
@@ -101,35 +101,33 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 28,
     fontFamily: fonts.serif,
-    fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
     textAlign: 'center',
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     fontSize: 14,
     textAlign: 'center',
   },
   button: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
     ...buttonShadow,
   },
   buttonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 16,
-    fontWeight: '700',
   },
 });

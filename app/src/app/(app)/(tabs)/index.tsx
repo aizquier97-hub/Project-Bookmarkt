@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -20,9 +20,16 @@ import { BarChart } from '@/components/charts/BarChart';
 import { Heatmap } from '@/components/charts/Heatmap';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { TrophyStrip } from '@/components/TrophyStrip';
-import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { HeaderAction, SegmentedControl } from '@/components/ui';
+import { buttonShadow, cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/theme';
 
 const RANGES: FitnessRange[] = ['1M', '3M', '6M', '1Y'];
+const RANGE_LABELS: Record<FitnessRange, string> = {
+  '1M': '1 month',
+  '3M': '3 months',
+  '6M': '6 months',
+  '1Y': '1 year',
+};
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** Pieces-in-progress rows shown before the reader expands the list. */
 const IN_PROGRESS_PREVIEW = 4;
@@ -74,6 +81,17 @@ export default function ProfileScreen() {
         />
       }
     >
+      <Tabs.Screen
+        options={{
+          headerRight: () => (
+            <HeaderAction
+              label="Calendar"
+              accessibilityLabel="Open the reading calendar"
+              onPress={() => router.push('/reading-calendar')}
+            />
+          ),
+        }}
+      />
       <StreakCard streak={model.streak} />
 
       <Pressable
@@ -82,7 +100,7 @@ export default function ProfileScreen() {
         accessibilityRole="button"
         accessibilityLabel="Start a reading session"
       >
-        <Ionicons name="hourglass-outline" size={20} color={gold.onFill} />
+        <Ionicons name="hourglass-outline" size={20} color={colors.onAccent} />
         <Text style={styles.timerButtonText}>Start a reading session</Text>
       </Pressable>
 
@@ -94,24 +112,16 @@ export default function ProfileScreen() {
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Reading Fitness</Text>
-          <View style={styles.rangeRow}>
-            {RANGES.map((option) => {
-              const active = option === range;
-              return (
-                <Pressable
-                  key={option}
-                  style={[styles.rangeChip, active && styles.rangeChipActive]}
-                  onPress={() => setRange(option)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                >
-                  <Text style={[styles.rangeText, active && styles.rangeTextActive]}>{option}</Text>
-                </Pressable>
-              );
-            })}
+          <Text style={styles.cardTitle}>Reading fitness</Text>
+          <View style={styles.rangeBadge}>
+            <Text style={styles.rangeBadgeText}>{RANGE_LABELS[range]}</Text>
           </View>
         </View>
+        <SegmentedControl
+          value={range}
+          onChange={setRange}
+          options={RANGES.map((option) => ({ value: option, label: option }))}
+        />
         <View style={styles.heroRow}>
           <Text style={styles.heroValue}>{formatFitness(trend.current)}</Text>
           <Text
@@ -293,8 +303,9 @@ function StreakCard({ streak }: { streak: StreakResult }) {
       </View>
       <View style={styles.flex}>
         <View style={styles.streakHeader}>
-          <Text style={styles.streakValue}>{streak.current}</Text>
-          <Text style={styles.streakUnit}>day streak</Text>
+          <Text style={styles.streakValue}>
+            {streak.current} day streak
+          </Text>
           {streak.state === 'frozen' ? (
             <View style={styles.frozenBadge}>
               <Ionicons name="snow-outline" size={12} color={colors.accent} />
@@ -306,7 +317,7 @@ function StreakCard({ streak }: { streak: StreakResult }) {
         <Text style={styles.streakMeta}>
           Longest {streak.longest} {streak.longest === 1 ? 'day' : 'days'}
           {streak.freezesUsed > 0
-            ? ` - ${streak.freezesUsed} of ${MAX_CONSECUTIVE_FREEZES} consecutive freezes used`
+            ? ` · ${streak.freezesUsed} of ${MAX_CONSECUTIVE_FREEZES} consecutive freezes used`
             : ''}
         </Text>
       </View>
@@ -647,17 +658,17 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   content: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   card: {
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    gap: 10,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    gap: spacing.md,
     ...cardShadow,
   },
   cardHeader: {
@@ -668,31 +679,30 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: fonts.serif,
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 28,
     color: colors.text,
   },
   cardMeta: {
-    fontFamily: fonts.serif,
-    fontSize: 12,
+    fontFamily: fonts.sans,
+    fontSize: 13,
     color: colors.muted,
   },
   cardBody: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
     color: colors.muted,
   },
   cardFootnote: {
-    fontFamily: fonts.serif,
-    fontSize: 12,
-    lineHeight: 17,
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    lineHeight: 19,
     color: colors.muted,
   },
   subheading: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     fontSize: 13,
-    fontWeight: '600',
     color: colors.muted,
     marginBottom: 4,
   },
@@ -703,31 +713,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-    borderWidth: 1.5,
-    borderRadius: 10,
-    paddingVertical: 14,
-    marginBottom: 14,
+    gap: spacing.sm,
+    minHeight: sizes.button,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
     ...buttonShadow,
   },
   timerButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 16,
   },
   streakCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: spacing.md,
   },
   streakFlame: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.accentSoft,
+    backgroundColor: gold.glowSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -739,14 +747,9 @@ const styles = StyleSheet.create({
   },
   streakValue: {
     fontFamily: fonts.serif,
-    fontSize: 30,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
     color: colors.text,
-  },
-  streakUnit: {
-    fontFamily: fonts.serif,
-    fontSize: 14,
-    color: colors.muted,
   },
   frozenBadge: {
     flexDirection: 'row',
@@ -759,47 +762,34 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   frozenText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     fontSize: 11,
     color: colors.accent,
-    fontWeight: '600',
   },
   streakMessage: {
-    fontFamily: fonts.serif,
-    fontSize: 13,
-    lineHeight: 18,
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    lineHeight: 21,
     color: colors.text,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   streakMeta: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 12,
+    lineHeight: 17,
     color: colors.muted,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
-  rangeRow: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  rangeChip: {
-    borderRadius: 999,
+  rangeBadge: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: radii.chip,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  rangeChipActive: {
-    backgroundColor: colors.walnut,
-    borderColor: colors.walnut,
-  },
-  rangeText: {
-    fontFamily: fonts.serif,
+  rangeBadgeText: {
+    fontFamily: fonts.sansMedium,
     fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted,
-  },
-  rangeTextActive: {
-    color: colors.onWalnut,
+    color: colors.accent,
   },
   heroRow: {
     flexDirection: 'row',
@@ -809,29 +799,27 @@ const styles = StyleSheet.create({
   },
   heroValue: {
     fontFamily: fonts.serif,
-    fontSize: 34,
-    fontWeight: '700',
+    fontSize: 44,
+    lineHeight: 52,
     color: colors.text,
   },
   heroUnit: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 14,
     color: colors.muted,
   },
   heroDelta: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     fontSize: 14,
-    fontWeight: '600',
-    color: colors.rise,
+    color: colors.accent,
   },
   heroDeltaDown: {
     color: colors.fall,
   },
   volumeDelta: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     fontSize: 13,
-    fontWeight: '600',
-    color: colors.rise,
+    color: colors.accent,
   },
   cardLink: {
     flexDirection: 'row',
@@ -847,32 +835,30 @@ const styles = StyleSheet.create({
   metric: {
     flexBasis: '46%',
     flexGrow: 1,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 10,
+    backgroundColor: colors.surface2,
+    borderRadius: radii.field,
+    padding: spacing.md,
   },
   metricLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     fontSize: 12,
+    letterSpacing: 0.4,
     color: colors.muted,
-    fontWeight: '600',
   },
   metricValue: {
     fontFamily: fonts.serif,
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    lineHeight: 30,
     color: colors.text,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   metricUnit: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 12,
     color: colors.text,
   },
   metricHint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 11,
     color: colors.muted,
     marginTop: 2,
@@ -906,9 +892,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   trophyCount: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     fontSize: 22,
-    fontWeight: '700',
     color: colors.text,
   },
   trophyCountEmpty: {
@@ -917,11 +902,10 @@ const styles = StyleSheet.create({
   trophyTitle: {
     fontFamily: fonts.serif,
     fontSize: 14,
-    fontWeight: '700',
     color: colors.text,
   },
   trophyRange: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 11,
     color: colors.muted,
   },
@@ -940,7 +924,6 @@ const styles = StyleSheet.create({
   shelfTitle: {
     fontFamily: fonts.serif,
     fontSize: 14,
-    fontWeight: '600',
     color: colors.text,
   },
   inProgress: {
@@ -984,11 +967,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.serif,
     fontSize: 15,
-    fontWeight: '600',
     color: colors.text,
   },
   bookMeta: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 12,
     color: colors.muted,
   },
@@ -999,9 +981,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
   },
   difficultyChipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     fontSize: 11,
-    fontWeight: '600',
     color: colors.accent,
   },
   explainer: {
@@ -1010,12 +991,11 @@ const styles = StyleSheet.create({
   explainerHeading: {
     fontFamily: fonts.serif,
     fontSize: 14,
-    fontWeight: '700',
     color: colors.text,
     marginTop: 6,
   },
   explainerBody: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 13,
     lineHeight: 19,
     color: colors.muted,

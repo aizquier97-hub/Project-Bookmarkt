@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   RefreshControl,
@@ -23,12 +22,13 @@ import {
 } from '@/domains/entries/quotes';
 import { countWords } from '@/domains/fitness/difficulty';
 import { READING_MODEL_KEYS } from '@/domains/fitness/useReadingModel';
-import { listBooks } from '@/domains/library/service';
+import { listBooks, type Book } from '@/domains/library/service';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
+import { Button, CircleButton, SegmentedControl } from '@/components/ui';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { cardShadow, colors, fonts, gold, radii, spacing } from '@/lib/theme';
 
 type Filter = 'all' | 'favorites' | 'reflected';
 
@@ -44,6 +44,7 @@ export default function QuotesScreen() {
   const { showToast } = useToast();
   const [filter, setFilter] = useState<Filter>('all');
   const [editing, setEditing] = useState<Quote | null>(null);
+  const [pickingBook, setPickingBook] = useState(false);
 
   const quotesQuery = useQuery({ queryKey: queryKeys.quotes, queryFn: listQuotes });
   const booksQuery = useQuery({ queryKey: queryKeys.books, queryFn: listBooks });
@@ -87,9 +88,46 @@ export default function QuotesScreen() {
 
   const analysis = useMemo(() => summarize(quotes, bookNames), [quotes, bookNames]);
 
+  // The circular "+" (D-089): one tap to log a quote. A single book goes
+  // straight to its composer in quote mode; more than one asks which book.
+  const books = useMemo(() => booksQuery.data ?? [], [booksQuery.data]);
+  const openQuoteComposer = (bookId: number) => {
+    setPickingBook(false);
+    router.push({
+      pathname: '/book/[id]',
+      params: { id: String(bookId), compose: 'write', kind: 'quote' },
+    });
+  };
+  const onAddQuote = () => {
+    if (books.length === 0) {
+      showToast('Add a book to your library first.', 'error');
+      router.push('/library');
+      return;
+    }
+    const reading = books.filter((book) => !book.finished_at);
+    if (books.length === 1) {
+      openQuoteComposer(books[0].id);
+    } else if (reading.length === 1) {
+      openQuoteComposer(reading[0].id);
+    } else {
+      setPickingBook(true);
+    }
+  };
+  const header = (
+    <Stack.Screen
+      options={{
+        title: 'Quotes',
+        headerRight: () => (
+          <CircleButton icon="add" accessibilityLabel="Add a quote" onPress={onAddQuote} />
+        ),
+      }}
+    />
+  );
+
   if (quotesQuery.isPending) {
     return (
       <View style={styles.stateContainer}>
+        {header}
         <LoadingState label="Gathering your quotes…" />
       </View>
     );
@@ -97,6 +135,7 @@ export default function QuotesScreen() {
   if (quotesQuery.isError) {
     return (
       <View style={styles.stateContainer}>
+        {header}
         <ErrorState
           error={quotesQuery.error}
           fallback="Could not load your quotes."
@@ -108,6 +147,7 @@ export default function QuotesScreen() {
 
   return (
     <>
+      {header}
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -121,10 +161,10 @@ export default function QuotesScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Personal analysis</Text>
           <View style={styles.statRow}>
-            <Stat label="Quotes" value={String(analysis.total)} />
-            <Stat label="Favorites" value={String(analysis.favorites)} />
-            <Stat label="Reflected" value={String(analysis.reflected)} />
-            <Stat label="Books" value={String(analysis.books)} />
+            <Stat label="quotes" value={String(analysis.total)} />
+            <Stat label="favorites" value={String(analysis.favorites)} />
+            <Stat label="reflected" value={String(analysis.reflected)} />
+            <Stat label="books" value={String(analysis.books)} />
           </View>
           <Text style={styles.cardBody}>
             {analysis.total === 0
@@ -140,28 +180,15 @@ export default function QuotesScreen() {
           </Text>
         </View>
 
-        <View style={styles.filterRow}>
-          {(
-            [
-              ['all', 'All'],
-              ['favorites', 'Favorites'],
-              ['reflected', 'With reflection'],
-            ] as const
-          ).map(([value, label]) => {
-            const active = filter === value;
-            return (
-              <Pressable
-                key={value}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => setFilter(value)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                <Text style={[styles.filterText, active && styles.filterTextActive]}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SegmentedControl<Filter>
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'favorites', label: 'Favorites' },
+            { value: 'reflected', label: 'With reflection' },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
 
         {visible.length === 0 ? (
           <EmptyState
@@ -197,6 +224,13 @@ export default function QuotesScreen() {
         )}
       </ScrollView>
 
+      <BookPickerSheet
+        visible={pickingBook}
+        books={books}
+        onPick={openQuoteComposer}
+        onClose={() => setPickingBook(false)}
+      />
+
       <ReflectionSheet
         quote={editing}
         bookName={editing?.bookId != null ? bookNames.get(editing.bookId) ?? null : null}
@@ -229,16 +263,19 @@ function QuoteCard({
   return (
     <View style={styles.card}>
       <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel="Open this entry">
+        <Text style={styles.quoteMark} accessibilityElementsHidden importantForAccessibility="no">
+          ”
+        </Text>
         <Text style={styles.quoteBody}>“{quote.body}”</Text>
         <Text style={styles.quoteMeta}>
           {bookName ?? 'Unknown book'}
-          {quote.boundaryLabel ? ` - ${quote.boundaryLabel}` : ''}
-          {quote.createdAt ? ` - ${formatDate(quote.createdAt)}` : ''}
+          {quote.boundaryLabel ? ` · ${quote.boundaryLabel}` : ''}
+          {quote.createdAt ? ` · ${formatDate(quote.createdAt)}` : ''}
         </Text>
       </Pressable>
       {quote.reflection ? (
         <View style={styles.reflection}>
-          <Ionicons name="create-outline" size={14} color={colors.accent} />
+          <Text style={styles.reflectionLabel}>My reflection</Text>
           <Text style={styles.reflectionText}>{quote.reflection}</Text>
         </View>
       ) : null}
@@ -340,26 +377,74 @@ function ReflectionSheet({
               comprehension score behind your Reading Fitness.
             </Text>
             <View style={styles.sheetActions}>
-              <Pressable style={styles.secondaryButton} onPress={onClose} accessibilityRole="button">
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.primaryButton, mutation.isPending && styles.disabled]}
+              <Button label="Cancel" variant="secondary" onPress={onClose} style={styles.sheetButton} />
+              <Button
+                label="Save"
                 onPress={() => mutation.mutate()}
+                loading={mutation.isPending}
                 disabled={mutation.isPending}
-                accessibilityRole="button"
                 accessibilityLabel="Save reflection"
-              >
-                {mutation.isPending ? (
-                  <ActivityIndicator color={gold.onFill} />
-                ) : (
-                  <Text style={styles.primaryButtonText}>Save</Text>
-                )}
-              </Pressable>
+                style={styles.sheetButton}
+              />
             </View>
           </View>
         </KeyboardPane>
       </View>
+    </Modal>
+  );
+}
+
+function BookPickerSheet({
+  visible,
+  books,
+  onPick,
+  onClose,
+}: {
+  visible: boolean;
+  books: readonly Book[];
+  onPick: (bookId: number) => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const ordered = useMemo(
+    () =>
+      [...books].sort(
+        (a, b) => Number(Boolean(a.finished_at)) - Number(Boolean(b.finished_at)),
+      ),
+    [books],
+  );
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityLabel="Close">
+        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetTitle}>Which book is this quote from?</Text>
+          <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled">
+            {ordered.map((book) => (
+              <Pressable
+                key={book.id}
+                style={({ pressed }) => [styles.pickerRow, pressed && styles.disabled]}
+                onPress={() => onPick(book.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Add a quote from ${book.name}`}
+              >
+                <View style={styles.pickerBody}>
+                  <Text style={styles.pickerTitle} numberOfLines={2}>
+                    {book.name}
+                  </Text>
+                  {book.author ? (
+                    <Text style={styles.pickerAuthor} numberOfLines={1}>
+                      {book.author}
+                      {book.finished_at ? ' · Finished' : ''}
+                    </Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+              </Pressable>
+            ))}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -419,33 +504,36 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: spacing.lg,
   },
   content: {
-    padding: 16,
-    paddingBottom: 32,
-    gap: 12,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   card: {
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    gap: 10,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    gap: spacing.md,
     ...cardShadow,
   },
   cardTitle: {
     fontFamily: fonts.serif,
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 28,
     color: colors.text,
   },
   cardBody: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
     color: colors.muted,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
   },
   statRow: {
     flexDirection: 'row',
@@ -457,85 +545,75 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontFamily: fonts.serif,
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 28,
+    lineHeight: 34,
     color: colors.text,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 12,
+    lineHeight: 16,
     color: colors.muted,
     marginTop: 2,
   },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  filterChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  filterChipActive: {
-    backgroundColor: colors.walnut,
-    borderColor: colors.walnut,
-  },
-  filterText: {
+  quoteMark: {
     fontFamily: fonts.serif,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.muted,
-  },
-  filterTextActive: {
-    color: colors.onWalnut,
+    fontSize: 40,
+    lineHeight: 40,
+    height: 28,
+    color: gold.base,
+    marginBottom: spacing.sm,
   },
   quoteBody: {
     fontFamily: fonts.serif,
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 22,
+    lineHeight: 32,
     color: colors.text,
   },
   quoteMeta: {
-    fontFamily: fonts.serif,
-    fontSize: 12,
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.muted,
-    marginTop: 8,
+    marginTop: spacing.md,
   },
   reflection: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-start',
-    backgroundColor: colors.accentSoft,
-    borderRadius: 8,
-    padding: 10,
+    backgroundColor: colors.surface2,
+    borderRadius: radii.button,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  reflectionLabel: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.muted,
   },
   reflectionText: {
-    flex: 1,
-    fontFamily: fonts.serif,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.text,
   },
   actions: {
     flexDirection: 'row',
-    gap: 18,
+    gap: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingTop: 10,
+    paddingTop: spacing.md,
   },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minHeight: 28,
   },
   actionText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     fontSize: 13,
-    fontWeight: '600',
     color: colors.muted,
   },
   actionTextActive: {
@@ -543,7 +621,7 @@ const styles = StyleSheet.create({
   },
   sheetBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(25, 16, 8, 0.55)',
+    backgroundColor: 'rgba(42, 28, 17, 0.55)',
     justifyContent: 'flex-end',
   },
   sheetPane: {
@@ -551,92 +629,91 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: colors.card,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    padding: 18,
-    gap: 10,
+    borderTopLeftRadius: radii.card,
+    borderTopRightRadius: radii.card,
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
   sheetHandle: {
     alignSelf: 'center',
     width: 42,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: 4,
+    backgroundColor: colors.borderStrong,
+    marginBottom: spacing.xs,
   },
   sheetTitle: {
     fontFamily: fonts.serif,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 28,
     color: colors.text,
   },
   sheetQuote: {
     fontFamily: fonts.serif,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.muted,
-    fontStyle: 'italic',
   },
   sheetMeta: {
-    fontFamily: fonts.serif,
-    fontSize: 12,
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.muted,
   },
   sheetInput: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     backgroundColor: colors.background,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: radii.field,
     color: colors.text,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
     fontSize: 16,
+    lineHeight: 22,
     minHeight: 110,
     textAlignVertical: 'top',
   },
   sheetHint: {
-    fontFamily: fonts.serif,
-    fontSize: 12,
-    lineHeight: 17,
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.muted,
   },
   sheetActions: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
-  primaryButton: {
+  sheetButton: {
     flex: 1,
+  },
+  pickerList: {
+    maxHeight: 360,
+  },
+  pickerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-    borderWidth: 1.5,
-    borderRadius: 10,
-    paddingVertical: 13,
-    ...buttonShadow,
+    gap: spacing.md,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  primaryButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  secondaryButton: {
+  pickerBody: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 13,
+    gap: 2,
   },
-  secondaryButtonText: {
+  pickerTitle: {
     fontFamily: fonts.serif,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.text,
+  },
+  pickerAuthor: {
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.muted,
-    fontWeight: '600',
-    fontSize: 15,
   },
   disabled: {
     opacity: 0.6,
