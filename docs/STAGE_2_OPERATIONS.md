@@ -21,6 +21,14 @@ Three application environments map one-to-one to the EAS build profiles in
 | preview | `preview` | `preview` | Internal installable review builds |
 | production | `production` | `production` | Store submission (Stage 5) |
 
+Two store-distribution profiles extend `preview` for the closed testing
+tracks: `play-internal` (Android `.aab`, D-077) and `testflight-internal`
+(iOS, D-085). Both bake the preview Supabase values in, auto-increment the
+store build number remotely, and publish to the `preview` update channel, so
+one `eas update --channel preview` reaches Play and TestFlight testers alike.
+Step-by-step runbooks: [STAGE_4_BUILD_PLAN.md](STAGE_4_BUILD_PLAN.md) (Play)
+and [STAGE_5_BUILD_PLAN.md](STAGE_5_BUILD_PLAN.md) (TestFlight).
+
 All environments currently share the single Supabase project
 (`bfallxtcxxyykcnkedom`); a separate staging project is a Stage 5 prerequisite
 before store distribution. Secrets policy is unchanged from Stage 1: publishable

@@ -244,8 +244,8 @@ compliance, or unavailable required recovery controls.
 | Stage 1 | Complete | Approved | `GO` August 21, 2026 (D-013 early exit) | [Stage 1 review](gates/STAGE_1_REVIEW.md) |
 | Stage 2 | Complete | Approved August 21, 2026 | `GO` August 21, 2026 (D-020; iOS deferred to Stage 5) | [Entry](gates/STAGE_2_ENTRY.md) · [Exit](gates/STAGE_2_EXIT.md) |
 | Stage 3 | Complete | Entered August 22, 2026 | `GO` September 2, 2026 (D-046; usability testing deferred to Stage 6) | [Entry](gates/STAGE_3_ENTRY.md) · [Exit](gates/STAGE_3_EXIT.md) |
-| Stage 4 | Active | Entered September 2, 2026 per Stage 3 `GO` | Review drafted October 4, 2026 (D-068); pricing decided October 4, 2026 (D-070); Play subscription `premium` created October 4, 2026 (D-071); `goog_` key OTA shipped October 4, 2026 (D-071); open pending one real sandbox purchase cycle | [Build plan](STAGE_4_BUILD_PLAN.md) · [Exit (draft)](gates/STAGE_4_EXIT.md) |
-| Stage 5 | Planned | Pending Stage 4 `GO` | Not started | To be created |
+| Stage 4 | Complete | Entered September 2, 2026 per Stage 3 `GO` | `GO` October 7, 2026 (D-079; review drafted October 4, D-068; pricing D-070/D-081; Play subscription `premium` D-071; sandbox cycle and 1.0.3 device pass D-078) | [Build plan](STAGE_4_BUILD_PLAN.md) · [Exit](gates/STAGE_4_EXIT.md) |
+| Stage 5 | Active | Entered October 8, 2026 on the Stage 4 `GO` (D-085); Apple Developer enrollment outstanding | iOS build readiness shipped October 8, 2026 (D-085); Android on Play Internal testing | [Build plan](STAGE_5_BUILD_PLAN.md) · Exit to be created |
 | Stage 6 | Planned | Pending Stage 5 `GO` | Not started | To be created |
 | Stage 7 | Planned | Pending Stage 6 `GO` and mandatory Pro controls | Not started | To be created |
 | Stage 8 | Planned | Pending Stage 7 `GO` | Not started | To be created |

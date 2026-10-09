@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
+  dictationStartOptions,
   getSpeechModule,
   isDictationAvailable,
   type SpeechErrorEvent,
@@ -96,7 +97,7 @@ export function useDictation() {
           }
         }),
       );
-      speech.start({ interimResults: true, continuous: true });
+      speech.start(dictationStartOptions());
       setStatus('recording');
     } catch (err) {
       clearSubs();

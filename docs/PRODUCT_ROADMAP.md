@@ -937,7 +937,8 @@ companion included.
 
 ## 13. Stage 4 - Monetization and accounts
 
-**Status:** Active (entered 2026-09-02 per Stage 3 `GO`, D-046)
+**Status:** Complete (entered 2026-09-02 per Stage 3 `GO`, D-046; exit
+approved 2026-10-07, D-079 - [gates/STAGE_4_EXIT.md](gates/STAGE_4_EXIT.md))
 
 **Build plan:** the phase-by-phase build sequence for this stage lives in
 [STAGE_4_BUILD_PLAN.md](STAGE_4_BUILD_PLAN.md); the work plan below remains
@@ -1562,7 +1563,12 @@ created 2026-10-04, D-071; closed with `GO` on October 7, 2026).
 
 ## 14. Stage 5 - Native iOS and Android packaging
 
-**Status:** Planned
+**Status:** Active (entered 2026-10-08 with D-085, on the Stage 4 `GO` of
+2026-10-07, D-079)
+
+**Build plan:** the phase-by-phase sequence and the owner's iOS runbook live
+in [STAGE_5_BUILD_PLAN.md](STAGE_5_BUILD_PLAN.md); the work plan below
+remains the authoritative scope list.
 
 **Purpose:** Complete platform-specific integration, signing, distribution, and
 QR app-or-store routing for the native iOS and Android applications.
@@ -1571,20 +1577,30 @@ QR app-or-store routing for the native iOS and Android applications.
 
 - Stage 4 has a recorded `GO` decision.
 - Stage 4 entitlements are testable.
-- Apple Developer and Google Play Console accounts are active.
+- Apple Developer and Google Play Console accounts are active. *(Play: yes.
+  Apple: enrollment is the owner's next action; everything that does not
+  need it shipped in D-085.)*
 - Bundle identifiers, signing ownership, and supported OS versions are decided.
+  *(`com.inkmarkt.bookmarkt` on both platforms; signing assets held on EAS;
+  iPhone-only on iOS until the tablet item, D-085.)*
 
 ### Work plan
 
 - [ ] Configure the native iOS and Android projects produced by the approved
-      Stage 2 architecture.
+      Stage 2 architecture. *(Android live on Play Internal testing since
+      D-077; iOS config complete in D-085, first build waits on the Apple
+      account.)*
 - [ ] Configure stable bundle/application IDs, signing, capabilities, and build
-      environments.
+      environments. *(IDs and capabilities set, `testflight-internal`
+      profile added, D-085; iOS signing is created by EAS at the first
+      build.)*
 - [ ] Create production icons, splash screens, launch behavior, and platform
-      metadata.
-- [ ] Store sensitive native session material using platform-appropriate secure
-      storage.
+      metadata. *(Owner artwork; the Expo samples ship meanwhile.)*
+- [x] Store sensitive native session material using platform-appropriate secure
+      storage. *(Keychain / Keystore via `expo-secure-store`, reviewed in
+      D-085.)*
 - [ ] Implement Bookmarkt-controlled universal links and Android App Links.
+      *(Needs the Apple Team ID for the AASA file.)*
 - [ ] Route an uninstalled iOS user to the Apple App Store and an uninstalled
       Android user to Google Play.
 - [ ] Build the minimal smart-link/store-routing service separately from the
@@ -1598,33 +1614,45 @@ QR app-or-store routing for the native iOS and Android applications.
 - [ ] Decide and implement generic-versus-unique bookmark linking from Stage 2.
 - [ ] Handle offline, interrupted network, background/resume, and expired-session
       behavior on both platforms, including interrupted voice recordings.
-- [ ] Integrate native purchase and purchase-restoration flows.
-- [ ] Add only necessary permissions and explain each permission in context; the
+- [ ] Integrate native purchase and purchase-restoration flows. *(Live on
+      Android, D-070/D-071; wired per platform on iOS in D-085, pending the
+      App Store products and the `appl_` key.)*
+- [x] Add only necessary permissions and explain each permission in context; the
       microphone permission is requested only when the reader chooses voice
-      capture.
-- [ ] Prepare Apple privacy manifests and Android permission declarations,
+      capture. *(Android permission set reviewed in D-083; every iOS usage
+      string specific as of D-085.)*
+- [x] Prepare Apple privacy manifests and Android permission declarations,
       including microphone and speech-recognition usage descriptions.
+      *(D-085; on-device-only dictation enforced on iOS so the usage string
+      is true.)*
 - [ ] Add privacy-conscious crash and performance monitoring. (Carries the
       Stage 2 structured error/performance telemetry item, D-020; pull into
       Stage 3 early if the manual performance budgets are breached. Stage 3
       shipped an interim JS crash flight recorder into `analytics_events`,
       D-030; this item adds a real native crash SDK on top.)
-- [ ] Switch the Expo runtime version from the fixed string to the
-      fingerprint policy at the first Stage 5 native build, so an OTA update
+- [x] ~~Switch the Expo runtime version from the fixed string to the
+      fingerprint policy at the first Stage 5 native build~~, so an OTA update
       can never again reach a binary that lacks the native modules the update
       assumes. (Lesson from the D-030 add-book crash: an older installed
       binary received scanner JS without the camera module and died on
-      screen open.)
+      screen open.) *Closed in D-085 as deliberately kept on `appVersion`:
+      the fingerprint is computed on the publishing machine (a Windows
+      checkout) and on EAS's workers for the build, and a mismatch would
+      silently withhold updates; the D-083 rule - any native change bumps
+      the version, and the version is the runtime - gives the same
+      protection with a value both sides compute identically.*
 - [ ] Test file/image selection, keyboards, safe areas, orientation, text scaling,
       back navigation, and assistive technologies.
 - [ ] Add tablet support (owner decision, 2026-09-01): adapt the cover grid,
       book screen, and character map to larger screens and both
       orientations, and include tablets in the device/OS compatibility
-      matrix below.
+      matrix below. *(`supportsTablet: false` until then, D-085.)*
 - [ ] Configure reproducible signed release builds and protected signing assets.
+      *(Android done; iOS at the first EAS build.)*
 - [ ] Distribute builds through TestFlight internal testing and Google Play
       internal testing. (Carries the Stage 2 iOS internal-build criterion,
-      D-020.)
+      D-020.) *(Play: live. TestFlight: runbook ready, waits on the
+      account.)*
 - [ ] Run the device/OS compatibility matrix on physical devices.
 - [ ] Prepare and safely test the PWA retirement switch, including service-worker
       unregistering, cached installations, routing, and user communication.

@@ -30,6 +30,15 @@
         "buildType": "app-bundle"
       }
     },
+    "testflight-internal": {
+      "extends": "preview",
+      "environment": "preview",
+      "autoIncrement": true,
+      "distribution": "store",
+      "ios": {
+        "simulator": false
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",
@@ -39,6 +48,9 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "testflight-internal": {
+      "ios": {}
+    }
   }
 }

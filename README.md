@@ -50,7 +50,12 @@ prototype PWA has been succeeded by the native Expo app in `app/`, delivered
 to the owner's Android phone as an EAS preview build with over-the-air
 updates.
 
-Stage 4 (Monetization and accounts) is active. The AI Reading Companion is
+Stage 4 (Monetization and accounts) closed on 2026-10-07 (D-079) and Stage 5
+(Native iOS and Android packaging) is active: Android runs on Google Play
+Internal testing, and the iOS project is configured for a one-command
+TestFlight build once the Apple Developer account exists
+([docs/STAGE_5_BUILD_PLAN.md](docs/STAGE_5_BUILD_PLAN.md), D-085). The AI
+Reading Companion is
 built and live for entitled accounts, presented per the owner's Interface
 v2.0 brief: a **Book Club** home tab, a **Cue Cards** home tab (flip-card
 decks), bookmark-ribbon entry timelines with one-line AI summaries, and a

@@ -1,10 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { useAuth } from '@/domains/auth/AuthProvider';
+import { subscriptionLegalLinks } from '@/domains/billing/legalLinks';
 import { PAYWALL_FEATURES } from '@/domains/billing/paywallFeatures';
 import { annualSavingsPercent } from '@/domains/billing/planCopy';
 import {
@@ -423,6 +433,22 @@ export default function SubscriptionScreen() {
           </Text>
         )}
       </Pressable>
+
+      <View style={styles.legalRow}>
+        {subscriptionLegalLinks(Platform.OS).map((link, index) => (
+          <View key={link.id} style={styles.legalItem}>
+            {index > 0 ? <Text style={styles.legalDot}>·</Text> : null}
+            <Pressable
+              onPress={() => void WebBrowser.openBrowserAsync(link.url)}
+              accessibilityRole="link"
+              accessibilityLabel={link.label}
+              hitSlop={8}
+            >
+              <Text style={styles.legalLink}>{link.label}</Text>
+            </Pressable>
+          </View>
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -688,6 +714,28 @@ const styles = StyleSheet.create({
   restoreLink: {
     color: colors.accent,
     fontWeight: '600',
+  },
+  legalRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    paddingBottom: 4,
+  },
+  legalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legalDot: {
+    color: colors.muted,
+    fontSize: 13,
+    marginHorizontal: 8,
+  },
+  legalLink: {
+    fontFamily: fonts.serif,
+    color: colors.muted,
+    fontSize: 12.5,
+    textDecorationLine: 'underline',
   },
   notice: {
     fontFamily: fonts.serif,
