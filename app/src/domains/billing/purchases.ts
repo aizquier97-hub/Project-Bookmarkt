@@ -9,14 +9,33 @@
  * instead of crashing older runtimes or Expo Go.
  */
 
+import { Platform } from 'react-native';
 import type PurchasesType from 'react-native-purchases';
 import type { PurchasesPackage } from 'react-native-purchases';
 
 import { freeTrialLabel, readFreeTrial } from '@/domains/billing/planCopy';
 
-// RevenueCat *publishable* SDK key (safe to ship in the app, like the
-// Supabase anon key). Configured with Google Play Store app key (D-071).
-const REVENUECAT_API_KEY = 'goog_acdCtFcKInxdmAvZqOmGVrNHLBu';
+// RevenueCat *publishable* SDK keys (safe to ship in the app, like the
+// Supabase anon key). One per store app in the RevenueCat project.
+// - Google Play: configured 2026-10-04 (D-071).
+// - App Store: created in RevenueCat only once the App Store Connect app
+//   exists (D-085). Until then the default is empty and an iOS build simply
+//   reports billing as unavailable. When the owner has the `appl_` key it is
+//   pasted here as the default (same as the Play key, ships OTA); the
+//   `EXPO_PUBLIC_REVENUECAT_APPLE_KEY` build variable lets a build carry it
+//   before that one-line change lands.
+const REVENUECAT_GOOGLE_KEY = 'goog_acdCtFcKInxdmAvZqOmGVrNHLBu';
+const REVENUECAT_APPLE_KEY = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY ?? '';
+
+/** The SDK key for this platform's store, or null when the store is not set up yet. */
+export function revenueCatKeyFor(
+  platform: string,
+  keys: { google: string; apple: string } = { google: REVENUECAT_GOOGLE_KEY, apple: REVENUECAT_APPLE_KEY },
+): string | null {
+  const key = platform === 'ios' ? keys.apple : platform === 'android' ? keys.google : '';
+  const trimmed = key.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 export type BillingPackage = {
   identifier: string;
@@ -63,9 +82,13 @@ export async function ensureBillingReady(userId: string): Promise<boolean> {
   if (!Purchases) {
     return false;
   }
+  const apiKey = revenueCatKeyFor(Platform.OS);
+  if (!apiKey) {
+    return false;
+  }
   try {
     if (configuredForUser === null) {
-      Purchases.configure({ apiKey: REVENUECAT_API_KEY, appUserID: userId });
+      Purchases.configure({ apiKey, appUserID: userId });
       configuredForUser = userId;
     } else if (configuredForUser !== userId) {
       await Purchases.logIn(userId);

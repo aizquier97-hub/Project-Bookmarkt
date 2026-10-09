@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { Stack, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,6 +20,7 @@ import { deleteAccount } from '@/domains/account/service';
 import { fetchExportPayload, serializeExport } from '@/domains/account/export';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { requestPasswordReset, signOut } from '@/domains/auth/service';
+import { PRIVACY_POLICY_URL } from '@/domains/billing/legalLinks';
 import { replayOnboarding } from '@/domains/onboarding/firstRun';
 import { cardShadow, colors, fonts } from '@/lib/theme';
 
@@ -270,6 +272,19 @@ export default function SettingsScreen() {
             <Text style={styles.rowSub}>Something broken or confusing? Tell us.</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </Pressable>
+        <Pressable
+          style={[styles.row, styles.rowDivider]}
+          onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL)}
+          accessibilityRole="link"
+          accessibilityLabel="Privacy policy"
+        >
+          <Ionicons name="shield-checkmark-outline" size={22} color={colors.accent} />
+          <View style={styles.rowTextWrap}>
+            <Text style={styles.rowTitle}>Privacy policy</Text>
+            <Text style={styles.rowSub}>What Bookmarkt keeps, and what it never does with it.</Text>
+          </View>
+          <Ionicons name="open-outline" size={18} color={colors.muted} />
         </Pressable>
         <View style={styles.row}>
           <Ionicons name="information-circle-outline" size={22} color={colors.accent} />
