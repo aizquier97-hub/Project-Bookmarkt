@@ -110,8 +110,8 @@ export default function QuotesScreen() {
   const openQuoteComposer = (bookId: number) => {
     setPickingBook(false);
     router.push({
-      pathname: '/book/[id]',
-      params: { id: String(bookId), compose: 'write', kind: 'quote' },
+      pathname: '/compose-entry',
+      params: { id: String(bookId), mode: 'write', kind: 'quote', source: 'quotes_shelf' },
     });
   };
   const onAddQuote = () => {

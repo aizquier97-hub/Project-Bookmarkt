@@ -30,6 +30,8 @@ export const queryKeys = {
     ['companion-character-extract', bookId, noteHash] as const,
   /** Every entry across the library, for the Reading Fitness model (D-062). */
   activityEntries: ['activity-entries'] as const,
+  /** The note just saved on the compose screen (D-092), for the journal's follow-ups. */
+  lastSavedNote: (bookId: number) => ['last-saved-note', bookId] as const,
   readingSessions: ['reading-sessions'] as const,
   engagementDays: ['engagement-days'] as const,
   quotes: ['quotes'] as const,

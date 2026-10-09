@@ -50,15 +50,18 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: colors.background },
         tabBarActiveTintColor: gold.base,
         tabBarInactiveTintColor: colors.onWalnut,
+        // Bar content is 52pt (D-092: icon 22 + label 14 + underline 2 +
+        // breathing room) over the system inset; on Android's 3-button
+        // navigation that inset is walnut too, so the bar itself stays lean.
         tabBarStyle: {
           backgroundColor: colors.walnut,
           borderTopColor: colors.walnutBorder,
           borderTopWidth: StyleSheet.hairlineWidth,
-          height: 64 + insets.bottom,
-          paddingTop: 8,
+          height: 52 + insets.bottom,
+          paddingTop: 4,
           paddingBottom: insets.bottom,
         },
-        tabBarItemStyle: { paddingVertical: 2, gap: 2 },
+        tabBarItemStyle: { paddingVertical: 0, gap: 0 },
         tabBarLabel: tabLabel,
       }}
       // Which tabs readers actually visit (D-086): the tab's route name only.
@@ -82,7 +85,7 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  labelWrap: { alignItems: 'center', gap: 3 },
+  labelWrap: { alignItems: 'center', gap: 2 },
   label: { fontSize: 11, lineHeight: 14, fontFamily: fonts.sansMedium },
   labelActive: { fontFamily: fonts.sansSemiBold },
   underline: { width: 18, height: 2, borderRadius: 1, backgroundColor: 'transparent' },

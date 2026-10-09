@@ -600,15 +600,17 @@ function TimerFlow({
       router.replace({ pathname: '/book/[id]', params: { id: String(book.id) } });
     };
     // The sitting is logged; the next step is the entry (D-064). A sitting
-    // without a note hands off straight into the book's composer with the
-    // stopping page already filled in, before the thought fades.
+    // without a note hands off straight into the entry composer (its own
+    // screen since D-092) with the stopping page already filled in, before
+    // the thought fades. Saving there returns to the book underneath.
     const writeEntry = () => {
       nextStep('write_entry');
       router.replace({
-        pathname: '/book/[id]',
+        pathname: '/compose-entry',
         params: {
           id: String(book.id),
-          compose: 'write',
+          mode: 'write',
+          source: 'timer_handoff',
           ...(saved.endPage !== null ? { page: String(saved.endPage) } : {}),
         },
       });
