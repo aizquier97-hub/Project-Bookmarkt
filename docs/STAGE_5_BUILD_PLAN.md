@@ -1,7 +1,8 @@
 # Stage 5 Build Plan - Native iOS and Android packaging
 
 **Status:** Active (entered 2026-10-08 with D-085). Stage 4 closed on
-2026-10-07 (D-079); the Android Internal-testing track is live on 1.0.4.
+2026-10-07 (D-079); the Android Internal-testing track is live on 1.0.4,
+with the 1.0.5 artwork build (Phase 3, D-088) as the next release.
 
 This plan carries the Stage 5 work plan from
 [PRODUCT_ROADMAP.md §14](PRODUCT_ROADMAP.md) phase by phase. Phase 1 is
@@ -162,9 +163,10 @@ TestFlight.
 
 ### Not in Phase 1 (owner artwork or later phases)
 
-- `ios.icon` is still the Expo Icon Composer sample (`assets/expo.icon`)
-  and the splash is the template blue `#208AEF`: production icon/splash is
-  the owner artwork item (Phase 3 below). TestFlight accepts the sample.
+- ~~`ios.icon` is still the Expo Icon Composer sample (`assets/expo.icon`)
+  and the splash is the template blue `#208AEF`~~ *Closed by D-088
+  (Phase 3): the production icon and splash ship from 1.0.5; `ios.icon`
+  is gone and iOS uses `icon.png`.*
 - `ios.associatedDomains` (Universal Links) needs the Apple Team ID in the
   `apple-app-site-association` file on `bookmarkt.io`: Phase 4 below.
 - Tablet layout (`supportsTablet: true`) is Phase 5.
@@ -189,20 +191,22 @@ already on `main`.
    and tax forms. Subscriptions cannot be created, and sandbox purchases
    fail, until Paid Apps shows *Active*.
 
-### B. Production Icon and Splash Artwork (can be done anytime before store submission)
+### B. Production icon and splash artwork (done in D-088; reference for later changes)
 
-You can build with the placeholder icon for initial TestFlight testing, or drop in real artwork now:
+The owner's artwork landed on `main` in D-088 and is baked into every build
+from 1.0.5 on, iOS included - nothing to do here before the first
+TestFlight build. If a file is ever replaced, these are the slots:
 
-- **App Icon (Universal & iOS):** Place a **1024×1024 px PNG** (no transparency, no rounded corners) at `app/assets/images/icon.png` (or update `ios.icon` in `app/app.json`).
+- **App Icon (Universal & iOS):** `app/assets/images/icon.png` - 1024×1024 px PNG, no transparency, no rounded corners (the bookmark on parchment `#F4EDE1`). `ios.icon` is intentionally absent; add it back only with a full Icon Composer bundle.
 - **Android Adaptive Icon:**
-  - Foreground: `app/assets/images/android-icon-foreground.png` (1024×1024 px with key logo inside the center 66% circle).
-  - Background: `app/assets/images/android-icon-background.png` or hex color in `app.json` (`backgroundColor`).
-  - Monochrome (optional, for Android 13+ themed icons): `app/assets/images/android-icon-monochrome.png`.
+  - Foreground: `app/assets/images/android-icon-foreground.png` (1024×1024 px, artwork inside the centre 66% circle - currently within 59%).
+  - Background: `app/assets/images/android-icon-background.png` (solid parchment) plus `backgroundColor` `#F4EDE1` in `app.json`.
+  - Monochrome (Android 13+ themed icons **and** the notification small icon): `app/assets/images/android-icon-monochrome.png`, white on transparent.
 - **Splash Screen:**
-  - Mark/logo: `app/assets/images/splash-icon.png` (centered transparent PNG).
-  - Brand background color: update `"backgroundColor": "#208AEF"` in `app/app.json` (under `expo-splash-screen` plugin).
+  - Mark: `app/assets/images/splash-icon.png` (1024×1024 transparent PNG, mark centred), shown at `imageWidth` 200 dp.
+  - Background: `"backgroundColor": "#F4EDE1"` under the `expo-splash-screen` plugin in `app/app.json`; no dark variant yet (parchment in both modes).
 
-Whenever artwork files are updated, native builds (`eas build`) must be re-run since icons/splash are baked at build time.
+Whenever artwork files are updated, bump `expo.version` and re-run the native builds (`eas build`) - icons and splash are baked at build time and never travel over the air.
 
 ### C. First build (one command, about 20 minutes on EAS)
 
@@ -252,9 +256,9 @@ TestFlight has two kinds of groups and they are not interchangeable:
    after 90 days; re-run B+C for a new one.
 9. From then on, JS-only changes reach iPhones **over the air** on the
    `preview` channel exactly as on Android (`eas update --channel preview`)
-   - the iOS 1.0.4 binary picks up the existing 1.0.4 update groups on
-   first launch. Native changes (a new module, a plugin, a `version` bump)
-   need B+C again.
+   - the iOS binary picks up the update groups published for its runtime
+   (1.0.5 from D-088 on) on first launch. Native changes (a new module, a
+   plugin, artwork, a `version` bump) need B+C again.
 
 ### E. App Store subscriptions (so the paywall works on iPhone)
 
@@ -321,8 +325,8 @@ hard-codes them.
   tracking.
 - Screenshots (iPhone 6.7" and 6.1"), description, keywords, support URL,
   marketing URL `https://bookmarkt.io`.
-- Production icon and splash (Phase 3), a Bookmarkt Terms page, the
-  export-compliance confirmation above.
+- A Bookmarkt Terms page and the export-compliance confirmation above
+  (the production icon and splash shipped in D-088).
 
 ---
 
@@ -335,11 +339,27 @@ hard-codes them.
 
 ## Phase 3 - Icons, splash and platform metadata (owner artwork + one PR)
 
-- [ ] Production app icon (1024 px master; Android adaptive foreground /
+- [x] Production app icon (1024 px master; Android adaptive foreground /
       background / monochrome; iOS via Icon Composer or a flat PNG),
       splash screen colour and mark replacing `#208AEF` /
-      `splash-icon.png`, notification small icon re-check.
+      `splash-icon.png`, notification small icon re-check. *(D-088,
+      2026-10-10: owner artwork - a leather bookmark with a gold-capped
+      tassel on parchment `#F4EDE1`. `icon.png` flattened to an opaque
+      1024² tile; adaptive foreground / monochrome inside 59% of the
+      half-width; splash mark at 200 dp on parchment; `ios.icon` and the
+      Icon Composer sample removed; notification small icon unchanged
+      (monochrome file, white on transparent). `expo.version` -> **1.0.5**
+      (runtime 1.0.5); `play-internal` build for the next Internal-testing
+      release - build ID in the decision log. No OTA for 1.0.4: the JS is
+      unchanged.)*
 - [ ] Store listings: App Store Connect and Play Console copy, screenshots.
+      *(Ready to upload under Play Console -> Store listing -> Graphics: the
+      512² Play icon derived from `icon.png` and the owner's 1024×500
+      feature graphic "Restore your focus / Your personalized reading
+      companion." Copy direction from the owner, 2026-10-10: stop the
+      hyper-emphasis on paper books - format-neutral, focus / companion
+      framing; the current listing title still says "Paper Book Journal"
+      and should be revised with the rest of the copy.)*
 
 ## Phase 4 - Universal Links / App Links and store routing
 

@@ -1595,7 +1595,9 @@ QR app-or-store routing for the native iOS and Android applications.
       profile added, D-085; iOS signing is created by EAS at the first
       build.)*
 - [ ] Create production icons, splash screens, launch behavior, and platform
-      metadata. *(Owner artwork; the Expo samples ship meanwhile.)*
+      metadata. *(Icons and splash: owner artwork shipped in D-088 as the
+      1.0.5 build. Store metadata and listing copy continue under
+      STAGE_5_BUILD_PLAN Phase 3.)*
 - [x] Store sensitive native session material using platform-appropriate secure
       storage. *(Keychain / Keystore via `expo-secure-store`, reviewed in
       D-085.)*
