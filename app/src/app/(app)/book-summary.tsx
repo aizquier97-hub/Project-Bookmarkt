@@ -84,6 +84,7 @@ export default function BookSummaryScreen() {
         {screenTitle}
         <PremiumOffer
           title="The story so far"
+          source="summary_lock"
           body="Choose any stretch of your bookmarks and the companion retells that part of the story from your own entries - as brief or as detailed as you like, never past your latest page."
         />
       </View>

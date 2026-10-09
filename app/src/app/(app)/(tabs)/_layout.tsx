@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { colors, fonts, gold } from '@/lib/theme';
 
 // Bottom tabs (D-040): the primary-destination pattern every reading app in
@@ -27,6 +28,12 @@ export default function TabsLayout() {
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600', fontFamily: fonts.serif },
       }}
+      // Which tabs readers actually visit (D-086): the tab's route name only.
+      screenListeners={({ route }) => ({
+        focus: () => {
+          trackAnalyticsEvent('tab_viewed', { tab: route.name });
+        },
+      })}
     >
       <Tabs.Screen
         name="index"

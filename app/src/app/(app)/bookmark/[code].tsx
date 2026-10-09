@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -20,7 +20,9 @@ import {
   registerBookmark,
   type Bookmark,
 } from '@/domains/bookmarks/service';
+import { bookmarkScanOutcome } from '@/domains/bookmarks/scanOutcome';
 import { listBooks } from '@/domains/library/service';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { queryKeys } from '@/lib/queryKeys';
 import { buttonShadow, cardShadow, colors, fonts, gold, spineColorFor } from '@/lib/theme';
 
@@ -40,6 +42,22 @@ export default function BookmarkScanScreen() {
   const linkedTopicId = bookmark?.topic_id ?? null;
   const bookmarkId = bookmark?.id ?? null;
 
+  // Where a scan lands (D-086): straight into a book, or at one of the
+  // setup steps. Once per resolved lookup; the code itself is never sent.
+  const scanOutcome = bookmarkScanOutcome({
+    pending: bookmarkQuery.isPending,
+    error: bookmarkQuery.isError,
+    bookmark,
+  });
+  const scanTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!code || !scanOutcome || scanTrackedRef.current) {
+      return;
+    }
+    scanTrackedRef.current = true;
+    trackAnalyticsEvent('bookmark_scanned', { status: scanOutcome }, linkedTopicId);
+  }, [code, scanOutcome, linkedTopicId]);
+
   // A linked bookmark is the fast path: audit the scan and open the book.
   useEffect(() => {
     if (bookmarkId !== null && linkedTopicId !== null) {
@@ -51,16 +69,24 @@ export default function BookmarkScanScreen() {
   const claimMutation = useMutation({
     mutationFn: (id: string) => claimBookmark(id),
     onSuccess: () => {
+      trackAnalyticsEvent('bookmark_action', { action: 'claim', status: 'succeeded' });
       void queryClient.invalidateQueries({ queryKey: queryKeys.bookmark(code) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks });
+    },
+    onError: () => {
+      trackAnalyticsEvent('bookmark_action', { action: 'claim', status: 'failed' });
     },
   });
 
   const registerMutation = useMutation({
     mutationFn: () => registerBookmark(code),
     onSuccess: () => {
+      trackAnalyticsEvent('bookmark_action', { action: 'register', status: 'succeeded' });
       void queryClient.invalidateQueries({ queryKey: queryKeys.bookmark(code) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks });
+    },
+    onError: () => {
+      trackAnalyticsEvent('bookmark_action', { action: 'register', status: 'failed' });
     },
   });
 
@@ -172,11 +198,19 @@ function LinkBookmarkFlow({ bookmark }: { bookmark: Bookmark }) {
   const linkMutation = useMutation({
     mutationFn: (topicId: number) => linkBookmark(bookmark.id, topicId),
     onSuccess: (updated) => {
+      trackAnalyticsEvent(
+        'bookmark_action',
+        { action: 'link', status: 'succeeded' },
+        updated.topic_id,
+      );
       void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks });
       void queryClient.invalidateQueries({ queryKey: queryKeys.bookmark(bookmark.code) });
       if (updated.topic_id !== null) {
         router.replace({ pathname: '/book/[id]', params: { id: String(updated.topic_id) } });
       }
+    },
+    onError: () => {
+      trackAnalyticsEvent('bookmark_action', { action: 'link', status: 'failed' });
     },
   });
 

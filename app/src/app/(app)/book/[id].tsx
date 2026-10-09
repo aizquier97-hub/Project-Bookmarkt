@@ -103,6 +103,8 @@ type ComposerMode = 'write' | 'speak' | null;
 
 // One-time "search by meaning" explainer flag (D-052).
 const MEANING_INTRO_KEY = 'semantic_search_intro_seen';
+// Journal search signal (D-086) waits for typing to settle before one event.
+const ENTRY_SEARCH_SIGNAL_DELAY_MS = 900;
 
 // Matches the PWA rule: only flag "(edited)" when updated_at trails created_at
 // by more than a second.
@@ -621,6 +623,28 @@ function EntriesTab({
     });
   }, [entries, entrySearch, entryFilter, hasMarkedEntries, meaningMatches]);
 
+  // Zero-result journal searches (D-086): one debounced signal per settled
+  // query with the match count only - the words stay on the device.
+  const entrySearchLength = entrySearch.trim().length;
+  const visibleCount = visibleEntries.length;
+  useEffect(() => {
+    if (entrySearchLength < 2 || meaningMatches) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      trackAnalyticsEvent(
+        'entry_search_used',
+        { matches: visibleCount, zeroResults: visibleCount === 0, entries: entries.length },
+        bookId,
+      );
+    }, ENTRY_SEARCH_SIGNAL_DELAY_MS);
+    return () => clearTimeout(timer);
+    // Re-arm on the query only: the count captured here belongs to the
+    // render that applied that query, and a background refetch should not
+    // re-emit the signal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entrySearch, entrySearchLength, meaningMatches, bookId]);
+
   const addEntryMutation = useMutation({
     mutationFn: () =>
       addEntry(bookId, {
@@ -864,7 +888,22 @@ function EntriesTab({
           <Text style={styles.captureTitle}>Save an entry</Text>
           <Pressable
             style={styles.composerClose}
-            onPress={() => onComposerModeChange(null)}
+            onPress={() => {
+              // Abandonment signal (D-086): how much was typed, never what.
+              if (text.trim()) {
+                trackAnalyticsEvent(
+                  'entry_draft_discarded',
+                  {
+                    chars: text.trim().length,
+                    hadTranscript: rawTranscripts.length > 0,
+                    composerMode,
+                    kind: entryKind,
+                  },
+                  bookId,
+                );
+              }
+              onComposerModeChange(null);
+            }}
             accessibilityRole="button"
             accessibilityLabel="Close the entry composer"
           >

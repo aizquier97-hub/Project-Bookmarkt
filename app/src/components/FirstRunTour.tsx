@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { openSubscription } from '@/domains/billing/paywallSource';
 import { dismissOnboarding, useOnboardingVisible } from '@/domains/onboarding/firstRun';
 import { ONBOARDING_SLIDES, type OnboardingSlide } from '@/domains/onboarding/slides';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
@@ -114,7 +115,9 @@ function TourModal() {
             <Slide
               slide={item}
               width={width}
-              onSeePlans={() => finish('completed', () => router.push('/subscription'))}
+              onSeePlans={() =>
+                finish('completed', () => openSubscription(router, 'first_run_tour'))
+              }
             />
           )}
         />

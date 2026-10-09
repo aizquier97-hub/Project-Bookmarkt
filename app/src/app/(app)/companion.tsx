@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ErrorState, LoadingState } from '@/components/states';
 import { KeyboardPane } from '@/components/KeyboardPane';
+import { openSubscription } from '@/domains/billing/paywallSource';
 import {
   CompanionRequestError,
   fetchCompanionMessages,
@@ -118,6 +119,10 @@ export default function CompanionScreen() {
  */
 function CompanionOffer() {
   const router = useRouter();
+  // The lock itself is the funnel's top (D-086); the tap below is its next step.
+  useEffect(() => {
+    trackAnalyticsEvent('paywall_hit', { feature: 'companion', reason: 'locked' });
+  }, []);
   return (
     <View style={styles.offerContainer}>
       <Stack.Screen options={{ title: 'Book Club' }} />
@@ -137,7 +142,7 @@ function CompanionOffer() {
         </Text>
         <Pressable
           style={styles.offerButton}
-          onPress={() => router.push('/subscription')}
+          onPress={() => openSubscription(router, 'club_lock')}
           accessibilityRole="button"
           accessibilityLabel="View plans and free trial"
         >
@@ -346,10 +351,12 @@ function SocraticDeck({ bookId }: { bookId: number }) {
       if (err instanceof CompanionRequestError) {
         trackAnalyticsEvent('companion_message_sent', { status: err.code }, bookId);
         if (err.subscriptionRequired) {
+          trackAnalyticsEvent('paywall_hit', { feature: 'companion', reason: 'subscription' }, bookId);
           void queryClient.invalidateQueries({ queryKey: queryKeys.companionEntitlement });
           return;
         }
         if (err.quotaExceeded) {
+          trackAnalyticsEvent('paywall_hit', { feature: 'companion', reason: 'quota' }, bookId);
           setQuotaNotice(err.message);
           return;
         }

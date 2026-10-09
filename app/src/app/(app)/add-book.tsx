@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { KeyboardPane } from '@/components/KeyboardPane';
+import { bookSearchStatus, manualAddReason } from '@/domains/library/addBookSignals';
 import {
   lookupBookSearchByIsbn,
   lookupPagesForTitle,
@@ -195,6 +196,11 @@ export default function AddBookScreen() {
           if (requestRef.current === requestId) {
             setResults(found);
             setSearching(false);
+            // Funnel signal (D-086): outcome and count only, never the words.
+            trackAnalyticsEvent('book_search_used', {
+              status: bookSearchStatus(found.length),
+              resultCount: found.length,
+            });
           }
         },
         () => {
@@ -202,6 +208,7 @@ export default function AddBookScreen() {
             setResults([]);
             setSearching(false);
             setSearchError('Search is unreachable right now - try again or add the book manually.');
+            trackAnalyticsEvent('book_search_used', { status: 'error', resultCount: 0 });
           }
         },
       );
@@ -258,6 +265,7 @@ export default function AddBookScreen() {
   const applyIsbn = async (raw: string) => {
     const normalized = normalizeIsbn(raw);
     if (!normalized) {
+      trackAnalyticsEvent('barcode_scanned', { status: 'invalid' });
       setSearchError('That does not look like a valid ISBN - check the digits.');
       return;
     }
@@ -266,13 +274,17 @@ export default function AddBookScreen() {
     try {
       const found = await lookupBookSearchByIsbn(normalized);
       if (!found) {
+        trackAnalyticsEvent('barcode_scanned', { status: 'not_found' });
         setStoredIsbn(normalized);
         setManualOpen(true);
+        trackAnalyticsEvent('manual_add_opened', { reason: 'scan_miss' });
         setManualError('No match for that barcode - add the details by hand and we keep the ISBN.');
         return;
       }
+      trackAnalyticsEvent('barcode_scanned', { status: 'found' });
       handlePickResult(found);
     } catch {
+      trackAnalyticsEvent('barcode_scanned', { status: 'error' });
       setSearchError('The lookup timed out - try again or add the book manually.');
     } finally {
       setLookupBusy(false);
@@ -284,9 +296,26 @@ export default function AddBookScreen() {
     void applyIsbn(digits);
   };
 
+  const openScanner = () => {
+    trackAnalyticsEvent('barcode_scan_opened', {});
+    setScannerOpen(true);
+  };
+
   const openManual = () => {
     if (!manualOpen && !name.trim() && query.trim() && !normalizeIsbn(query)) {
       setName(query.trim());
+    }
+    if (!manualOpen) {
+      // Why readers leave search: no results, an error, or nothing typed yet.
+      trackAnalyticsEvent('manual_add_opened', {
+        reason: manualAddReason({
+          searchError: Boolean(searchError),
+          queryLength: query.trim().length,
+          minQueryLength: MIN_QUERY_LENGTH,
+          resultCount: results.length,
+          searching,
+        }),
+      });
     }
     setManualOpen((open) => !open);
   };
@@ -383,7 +412,7 @@ export default function AddBookScreen() {
           {scannerAvailable ? (
             <Pressable
               style={styles.scanButton}
-              onPress={() => setScannerOpen(true)}
+              onPress={openScanner}
               disabled={lookupBusy}
               accessibilityRole="button"
               accessibilityLabel="Scan the book's barcode"

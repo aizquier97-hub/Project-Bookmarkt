@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { openSubscription, type PaywallSource } from '@/domains/billing/paywallSource';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { colors, fonts, gold } from '@/lib/theme';
 
 /**
@@ -9,10 +12,22 @@ import { colors, fonts, gold } from '@/lib/theme';
  * Club, Recall match, and story-so-far screens. It never decides access
  * itself - the caller renders it only after the server said "not entitled"
  * - and it hands off to the Subscription screen, where the free trial and
- * plans live (D-068).
+ * plans live (D-068). `source` names the lock the reader came from (D-086).
  */
-export function PremiumOffer({ title, body }: { title: string; body: string }) {
+export function PremiumOffer({
+  title,
+  body,
+  source,
+}: {
+  title: string;
+  body: string;
+  source: PaywallSource;
+}) {
   const router = useRouter();
+  // Seeing the lock is the top of the paywall funnel (D-086).
+  useEffect(() => {
+    trackAnalyticsEvent('paywall_hit', { feature: source, reason: 'locked' });
+  }, [source]);
   return (
     <View style={styles.container}>
       <View style={styles.card}>
@@ -27,7 +42,7 @@ export function PremiumOffer({ title, body }: { title: string; body: string }) {
         </Text>
         <Pressable
           style={styles.pill}
-          onPress={() => router.push('/subscription')}
+          onPress={() => openSubscription(router, source)}
           accessibilityRole="button"
           accessibilityLabel="View plans and free trial"
         >

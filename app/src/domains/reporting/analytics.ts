@@ -40,7 +40,29 @@ export type AnalyticsEventName =
   | 'trial_started'
   | 'trial_locked_viewed'
   // First-run tour (D-084): outcome and how far the reader got, nothing else.
-  | 'onboarding_finished';
+  | 'onboarding_finished'
+  // Usage coverage (D-086): sessions, navigation, capture funnels, paywall
+  // attribution, QR bookmark journeys, permissions, and settings actions.
+  // Properties are statuses, modes, and counts - never text, titles, codes,
+  // search terms, prices, or anything a reader typed or said.
+  | 'app_opened'
+  | 'tab_viewed'
+  | 'screen_viewed'
+  | 'book_search_used'
+  | 'barcode_scan_opened'
+  | 'barcode_scanned'
+  | 'manual_add_opened'
+  | 'dictation_started'
+  | 'dictation_finished'
+  | 'dictation_reviewed'
+  | 'entry_draft_discarded'
+  | 'entry_search_used'
+  | 'bookmark_scanned'
+  | 'bookmark_action'
+  | 'paywall_hit'
+  | 'notification_permission_result'
+  | 'exact_alarm_prompt'
+  | 'settings_action';
 
 export function trackAnalyticsEvent(
   eventName: AnalyticsEventName,
