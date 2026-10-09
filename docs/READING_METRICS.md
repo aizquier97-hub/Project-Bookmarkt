@@ -14,7 +14,8 @@ the comprehension grade (D-065, companion subscribers), where the
 nothing else.
 
 Design goals, in order: honest with sparse data, cheap to compute, and
-explainable in one sentence inside the app ("How these are calculated").
+explainable in one sentence to a reader. (The in-app "How these are
+calculated" card was retired in D-090; its copy is kept in Appendix A.)
 
 ## 1. Inputs
 
@@ -465,3 +466,54 @@ action.
   paged session exists the default 0.5 pages/min is a guess.
 - Keeping the screen awake during the glass requires `expo-keep-awake` and a
   native build; the timer derives from wall-clock so backgrounding is safe.
+
+## Appendix A. Retired in-app explainer copy (D-090)
+
+The Profile carried a collapsible "How these are calculated" card from
+D-062 to D-089. The owner asked for it to come out of the app and stay
+logged internally; this is the copy as last shipped (D-067 wording), so the
+reader-facing phrasing of each formula is on record.
+
+**Difficulty Index (1-10).** Each book is rated once from what is known
+about it - prose, structure, and ideas - on a fixed scale: a light adventure
+sits near 3, a literary novel near 6, and The Brothers Karamazov near 8.
+Only the title, author, and catalog details are used, never your notes.
+Until a rating arrives, a quick estimate from genre, era, and length (plus
+the quotes you log) stands in. Set your own in Edit book and yours wins.
+
+**Comprehension (0-100%).** Scored per book per day from what your reading
+leaves behind. Silent timed reading scores 0. Any bookmark that day earns 50
+points; up to 80 words of notes add 25; an Important flag and reflecting on
+a quote add 12.5 each. With the companion, each book's notes are also graded
+for what they show you understood: recall (half the grade - specific,
+accurate tracking of people, events, and ideas), interpretation (a quarter -
+the why), connection and evaluation (an eighth each), each marked 0-4. The
+grade scales the points your writing earned that day: accurate, factual
+notes grade 50% and leave them as they are; reflective notes add up to half
+again; thin notes take some away. A grade from only a few notes counts for
+less, and books are regraded only when you write something new. The tile
+averages the last 28 days, weighted by pages; each graded book's row shows
+the notes grade itself. Inside Session Effort the same score is the
+multiplier x0.6 (0%) to x1.4 (100%).
+
+**Session Effort.** pages x (Difficulty / 5) x Comprehension, per book per
+day. Pages come from your bookmark positions or the pages you enter after a
+Sandglass session, whichever is larger.
+
+**Pace.** Pages per minute across your timed sessions with a page range
+(last 28 days). A typical novel sits around 0.7-1.0; dense non-fiction well
+under that.
+
+**Reading Fitness.** Each day: Fitness = yesterday's Fitness + (today's
+Effort - yesterday's Fitness) / 42. A quiet day costs about 2.4%; a steady
+habit lifts it.
+
+**Streaks and Reading Current.** A read day is any bookmark or session. A
+day spent only with the companion (recaps, questions, search) freezes the
+streak instead of breaking it, up to 2 days in a row. Frozen days are not
+counted.
+
+**Trophies.** 4 pieces per book at each quarter of its page count;
+finishing a book completes the trophy even without a page count. Finished
+trophies are shelved by the book's Difficulty Index: Light, Moderate,
+Demanding, Dense.

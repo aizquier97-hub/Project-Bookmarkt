@@ -440,6 +440,19 @@ function extractGeminiText(geminiJson: any): string {
   return parts.map((p: any) => p?.text ?? "").join("").trim();
 }
 
+/** One-line diagnosis of a reply that parsed to nothing (D-090). */
+function describeEmptyReply(geminiJson: any, text: string): string {
+  const candidate = geminiJson?.candidates?.[0];
+  const usage = geminiJson?.usageMetadata ?? {};
+  return [
+    `finish=${candidate?.finishReason ?? geminiJson?.promptFeedback?.blockReason ?? "none"}`,
+    `chars=${text.length}`,
+    `thoughts=${usage.thoughtsTokenCount ?? 0}`,
+    `out=${usage.candidatesTokenCount ?? 0}`,
+    `head=${JSON.stringify(text.slice(0, 80))}`,
+  ].join(" ");
+}
+
 /** djb2 - cheap change detection for re-embedding edited entries. */
 function hashContent(text: string): string {
   let hash = 5381;
@@ -698,8 +711,22 @@ function parseCompanionJson(raw: string): {
     const probe = String(parsed?.probe ?? "").trim().slice(0, 400);
     const isConvergence = parsed?.is_convergence === true;
     const insight = String(parsed?.insight ?? "").trim().slice(0, 400);
+    const cards = Array.isArray(parsed?.cards)
+      ? parsed.cards
+          .map((c: any) => ({
+            front: String(c?.front ?? "").trim().slice(0, 200),
+            back: String(c?.back ?? "").trim().slice(0, 300),
+          }))
+          .filter((c: { front: string; back: string }) => c.front && c.back)
+          .slice(0, 10)
+      : [];
+    // A deck that arrives without its one-line intro is still a deck (D-090):
+    // the model occasionally skips "reply" when the cards run long, and the
+    // match board never shows the line anyway.
     const reply =
-      String(parsed?.reply ?? "").trim() || [mirror, probe].filter(Boolean).join("\n\n");
+      String(parsed?.reply ?? "").trim() ||
+      [mirror, probe].filter(Boolean).join("\n\n") ||
+      (cards.length >= 2 ? "Your cards are dealt." : "");
     if (reply) {
       const provenance = ["your_notes", "general_knowledge", "mixed"].includes(parsed?.provenance)
         ? parsed.provenance
@@ -712,15 +739,6 @@ function parseCompanionJson(raw: string): {
             }))
             .filter((s: { entryId: number }) => Number.isFinite(s.entryId) && s.entryId > 0)
             .slice(0, 3)
-        : [];
-      const cards = Array.isArray(parsed?.cards)
-        ? parsed.cards
-            .map((c: any) => ({
-              front: String(c?.front ?? "").trim().slice(0, 200),
-              back: String(c?.back ?? "").trim().slice(0, 300),
-            }))
-            .filter((c: { front: string; back: string }) => c.front && c.back)
-            .slice(0, 10)
         : [];
       const stems = Array.isArray(parsed?.stems)
         ? parsed.stems
@@ -1729,29 +1747,32 @@ serve(async (req) => {
     }
 
     // 5. The provider call - reachable only past every gate above.
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents,
-          generationConfig: {
-            // Cue cards (D-066) run cooler: the match game needs precise,
-            // distinct pairs more than it needs variety, and 0.5 still
-            // varies the deck enough for "New cards" to differ. Character
-            // extraction (D-077) is colder still: it transcribes, never riffs.
-            temperature:
-              feature === "character_extract" ? 0.2 : feature === "cue_cards" ? 0.5 : 0.7,
-            // Thinking tokens share this budget on 2.5 models; a tight cap
-            // is what truncated the primer JSON mid-document.
-            maxOutputTokens: 8192,
-            responseMimeType: "application/json",
-          },
-        }),
-      },
-    );
+    const callGemini = (thinkingBudget: number | null) =>
+      fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents,
+            generationConfig: {
+              // Cue cards (D-066) run cooler: the match game needs precise,
+              // distinct pairs more than it needs variety, and 0.5 still
+              // varies the deck enough for "New cards" to differ. Character
+              // extraction (D-077) is colder still: it transcribes, never riffs.
+              temperature:
+                feature === "character_extract" ? 0.2 : feature === "cue_cards" ? 0.5 : 0.7,
+              // Thinking tokens share this budget on 2.5 models; a tight cap
+              // is what truncated the primer JSON mid-document.
+              maxOutputTokens: 8192,
+              responseMimeType: "application/json",
+              ...(thinkingBudget === null ? {} : { thinkingConfig: { thinkingBudget } }),
+            },
+          }),
+        },
+      );
+    let geminiResponse = await callGemini(null);
     if (!geminiResponse.ok) {
       const upstreamStatus = geminiResponse.status;
       await finalize("failed", 502, {
@@ -1761,13 +1782,40 @@ serve(async (req) => {
       });
       return jsonResponse({ error: "The companion is momentarily lost in thought. Please try again.", code: "PROVIDER_ERROR" }, 502);
     }
-    const geminiJson = await geminiResponse.json();
-    const parsed = parseCompanionJson(extractGeminiText(geminiJson));
+    let geminiJson = await geminiResponse.json();
+    let parsed = parseCompanionJson(extractGeminiText(geminiJson));
+    // An empty answer (D-090): usually thinking tokens ate the output budget
+    // or the JSON came back truncated. One retry with thinking off is cheap
+    // and almost always lands; the diagnostics of the first attempt travel on
+    // the usage row so a repeat can be read later.
+    let retried = false;
     if (!parsed.reply) {
-      await finalize("failed", 502, { error_code: "EMPTY_REPLY" });
-      return jsonResponse({ error: "The companion is momentarily lost in thought. Please try again.", code: "PROVIDER_ERROR" }, 502);
+      const firstText = extractGeminiText(geminiJson);
+      const firstDiag = describeEmptyReply(geminiJson, firstText);
+      const retryResponse = await callGemini(0);
+      retried = true;
+      if (retryResponse.ok) {
+        geminiResponse = retryResponse;
+        geminiJson = await retryResponse.json();
+        parsed = parseCompanionJson(extractGeminiText(geminiJson));
+      }
+      if (!parsed.reply) {
+        const secondText = retryResponse.ok ? extractGeminiText(geminiJson) : "";
+        await finalize("failed", 502, {
+          error_code: "EMPTY_REPLY",
+          upstream_status: retryResponse.ok ? null : retryResponse.status,
+          error_message: truncate(
+            `first: ${firstDiag}; retry: ${
+              retryResponse.ok ? describeEmptyReply(geminiJson, secondText) : `http ${retryResponse.status}`
+            }`,
+            300,
+          ),
+        });
+        return jsonResponse({ error: "The companion is momentarily lost in thought. Please try again.", code: "PROVIDER_ERROR" }, 502);
+      }
     }
     const usage = geminiJson?.usageMetadata ?? {};
+    const retryNote = retried ? { error_message: "recovered on retry with thinking off" } : {};
 
     // suggest_flags: keep only suggestions that point at real context entries.
     const suggestions =
@@ -1832,6 +1880,7 @@ serve(async (req) => {
       output_tokens: Number(usage.candidatesTokenCount ?? 0) || null,
       grounding_entries: entryLines.length,
       grounding_characters: characterRows.length,
+      ...retryNote,
     });
 
     return jsonResponse({

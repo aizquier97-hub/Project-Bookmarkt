@@ -766,6 +766,13 @@ capture.
         `components/ui` primitives (headers, buttons, cards, chips,
         segmented controls, sticky footers). All 25 mockup screens aligned
         in one OTA round.
+    - Revised 2026-10-10 (D-090): first device-feedback pass on the new
+        design - Sandglass redrawn to the reference, thin-line Lucide tab
+        icons with the gold underline under the label, Book Club straight
+        into the dialogue, compact Recall legend, recency-ordered quote
+        picker, X axis on the fitness chart, Profile trimmed of "By book"
+        and the explainer. The Recall deal's EMPTY_REPLY failure fixed
+        server-side (parser tolerance + one thinking-off retry).
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs

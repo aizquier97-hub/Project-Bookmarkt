@@ -4,13 +4,13 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { comprehensionPercent, describeComprehensionGrade } from '@/domains/fitness/activity';
-import { describeDifficultySource, difficultyLabel } from '@/domains/fitness/difficulty';
+import { difficultyLabel } from '@/domains/fitness/difficulty';
 import {
   describeFitnessTrend,
   FITNESS_TIME_CONSTANT,
   type FitnessRange,
 } from '@/domains/fitness/fitness';
-import type { BookFitness, ReadingModel, TrophyGroup } from '@/domains/fitness/model';
+import type { ReadingModel, TrophyGroup } from '@/domains/fitness/model';
 import { MAX_CONSECUTIVE_FREEZES, type StreakResult } from '@/domains/fitness/streaks';
 import { TROPHY_SEGMENTS } from '@/domains/fitness/trophies';
 import { useReadingModel } from '@/domains/fitness/useReadingModel';
@@ -136,7 +136,7 @@ export default function ProfileScreen() {
           </Text>
         </View>
         <AreaChart
-          points={trend.points.map((point) => ({ value: point.fitness }))}
+          points={trend.points.map((point) => ({ value: point.fitness, day: point.day }))}
           height={150}
           startLabel={trend.points.length ? monthLabel(trend.points[0].day) : undefined}
           endLabel="Today"
@@ -262,25 +262,6 @@ export default function ProfileScreen() {
       </Pressable>
 
       <TrophyCase model={model} />
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>By book</Text>
-        {model.books.length === 0 ? (
-          <Text style={styles.cardBody}>Your library is empty.</Text>
-        ) : (
-          sortBooks(model.books).map((item) => (
-            <BookRow
-              key={item.book.id}
-              item={item}
-              onPress={() =>
-                router.push({ pathname: '/book/[id]', params: { id: String(item.book.id) } })
-              }
-            />
-          ))
-        )}
-      </View>
-
-      <Explainer model={model} />
     </ScrollView>
   );
 }
@@ -499,122 +480,6 @@ function TrophyCase({ model }: { model: ReadingModel<Book> }) {
       ) : null}
     </View>
   );
-}
-
-function BookRow({ item, onPress }: { item: BookFitness<Book>; onPress: () => void }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.bookRow, pressed && styles.pressed]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${item.book.name}, difficulty ${item.difficulty.score} of 10`}
-    >
-      <View style={styles.bookHeader}>
-        <Text style={styles.bookTitle} numberOfLines={1}>
-          {item.book.name}
-        </Text>
-        <View style={styles.difficultyChip}>
-          <Text style={styles.difficultyChipText}>
-            {difficultyLabel(item.difficulty.score)} {item.difficulty.score}
-          </Text>
-        </View>
-      </View>
-      <Text style={styles.bookMeta}>
-        {describeDifficultySource(item.difficulty)}
-        {item.pages > 0 ? ` - ${item.pages} pages` : ''}
-        {item.minutes > 0 ? `, ${item.minutes} timed min` : ''}
-        {item.streak.current > 0 ? ` - ${item.streak.current}-day streak` : ''}
-        {typeof item.book.comprehension_score === 'number'
-          ? ` - notes graded ${Math.round(item.book.comprehension_score * 100)}%, ${describeComprehensionGrade(item.book.comprehension_score)}`
-          : ''}
-      </Text>
-      <TrophyStrip progress={item.trophy} compact />
-    </Pressable>
-  );
-}
-
-function Explainer({ model }: { model: ReadingModel<Book> }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <View style={styles.card}>
-      <Pressable
-        style={styles.cardHeader}
-        onPress={() => setOpen((value) => !value)}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-      >
-        <Text style={styles.cardTitle}>How these are calculated</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
-      </Pressable>
-      {open ? (
-        <View style={styles.explainer}>
-          <Text style={styles.explainerHeading}>Difficulty Index (1-10)</Text>
-          <Text style={styles.explainerBody}>
-            Each book is rated once from what is known about it - prose, structure, and ideas - on
-            a fixed scale: a light adventure sits near 3, a literary novel near 6, and The Brothers
-            Karamazov near 8. Only the title, author, and catalog details are used, never your
-            notes. Until a rating arrives, a quick estimate from genre, era, and length (plus the
-            quotes you log) stands in. Set your own in Edit book and yours wins.
-          </Text>
-          <Text style={styles.explainerHeading}>Comprehension (0-100%)</Text>
-          <Text style={styles.explainerBody}>
-            Scored per book per day from what your reading leaves behind. Silent timed reading
-            scores 0. Any bookmark that day earns 50 points; up to 80 words of notes add 25; an
-            Important flag and reflecting on a quote add 12.5 each. With the companion, each book’s
-            notes are also graded for what they show you understood: recall (half the grade -
-            specific, accurate tracking of people, events, and ideas), interpretation (a quarter -
-            the why), connection and evaluation (an eighth each), each marked 0-4. The grade scales
-            the points your writing earned that day: accurate, factual notes grade 50% and leave
-            them as they are; reflective notes add up to half again; thin notes take some away. A
-            grade from only a few notes counts for less, and books are regraded only when you write
-            something new. The tile averages the last 28 days, weighted by pages; each graded
-            book’s row shows the notes grade itself. Inside Session Effort the same score is the
-            multiplier x0.6 (0%) to x1.4 (100%).
-          </Text>
-          <Text style={styles.explainerHeading}>Session Effort</Text>
-          <Text style={styles.explainerBody}>
-            pages x (Difficulty / 5) x Comprehension, per book per day. Pages come from your bookmark
-            positions or the pages you enter after a Sandglass session, whichever is larger.
-          </Text>
-          <Text style={styles.explainerHeading}>Pace</Text>
-          <Text style={styles.explainerBody}>
-            Pages per minute across your timed sessions with a page range (last 28 days). A
-            typical novel sits around 0.7-1.0; dense non-fiction well under that.
-          </Text>
-          <Text style={styles.explainerHeading}>Reading Fitness</Text>
-          <Text style={styles.explainerBody}>
-            Each day: Fitness = yesterday’s Fitness + (today’s Effort - yesterday’s Fitness) / 42. A
-            quiet day costs about 2.4%; a steady habit lifts it. Current value {formatFitness(
-              model.series.length ? model.series[model.series.length - 1].fitness : 0,
-            )}.
-          </Text>
-          <Text style={styles.explainerHeading}>Streaks and Reading Current</Text>
-          <Text style={styles.explainerBody}>
-            A read day is any bookmark or session. A day spent only with the companion (recaps,
-            questions, search) freezes the streak instead of breaking it, up to{' '}
-            {MAX_CONSECUTIVE_FREEZES} days in a row. Frozen days are not counted.
-          </Text>
-          <Text style={styles.explainerHeading}>Trophies</Text>
-          <Text style={styles.explainerBody}>
-            {TROPHY_SEGMENTS} pieces per book at each quarter of its page count; finishing a book
-            completes the trophy even without a page count. Finished trophies are shelved by the
-            book’s Difficulty Index: Light, Moderate, Demanding, Dense.
-          </Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function sortBooks(books: readonly BookFitness<Book>[]): BookFitness<Book>[] {
-  return [...books].sort((a, b) => {
-    const left = a.lastActiveDay ?? '';
-    const right = b.lastActiveDay ?? '';
-    if (left !== right) {
-      return left < right ? 1 : -1;
-    }
-    return a.book.name.localeCompare(b.book.name);
-  });
 }
 
 function formatFitness(value: number): string {
@@ -926,6 +791,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
   },
+  bookMeta: {
+    fontFamily: fonts.sans,
+    fontSize: 12,
+    color: colors.muted,
+  },
   inProgress: {
     gap: 8,
     marginTop: 4,
@@ -950,54 +820,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     fontSize: 13,
     color: colors.text,
-  },
-  bookRow: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 10,
-    gap: 6,
-  },
-  bookHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  bookTitle: {
-    flex: 1,
-    fontFamily: fonts.serif,
-    fontSize: 15,
-    color: colors.text,
-  },
-  bookMeta: {
-    fontFamily: fonts.sans,
-    fontSize: 12,
-    color: colors.muted,
-  },
-  difficultyChip: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: colors.accentSoft,
-  },
-  difficultyChipText: {
-    fontFamily: fonts.sansSemiBold,
-    fontSize: 11,
-    color: colors.accent,
-  },
-  explainer: {
-    gap: 4,
-  },
-  explainerHeading: {
-    fontFamily: fonts.serif,
-    fontSize: 14,
-    color: colors.text,
-    marginTop: 6,
-  },
-  explainerBody: {
-    fontFamily: fonts.sans,
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.muted,
   },
 });

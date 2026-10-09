@@ -225,16 +225,6 @@ function RecallMatch({ bookId }: { bookId: number }) {
     return (
       <ScrollView contentContainerStyle={styles.introContainer}>
         <Stack.Screen options={{ title: 'Recall' }} />
-        <View style={styles.tilePair} accessible accessibilityLabel="A cue tile and an answer tile">
-          <View style={styles.tile}>
-            <Ionicons name="bookmark-outline" size={26} color={gold.base} />
-            <Text style={styles.tileLabel}>Cue</Text>
-          </View>
-          <View style={[styles.tile, styles.tileAnswer]}>
-            <Ionicons name="bookmark-outline" size={26} color={gold.base} />
-            <Text style={[styles.tileLabel, styles.tileLabelAnswer]}>Answer</Text>
-          </View>
-        </View>
         <View style={styles.introCard}>
           <Text style={styles.eyebrow}>Your words, remembered</Text>
           <Text style={styles.introTitle} accessibilityRole="header">
@@ -245,6 +235,20 @@ function RecallMatch({ bookId }: { bookId: number }) {
             from outside your records, nothing past your latest page - dealt face down.
           </Text>
           <View style={styles.divider} />
+          <View
+            style={styles.legendRow}
+            accessible
+            accessibilityLabel="Cue tiles are on paper; answer tiles are on gold"
+          >
+            <View style={styles.legendItem}>
+              <View style={styles.legendSwatch} />
+              <Text style={styles.legendLabel}>Cue</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendSwatch, styles.legendSwatchAnswer]} />
+              <Text style={styles.legendLabel}>Answer</Text>
+            </View>
+          </View>
           <Text style={styles.introHelper}>
             Turn two tiles at a time and pair each cue with its answer. The clock starts on your
             first turn.
@@ -389,35 +393,33 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  tilePair: {
+  legendRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.md,
+    gap: spacing.lg,
   },
-  tile: {
-    width: 104,
-    height: 136,
-    borderRadius: radii.card,
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  legendSwatch: {
+    width: 22,
+    height: 28,
+    borderRadius: 6,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
   },
-  tileAnswer: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+  legendSwatchAnswer: {
+    backgroundColor: gold.glowSoft,
+    borderColor: gold.glow,
   },
-  tileLabel: {
+  legendLabel: {
     fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-  },
-  tileLabelAnswer: {
-    color: colors.onAccent,
   },
   goldButton: {
     flexDirection: 'row',
