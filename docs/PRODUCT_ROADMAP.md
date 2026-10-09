@@ -1,4 +1,4 @@
-# Bookmarkt Product Roadmap
+﻿# Bookmarkt Product Roadmap
 
 | Field | Value |
 | --- | --- |
@@ -1662,11 +1662,12 @@ QR app-or-store routing for the native iOS and Android applications.
       orientations, and include tablets in the device/OS compatibility
       matrix below. *(`supportsTablet: false` until then, D-085.)*
 - [ ] Configure reproducible signed release builds and protected signing assets.
-      *(Android done; iOS at the first EAS build.)*
+      *(Android and iOS done; iOS build `a495a97d-bf21-43cc-8f4c-c09f3ae5cd29`
+      signed and submitted via EAS, 2026-10-09.)*
 - [ ] Distribute builds through TestFlight internal testing and Google Play
       internal testing. (Carries the Stage 2 iOS internal-build criterion,
-      D-020.) *(Play: live. TestFlight: runbook ready, waits on the
-      account.)*
+      D-020.) *(Play: live on release 5. TestFlight: build 1.0.5 submitted to
+      App Store Connect, pending Apple processing and tester group setup.)*
 - [ ] Run the device/OS compatibility matrix on physical devices.
 - [ ] Prepare and safely test the PWA retirement switch, including service-worker
       unregistering, cached installations, routing, and user communication.

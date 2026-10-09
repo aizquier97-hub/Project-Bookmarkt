@@ -219,6 +219,8 @@ Whenever artwork files are updated, bump `expo.version` and re-run the native bu
    "generate / set up" prompt. No Mac is needed at any point.
 4. Download link: EAS prints it (or expo.dev -> project -> Builds). The
    `.ipa` cannot be sideloaded onto an iPhone; it goes through TestFlight.
+   *(Completed 2026-10-09: EAS build `a495a97d-bf21-43cc-8f4c-c09f3ae5cd29`,
+   runtime 1.0.5, buildNumber 1).*
 
 ### C. App Store Connect app and the upload
 
@@ -230,6 +232,8 @@ Whenever artwork files are updated, bump `expo.version` and re-run the native bu
    automated submits use). The upload takes 5-15 minutes to *process*;
    App Store Connect emails when the build is ready. No export-compliance
    prompt appears because the Info.plist already answers it.
+   *(Completed 2026-10-09: EAS submission `e705f908-a2f9-4c60-a754-263a450dd19f`,
+   App Store Connect App ID `6821113828`).*
 6. App Store Connect -> App -> **TestFlight** -> *Test Information*: Beta
    App Description (two sentences on what to try), feedback email,
    **Privacy Policy URL** `https://bookmarkt.io/privacy`, contact details,
