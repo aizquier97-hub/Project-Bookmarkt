@@ -35,11 +35,6 @@ import {
   suggestCharacterNames,
 } from '@/domains/characters/capture';
 import {
-  applyMentionToText,
-  filterNamesForMention,
-  findActiveMentionQuery,
-} from '@/domains/entries/mentions';
-import {
   buildBookmarkLabel,
   entrySummaryIsStale,
   formatBookmarkCaption,
@@ -51,23 +46,13 @@ import {
   CompanionRequestError,
   refreshEntrySummaries,
   requestFlagSuggestions,
-  requestStructureAid,
   searchEntriesByMeaning,
   type CompanionFlagSuggestion,
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
-import { getLatestProgressBoundary, type ProgressType } from '@/domains/entries/progress';
-import {
-  flagEntryTextImportant,
-  parseEntryKind,
-  type EntryKind,
-} from '@/domains/entries/markers';
-import {
-  addEntry,
-  listEntries,
-  updateEntry,
-  type Entry,
-} from '@/domains/entries/service';
+import { useLastSavedNote } from '@/domains/entries/lastSaved';
+import { flagEntryTextImportant, parseEntryKind } from '@/domains/entries/markers';
+import { listEntries, updateEntry, type Entry } from '@/domains/entries/service';
 import {
   deleteBookImage,
   listBookImages,
@@ -75,16 +60,11 @@ import {
   uploadBookImage,
   type BookImage,
 } from '@/domains/library/images';
-import { getBook, setBookFinished, type Book } from '@/domains/library/service';
+import { getBook, setBookFinished } from '@/domains/library/service';
 import { describeDifficultySource, difficultyLabel } from '@/domains/fitness/difficulty';
 import { collectQuoteTextsByBook, difficultyForBook, furthestPage } from '@/domains/fitness/model';
 import { listReadingSessions } from '@/domains/fitness/service';
-import {
-  computeTrophyProgress,
-  newlyUnlockedSegments,
-  trophyUnlockMessage,
-} from '@/domains/fitness/trophies';
-import { READING_MODEL_KEYS } from '@/domains/fitness/useReadingModel';
+import { computeTrophyProgress } from '@/domains/fitness/trophies';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
 import { useDictation } from '@/domains/voice/useDictation';
@@ -137,9 +117,6 @@ export default function BookScreen() {
     id: string;
     tab?: string;
     character?: string;
-    compose?: string;
-    kind?: string;
-    page?: string;
     composeCharacter?: string;
   }>();
   const bookId = Number(params.id);
@@ -163,21 +140,6 @@ export default function BookScreen() {
     const parsed = Number(params.character);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   });
-  // The Sandglass hands off here after a sitting with no note (D-064):
-  // /book/[id]?compose=write&page=<n> lands with the composer open and the
-  // page the reader stopped on already filled in.
-  const [composerMode, setComposerMode] = useState<ComposerMode>(
-    params.compose === 'write' || params.compose === 'speak' ? params.compose : null,
-  );
-  const initialProgressPage = useMemo(() => {
-    const parsed = Number(params.page);
-    return Number.isInteger(parsed) && parsed > 0 ? String(parsed) : '';
-    // Read once: the handoff page should not re-apply on later re-renders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  // The Quotes shelf's circular "+" (D-089) lands here with
-  // /book/[id]?compose=write&kind=quote so the composer saves a quote log.
-  const initialEntryKind: EntryKind = params.kind === 'quote' ? 'quote' : 'note';
   const [characterMode, setCharacterMode] = useState<ComposerMode>(composeCharacterParam);
   const addPhotosRef = useRef<(() => void) | null>(null);
   const queryClient = useQueryClient();
@@ -193,18 +155,12 @@ export default function BookScreen() {
       trackAnalyticsEvent('book_opened', {}, bookId);
     }
   }, [validId, bookId]);
-  // Composers opened by a hand-off param (D-087) count like capture-bar taps,
-  // so entry points can be compared: the Sandglass hand-offs vs. the bar.
+  // A character composer opened by a hand-off param (D-087) counts like a
+  // capture-bar tap, so entry points can be compared. (Entry composers report
+  // from their own screen since D-092.)
   useEffect(() => {
     if (!validId) {
       return;
-    }
-    if (params.compose === 'write' || params.compose === 'speak') {
-      trackAnalyticsEvent(
-        'composer_opened',
-        { target: 'entry', mode: params.compose, source: 'timer_handoff' },
-        bookId,
-      );
     }
     if (composeCharacterParam) {
       trackAnalyticsEvent(
@@ -298,14 +254,14 @@ export default function BookScreen() {
       ? Math.min(100, Math.max(0, Math.round((currentPosition.upper / book.total_pages) * 100)))
       : null;
 
+  // Writing happens on its own page (D-092): the capture bar hands the book
+  // and mode to /compose-entry, which reports composer_opened itself and
+  // returns here on save.
   const openComposer = (mode: Exclude<ComposerMode, null>) => {
-    trackAnalyticsEvent(
-      'composer_opened',
-      { target: 'entry', mode, source: 'capture_bar' },
-      bookId,
-    );
-    setTab('entries');
-    setComposerMode(mode);
+    router.push({
+      pathname: '/compose-entry',
+      params: { id: String(bookId), mode, source: 'capture_bar' },
+    });
   };
   const openCharacterComposer = (mode: Exclude<ComposerMode, null>) => {
     trackAnalyticsEvent(
@@ -336,21 +292,14 @@ export default function BookScreen() {
     setFocusCharacterId(characterId);
     setTab('characters');
   };
-  // The bar hides while the active tab's composer is open; on Photos it
-  // stays (the picker is a modal, not an inline form).
-  const captureBarVisible =
-    tab === 'photos'
-      ? true
-      : tab === 'entries'
-        ? composerMode === null
-        : characterMode === null;
+  // The bar hides while the character composer is open; on Entries the
+  // composer is its own screen (D-092) and on Photos the picker is a modal.
+  const captureBarVisible = tab !== 'characters' || characterMode === null;
   // Writing mode (D-091): the hero (cover, progress, trophies, actions) is
-  // fixed above the pane and with the keyboard up it left the composer with
-  // almost no room - the text box scrolled clean out of view. While a
-  // composer is open the hero folds to a one-line title so the page the
-  // reader is typing on is the one they can see.
-  const composing =
-    tab === 'entries' ? composerMode !== null : tab === 'characters' ? characterMode !== null : false;
+  // fixed above the pane and with the keyboard up it left the inline
+  // character composer with almost no room. While it is open the hero folds
+  // to a one-line title so the card the reader is typing on stays in view.
+  const composing = tab === 'characters' && characterMode !== null;
 
   return (
     <KeyboardPane style={styles.flex}>
@@ -531,14 +480,7 @@ export default function BookScreen() {
         {/* All panes stay mounted so drafts and searches survive tab peeks
             (capture-without-friction: leaving must never cost the reader). */}
         <View style={[styles.tabPane, tab !== 'entries' && styles.tabPaneHidden]}>
-          <EntriesTab
-            bookId={bookId}
-            composerMode={composerMode}
-            onComposerModeChange={setComposerMode}
-            onOpenCharacter={openCharacter}
-            initialProgressPage={initialProgressPage}
-            initialEntryKind={initialEntryKind}
-          />
+          <EntriesTab bookId={bookId} onOpenCharacter={openCharacter} />
         </View>
         <View style={[styles.tabPane, tab !== 'characters' && styles.tabPaneHidden]}>
           <CharactersTab
@@ -622,79 +564,23 @@ export default function BookScreen() {
 
 function EntriesTab({
   bookId,
-  composerMode,
-  onComposerModeChange,
   onOpenCharacter,
-  initialProgressPage = '',
-  initialEntryKind = 'note',
 }: {
   bookId: number;
-  composerMode: ComposerMode;
-  onComposerModeChange: (mode: ComposerMode) => void;
   onOpenCharacter: (characterId: number) => void;
-  /** Page prefilled in the composer (Sandglass handoff, D-064). */
-  initialProgressPage?: string;
-  /** Entry kind the composer opens with (Quotes shelf handoff, D-089). */
-  initialEntryKind?: EntryKind;
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { showToast } = useToast();
-  const [progressType, setProgressType] = useState<ProgressType>('page');
-  const [progressValue, setProgressValue] = useState(initialProgressPage);
-  const [text, setText] = useState('');
-  const [entryKind, setEntryKind] = useState<EntryKind>(initialEntryKind);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [rawTranscripts, setRawTranscripts] = useState<string[]>([]);
-  const [lastSavedNote, setLastSavedNote] = useState<{
-    id: number;
-    text: string;
-    firstNoted: string;
-  } | null>(null);
-  const dictation = useDictation();
-
-  // "Speak" opens the composer with dictation already running - one tap from
-  // thought to capture. The ref stops re-triggering as status changes.
-  const speakStartedRef = useRef(false);
-  useEffect(() => {
-    if (composerMode === 'speak' && dictation.status === 'idle' && !speakStartedRef.current) {
-      speakStartedRef.current = true;
-      void dictation.start();
-    }
-    if (composerMode !== 'speak') {
-      speakStartedRef.current = false;
-    }
-  }, [composerMode, dictation.status, dictation]);
-
-  // The composer sits at the head of the list; opening it brings the list
-  // back to the top so the whole card - selector, hint, text box - shows.
-  const listRef = useRef<FlatList<Entry>>(null);
-  useEffect(() => {
-    if (composerMode !== null) {
-      listRef.current?.scrollToOffset({ offset: 0, animated: true });
-    }
-  }, [composerMode]);
+  // The note just saved on the compose screen (D-092) comes back through the
+  // cache so the "Anyone new in that note?" card (D-077) can follow it here.
+  const { note: lastSavedNote, dismiss: dismissLastSavedNote } = useLastSavedNote(bookId);
 
   const entriesQuery = useQuery({
     queryKey: queryKeys.entries(bookId),
     queryFn: () => listEntries(bookId),
   });
-  // Shares the characters cache key with the Characters tab; powers inline
-  // @mention suggestions and tappable mentions in entry cards (D-045).
-  const charactersQuery = useQuery({
-    queryKey: queryKeys.characters(bookId),
-    queryFn: () => listCharacters(bookId),
-  });
-  const mentionTargets = useMemo(
-    () => (charactersQuery.data ?? []).map((c) => ({ id: c.id, name: c.name })),
-    [charactersQuery.data],
-  );
 
   const entries = useMemo(() => entriesQuery.data ?? [], [entriesQuery.data]);
-  const latestBoundary = useMemo(
-    () => getLatestProgressBoundary(entries, progressType),
-    [entries, progressType],
-  );
 
   // Search plus day-grouped timeline keep a long journal scannable
   // (Day One / Journey / Apple Journal pattern). Quote Logs and important
@@ -752,101 +638,15 @@ function EntriesTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entrySearch, entrySearchLength, meaningMatches, bookId]);
 
-  const addEntryMutation = useMutation({
-    mutationFn: () =>
-      addEntry(bookId, {
-        text,
-        progressType,
-        progressValue,
-        rawTranscript: rawTranscripts.length > 0 ? rawTranscripts.join('\n') : null,
-        kind: entryKind,
-      }),
-    onSuccess: (created) => {
-      setText('');
-      setRawTranscripts([]);
-      setEntryKind('note');
-      setFormError(null);
-      onComposerModeChange(null);
-      // Book Club readers get the companion's pass over the fresh note for
-      // people to add to the map (D-077); dismissed on the next save.
-      setLastSavedNote(
-        created.text.trim().length > 0
-          ? {
-              id: created.id,
-              text: created.text,
-              firstNoted: formatFirstNoted(getCurrentPosition([created, ...entries])),
-            }
-          : null,
-      );
-      // Segment trophies (D-062): compare the furthest page before and after
-      // this entry; a crossed quarter earns a piece and a moment of praise.
-      const book = queryClient.getQueryData<Book>(queryKeys.book(bookId));
-      const unlocked = book
-        ? newlyUnlockedSegments(
-            computeTrophyProgress({
-              totalPages: book.total_pages,
-              currentPage: furthestPage(entries, []),
-              finished: Boolean(book.finished_at),
-            }),
-            computeTrophyProgress({
-              totalPages: book.total_pages,
-              currentPage: furthestPage([created, ...entries], []),
-              finished: Boolean(book.finished_at),
-            }),
-          )
-        : [];
-      if (book && unlocked.length > 0) {
-        for (const piece of unlocked) {
-          trackAnalyticsEvent('trophy_piece_unlocked', { piece: piece.index, source: 'entry' }, bookId);
-        }
-        showToast(trophyUnlockMessage(book.name, unlocked), 'success');
-      } else {
-        showToast('Entry saved.', 'success');
-      }
-      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.quotes });
-      for (const key of READING_MODEL_KEYS) {
-        void queryClient.invalidateQueries({ queryKey: key });
-      }
-    },
-    onError: (err) => {
-      setFormError(err instanceof Error ? err.message : 'Could not save the entry.');
-    },
-  });
-
-  // Companion aids on this tab (D-039, premium): the capture structuring aid
-  // in the composer and AI-suggested important flags over the timeline. Both
-  // are transient - the reader authors and confirms every saved word (D-012).
+  // Companion aid on this tab (D-039, premium): AI-suggested important flags
+  // over the timeline. Transient - the reader confirms every saved word
+  // (D-012). The capture structuring aid moved with the composer (D-092).
   const entitlementQuery = useQuery({
     queryKey: queryKeys.companionEntitlement,
     queryFn: fetchCompanionEntitlement,
     staleTime: 60_000,
   });
   const companionEntitled = entitlementQuery.data?.entitled === true;
-
-  const [structureSuggestion, setStructureSuggestion] = useState<string | null>(null);
-  const [structureError, setStructureError] = useState<string | null>(null);
-  const structureMutation = useMutation({
-    mutationFn: () => requestStructureAid(bookId, text),
-    onMutate: () => {
-      setStructureError(null);
-      setStructureSuggestion(null);
-    },
-    onSuccess: (result) => {
-      setStructureSuggestion(result.reply.content || null);
-      trackAnalyticsEvent('companion_tool_used', { tool: 'structure_aid', status: 'succeeded' }, bookId);
-    },
-    onError: (err) => {
-      const status = err instanceof CompanionRequestError ? err.code : 'error';
-      trackAnalyticsEvent('companion_tool_used', { tool: 'structure_aid', status }, bookId);
-      setStructureError(
-        err instanceof CompanionRequestError
-          ? err.message
-          : 'The companion could not help just now.',
-      );
-    },
-  });
 
   const [flagSuggestions, setFlagSuggestions] = useState<CompanionFlagSuggestion[] | null>(null);
   const [flagsIntro, setFlagsIntro] = useState<string | null>(null);
@@ -954,17 +754,6 @@ function EntriesTab({
       .catch(() => undefined);
   }, [companionEntitled, entries, bookId, queryClient]);
 
-  // An "@..." being typed at the end of the composer surfaces matching
-  // character names as one-tap chips (D-045).
-  const mentionQuery = findActiveMentionQuery(text);
-  const mentionMatches =
-    mentionQuery !== null
-      ? filterNamesForMention(
-          mentionTargets.map((target) => target.name),
-          mentionQuery,
-        )
-      : [];
-
   // The gold bookmark (Interface v2.0): the premium ribbon pinned above the
   // reader's own bookmarks. It opens the story-so-far screen, where any
   // stretch of bookmarks becomes a story at the chosen level of detail.
@@ -988,233 +777,14 @@ function EntriesTab({
       </Pressable>
     ) : null;
 
-  const composer =
-    composerMode !== null ? (
-      <View style={styles.captureCard}>
-        <View style={styles.composerHeader}>
-          <Text style={styles.captureTitle}>
-            {entryKind === 'quote' ? 'Save a quote' : 'Save an entry'}
-          </Text>
-          <Pressable
-            style={styles.composerClose}
-            onPress={() => {
-              // Abandonment signal (D-086): how much was typed, never what.
-              if (text.trim()) {
-                trackAnalyticsEvent(
-                  'entry_draft_discarded',
-                  {
-                    chars: text.trim().length,
-                    hadTranscript: rawTranscripts.length > 0,
-                    composerMode,
-                    kind: entryKind,
-                  },
-                  bookId,
-                );
-              }
-              setEntryKind('note');
-              onComposerModeChange(null);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Close the entry composer"
-          >
-            <Text style={styles.composerCloseText}>✕</Text>
-          </Pressable>
-        </View>
-
-        {/* Note / Quote / Important chips were removed by design (D-089):
-            quotes arrive from the Quotes shelf's "+" with kind=quote, and
-            important moments come from the companion's suggestions. */}
-        <View style={styles.segmentRow}>
-          <View style={styles.segmentTrack} accessibilityRole="tablist">
-            {(['page', 'chapter'] as const).map((type) => (
-              <Pressable
-                key={type}
-                style={[styles.segment, progressType === type && styles.segmentActive]}
-                onPress={() => setProgressType(type)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: progressType === type }}
-              >
-                <Text
-                  style={[styles.segmentText, progressType === type && styles.segmentTextActive]}
-                >
-                  {type === 'page' ? 'Page' : 'Chapter'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <TextInput
-            style={[styles.input, styles.progressInput]}
-            placeholder={progressType === 'page' ? 'e.g., 12' : 'e.g., 3'}
-            placeholderTextColor={colors.muted}
-            value={progressValue}
-            onChangeText={setProgressValue}
-            keyboardType="number-pad"
-          />
-        </View>
-
-        <Text style={styles.boundaryHint}>
-          {latestBoundary
-            ? `Reading boundary: ${latestBoundary.progressType} ${latestBoundary.upper}. New entries start after it.`
-            : `Set your current ${progressType} to track your reading boundary.`}
-        </Text>
-
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder={
-            entryKind === 'quote'
-              ? "Copy the line just as it's written - your quote log keeps it."
-              : entryKind === 'important'
-                ? 'What happened that matters? One line is plenty.'
-                : mentionTargets.length > 0
-                  ? 'One line is plenty - type @ to mention a character.'
-                  : 'One line is plenty - what just happened?'
-          }
-          placeholderTextColor={colors.muted}
-          value={text}
-          onChangeText={setText}
-          multiline
-          autoFocus={composerMode === 'write'}
-        />
-
-        {mentionMatches.length > 0 ? (
-          <View style={styles.mentionRow}>
-            {mentionMatches.map((mentionName) => (
-              <Pressable
-                key={mentionName}
-                style={styles.suggestionChip}
-                onPress={() => setText((prev) => applyMentionToText(prev, mentionName))}
-                accessibilityRole="button"
-                accessibilityLabel={`Mention ${mentionName}`}
-              >
-                <Text style={styles.suggestionChipText}>@{mentionName}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-
-        {dictation.status === 'idle' ? (
-          <Pressable style={styles.dictateButton} onPress={() => void dictation.start()}>
-            <Ionicons name="mic" size={15} color={colors.text} />
-            <Text style={styles.dictateButtonText}>Add by voice</Text>
-          </Pressable>
-        ) : null}
-
-      {dictation.status === 'recording' ? (
-        <View style={styles.dictationCard}>
-          <Text style={styles.dictationLabel}>Listening… speak your entry.</Text>
-          {dictation.partial ? (
-            <Text style={styles.dictationPartial}>{dictation.partial}</Text>
-          ) : null}
-          <Pressable style={styles.stopButton} onPress={dictation.stop}>
-            <Ionicons name="stop" size={14} color={colors.danger} />
-            <Text style={styles.stopButtonText}>Stop dictation</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {dictation.status === 'review' ? (
-        <View style={styles.dictationCard}>
-          <Text style={styles.dictationLabel}>Review your dictation</Text>
-          <Text style={styles.dictationPreview}>{cleanupTranscript(dictation.raw)}</Text>
-          <Text style={styles.dictationRawNote}>Raw transcript: “{dictation.raw}”</Text>
-          <Text style={styles.dictationHint}>
-            Only punctuation and capitalization were adjusted — your words are untouched. The
-            raw transcript is kept with your entry.
-          </Text>
-          <View style={styles.cardActions}>
-            <Pressable
-              style={styles.smallButton}
-              onPress={() => {
-                const raw = dictation.confirm();
-                if (!raw) {
-                  return;
-                }
-                const cleaned = cleanupTranscript(raw);
-                setText((prev) => (prev.trim() ? `${prev.trimEnd()} ${cleaned}` : cleaned));
-                setRawTranscripts((prev) => [...prev, raw]);
-              }}
-            >
-              <Text style={styles.smallButtonText}>Add to entry</Text>
-            </Pressable>
-            <Pressable style={styles.smallButtonGhost} onPress={dictation.discard}>
-              <Text style={styles.smallButtonGhostText}>Discard</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-
-      {dictation.error ? <Text style={styles.error}>{dictation.error}</Text> : null}
-
-      {companionEntitled && text.trim().length >= 20 ? (
-        <View>
-          {structureMutation.isPending ? (
-            <View style={styles.aidPendingRow}>
-              <ActivityIndicator size="small" color={colors.muted} />
-              <Text style={styles.aidPendingText}>Arranging your words…</Text>
-            </View>
-          ) : structureSuggestion === null ? (
-            <Pressable
-              style={styles.dictateButton}
-              onPress={() => structureMutation.mutate()}
-              accessibilityRole="button"
-              accessibilityLabel="Ask the companion to suggest a structure for this note"
-            >
-              <Ionicons name="color-wand-outline" size={15} color={colors.text} />
-              <Text style={styles.dictateButtonText}>Suggest a structure</Text>
-            </Pressable>
-          ) : (
-            <View style={styles.aidCard}>
-              <Text style={styles.aidLabel}>A suggested arrangement — yours to edit</Text>
-              <Text style={styles.aidSuggestion}>{structureSuggestion}</Text>
-              <View style={styles.cardActions}>
-                <Pressable
-                  style={styles.smallButton}
-                  onPress={() => {
-                    setText(structureSuggestion);
-                    setStructureSuggestion(null);
-                  }}
-                >
-                  <Text style={styles.smallButtonText}>Use it</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.smallButtonGhost}
-                  onPress={() => setStructureSuggestion(null)}
-                >
-                  <Text style={styles.smallButtonGhostText}>Keep mine</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
-          {structureError ? <Text style={styles.error}>{structureError}</Text> : null}
-        </View>
-      ) : null}
-
-      {formError ? <Text style={styles.error}>{formError}</Text> : null}
-
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => addEntryMutation.mutate()}
-          disabled={addEntryMutation.isPending}
-        >
-          {addEntryMutation.isPending ? (
-            <ActivityIndicator color={colors.background} />
-          ) : (
-            <Text style={styles.primaryButtonText}>Save entry</Text>
-          )}
-        </Pressable>
-      </View>
-    ) : null;
-
   return (
     <FlatList
-      ref={listRef}
       data={visibleEntries}
       keyExtractor={(entry) => String(entry.id)}
       contentContainerStyle={styles.list}
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <View>
-          {composer}
           {lastSavedNote && companionEntitled ? (
             <View style={styles.aidCard}>
               <Text style={styles.aidLabel}>Anyone new in that note?</Text>
@@ -1226,7 +796,7 @@ function EntriesTab({
               />
               <Pressable
                 style={styles.smallButtonGhost}
-                onPress={() => setLastSavedNote(null)}
+                onPress={dismissLastSavedNote}
                 accessibilityRole="button"
                 accessibilityLabel="Dismiss character suggestions"
               >
@@ -2465,26 +2035,6 @@ const styles = StyleSheet.create({
   captureActionTextSecondary: {
     color: colors.accent,
   },
-  composerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  composerClose: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1.5,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    ...buttonShadow,
-  },
-  composerCloseText: {
-    fontFamily: fonts.sansSemiBold,
-    color: colors.muted,
-    fontSize: 13,
-  },
   // The paid recap teaser dresses differently from entry cards on purpose:
   // warm gold tint, accent frame, serif title - a Companion-branded surface.
   companionRow: {
@@ -2758,54 +2308,32 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     marginBottom: 6,
   },
+  composerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  composerClose: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    ...buttonShadow,
+  },
+  composerCloseText: {
+    fontFamily: fonts.sansSemiBold,
+    color: colors.muted,
+    fontSize: 13,
+  },
   captureHint: {
     fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 12,
-  },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  segmentTrack: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface2,
-    borderRadius: 10,
-    padding: 3,
-    gap: 2,
-  },
-  segment: {
-    minHeight: 40,
-    minWidth: 84,
-    borderRadius: 7,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentActive: {
-    backgroundColor: colors.card,
-    ...cardShadow,
-  },
-  segmentText: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 14,
-    color: colors.muted,
-  },
-  segmentTextActive: {
-    fontFamily: fonts.sansSemiBold,
-    color: colors.text,
-  },
-  progressInput: {
-    flex: 1,
-  },
-  boundaryHint: {
-    fontFamily: fonts.sans,
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 10,
   },
   dictateButton: {
     alignSelf: 'flex-start',
@@ -2853,12 +2381,6 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     marginBottom: 8,
   },
-  dictationRawNote: {
-    fontFamily: fonts.sans,
-    color: colors.muted,
-    fontSize: 12,
-    marginBottom: 6,
-  },
   dictationHint: {
     fontFamily: fonts.sans,
     color: colors.muted,
@@ -2897,11 +2419,6 @@ const styles = StyleSheet.create({
   },
   stackedInput: {
     marginTop: 8,
-  },
-  textArea: {
-    minHeight: 96,
-    textAlignVertical: 'top',
-    marginTop: 10,
   },
   textAreaSmall: {
     minHeight: 64,
@@ -3092,12 +2609,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sansSemiBold,
     color: colors.accent,
     fontSize: 13,
-  },
-  mentionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
   },
   mentionText: {
     fontFamily: fonts.sansSemiBold,

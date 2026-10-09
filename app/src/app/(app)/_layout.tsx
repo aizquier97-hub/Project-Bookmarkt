@@ -45,6 +45,8 @@ export default function AppLayout() {
       >
         {/* The tab navigator draws its own header per tab. */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* The entry composer's own page (D-092); title set per kind on the screen. */}
+        <Stack.Screen name="compose-entry" options={{ title: 'Save an entry' }} />
       </Stack>
       {/* Once per device, over whatever screen the reader landed on (D-084). */}
       <FirstRunTour />

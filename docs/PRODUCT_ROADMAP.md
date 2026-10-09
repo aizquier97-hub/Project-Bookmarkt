@@ -777,6 +777,11 @@ capture.
         gold active state after the Figma crop, the book hero folds to a
         title while a composer is open so the text box stays above the
         keyboard, and the Recall tab's illustrative tile pair is removed.
+    - Revised 2026-10-10 (D-092): third pass - the tab bar's own content
+        trimmed to 52 pt over the system inset, and the entry composer
+        moved onto its own screen (`/compose-entry`) with a sticky Save
+        footer; the capture bar, the Sandglass hand-off and the Quotes "+"
+        all open it, and saving returns to where the reader came from.
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs
