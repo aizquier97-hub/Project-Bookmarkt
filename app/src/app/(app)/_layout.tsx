@@ -1,13 +1,14 @@
 import { Redirect, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import { FirstRunTour } from '@/components/FirstRunTour';
+import { renderStackHeader } from '@/components/ui/navigationHeaders';
 import { useAuth } from '@/domains/auth/AuthProvider';
 import { ComprehensionBackfill } from '@/domains/fitness/ComprehensionBackfill';
 import { DifficultyBackfill } from '@/domains/fitness/DifficultyBackfill';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { AppOpenTracker } from '@/domains/reporting/AppOpenTracker';
-import { FirstRunTour } from '@/components/FirstRunTour';
-import { colors, fonts } from '@/lib/theme';
+import { colors } from '@/lib/theme';
 
 export default function AppLayout() {
   const { session, initializing } = useAuth();
@@ -21,17 +22,15 @@ export default function AppLayout() {
 
   return (
     <>
-      {/* Light status-bar icons over the dark walnut headers (D-054). */}
-      <StatusBar style="light" />
+      {/* Dark status-bar icons over the parchment headers (D-089). */}
+      <StatusBar style="dark" />
       <AppOpenTracker />
       <DifficultyBackfill />
       <ComprehensionBackfill />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: colors.walnut },
-          headerTintColor: colors.onWalnut,
-          headerTitleStyle: { fontWeight: '700', fontFamily: fonts.serif },
-          headerShadowVisible: false,
+          // Shared parchment header with a left-aligned Lora title (D-089).
+          header: renderStackHeader,
           contentStyle: { backgroundColor: colors.background },
         }}
         // Which screens readers reach (D-086): route names only - the tab

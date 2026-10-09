@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: CELL,
     color: colors.muted,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     width: 10,
   },
   grid: {

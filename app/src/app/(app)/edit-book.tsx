@@ -25,7 +25,7 @@ import { ErrorState, LoadingState } from '@/components/states';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, colors, fonts } from '@/lib/theme';
 
 const DIFFICULTY_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
@@ -314,15 +314,14 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   label: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '600',
     marginBottom: 6,
     marginTop: 14,
   },
   input: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
@@ -333,12 +332,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     marginTop: 12,
   },
   hint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
@@ -357,10 +356,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 13,
-    fontWeight: '700',
   },
   estimateBody: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
@@ -385,32 +383,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   chipActive: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   chipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
     fontSize: 13,
-    fontWeight: '600',
   },
   chipTextActive: {
-    color: gold.onFill,
+    color: colors.onAccent,
   },
   saveButton: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 24,
     ...buttonShadow,
   },
   saveButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 16,
   },
   deleteButton: {
@@ -422,9 +418,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   deleteButtonText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.danger,
-    fontWeight: '600',
     fontSize: 15,
   },
   footerSpace: {

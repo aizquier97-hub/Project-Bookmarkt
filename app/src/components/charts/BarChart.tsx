@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   peak: {
     fontSize: 10,
     color: colors.muted,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     marginBottom: 3,
   },
   labels: {
@@ -103,6 +103,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 10,
     color: colors.muted,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
   },
 });

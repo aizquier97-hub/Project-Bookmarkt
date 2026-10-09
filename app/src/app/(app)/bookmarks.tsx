@@ -25,7 +25,7 @@ import { listBooks } from '@/domains/library/service';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, cardShadow, colors, fonts, gold, spineColorFor } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
 
 export default function BookmarksScreen() {
   const queryClient = useQueryClient();
@@ -252,33 +252,32 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   lede: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
   },
   registerButton: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 13,
     alignItems: 'center',
     marginBottom: 14,
     ...buttonShadow,
   },
   registerButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 15,
   },
   loader: {
     marginTop: 24,
   },
   empty: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
@@ -286,7 +285,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     marginTop: 6,
     marginBottom: 4,
@@ -299,7 +298,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     ...cardShadow,
   },
@@ -307,24 +306,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardCode: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
     fontSize: 17,
-    fontWeight: '700',
     letterSpacing: 1,
   },
   cardLinked: {
     color: colors.accent,
     fontSize: 14,
-    fontFamily: fonts.serif,
-    fontStyle: 'italic',
+    fontFamily: fonts.sans,
     marginTop: 3,
   },
   cardUnlinked: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
-    fontStyle: 'italic',
     marginTop: 3,
   },
   cardActions: {
@@ -342,16 +338,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   actionText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
     fontSize: 13,
-    fontWeight: '600',
   },
   actionDangerText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.danger,
     fontSize: 13,
-    fontWeight: '600',
   },
   qrBox: {
     alignItems: 'center',
@@ -362,13 +356,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   qrHint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 11,
     textAlign: 'center',
   },
   qrNote: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
@@ -388,7 +382,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 14,
-    fontWeight: '700',
     marginBottom: 2,
   },
   pickerRow: {
@@ -413,19 +406,16 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontFamily: fonts.serif,
-    fontWeight: '700',
   },
   pickerBookAuthor: {
     color: colors.muted,
     fontSize: 12,
-    fontFamily: fonts.serif,
-    fontStyle: 'italic',
+    fontFamily: fonts.sans,
     marginTop: 1,
   },
   pickerAction: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '700',
     fontSize: 13,
     paddingHorizontal: 12,
   },

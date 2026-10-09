@@ -75,14 +75,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   mutedText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
   },
   errorText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     fontSize: 15,
     lineHeight: 22,
@@ -97,8 +97,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   retryText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.text,
-    fontWeight: '600',
   },
 });

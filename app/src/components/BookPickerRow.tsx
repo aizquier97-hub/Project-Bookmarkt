@@ -85,11 +85,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 15,
-    fontWeight: '600',
     lineHeight: 20,
   },
   author: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     marginTop: 2,

@@ -760,6 +760,12 @@ capture.
 - [x] Create a reusable design system with documented component states.
       (Done - shared theme tokens (D-040 clean set) ship in code; the formal
       component-state inventory lives in DESIGN_REQUIREMENTS.md §7.)
+    - Revised 2026-10-10 (D-089): the owner's Figma brief becomes the
+        design system proper - bundled Lora + Inter, parchment / russet /
+        walnut / antique-gold tokens, spacing and radius scales, and shared
+        `components/ui` primitives (headers, buttons, cards, chips,
+        segmented controls, sticky footers). All 25 mockup screens aligned
+        in one OTA round.
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs

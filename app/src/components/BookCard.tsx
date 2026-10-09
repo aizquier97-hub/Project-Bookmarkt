@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatBoundaryPosition, type BookPositionSummary } from '@/domains/entries/display';
 import type { Book } from '@/domains/library/service';
 import { computeCompletionPercent, shelfTitleTypography } from '@/domains/library/shelf';
-import { colors, fonts, gold, spineColorFor } from '@/lib/theme';
+import { cardShadow, colors, fonts, gold, spineColorFor } from '@/lib/theme';
 
 /**
  * One book in the library grid (D-040): the flat, cover-first card every app
@@ -136,12 +136,8 @@ const styles = StyleSheet.create({
     aspectRatio: 2 / 3,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: colors.border,
-    elevation: 2,
-    shadowColor: '#3a3125',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    backgroundColor: colors.surface2,
+    ...cardShadow,
   },
   coverImage: {
     flex: 1,
@@ -155,11 +151,10 @@ const styles = StyleSheet.create({
   placeholderTitle: {
     color: 'rgba(255, 255, 255, 0.96)',
     fontFamily: fonts.serif,
-    fontWeight: '700',
     textAlign: 'center',
   },
   placeholderAuthor: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: 'rgba(255, 255, 255, 0.75)',
     fontSize: 10,
     textAlign: 'center',
@@ -182,30 +177,29 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 17,
+    lineHeight: 23,
     fontFamily: fonts.serif,
-    fontWeight: '600',
-    marginTop: 7,
+    marginTop: 12,
   },
   author: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 11,
-    lineHeight: 15,
-    marginTop: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 5,
+    marginTop: 8,
   },
   progressTrack: {
     flex: 1,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(58, 49, 37, 0.12)',
+    backgroundColor: colors.surface2,
     overflow: 'hidden',
   },
   progressFill: {
@@ -214,22 +208,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   progressText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 12,
     fontVariant: ['tabular-nums'],
   },
   finishedText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
   },
   positionText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 10,
+    fontSize: 12,
     marginTop: 5,
   },
 });

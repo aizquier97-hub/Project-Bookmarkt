@@ -35,7 +35,7 @@ import {
 import { fetchTrialEligibility, startCompanionTrial } from '@/domains/companion/trial';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/theme';
 
 /**
  * Companion subscription paywall (Stage 4 Phase 3, D-061 + D-068 + D-070 +
@@ -235,7 +235,7 @@ export default function SubscriptionScreen() {
 
       <View style={styles.hero}>
         <View style={styles.badge}>
-          <Ionicons name="book-outline" size={24} color={gold.deep} />
+          <Ionicons name="book-outline" size={26} color={colors.accent} />
         </View>
         <Text style={styles.title}>Join the Book Club</Text>
         <Text style={styles.tagline}>
@@ -260,9 +260,22 @@ export default function SubscriptionScreen() {
           ]}
           accessibilityRole="summary"
         >
-          <Text style={[styles.statusTitle, statusCard.tone === 'active' && styles.activeTitle]}>
-            {statusCard.title}
-          </Text>
+          <View style={styles.statusHeader}>
+            <Ionicons
+              name={
+                statusCard.tone === 'active'
+                  ? 'checkmark-circle-outline'
+                  : statusCard.tone === 'warning'
+                    ? 'alert-circle-outline'
+                    : 'time-outline'
+              }
+              size={22}
+              color={statusCard.tone === 'active' ? gold.deep : colors.accent}
+            />
+            <Text style={[styles.statusTitle, statusCard.tone === 'active' && styles.activeTitle]}>
+              {statusCard.title}
+            </Text>
+          </View>
           <Text style={styles.body}>{statusCard.body}</Text>
         </View>
       ) : null}
@@ -299,7 +312,7 @@ export default function SubscriptionScreen() {
               )}
             </View>
             <View style={styles.tierColumn}>
-              <Ionicons name="checkmark-circle" size={20} color={gold.deep} />
+              <Ionicons name="checkmark-circle" size={22} color={gold.base} />
             </View>
           </View>
         ))}
@@ -320,7 +333,7 @@ export default function SubscriptionScreen() {
             accessibilityLabel="Start your free trial"
           >
             {startingTrial ? (
-              <ActivityIndicator color={gold.onFill} />
+              <ActivityIndicator color={colors.onAccent} />
             ) : (
               <Text style={styles.planPrice}>Start free trial</Text>
             )}
@@ -354,7 +367,7 @@ export default function SubscriptionScreen() {
                     }
                   >
                     {busyPackage === pkg.identifier ? (
-                      <ActivityIndicator color={gold.onFill} />
+                      <ActivityIndicator color={colors.onAccent} />
                     ) : (
                       <View style={styles.planRow}>
                         <View style={styles.planText}>
@@ -464,51 +477,48 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 40,
-    gap: 12,
+    gap: spacing.md,
   },
   hero: {
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   badge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: gold.glowSoft,
-    borderWidth: 1,
-    borderColor: gold.base,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 26,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontSize: 32,
+    lineHeight: 40,
   },
   tagline: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
+    lineHeight: 23,
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 18,
-    gap: 10,
+    padding: spacing.md,
+    gap: spacing.sm,
     ...cardShadow,
   },
   activeCard: {
     borderColor: gold.base,
+    backgroundColor: gold.glowSoft,
   },
   warningCard: {
     borderColor: colors.accent,
@@ -518,7 +528,7 @@ const styles = StyleSheet.create({
   },
   table: {
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
@@ -527,22 +537,22 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface2,
   },
   tableHeading: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   premiumHeading: {
-    color: gold.deep,
+    color: colors.accent,
   },
   featureHeading: {
     flex: 1,
@@ -554,8 +564,8 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 14,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
@@ -575,21 +585,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   featureLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
-    fontSize: 14.5,
+    fontSize: 15,
+    lineHeight: 21,
   },
   premiumLabel: {
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
   },
   featureDetail: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 12.5,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 18,
   },
   dash: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.border,
     fontSize: 16,
   },
@@ -606,52 +617,56 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 26,
   },
   statusTitle: {
+    flex: 1,
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 28,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   activeTitle: {
-    color: gold.deep,
+    color: colors.accent,
   },
   body: {
-    fontFamily: fonts.serif,
-    color: colors.muted,
-    fontSize: 14.5,
-    lineHeight: 21,
+    fontFamily: fonts.sans,
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 22,
   },
   sectionLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginTop: 8,
     marginLeft: 4,
   },
   planButton: {
-    backgroundColor: gold.fill,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: gold.deep,
-    paddingVertical: 14,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    minHeight: sizes.button,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
     ...buttonShadow,
   },
   planPrice: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 18,
-    fontWeight: '700',
   },
   planPeriod: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sans,
+    color: colors.onAccent,
     fontSize: 13,
     marginTop: 2,
   },
@@ -674,23 +689,21 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   saveBadgeText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: gold.deep,
     fontSize: 12,
-    fontWeight: '700',
     letterSpacing: 0.3,
   },
   planNote: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
     textAlign: 'center',
     marginHorizontal: 8,
-    fontStyle: 'italic',
   },
   freeForever: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13.5,
     lineHeight: 19,
@@ -699,7 +712,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   manageHint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
@@ -711,14 +724,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   restoreText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     textAlign: 'center',
   },
   restoreLink: {
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '600',
   },
   legalRow: {
     flexDirection: 'row',
@@ -732,25 +745,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   legalDot: {
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     marginHorizontal: 8,
   },
   legalLink: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12.5,
     textDecorationLine: 'underline',
   },
   notice: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: gold.deep,
     textAlign: 'center',
     fontSize: 13.5,
     lineHeight: 19,
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     textAlign: 'center',
     fontSize: 13.5,

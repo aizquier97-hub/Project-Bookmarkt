@@ -27,7 +27,7 @@ import { MemoryMatch } from '@/components/MemoryMatch';
 import { PremiumOffer } from '@/components/PremiumOffer';
 import { ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/theme';
 
 /**
  * Recall match for one book (D-066, replacing the D-055 flip-card deck).
@@ -211,10 +211,10 @@ function RecallMatch({ bookId }: { bookId: number }) {
       accessibilityLabel={accessibilityLabel}
     >
       {dealMutation.isPending ? (
-        <ActivityIndicator size="small" color={gold.onFill} />
+        <ActivityIndicator size="small" color={colors.onAccent} />
       ) : (
         <>
-          <Ionicons name="sparkles" size={15} color={gold.onFill} />
+          <Ionicons name="sparkles" size={15} color={colors.onAccent} />
           <Text style={styles.goldButtonText}>{label}</Text>
         </>
       )}
@@ -225,13 +225,29 @@ function RecallMatch({ bookId }: { bookId: number }) {
     return (
       <ScrollView contentContainerStyle={styles.introContainer}>
         <Stack.Screen options={{ title: 'Recall' }} />
+        <View style={styles.tilePair} accessible accessibilityLabel="A cue tile and an answer tile">
+          <View style={styles.tile}>
+            <Ionicons name="bookmark-outline" size={26} color={gold.base} />
+            <Text style={styles.tileLabel}>Cue</Text>
+          </View>
+          <View style={[styles.tile, styles.tileAnswer]}>
+            <Ionicons name="bookmark-outline" size={26} color={gold.base} />
+            <Text style={[styles.tileLabel, styles.tileLabelAnswer]}>Answer</Text>
+          </View>
+        </View>
         <View style={styles.introCard}>
-          <Ionicons name="extension-puzzle-outline" size={28} color={gold.deep} />
-          <Text style={styles.introTitle}>Deal a board</Text>
+          <Text style={styles.eyebrow}>Your words, remembered</Text>
+          <Text style={styles.introTitle} accessibilityRole="header">
+            Deal a board
+          </Text>
           <Text style={styles.introBody}>
             Up to {MAX_PAIRS} cue cards written from your own entries and character maps - nothing
-            from outside your records, nothing past your latest page - dealt face down. Turn two
-            tiles at a time and pair each cue with its answer. The clock starts on your first turn.
+            from outside your records, nothing past your latest page - dealt face down.
+          </Text>
+          <View style={styles.divider} />
+          <Text style={styles.introHelper}>
+            Turn two tiles at a time and pair each cue with its answer. The clock starts on your
+            first turn.
           </Text>
           {dealButton('Deal a board', 'Deal a memory-match board')}
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
@@ -250,7 +266,7 @@ function RecallMatch({ bookId }: { bookId: number }) {
           <Ionicons
             name={isRecord ? 'trophy-outline' : 'ribbon-outline'}
             size={28}
-            color={gold.deep}
+            color={gold.base}
           />
           <Text style={styles.winTitle}>{isRecord ? 'New record' : 'Every pair found'}</Text>
           <View style={styles.resultRow}>
@@ -275,7 +291,7 @@ function RecallMatch({ bookId }: { bookId: number }) {
             accessibilityRole="button"
             accessibilityLabel="Play the same cards again, reshuffled"
           >
-            <Ionicons name="shuffle" size={16} color={colors.text} />
+            <Ionicons name="shuffle" size={16} color={colors.accent} />
             <Text style={styles.navButtonText}>Same cards, reshuffled</Text>
           </Pressable>
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
@@ -297,6 +313,7 @@ function RecallMatch({ bookId }: { bookId: number }) {
         accessibilityRole="button"
         accessibilityLabel="Reshuffle the board and restart the clock"
       >
+        <Ionicons name="shuffle" size={16} color={colors.accent} />
         <Text style={styles.reshuffleText}>Reshuffle</Text>
       </Pressable>
     </View>
@@ -318,173 +335,219 @@ const styles = StyleSheet.create({
   },
   stateContainer: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
     justifyContent: 'center',
   },
   stateText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 15,
     textAlign: 'center',
   },
   introContainer: {
     flexGrow: 1,
-    padding: 16,
+    padding: spacing.lg,
     justifyContent: 'center',
+    gap: spacing.lg,
   },
   introCard: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 14,
-    padding: 22,
-    alignItems: 'center',
-    gap: 12,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    gap: spacing.md,
     ...cardShadow,
   },
   introTitle: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 19,
-    fontWeight: '700',
+    fontSize: 32,
+    lineHeight: 40,
   },
   introBody: {
     fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 20,
+    lineHeight: 28,
+  },
+  introHelper: {
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+  },
+  eyebrow: {
+    fontFamily: fonts.sansMedium,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  tilePair: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  tile: {
+    width: 104,
+    height: 136,
+    borderRadius: radii.card,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  tileAnswer: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  tileLabel: {
+    fontFamily: fonts.sansMedium,
+    color: colors.muted,
+    fontSize: 12,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  tileLabelAnswer: {
+    color: colors.onAccent,
   },
   goldButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    backgroundColor: gold.fill,
-    borderWidth: 1.5,
-    borderColor: gold.deep,
-    borderRadius: 10,
-    paddingHorizontal: 22,
-    paddingVertical: 11,
-    marginTop: 4,
+    gap: spacing.sm,
+    minHeight: sizes.button,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.lg,
     ...buttonShadow,
   },
   goldButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
+    fontSize: 15,
   },
   notice: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 20,
     textAlign: 'center',
-    fontStyle: 'italic',
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     fontSize: 13,
     textAlign: 'center',
   },
   boardContainer: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
     alignItems: 'center',
   },
   hint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 12,
-    fontStyle: 'italic',
-    marginBottom: 12,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
   reshuffleButton: {
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    alignSelf: 'stretch',
+    minHeight: sizes.button,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.button,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   reshuffleText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
   },
   navButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: spacing.sm,
+    alignSelf: 'stretch',
+    minHeight: sizes.button,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
   },
   navButtonText: {
-    fontFamily: fonts.serif,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.accent,
+    fontSize: 15,
   },
   winContainer: {
     flexGrow: 1,
-    padding: 16,
-    alignItems: 'center',
+    padding: spacing.lg,
     justifyContent: 'center',
   },
   winCard: {
-    width: '100%',
-    maxWidth: 380,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 14,
-    padding: 22,
-    alignItems: 'center',
-    gap: 12,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    gap: spacing.md,
     ...cardShadow,
   },
   winTitle: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 19,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
   },
   winBody: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
+    fontSize: 15,
+    lineHeight: 22,
   },
   resultRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 28,
-    marginTop: 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
   },
   resultStat: {
+    flex: 1,
     alignItems: 'center',
-    gap: 2,
-    minWidth: 64,
+    gap: spacing.xs,
   },
   resultValue: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
     fontVariant: ['tabular-nums'],
   },
   resultLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
   },
 });

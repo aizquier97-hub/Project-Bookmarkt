@@ -116,6 +116,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     color: colors.muted,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
   },
 });

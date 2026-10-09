@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -8,7 +7,7 @@ import { formatBoundaryPosition, type BookPositionSummary } from '@/domains/entr
 import type { Book } from '@/domains/library/service';
 import { computeCompletionPercent } from '@/domains/library/shelf';
 import { formatRelativeTime } from '@/lib/relativeTime';
-import { cardShadow, colors, fonts, spineColorFor } from '@/lib/theme';
+import { cardShadow, colors, fonts, radii, spacing, spineColorFor } from '@/lib/theme';
 
 /**
  * The hero "Continue reading" card above the shelf - the resume pattern
@@ -30,7 +29,7 @@ export function ContinueReadingCard({
   const percent = computeCompletionPercent(summary?.position ?? null, book.total_pages, false);
   const positionText = summary?.position ? formatBoundaryPosition(summary.position) : null;
   const lastEntry = formatRelativeTime(summary?.lastEntryAt);
-  const subLine = [positionText, lastEntry ? `Last entry ${lastEntry}` : null]
+  const progressLine = [positionText, percent !== null ? `${percent}%` : null]
     .filter(Boolean)
     .join(' · ');
 
@@ -41,79 +40,81 @@ export function ContinueReadingCard({
       accessibilityRole="button"
       accessibilityLabel={`Continue reading ${book.name}`}
     >
-      <View style={styles.thumb}>
-        {showCover ? (
-          <Image
-            source={{ uri: book.cover_url ?? undefined }}
-            style={styles.thumbImage}
-            contentFit="cover"
-            transition={150}
-            onError={() => setCoverFailed(true)}
-          />
-        ) : (
-          <View style={[styles.thumbPainted, { backgroundColor: spineColorFor(book.id) }]}>
-            <Text style={styles.thumbInitial}>{book.name.trim().charAt(0).toUpperCase()}</Text>
-          </View>
-        )}
-      </View>
+      <Text style={styles.eyebrow}>Continue reading</Text>
+      <View style={styles.row}>
+        <View style={styles.thumb}>
+          {showCover ? (
+            <Image
+              source={{ uri: book.cover_url ?? undefined }}
+              style={styles.thumbImage}
+              contentFit="cover"
+              transition={150}
+              onError={() => setCoverFailed(true)}
+            />
+          ) : (
+            <View style={[styles.thumbPainted, { backgroundColor: spineColorFor(book.id) }]}>
+              <Text style={styles.thumbInitial}>{book.name.trim().charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+        </View>
 
-      <View style={styles.body}>
-        <Text style={styles.eyebrow}>CONTINUE READING</Text>
-        <Text style={styles.title} numberOfLines={2}>
-          {book.name}
-        </Text>
-        {book.author ? (
-          <Text style={styles.author} numberOfLines={1}>
-            {book.author}
+        <View style={styles.body}>
+          <Text style={styles.title} numberOfLines={2}>
+            {book.name}
           </Text>
-        ) : null}
-        {percent !== null ? (
-          <View style={styles.progressRow}>
+          {book.author ? (
+            <Text style={styles.author} numberOfLines={1}>
+              {book.author}
+            </Text>
+          ) : null}
+          {percent !== null ? (
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${percent}%` }]} />
             </View>
-            <Text style={styles.progressText}>{percent}%</Text>
-          </View>
-        ) : null}
-        {subLine ? (
-          <Text style={styles.subLine} numberOfLines={1}>
-            {subLine}
-          </Text>
-        ) : null}
+          ) : null}
+          {progressLine ? (
+            <Text style={styles.progressText} numberOfLines={1}>
+              {progressLine}
+            </Text>
+          ) : null}
+        </View>
       </View>
-
-      <Ionicons name="chevron-forward" size={18} color={colors.muted} style={styles.chevron} />
+      {lastEntry ? <Text style={styles.subLine}>Last entry {lastEntry}</Text> : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12,
-    marginBottom: 12,
+    padding: spacing.md,
+    gap: spacing.md,
     ...cardShadow,
   },
+  eyebrow: {
+    fontFamily: fonts.sansMedium,
+    color: colors.muted,
+    fontSize: 12,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   thumb: {
-    width: 52,
+    width: 64,
     aspectRatio: 2 / 3,
     borderRadius: 4,
     overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#2b1c10',
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    shadowOffset: { width: 1, height: 2 },
+    backgroundColor: colors.surface2,
   },
   thumbImage: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
   },
   thumbPainted: {
     flex: 1,
@@ -122,66 +123,48 @@ const styles = StyleSheet.create({
   },
   thumbInitial: {
     color: 'rgba(255, 253, 246, 0.92)',
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: fonts.serif,
-    fontWeight: '700',
   },
   body: {
     flex: 1,
-    gap: 2,
-  },
-  eyebrow: {
-    fontFamily: fonts.serif,
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.4,
+    gap: spacing.xs,
   },
   title: {
     color: colors.text,
-    fontSize: 16,
-    lineHeight: 21,
+    fontSize: 22,
+    lineHeight: 28,
     fontFamily: fonts.serif,
-    fontWeight: '700',
   },
   author: {
     color: colors.muted,
-    fontSize: 12,
-    fontFamily: fonts.serif,
-    fontStyle: 'italic',
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.sans,
   },
   progressTrack: {
-    flex: 1,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.surface2,
     overflow: 'hidden',
+    marginTop: spacing.xs,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
     backgroundColor: colors.accent,
   },
   progressText: {
-    fontFamily: fonts.serif,
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: '700',
+    fontFamily: fonts.sans,
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 18,
     fontVariant: ['tabular-nums'],
   },
   subLine: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  chevron: {
-    marginLeft: 2,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

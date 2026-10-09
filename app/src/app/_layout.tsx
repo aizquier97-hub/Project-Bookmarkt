@@ -1,5 +1,9 @@
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { Lora_400Regular } from '@expo-google-fonts/lora';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useFonts } from 'expo-font';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -7,10 +11,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ToastProvider } from '@/components/toast';
 import { AuthProvider } from '@/domains/auth/AuthProvider';
 import { installGlobalCrashReporter, reportAppError } from '@/lib/crashReporting';
-import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, colors, fonts } from '@/lib/theme';
 
 // Record unhandled JS errors from the very first render.
 installGlobalCrashReporter();
+
+// Hold the splash until the bundled Lora/Inter faces are registered (D-089)
+// so the first frame never flashes system fonts with different metrics.
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,42 +70,58 @@ const boundaryStyles = StyleSheet.create({
   title: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
   },
   message: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: 'center',
   },
   detail: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: 'center',
   },
   button: {
     marginTop: 8,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-    borderWidth: 1.5,
-    borderRadius: 10,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
     ...buttonShadow,
   },
   buttonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 15,
   },
 });
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Lora_400Regular,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+  });
+  const fontsReady = fontsLoaded || fontError != null;
+
+  useEffect(() => {
+    if (fontsReady) {
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [fontsReady]);
+
+  if (!fontsReady) {
+    return null;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

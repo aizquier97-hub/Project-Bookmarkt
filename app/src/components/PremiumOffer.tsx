@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { openSubscription, type PaywallSource } from '@/domains/billing/paywallSource';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
-import { colors, fonts, gold } from '@/lib/theme';
+import { cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/theme';
 
 /**
  * The locked-state card for premium companion features. Shared by the Book
@@ -56,57 +56,53 @@ export function PremiumOffer({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
     justifyContent: 'center',
   },
   card: {
     backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: gold.base,
-    borderRadius: 14,
-    padding: 22,
+    borderWidth: 1,
+    borderColor: gold.glow,
+    borderRadius: radii.card,
+    padding: spacing.md,
     alignItems: 'center',
-    gap: 12,
-    elevation: 3,
-    shadowColor: '#2a1c11',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    gap: spacing.md,
+    ...cardShadow,
   },
   lockBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: gold.glow,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: gold.glowSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 19,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
     textAlign: 'center',
   },
   body: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: 'center',
   },
   pill: {
-    backgroundColor: gold.fill,
-    borderWidth: 1,
-    borderColor: gold.deep,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    backgroundColor: colors.accent,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: sizes.button,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.lg,
   },
   pillText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
+    fontSize: 15,
   },
 });

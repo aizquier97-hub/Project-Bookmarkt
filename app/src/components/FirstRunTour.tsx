@@ -19,7 +19,7 @@ import { openSubscription } from '@/domains/billing/paywallSource';
 import { dismissOnboarding, useOnboardingVisible } from '@/domains/onboarding/firstRun';
 import { ONBOARDING_SLIDES, type OnboardingSlide } from '@/domains/onboarding/slides';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
-import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/theme';
 
 /**
  * The first-run welcome tour (D-084): a swipeable carousel shown once per
@@ -148,7 +148,7 @@ function TourModal() {
               accessibilityLabel={onLast ? 'Start reading' : 'Next card'}
             >
               <Text style={styles.nextText}>{onLast ? 'Start reading' : 'Next'}</Text>
-              {onLast ? null : <Ionicons name="arrow-forward" size={18} color={gold.onFill} />}
+              {onLast ? null : <Ionicons name="arrow-forward" size={18} color={colors.onAccent} />}
             </Pressable>
           </View>
         </View>
@@ -183,6 +183,7 @@ function Slide({
         <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
         <Text style={styles.title}>{slide.title}</Text>
         <Text style={styles.body}>{slide.body}</Text>
+        <View style={styles.divider} />
         <View style={styles.points}>
           {slide.points.map((point) => (
             <View key={point} style={styles.pointRow}>
@@ -223,40 +224,38 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: colors.walnut,
-    paddingHorizontal: 20,
-    paddingBottom: 14,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.walnutBorder,
   },
   wordmark: {
     fontFamily: fonts.serif,
-    color: colors.onWalnut,
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+    color: colors.text,
+    fontSize: 32,
+    lineHeight: 40,
   },
   skip: {
-    fontFamily: fonts.serif,
-    color: colors.onWalnutMuted,
+    fontFamily: fonts.sansMedium,
+    color: colors.accent,
     fontSize: 15,
-    fontWeight: '600',
   },
   slide: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-start',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
   },
   card: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
-    padding: 24,
-    gap: 10,
+    borderRadius: radii.card,
+    padding: spacing.lg,
+    gap: spacing.sm,
     ...cardShadow,
   },
   cardPremium: {
@@ -264,41 +263,44 @@ const styles = StyleSheet.create({
     borderColor: gold.base,
   },
   iconBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.accentSoft,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: spacing.md,
   },
   iconBadgePremium: {
     backgroundColor: gold.glow,
   },
   eyebrow: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   title: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '700',
+    fontSize: 28,
+    lineHeight: 36,
   },
   body: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 23,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginTop: spacing.sm,
   },
   points: {
-    marginTop: 6,
-    gap: 8,
+    marginTop: spacing.xs,
+    gap: spacing.md,
   },
   pointRow: {
     flexDirection: 'row',
@@ -310,64 +312,65 @@ const styles = StyleSheet.create({
   },
   pointText: {
     flex: 1,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.text,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
   },
   premiumNote: {
     marginTop: 6,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
-    fontStyle: 'italic',
   },
   pill: {
     alignSelf: 'flex-start',
-    backgroundColor: gold.fill,
+    backgroundColor: colors.accent,
     borderWidth: 1,
-    borderColor: gold.deep,
-    borderRadius: 16,
+    borderColor: colors.accent,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
   pillText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 13,
-    fontWeight: '700',
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    gap: 16,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    gap: spacing.md,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   dots: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.border,
+    backgroundColor: colors.borderStrong,
   },
   dotActive: {
-    width: 22,
-    backgroundColor: gold.base,
+    width: 20,
+    backgroundColor: colors.accent,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: sizes.button,
+    height: sizes.button,
+    borderRadius: radii.button,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.card,
@@ -379,19 +382,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 14,
+    gap: spacing.sm,
+    minHeight: sizes.button,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
     ...buttonShadow,
   },
   nextText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 16,
-    fontWeight: '700',
   },
   pressed: {
     opacity: 0.85,

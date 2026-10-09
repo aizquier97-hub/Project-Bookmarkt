@@ -36,7 +36,7 @@ import { CoverPicker } from '@/components/CoverPicker';
 import { IsbnScanner, isBarcodeScannerAvailable } from '@/components/IsbnScanner';
 import { useToast } from '@/components/toast';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, colors, fonts } from '@/lib/theme';
 
 const SEARCH_DEBOUNCE_MS = 400;
 const MIN_QUERY_LENGTH = 2;
@@ -576,11 +576,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 12,
   },
   searchInput: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     flex: 1,
     color: colors.text,
     paddingVertical: 12,
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   searchingText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 14,
   },
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 10,
   },
   resultRowPressed: {
@@ -641,11 +641,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serif,
     color: colors.text,
     fontSize: 15,
-    fontWeight: '600',
     lineHeight: 20,
   },
   resultSub: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     marginTop: 3,
@@ -659,21 +658,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   manualToggleText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '600',
     fontSize: 14,
   },
   label: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '600',
     marginBottom: 6,
     marginTop: 14,
   },
   input: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
@@ -684,35 +681,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     marginTop: 12,
   },
   hint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 14,
   },
   saveButton: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 24,
     ...buttonShadow,
   },
   saveButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 16,
   },
   attribution: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
     fontSize: 11,
     marginTop: 26,

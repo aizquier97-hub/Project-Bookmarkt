@@ -50,7 +50,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { useToast } from '@/components/toast';
 import { TrophyStrip } from '@/components/TrophyStrip';
 import { queryKeys } from '@/lib/queryKeys';
-import { buttonShadow, cardShadow, colors, fonts, gold } from '@/lib/theme';
+import { buttonShadow, cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/theme';
 
 const DURATION_CHOICES_MIN = [10, 15, 20, 25, 30, 45, 60] as const;
 /** Custom sittings (D-077) accept anything from one minute to four hours. */
@@ -543,7 +543,9 @@ function TimerFlow({
             </Text>
           )}
 
-          <Text style={styles.label}>One line about where you are (optional)</Text>
+          <Text style={styles.heading}>
+            One line about where you are <Text style={styles.headingNote}>(optional)</Text>
+          </Text>
           <TextInput
             style={[styles.input, styles.noteInput]}
             value={note}
@@ -574,7 +576,7 @@ function TimerFlow({
             accessibilityLabel="Save session"
           >
             {saveMutation.isPending ? (
-              <ActivityIndicator color={gold.onFill} />
+              <ActivityIndicator color={colors.onAccent} />
             ) : (
               <Text style={styles.primaryButtonText}>Save session</Text>
             )}
@@ -769,7 +771,7 @@ function TimerFlow({
           <TrophyStrip progress={fitness.trophy} compact />
         </View>
 
-        <Text style={styles.label}>How long is this sitting?</Text>
+        <Text style={styles.heading}>How long is this sitting?</Text>
         <View style={styles.chipRow}>
           {DURATION_CHOICES_MIN.map((minutes) => {
             const active = !customOpen && chipMinutes === minutes;
@@ -841,14 +843,17 @@ function TimerFlow({
           accessibilityRole="button"
           accessibilityLabel="Turn the glass"
         >
-          <Ionicons name="hourglass-outline" size={20} color={gold.onFill} />
+          <Ionicons name="hourglass-outline" size={20} color={colors.onAccent} />
           <Text style={styles.primaryButtonText}>
-            {canStart ? `Turn the glass - ${plannedMinutes} min` : 'Turn the glass'}
+            {canStart ? `Turn the glass · ${plannedMinutes} min` : 'Turn the glass'}
           </Text>
         </Pressable>
-        <Text style={styles.footnote}>
-          The screen stays on the glass until the sand runs out. One exit button, no feed.
-        </Text>
+        <View style={styles.infoBox}>
+          <Ionicons name="hourglass-outline" size={18} color={colors.accent} />
+          <Text style={styles.infoText}>
+            The screen stays on the glass until the sand runs out. One exit button, no feed.
+          </Text>
+        </View>
       </ScrollView>
     </KeyboardPane>
   );
@@ -906,156 +911,184 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: spacing.lg,
   },
   pickerContent: {
-    padding: 16,
-    gap: 10,
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
   pickerTitle: {
     fontFamily: fonts.serif,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
     color: colors.text,
-    marginBottom: 6,
+    marginBottom: spacing.sm,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
   },
   card: {
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    gap: 10,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    gap: spacing.md,
     ...cardShadow,
   },
   wrapHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   cardTitle: {
     fontFamily: fonts.serif,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    lineHeight: 28,
     color: colors.text,
   },
   cardBody: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
     color: colors.muted,
   },
   link: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.accent,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: spacing.xs,
+  },
+  heading: {
+    fontFamily: fonts.serif,
+    fontSize: 25,
+    lineHeight: 32,
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  headingNote: {
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    color: colors.muted,
   },
   label: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
-    marginTop: 12,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: spacing.sm,
+    marginTop: spacing.lg,
   },
   hint: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: spacing.sm,
   },
-  footnote: {
-    fontFamily: fonts.serif,
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    backgroundColor: colors.surface2,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+  },
+  infoText: {
+    flex: 1,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 12,
-    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 21,
   },
   warning: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     fontSize: 13,
   },
   input: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: radii.field,
     color: colors.text,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    minHeight: sizes.button,
     fontSize: 16,
+    lineHeight: 22,
   },
   noteInput: {
-    minHeight: 84,
+    minHeight: 104,
     textAlignVertical: 'top',
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   chip: {
+    flexGrow: 1,
+    flexBasis: '22%',
+    minHeight: sizes.button,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.sm,
   },
   chipActive: {
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   chipText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.text,
     fontSize: 14,
-    fontWeight: '600',
   },
   chipTextActive: {
-    color: gold.onFill,
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
   },
   primaryButton: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: gold.fill,
-    borderColor: gold.deep,
-    borderWidth: 1.5,
-    borderRadius: 10,
-    paddingVertical: 14,
-    marginTop: 22,
+    gap: spacing.sm,
+    minHeight: sizes.button,
+    backgroundColor: colors.accent,
+    borderRadius: radii.button,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.lg,
     ...buttonShadow,
   },
   primaryButtonText: {
-    fontFamily: fonts.serif,
-    color: gold.onFill,
-    fontWeight: '700',
+    fontFamily: fonts.sansSemiBold,
+    color: colors.onAccent,
     fontSize: 16,
   },
   secondaryButton: {
-    borderColor: colors.accent,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 13,
+    borderRadius: radii.button,
+    minHeight: sizes.button,
     alignItems: 'center',
-    marginTop: 10,
+    justifyContent: 'center',
+    marginTop: spacing.sm,
   },
   secondaryButtonText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.accent,
-    fontWeight: '600',
     fontSize: 15,
   },
   buttonRow: {
@@ -1084,15 +1117,16 @@ const styles = StyleSheet.create({
   focusBook: {
     fontFamily: fonts.serif,
     color: colors.onWalnut,
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 25,
+    lineHeight: 32,
     textAlign: 'center',
   },
   focusHint: {
     fontFamily: fonts.serif,
     color: colors.onWalnutMuted,
-    fontSize: 14,
-    marginTop: 6,
+    fontSize: 16,
+    lineHeight: 22,
+    marginTop: spacing.sm,
   },
   focusGlass: {
     flex: 1,
@@ -1101,15 +1135,15 @@ const styles = StyleSheet.create({
   focusTime: {
     fontFamily: fonts.serif,
     color: colors.onWalnut,
-    fontSize: 48,
-    fontWeight: '700',
-    letterSpacing: 2,
+    fontSize: 64,
+    lineHeight: 72,
+    fontVariant: ['tabular-nums'],
   },
   focusPlanned: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.onWalnutMuted,
-    fontSize: 14,
-    marginBottom: 24,
+    fontSize: 13,
+    marginBottom: spacing.lg,
   },
   leaveButton: {
     flexDirection: 'row',
@@ -1122,10 +1156,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   leaveText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.onWalnutMuted,
     fontSize: 14,
-    fontWeight: '600',
   },
   statRow: {
     flexDirection: 'row',
@@ -1137,12 +1170,12 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontFamily: fonts.serif,
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 28,
+    lineHeight: 34,
     color: colors.text,
   },
   statLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 12,
     color: colors.muted,
     marginTop: 2,
@@ -1160,10 +1193,9 @@ const styles = StyleSheet.create({
   },
   celebrationText: {
     flex: 1,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     fontSize: 15,
     lineHeight: 21,
     color: colors.text,
-    fontWeight: '600',
   },
 });

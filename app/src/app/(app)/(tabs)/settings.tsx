@@ -161,7 +161,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title: 'Settings' }} />
+      <Stack.Screen options={{ title: 'Settings', headerTitleStyle: { fontSize: 36 } }} />
 
       <Text style={styles.sectionLabel}>Account</Text>
       <View style={styles.group}>
@@ -341,23 +341,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 24,
     paddingBottom: 40,
   },
   sectionLabel: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 6,
-    marginTop: 18,
-    marginLeft: 4,
+    marginBottom: 8,
+    marginTop: 24,
   },
   group: {
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
@@ -366,9 +364,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    gap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   rowDivider: {
     borderBottomWidth: 1,
@@ -378,23 +376,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowTitle: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    lineHeight: 22,
   },
   rowSub: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 12.5,
-    marginTop: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
   dangerText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
   },
   error: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.danger,
     marginTop: 14,
     textAlign: 'center',
@@ -402,16 +401,16 @@ const styles = StyleSheet.create({
   signOutButton: {
     marginTop: 26,
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 13,
+    borderColor: colors.danger,
+    minHeight: 48,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   signOutText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansSemiBold,
     color: colors.danger,
     fontSize: 15,
-    fontWeight: '700',
   },
 });

@@ -12,7 +12,7 @@ import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { BookPickerRow } from '@/components/BookPickerRow';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, gold } from '@/lib/theme';
+import { colors, fonts, gold, spacing } from '@/lib/theme';
 
 /**
  * The Book Club tab (Interface v2.0): the companion's socratic dialogue,
@@ -71,14 +71,16 @@ export default function BookClubTab() {
       ItemSeparatorComponent={() => <View style={styles.rowGap} />}
       ListHeaderComponent={
         <View style={styles.header}>
-          <View style={styles.badgeRow}>
-            <Ionicons name="people" size={16} color={gold.deep} />
-            <Text style={styles.badgeText}>A book club of two</Text>
-          </View>
+          <Ionicons name="people-outline" size={28} color={gold.base} />
+          <Text style={styles.title} accessibilityRole="header">
+            A book club of two
+          </Text>
+          <Text style={styles.subtitle}>
+            Talk a book over, properly - questions, doubts, half-formed theories.
+          </Text>
           <Text style={styles.lede}>
-            Talk a book over, properly - questions, doubts, half-formed theories. The companion
-            reads only your own records and never goes past your latest page. Choose the book
-            first: every conversation is about one book alone.
+            The companion reads only your own records and never goes past your latest page. Choose
+            the book first: every conversation is about one book alone.
           </Text>
           <Text style={styles.pickHeading}>Which book is on the table?</Text>
         </View>
@@ -111,51 +113,45 @@ export default function BookClubTab() {
 const styles = StyleSheet.create({
   stateContainer: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
     justifyContent: 'center',
   },
   list: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   header: {
-    marginBottom: 14,
+    marginBottom: spacing.md,
+    gap: spacing.md,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    alignSelf: 'flex-start',
-    backgroundColor: gold.glowSoft,
-    borderWidth: 1,
-    borderColor: gold.base,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 12,
-  },
-  badgeText: {
+  title: {
     fontFamily: fonts.serif,
-    color: gold.deep,
-    fontSize: 13,
-    fontWeight: '700',
+    color: colors.text,
+    fontSize: 32,
+    lineHeight: 40,
+  },
+  subtitle: {
+    fontFamily: fonts.serif,
+    color: colors.text,
+    fontSize: 20,
+    lineHeight: 28,
   },
   lede: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 16,
+    fontSize: 15,
+    lineHeight: 22,
   },
   pickHeading: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sansMedium,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    lineHeight: 16,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
+    marginTop: spacing.sm,
   },
   rowGap: {
-    height: 10,
+    height: spacing.md,
   },
 });
