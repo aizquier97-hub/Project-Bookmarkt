@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -51,6 +51,28 @@ export function RecapCard({
     queryFn: () => fetchLatestCompanionRecap(bookId),
     enabled: open && entitled,
   });
+
+  // What the open card actually showed (D-087): the teaser tap fires before
+  // entitlement is known, so this settles once per opening - locked copy
+  // (a paywall touch), a stored recap, or the empty retell prompt.
+  const viewTrackedRef = useRef(false);
+  const entitlementSettled = entitlementQuery.data !== undefined;
+  const recapSettled = !entitled || recapQuery.data !== undefined || recapQuery.isError;
+  const hasStoredRecap = Boolean(recapQuery.data);
+  useEffect(() => {
+    if (!open) {
+      viewTrackedRef.current = false;
+      return;
+    }
+    if (viewTrackedRef.current || !entitlementSettled || !recapSettled) {
+      return;
+    }
+    viewTrackedRef.current = true;
+    trackAnalyticsEvent('recap_viewed', { entitled, hasStoredRecap, entryCount }, bookId);
+    if (!entitled) {
+      trackAnalyticsEvent('paywall_hit', { feature: 'recap', reason: 'locked' }, bookId);
+    }
+  }, [open, entitlementSettled, recapSettled, entitled, hasStoredRecap, entryCount, bookId]);
 
   const recapMutation = useMutation({
     mutationFn: () => requestCompanionRecap(bookId, detail),
@@ -161,7 +183,16 @@ export function RecapCard({
                     <Pressable
                       key={option}
                       style={[styles.segmentItem, detail === option && styles.segmentItemActive]}
-                      onPress={() => setDetail(option)}
+                      onPress={() => {
+                        if (option !== detail) {
+                          trackAnalyticsEvent(
+                            'recap_detail_changed',
+                            { detail: option, hasStoredRecap },
+                            bookId,
+                          );
+                        }
+                        setDetail(option);
+                      }}
                       accessibilityRole="button"
                       accessibilityLabel={`${option === 'brief' ? 'Brief' : 'Detailed'} recap`}
                     >

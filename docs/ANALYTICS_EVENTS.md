@@ -20,7 +20,9 @@ insert never blocks or surfaces to the reader.
 ## Catalogue
 
 Legend for *Since*: the decision that introduced the event. Rows marked
-**D-086** are the usage-coverage expansion.
+**D-086** are the usage-coverage expansion; rows marked **D-087** are the
+behaviour-depth expansion (salon flow, timer funnel, composer entry points,
+Book Club shelf picks).
 
 ### Sessions and navigation
 
@@ -51,7 +53,9 @@ Legend for *Since*: the decision that introduced the event. Rows marked
 | `dictation_started` | - | - | D-086 | Microphone session begins. |
 | `dictation_finished` | `outcome`: `review` \| `empty` \| `error` \| `permission_denied` \| `start_failed`; `durationSeconds`; `chars` | - | D-086 | The take ends, for whatever reason. `chars` is the transcript length only. |
 | `dictation_reviewed` | `outcome`: `confirmed` \| `discarded`; `chars` | - | D-086 | Reader accepts or throws away the review sheet. |
-| `manual_entry_added` | `boundary`, `progressType`, `progressValue`, `captureMethod`: `voice` \| `typed`, `kind` | book | PWA / D-074 | An entry is saved. |
+| `manual_entry_added` | `boundary`, `progressType`, `progressValue`, `captureMethod`: `voice` \| `typed`, `kind`, `source`: `composer` \| `timer` \| `salon` | book | PWA / D-074 / D-087 | An entry is saved. `source` (D-087) says whether it came from the book composer, the Sandglass wrap-up note, or a Socratic salon saved to the journal. |
+| `composer_opened` | `target`: `entry` \| `character`; `mode`: `write` \| `speak`; `source`: `capture_bar` \| `timer_handoff` | book | D-087 | The entry or character composer opens, from the book's capture bar or a Sandglass hand-off param. Compare against `manual_entry_added` / `character_map_saved` for a per-mode completion rate. |
+| `book_tab_viewed` | `tab`: `entries` \| `characters` \| `photos`; `entries`, `characters` (counts) | book | D-087 | The reader switches panes inside a book (the bottom tabs are `tab_viewed`). |
 | `entry_draft_discarded` | `chars`, `hadTranscript`, `composerMode`, `kind` | book | D-086 | The composer is closed with unsaved text. |
 | `entry_search_used` | `matches`, `zeroResults`, `entries` | book | D-086 | 900 ms after the reader stops typing a filter of 2+ characters in the book's entry list. |
 | `entry_flag_applied` | `source` | book | D-04x | A suggested flag is applied. |
@@ -64,9 +68,13 @@ Legend for *Since*: the decision that introduced the event. Rows marked
 
 | Event | Properties | topic_id | Since | Fires |
 | --- | --- | --- | --- | --- |
-| `reading_session_completed` | `durationSeconds`, `plannedSeconds`, `pagesRead`, `completedPlan` | book | D-06x | |
-| `reading_session_abandoned` | `elapsedSeconds`, `plannedSeconds` | book | D-06x | |
-| `timer_character_prompt_used` | `mode` | book | D-077 | |
+| `reading_session_started` | `plannedMinutes`, `customLength`, `hasStartPage`, `bellPermission`: `granted` \| `denied` \| `unavailable` | book | D-087 | The glass is turned. The denominator for the three outcomes below. |
+| `reading_session_completed` | `durationSeconds`, `plannedSeconds`, `pagesRead`, `completedPlan` | book | D-06x | The wrap-up is saved (planned time reached or left early after 1+ min). |
+| `reading_session_ended_early` | `elapsedSeconds`, `plannedSeconds` | book | D-087 | "Leave early" confirmed after at least a minute; the sitting still goes to wrap-up. |
+| `reading_session_abandoned` | `elapsedSeconds`, `plannedSeconds` | book | D-06x | "Leave early" under a minute; nothing is logged. |
+| `timer_wrapup_abandoned` | `elapsedSeconds`, `plannedSeconds`, `hadNote`, `hadEndPage` | book | D-087 | The reader left "Time's up" without saving - time was read but the sitting was lost. |
+| `timer_next_step` | `choice`: `write_entry` \| `open_book` \| `profile`; `noteSaved`, `hasEndPage` | book | D-087 | Which door the reader takes from the saved screen. |
+| `timer_character_prompt_used` | `mode` | book | D-077 | The "Did you meet someone new?" hand-off from the saved screen. |
 | `trophy_piece_unlocked` | `piece`, `source`: `entry` \| `timer` | book | D-06x | |
 | `notification_permission_result` | `granted`, `context`: `reading_timer` | - | D-086 | Only when the OS prompt was actually shown (not when permission was already settled). |
 | `exact_alarm_prompt` | `choice`: `not_now` \| `open_settings` | - | D-086 | Android 12+ exact-alarm explainer answered. |
@@ -75,11 +83,24 @@ Legend for *Since*: the decision that introduced the event. Rows marked
 
 | Event | Properties | topic_id | Since | Fires |
 | --- | --- | --- | --- | --- |
+| `club_book_picked` | `shelfIndex`, `shelfSize`, `hasEntries`, `finished` | book | D-087 | A book is chosen on the Book Club tab, before the entitlement gate decides what the reader sees. |
+| `recall_book_picked` | same shape | book | D-087 | A book is chosen on the Recall tab. |
 | `companion_opened` | - | book | D-04x | |
-| `companion_message_sent` | `status`: `succeeded` \| `error` \| error code | book | D-04x | |
+| `salon_hub_viewed` | `salons`, `hasOpenProbe`, `hasTakeaway` | book | D-087 | A returning reader lands on the orientation hub (first-timers go straight to the primer). |
+| `companion_tool_used` (`tool: primer`) | `status`: `succeeded` \| `NO_ENTRIES` \| error code | book | D-087 | The primer settles, once per visit. `NO_ENTRIES` is the "write a note first" dead end. |
+| `salon_started` | `mode`: `new` \| `resumed`; `hasObservation`; `priorSalons` | book | D-087 | "Start discussion" or "Continue discussion". |
+| `companion_message_sent` | `status`: `succeeded` \| error code; on success also `turn` (1-3 arc position), `answerIndex` (1-based within the salon), `inputMethod`: `chip` \| `voice` \| `typed`, `chars`, `convergence` | book | D-04x / D-087 | Each answer sent. `inputMethod` is whichever seeded the draft first (a chip the reader then edited is still `chip`). |
+| `salon_convergence_reached` | `answers`, `convergences` | book | D-087 | The synthesis card lands. |
+| `salon_fork` | `choice`: `save_finish` \| `push_further`; `answers` | book | D-087 | The reader's answer to the convergence fork. |
+| `salon_ended` | `reason`: `end_session` \| `wrap_up` \| `save_finish` \| `left`; `mode`, `answers`, `convergences`, `pushedFurther`, `durationSeconds`, `chip`, `voice`, `typed` | book | D-087 | Exactly once per salon: an explicit ending, or `left` when the screen unmounts mid-deck (`salonSignals.ts`). |
+| `salon_journal_saved` | `status`, `answers` | book | D-087 | "Save to journal" on the closing card (the entry itself is `manual_entry_added` with `source: salon`). |
+| `salon_archive_opened` | `index`, `total`, `hasTakeaway`, `pairs` | book | D-087 | A past discussion is expanded on the hub. |
 | `companion_tool_used` | `tool`, `status`, tool-specific counts (`cards`, `found`, `moves`, ...) | book | D-04x | |
-| `recap_teaser_tapped`, `recap_requested` | `detail`, `status`, `entryCount` | book | D-04x | |
-| `paywall_hit` | `feature`: `companion` \| `club_lock` \| `match_lock` \| `summary_lock` \| ...; `reason`: `locked` \| `subscription` \| `quota` | book when known | D-086 | A locked card renders, or the server refuses a companion call for entitlement/quota reasons. |
+| `recap_teaser_tapped` | `entryCount` | book | D-04x | "Where you left off" is opened (before entitlement is known). |
+| `recap_viewed` | `entitled`, `hasStoredRecap`, `entryCount` | book | D-087 | What the open card actually showed once entitlement settled: the locked copy (also a `paywall_hit` with `feature: recap`), a stored recap, or the empty retell prompt. |
+| `recap_detail_changed` | `detail`: `brief` \| `detailed`; `hasStoredRecap` | book | D-087 | The Brief/Detailed segment is switched. |
+| `recap_requested` | `detail`, `status`, `entryCount` | book | D-04x | A retell is requested. |
+| `paywall_hit` | `feature`: `companion` \| `recap` \| `club_lock` \| `match_lock` \| `summary_lock` \| ...; `reason`: `locked` \| `subscription` \| `quota` | book when known | D-086 / D-087 | A locked card renders, or the server refuses a companion call for entitlement/quota reasons. |
 | `subscription_viewed` | `entitled`, `state`, `source` (see below) | - | D-068 / D-086 | The Subscription screen mounts with a resolved entitlement. |
 | `purchase_started` | `package`, `period`, `store_trial` | - | D-068 | |
 | `purchase_completed` / `purchase_cancelled` / `purchase_failed` | `package` | - | D-068 | |
@@ -156,6 +177,80 @@ group by 1 order by 2 desc;
 -- Timer permission: did the bell prompt get accepted?
 select event_properties->>'granted' as granted, count(*)
 from analytics_events where event_name = 'notification_permission_result' group by 1;
+
+-- Time to first milestone (D-087): days from sign-up to each first-ever
+-- action, per reader, then the median. Long gaps are the pain points.
+with firsts as (
+  select user_id, event_name, min(created_at) as first_at
+  from analytics_events
+  where event_name in ('book_added', 'manual_entry_added', 'reading_session_completed',
+                       'companion_opened', 'salon_started', 'paywall_hit',
+                       'subscription_viewed', 'purchase_completed')
+  group by 1, 2
+)
+select f.event_name,
+       count(*) as readers,
+       round(percentile_cont(0.5) within group
+             (order by extract(epoch from f.first_at - u.created_at) / 86400)::numeric, 1)
+         as median_days_from_signup
+from firsts f join auth.users u on u.id = f.user_id
+group by 1 order by 3;
+
+-- Sandglass funnel: started -> ended early / completed / abandoned / wrap-up lost
+select event_name, count(*)
+from analytics_events
+where event_name in ('reading_session_started', 'reading_session_completed',
+                     'reading_session_ended_early', 'reading_session_abandoned',
+                     'timer_wrapup_abandoned')
+  and created_at > now() - interval '30 days'
+group by 1 order by 2 desc;
+
+-- Which session lengths readers pick, and after a sitting, where they go
+select (event_properties->>'plannedMinutes')::int as minutes, count(*)
+from analytics_events where event_name = 'reading_session_started' group by 1 order by 1;
+
+select event_properties->>'choice' as next_step, count(*)
+from analytics_events where event_name = 'timer_next_step' group by 1 order by 2 desc;
+
+-- Socratic salons: how deep they go and how they end
+select event_properties->>'reason' as ended_by,
+       count(*) as salons,
+       round(avg((event_properties->>'answers')::numeric), 1) as avg_answers,
+       round(avg((event_properties->>'durationSeconds')::numeric) / 60, 1) as avg_minutes,
+       sum((event_properties->>'convergences')::int) as convergences
+from analytics_events
+where event_name = 'salon_ended' and created_at > now() - interval '30 days'
+group by 1 order by 2 desc;
+
+-- How readers answer the companion (chip vs voice vs typed) by arc position
+select event_properties->>'turn' as turn, event_properties->>'inputMethod' as method, count(*)
+from analytics_events
+where event_name = 'companion_message_sent' and event_properties->>'status' = 'succeeded'
+  and event_properties ? 'inputMethod'
+group by 1, 2 order by 1, 3 desc;
+
+-- Book Club door: shelf picks -> salons started -> locked (the premium case)
+select
+  count(*) filter (where event_name = 'club_book_picked') as picks,
+  count(*) filter (where event_name = 'salon_started') as salons_started,
+  count(*) filter (where event_name = 'paywall_hit'
+                     and event_properties->>'feature' in ('companion', 'club_lock')) as locked,
+  count(*) filter (where event_name = 'salon_journal_saved'
+                     and event_properties->>'status' = 'succeeded') as saved_to_journal
+from analytics_events where created_at > now() - interval '30 days';
+
+-- "Where you left off": how often the open card is the locked copy
+select event_properties->>'entitled' as entitled,
+       event_properties->>'hasStoredRecap' as had_recap, count(*)
+from analytics_events where event_name = 'recap_viewed' group by 1, 2;
+
+-- Entry sources and composer completion by mode
+select event_properties->>'source' as source, event_properties->>'captureMethod' as method, count(*)
+from analytics_events where event_name = 'manual_entry_added' group by 1, 2 order by 3 desc;
+
+select event_properties->>'target' as target, event_properties->>'mode' as mode,
+       event_properties->>'source' as source, count(*) as opened
+from analytics_events where event_name = 'composer_opened' group by 1, 2, 3 order by 4 desc;
 ```
 
 ## Adding an event
@@ -164,7 +259,7 @@ from analytics_events where event_name = 'notification_permission_result' group 
    naming the decision.
 2. Keep properties to statuses, modes and counts; put any classification
    logic in a pure module (`addBookSignals.ts`, `scanOutcome.ts`,
-   `appOpen.ts`) with a unit test.
+   `appOpen.ts`, `salonSignals.ts`) with a unit test.
 3. Pass the book's `topic_id` as the third argument whenever the event is
    about a book.
 4. Add a row to this catalogue. Events added here do not need a migration -

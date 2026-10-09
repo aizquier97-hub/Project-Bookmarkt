@@ -8,6 +8,7 @@ import { summarizeEntriesByBook } from '@/domains/entries/display';
 import { listEntrySummaryRows } from '@/domains/entries/service';
 import { listBooks } from '@/domains/library/service';
 import { sortBooksForShelf } from '@/domains/library/shelf';
+import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { BookPickerRow } from '@/components/BookPickerRow';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
@@ -82,12 +83,25 @@ export default function BookClubTab() {
           <Text style={styles.pickHeading}>Which book is on the table?</Text>
         </View>
       }
-      renderItem={({ item: book }) => (
+      renderItem={({ item: book, index }) => (
         <BookPickerRow
           book={book}
-          onPress={() =>
-            router.push({ pathname: '/companion', params: { id: String(book.id) } })
-          }
+          onPress={() => {
+            // Club funnel (D-087): which shelf position gets picked and
+            // whether that book has notes to talk about - before the
+            // companion's own gate decides what the reader sees.
+            trackAnalyticsEvent(
+              'club_book_picked',
+              {
+                shelfIndex: index,
+                shelfSize: sortedBooks.length,
+                hasEntries: summaries.has(book.id),
+                finished: Boolean(book.finished_at),
+              },
+              book.id,
+            );
+            router.push({ pathname: '/companion', params: { id: String(book.id) } });
+          }}
         />
       )}
     />

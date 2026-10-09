@@ -62,7 +62,28 @@ export type AnalyticsEventName =
   | 'paywall_hit'
   | 'notification_permission_result'
   | 'exact_alarm_prompt'
-  | 'settings_action';
+  | 'settings_action'
+  // Behaviour depth (D-087): how far a Socratic salon goes and how it ends,
+  // recap viewing against entitlement, the Sandglass from start to the
+  // next step, composer entry points, and Book Club shelf picks. Same rule:
+  // modes, counts, durations and outcomes only - never what was said.
+  | 'salon_hub_viewed'
+  | 'salon_started'
+  | 'salon_convergence_reached'
+  | 'salon_fork'
+  | 'salon_ended'
+  | 'salon_journal_saved'
+  | 'salon_archive_opened'
+  | 'recap_viewed'
+  | 'recap_detail_changed'
+  | 'reading_session_started'
+  | 'reading_session_ended_early'
+  | 'timer_wrapup_abandoned'
+  | 'timer_next_step'
+  | 'composer_opened'
+  | 'book_tab_viewed'
+  | 'club_book_picked'
+  | 'recall_book_picked';
 
 export function trackAnalyticsEvent(
   eventName: AnalyticsEventName,

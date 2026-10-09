@@ -20,7 +20,14 @@ export interface NewEntryInput {
   rawTranscript?: string | null;
   /** Quote Log / important-event flag (D-039); plain note when omitted. */
   kind?: EntryKind;
+  /**
+   * Where the entry was written (D-087): the book composer, the Sandglass
+   * wrap-up note, or a Socratic salon saved to the journal. Analytics only.
+   */
+  source?: EntrySource;
 }
+
+export type EntrySource = 'composer' | 'timer' | 'salon';
 
 export async function listEntries(bookId: number): Promise<Entry[]> {
   const { data, error } = await supabase
@@ -99,6 +106,7 @@ export async function addEntry(bookId: number, input: NewEntryInput): Promise<En
       progressValue,
       captureMethod: rawTranscript ? 'voice' : 'typed',
       kind,
+      source: input.source ?? 'composer',
     },
     bookId,
   );
