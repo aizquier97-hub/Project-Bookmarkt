@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
@@ -12,7 +11,7 @@ import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { BookPickerRow } from '@/components/BookPickerRow';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { queryKeys } from '@/lib/queryKeys';
-import { colors, fonts, gold, radii, spacing } from '@/lib/theme';
+import { colors, fonts, spacing } from '@/lib/theme';
 
 /**
  * The Recall tab (D-066, formerly Cue Cards): a timed memory-match game
@@ -70,16 +69,6 @@ export default function RecallTab() {
       ItemSeparatorComponent={() => <View style={styles.rowGap} />}
       ListHeaderComponent={
         <View style={styles.header}>
-          <View style={styles.tilePair} accessible accessibilityLabel="A cue tile and an answer tile">
-            <View style={styles.tile}>
-              <Ionicons name="bookmark-outline" size={26} color={gold.base} />
-              <Text style={styles.tileLabel}>Cue</Text>
-            </View>
-            <View style={[styles.tile, styles.tileAnswer]}>
-              <Ionicons name="bookmark-outline" size={26} color={gold.base} />
-              <Text style={[styles.tileLabel, styles.tileLabelAnswer]}>Answer</Text>
-            </View>
-          </View>
           <Text style={styles.eyebrow}>Your words, remembered</Text>
           <Text style={styles.title} accessibilityRole="header">
             Recall before you reread
@@ -133,37 +122,6 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.md,
     gap: spacing.md,
-  },
-  tilePair: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  tile: {
-    width: 104,
-    height: 136,
-    borderRadius: radii.card,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  tileAnswer: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  tileLabel: {
-    fontFamily: fonts.sansMedium,
-    color: colors.muted,
-    fontSize: 12,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  tileLabelAnswer: {
-    color: colors.onAccent,
   },
   eyebrow: {
     fontFamily: fonts.sansMedium,
