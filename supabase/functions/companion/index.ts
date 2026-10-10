@@ -115,6 +115,12 @@ const MAX_CONTEXT_CHARACTERS = 40;
 const HISTORY_MESSAGES = 12;
 /** Bookmark-ribbon summaries refreshed per entry_summaries call (D-055). */
 const MAX_SUMMARY_BATCH = 40;
+/**
+ * Entry-summary prompt version. Appended to the per-entry hash so a prompt
+ * change (D-095: a readable sentence, not a ten-word fragment) marks every
+ * cached summary stale once and the next journal open rewrites it.
+ */
+const ENTRY_SUMMARY_VERSION = "s2";
 /** Comprehension rubric (D-065): most recent note material, by characters. */
 const COMPREHENSION_MAX_CHARS = 24000;
 /**
@@ -464,6 +470,11 @@ function hashContent(text: string): string {
   return `djb2:${(hash >>> 0).toString(16)}:${text.length}`;
 }
 
+/** Hash stored beside an entry's summary; mirrored by the client's entrySummaryIsStale. */
+function entrySummaryHash(text: string): string {
+  return `${hashContent(text)}:${ENTRY_SUMMARY_VERSION}`;
+}
+
 /**
  * Comprehension material (D-065): the reader's notes on one book, oldest
  * first, one line each, reflections appended; the most recent lines win
@@ -697,16 +708,18 @@ async function embedTexts(
 }
 
 /**
- * One batched call summarizes every stale note into a bookmark-ribbon label
- * (D-055). Each summary is grounded in its own note alone.
+ * One batched call summarizes every stale note into a journal-card headline
+ * (D-055; rewritten D-095 from a ten-word fragment to a readable sentence).
+ * Each summary is grounded in its own note alone.
  */
 function buildEntrySummariesPrompt(notes: { id: number; text: string }[]): string {
   return [
-    "The reader's app shows each of their reading notes as a slim bookmark, labeled with a one-line summary. Summarize each note below.",
-    "Rules for every summary:",
-    "- AT MOST 10 words. A fragment is fine; no trailing period needed.",
+    "The reader's journal shows each of their reading notes as a card with a short headline that tells them what that note says. Write the headline for each note below.",
+    "Rules for every headline:",
+    "- ONE complete sentence of at most 16 words, in plain language, that says what happened or what the reader noted. End with a period.",
+    "- A sentence, not a list: never join topics with commas as a keyword list.",
     "- Use only that note's own content and, where natural, the reader's own words. Never add events, names, or judgments.",
-    "- Plain and factual: what the note records, not commentary about the note.",
+    "- Skip page or chapter numbers, bracketed markers, and commentary about the note itself.",
     "The notes, each marked with its id:",
     ...notes.map((n) => `[#${n.id}] ${n.text.replace(/\n+/g, " / ").slice(0, 1200)}`),
     'Respond ONLY with JSON: {"summaries": [{"entryId": number, "summary": string}]} - one item per note above.',
@@ -1583,7 +1596,7 @@ serve(async (req) => {
       }
       const stale = (summaryRows ?? [])
         .filter((r) => String(r.text ?? "").trim())
-        .filter((r) => !r.ai_summary || r.ai_summary_hash !== hashContent(String(r.text)))
+        .filter((r) => !r.ai_summary || r.ai_summary_hash !== entrySummaryHash(String(r.text)))
         .slice(0, MAX_SUMMARY_BATCH);
       if (stale.length === 0) {
         await finalize("succeeded", 200, { grounding_entries: 0 });
@@ -1636,7 +1649,7 @@ serve(async (req) => {
         parsedSummaries = (Array.isArray(raw?.summaries) ? raw.summaries : [])
           .map((s: any) => ({
             entryId: Number(s?.entryId),
-            summary: String(s?.summary ?? "").trim().slice(0, 140),
+            summary: String(s?.summary ?? "").trim().slice(0, 160),
           }))
           .filter(
             (s: { entryId: number; summary: string }) =>
@@ -1652,7 +1665,7 @@ serve(async (req) => {
             .from("entries")
             .update({
               ai_summary: s.summary,
-              ai_summary_hash: hashContent(staleTextById.get(s.entryId) ?? ""),
+              ai_summary_hash: entrySummaryHash(staleTextById.get(s.entryId) ?? ""),
             })
             .eq("id", s.entryId)
             .eq("topic_id", bookId);

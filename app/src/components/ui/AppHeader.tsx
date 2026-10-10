@@ -49,7 +49,11 @@ export function AppHeader({
           accessibilityLabel={backLabel ? `Back to ${backLabel}` : 'Go back'}
         >
           <Ionicons name={backLabel ? 'chevron-back' : 'arrow-back'} size={24} color={colors.accent} />
-          {backLabel ? <Text style={styles.backLabel}>{backLabel}</Text> : null}
+          {backLabel ? (
+            <Text style={styles.backLabel} numberOfLines={1}>
+              {backLabel}
+            </Text>
+          ) : null}
         </Pressable>
       ) : null}
       {title ? (
@@ -110,16 +114,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // The labelled form sizes to its text: no fixed width, and neither the
+  // row nor the label may shrink, or "Book" wraps to "Boo / k" beside the
+  // flex:1 title slot (seen on Android, D-095).
   backLabelled: {
     width: undefined,
     flexDirection: 'row',
+    flexShrink: 0,
     paddingRight: spacing.sm,
     gap: 2,
   },
   backLabel: {
     fontFamily: fonts.sansMedium,
     fontSize: 15,
+    lineHeight: 20,
     color: colors.accent,
+    flexShrink: 0,
   },
   title: {
     flex: 1,

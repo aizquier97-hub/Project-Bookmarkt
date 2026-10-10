@@ -231,12 +231,6 @@ export default function EntryDetailScreen() {
                 <Text style={styles.chipText}>Quote</Text>
               </View>
             ) : null}
-            {marked.kind === 'important' ? (
-              <View style={styles.importantChip}>
-                <Ionicons name="flag" size={11} color={colors.onAccent} />
-                <Text style={styles.importantChipText}>Important</Text>
-              </View>
-            ) : null}
           </View>
           {createdLabel ? (
             <Text style={styles.dateLine}>
@@ -383,20 +377,6 @@ const styles = StyleSheet.create({
   chipText: {
     fontFamily: fonts.sansMedium,
     color: gold.deep,
-    fontSize: 12,
-  },
-  importantChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.accent,
-    borderRadius: radii.chip,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  importantChipText: {
-    fontFamily: fonts.sansSemiBold,
-    color: colors.onAccent,
     fontSize: 12,
   },
   bodyText: {

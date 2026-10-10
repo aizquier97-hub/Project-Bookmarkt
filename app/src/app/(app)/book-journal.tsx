@@ -20,19 +20,17 @@ import { SectionFooterActions } from '@/components/book/SectionFooterActions';
 import { bookSectionStyles as shared } from '@/components/book/shared';
 import { CharacterSuggestions } from '@/components/CharacterSuggestions';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
-import { Chip, ChipRow, StickyFooter } from '@/components/ui';
+import { StickyFooter } from '@/components/ui';
 import {
   CompanionRequestError,
   refreshEntrySummaries,
-  requestFlagSuggestions,
   searchEntriesByMeaning,
-  type CompanionFlagSuggestion,
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
 import { entrySummaryIsStale, splitEntryText } from '@/domains/entries/display';
 import { useLastSavedNote } from '@/domains/entries/lastSaved';
-import { flagEntryTextImportant, parseEntryKind } from '@/domains/entries/markers';
-import { listEntries, updateEntry, type Entry } from '@/domains/entries/service';
+import { parseEntryKind } from '@/domains/entries/markers';
+import { listEntries } from '@/domains/entries/service';
 import { getBook } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { queryKeys } from '@/lib/queryKeys';
@@ -76,37 +74,30 @@ export default function BookJournalScreen() {
   });
   const companionEntitled = entitlementQuery.data?.entitled === true;
 
-  // Search plus kind filters keep a long journal scannable. The search
-  // field hides behind the header's magnifier until asked for (D-093).
+  // Search keeps a long journal scannable. The field hides behind the
+  // header's magnifier until asked for (D-093). The All / Quotes /
+  // Important filter chips and the "important" flag went in D-095: quotes
+  // live on their own tab and the flag distinction was retired.
   const [searchOpen, setSearchOpen] = useState(false);
   const [entrySearch, setEntrySearch] = useState('');
-  const [entryFilter, setEntryFilter] = useState<'all' | 'quote' | 'important'>('all');
   const [meaningMatches, setMeaningMatches] = useState<{ query: string; ids: number[] } | null>(
     null,
   );
-  const hasMarkedEntries = useMemo(
-    () => entries.some((entry) => parseEntryKind(splitEntryText(entry.text).body).kind !== 'note'),
-    [entries],
-  );
   const visibleEntries = useMemo(() => {
     const query = entrySearch.trim().toLowerCase();
-    const filter = hasMarkedEntries ? entryFilter : 'all';
     const meaningIds = meaningMatches ? new Set(meaningMatches.ids) : null;
     return entries.filter((entry) => {
-      const parts = splitEntryText(entry.text);
-      const marked = parseEntryKind(parts.body);
-      if (filter !== 'all' && marked.kind !== filter) {
-        return false;
-      }
       if (meaningIds) {
         return meaningIds.has(entry.id);
       }
       if (!query) {
         return true;
       }
+      const parts = splitEntryText(entry.text);
+      const marked = parseEntryKind(parts.body);
       return `${parts.boundaryLabel ?? ''} ${marked.body}`.toLowerCase().includes(query);
     });
-  }, [entries, entrySearch, entryFilter, hasMarkedEntries, meaningMatches]);
+  }, [entries, entrySearch, meaningMatches]);
 
   // Zero-result journal searches (D-086): one debounced signal per settled
   // query with the match count only - the words stay on the device.
@@ -127,45 +118,6 @@ export default function BookJournalScreen() {
     // Re-arm on the query only: a background refetch should not re-emit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entrySearch, entrySearchLength, meaningMatches, bookId]);
-
-  // Companion aid (D-039, premium): AI-suggested important flags over the
-  // timeline. Transient - the reader confirms every saved word (D-012).
-  const [flagSuggestions, setFlagSuggestions] = useState<CompanionFlagSuggestion[] | null>(null);
-  const [flagsIntro, setFlagsIntro] = useState<string | null>(null);
-  const [flagsError, setFlagsError] = useState<string | null>(null);
-  const flagsMutation = useMutation({
-    mutationFn: () => requestFlagSuggestions(bookId),
-    onMutate: () => {
-      setFlagsError(null);
-      setFlagSuggestions(null);
-      setFlagsIntro(null);
-    },
-    onSuccess: (result) => {
-      setFlagSuggestions(result.suggestions);
-      setFlagsIntro(result.reply.content || null);
-      trackAnalyticsEvent('companion_tool_used', { tool: 'suggest_flags', status: 'succeeded' }, bookId);
-    },
-    onError: (err) => {
-      const status = err instanceof CompanionRequestError ? err.code : 'error';
-      trackAnalyticsEvent('companion_tool_used', { tool: 'suggest_flags', status }, bookId);
-      setFlagsError(
-        err instanceof CompanionRequestError ? err.message : 'The companion could not help just now.',
-      );
-    },
-  });
-  const applyFlagMutation = useMutation({
-    mutationFn: (entry: Entry) => updateEntry(entry.id, bookId, flagEntryTextImportant(entry.text)),
-    onSuccess: (_data, entry) => {
-      setFlagSuggestions((prev) => (prev ?? []).filter((s) => s.entryId !== entry.id));
-      trackAnalyticsEvent('entry_flag_applied', { source: 'suggestion' }, bookId);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.entrySummaries });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.activityEntries });
-    },
-    onError: () => {
-      setFlagsError('The flag could not be saved. Please try again.');
-    },
-  });
 
   // Search by meaning (D-052). First use shows a one-time explainer.
   const [showMeaningIntro, setShowMeaningIntro] = useState(false);
@@ -418,106 +370,6 @@ export default function BookJournalScreen() {
               </View>
             ) : null}
 
-            {hasMarkedEntries ? (
-              <ChipRow style={styles.filterRow}>
-                {(
-                  [
-                    ['all', 'All'],
-                    ['quote', 'Quotes'],
-                    ['important', 'Important'],
-                  ] as const
-                ).map(([filter, label]) => (
-                  <Chip
-                    key={filter}
-                    label={label}
-                    selected={entryFilter === filter}
-                    onPress={() => setEntryFilter(filter)}
-                  />
-                ))}
-              </ChipRow>
-            ) : null}
-
-            {companionEntitled && entries.length >= 3 ? (
-              <View>
-                {flagsMutation.isPending ? (
-                  <View style={styles.aidPendingRow}>
-                    <ActivityIndicator size="small" color={colors.muted} />
-                    <Text style={styles.aidPendingText}>Reading your notes…</Text>
-                  </View>
-                ) : flagSuggestions === null ? (
-                  <Pressable
-                    style={styles.flagsRow}
-                    onPress={() => flagsMutation.mutate()}
-                    accessibilityRole="button"
-                    accessibilityLabel="Ask the companion which moments look important"
-                  >
-                    <Ionicons name="flag-outline" size={14} color={colors.accent} />
-                    <Text style={styles.flagsRowText}>Which moments look important?</Text>
-                  </Pressable>
-                ) : (
-                  <View style={styles.aidCard}>
-                    <View style={styles.flagsHeader}>
-                      <Text style={styles.aidLabel}>
-                        {flagsIntro ?? 'Moments that read like turning points'}
-                      </Text>
-                      <Pressable
-                        onPress={() => {
-                          setFlagSuggestions(null);
-                          setFlagsIntro(null);
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel="Close the suggestions"
-                        hitSlop={8}
-                      >
-                        <Ionicons name="close" size={18} color={colors.muted} />
-                      </Pressable>
-                    </View>
-                    {flagSuggestions.length === 0 ? (
-                      <Text style={styles.aidSuggestion}>
-                        Nothing stands out as a turning point yet. You decide, of course.
-                      </Text>
-                    ) : (
-                      flagSuggestions.map((suggestion) => {
-                        const entry = entries.find((e) => e.id === suggestion.entryId);
-                        if (!entry) {
-                          return null;
-                        }
-                        const preview = parseEntryKind(splitEntryText(entry.text).body).body;
-                        return (
-                          <View key={suggestion.entryId} style={styles.flagSuggestion}>
-                            <Text style={styles.flagPreview} numberOfLines={2}>
-                              “{preview}”
-                            </Text>
-                            <Text style={styles.flagReason}>{suggestion.reason}</Text>
-                            <View style={shared.cardActions}>
-                              <Pressable
-                                style={shared.smallButton}
-                                onPress={() => applyFlagMutation.mutate(entry)}
-                                disabled={applyFlagMutation.isPending}
-                              >
-                                <Text style={shared.smallButtonText}>Flag as important</Text>
-                              </Pressable>
-                              <Pressable
-                                style={shared.smallButtonGhost}
-                                onPress={() =>
-                                  setFlagSuggestions((prev) =>
-                                    (prev ?? []).filter((s) => s.entryId !== suggestion.entryId),
-                                  )
-                                }
-                              >
-                                <Text style={shared.smallButtonGhostText}>Skip</Text>
-                              </Pressable>
-                            </View>
-                          </View>
-                        );
-                      })
-                    )}
-                  </View>
-                )}
-                {flagsError ? <Text style={shared.error}>{flagsError}</Text> : null}
-              </View>
-            ) : null}
-
             {entriesQuery.isPending ? (
               <LoadingState label="Loading entries…" />
             ) : entriesQuery.isError ? (
@@ -529,15 +381,7 @@ export default function BookJournalScreen() {
             ) : entries.length === 0 ? (
               <EmptyState message="No entries yet. One line about where you are is a perfect start." />
             ) : visibleEntries.length === 0 ? (
-              <EmptyState
-                message={
-                  entrySearch.trim()
-                    ? 'No entries match your search.'
-                    : entryFilter === 'quote'
-                      ? 'No quotes logged yet.'
-                      : 'No important moments flagged yet.'
-                }
-              />
+              <EmptyState message="No entries match your search." />
             ) : null}
           </View>
         }
@@ -571,7 +415,6 @@ export default function BookJournalScreen() {
 const styles = StyleSheet.create({
   invalid: { padding: spacing.lg },
   clubCardWrap: { marginBottom: spacing.xs },
-  filterRow: { marginBottom: spacing.xs },
   aidCard: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -607,15 +450,6 @@ const styles = StyleSheet.create({
     ...cardShadow,
   },
   flagsRowText: { fontFamily: fonts.sansSemiBold, color: colors.text, fontSize: 13 },
-  flagsHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  flagSuggestion: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    paddingTop: 8,
-    gap: 4,
-  },
-  flagPreview: { fontFamily: fonts.sans, color: colors.text, fontSize: 13 },
-  flagReason: { fontFamily: fonts.sans, color: colors.muted, fontSize: 12, lineHeight: 17 },
   meaningBlock: { marginTop: 6, marginBottom: 6 },
   meaningResultRow: {
     flexDirection: 'row',

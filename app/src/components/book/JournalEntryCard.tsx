@@ -4,11 +4,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { buildBookmarkLabel, formatJournalCardHeader, splitEntryText } from '@/domains/entries/display';
 import { parseEntryKind } from '@/domains/entries/markers';
 import type { Entry } from '@/domains/entries/service';
-import { cardShadow, colors, fonts, gold, radii, spacing } from '@/lib/theme';
+import { cardShadow, colors, fonts, radii, spacing } from '@/lib/theme';
 
 /**
  * One journal entry as a card (D-093, after the Figma "Journal first"
- * screens): day and page range in the header, a serif headline, and a
+ * screens): day and page range in the header, a serif headline of up to
+ * three lines (the companion's one-sentence summary since D-095), and a
  * footer that names what the headline is. Book Club readers see the
  * companion's summary ("Journal summary") or, before one exists, their own
  * first words ("Your words"). Free readers see a plain "Journal entry"
@@ -45,14 +46,12 @@ export function JournalEntryCard({
       <View style={styles.header}>
         {header.day ? <Text style={styles.day}>{header.day}</Text> : null}
         <View style={styles.leader} />
-        {kind === 'important' ? (
-          <Ionicons name="flag" size={12} color={gold.deep} />
-        ) : kind === 'quote' ? (
+        {kind === 'quote' ? (
           <Ionicons name="chatbox-ellipses-outline" size={12} color={colors.muted} />
         ) : null}
         {header.position ? <Text style={styles.position}>{header.position}</Text> : null}
       </View>
-      <Text style={[styles.headline, !entitled && styles.headlineLocked]} numberOfLines={2}>
+      <Text style={[styles.headline, !entitled && styles.headlineLocked]} numberOfLines={3}>
         {headline || 'An empty entry'}
       </Text>
       <View style={styles.footer}>
