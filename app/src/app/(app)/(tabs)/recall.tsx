@@ -15,7 +15,6 @@ export default function RecallTab() {
   return (
     <PickABookTab
       copy={{
-        title: 'Recall',
         tagline: 'Remember what you read.',
         freeLede: 'Improve your memory using your own notes.',
         memberLede: 'Turn two tiles. Match cue to answer against the clock.',
