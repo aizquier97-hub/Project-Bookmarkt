@@ -104,17 +104,24 @@ export function buildLibraryRows(sorted: Book[], columns: number): LibraryRow[] 
  * render on ONE line - the size ladder shrinks them first and the ellipsis
  * is the last resort - because React Native breaks any word that overflows
  * its line, and a mid-word break is the one thing a cover must never do.
+ * `columns` is how many covers sit across the shelf: the three-across grid
+ * (D-096) leaves ~85dp of text on each cover, so every threshold tightens.
  */
-export function shelfTitleTypography(title: string): ShelfTitleTypography {
+export function shelfTitleTypography(title: string, columns: 2 | 3 = 2): ShelfTitleTypography {
   const trimmed = title.trim();
   const words = trimmed.split(/\s+/).filter(Boolean);
   const longest = words.reduce((max, word) => Math.max(max, word.length), 0);
 
-  // Word thresholds are sized to the 2-across cover label (~130dp of text):
-  // ~9 chars fit at 15pt serif, ~13 at 13pt ("Monsterholic" at 15pt broke
-  // mid-word).
-  const sizeForWord = longest <= 9 ? 15 : longest <= 13 ? 13 : 11;
-  const sizeForLength = trimmed.length <= 16 ? 15 : trimmed.length <= 26 ? 13 : 11;
+  // Word thresholds are sized to the cover label: two across (~130dp of
+  // text) fits ~9 chars at 15pt serif and ~13 at 13pt ("Monsterholic" at
+  // 15pt broke mid-word); three across (~85dp) fits ~6 and ~9.
+  const narrow = columns === 3;
+  const wordFull = narrow ? 6 : 9;
+  const wordMid = narrow ? 9 : 13;
+  const lengthFull = narrow ? 11 : 16;
+  const lengthMid = narrow ? 18 : 26;
+  const sizeForWord = longest <= wordFull ? 15 : longest <= wordMid ? 13 : 11;
+  const sizeForLength = trimmed.length <= lengthFull ? 15 : trimmed.length <= lengthMid ? 13 : 11;
   const fontSize = Math.min(sizeForWord, sizeForLength);
   const lineHeight = fontSize === 15 ? 20 : fontSize === 13 ? 17 : 15;
 

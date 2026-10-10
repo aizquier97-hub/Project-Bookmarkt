@@ -147,6 +147,20 @@ describe('shelfTitleTypography', () => {
   it('keeps multiple lines when an extreme word has company', () => {
     expect(shelfTitleTypography('The Supercalifragilisticexpialidocious Story').maxLines).toBe(3);
   });
+
+  it('tightens every threshold for the three-across shelf (D-096)', () => {
+    expect(shelfTitleTypography('Emma', 3)).toEqual({ fontSize: 15, lineHeight: 20, maxLines: 1 });
+    expect(shelfTitleTypography('Dune', 3).fontSize).toBe(15);
+    // "Quixote" is seven letters: fine two across, one step down three across.
+    expect(shelfTitleTypography('Don Quixote', 3).fontSize).toBe(13);
+    expect(shelfTitleTypography('Don Quixote', 2).fontSize).toBe(15);
+    expect(shelfTitleTypography('Monsterholic', 3)).toEqual({
+      fontSize: 11,
+      lineHeight: 15,
+      maxLines: 1,
+    });
+    expect(shelfTitleTypography('The Name of the Wind', 3).fontSize).toBe(11);
+  });
 });
 
 describe('buildLibraryRows', () => {

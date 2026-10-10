@@ -800,6 +800,13 @@ capture.
         become one readable sentence (at most 16 words, versioned cache
         key `s2`); the All / Quotes / Important chips and the important
         flag leave the journal; the header back label no longer wraps.
+    - Revised 2026-10-10 (D-096): seventh pass - editing an entry shows
+        only the reader's words (markers hidden, restored on save); the
+        story thus far is at most three short whole sentences (prompt v2,
+        sentence-boundary clamp, never cut mid-sentence); the longer-recap
+        screen and its links are gone (free lock cards open Subscription);
+        the recap card sits transparent on the parchment; the Library goes
+        three covers across after the Figma frame.
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs

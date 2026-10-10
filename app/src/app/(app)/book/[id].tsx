@@ -10,6 +10,7 @@ import { StoryRecapCard } from '@/components/book/StoryRecapCard';
 import { TrophyStrip } from '@/components/TrophyStrip';
 import { useToast } from '@/components/toast';
 import { Button, HeaderAction, SectionLabel, StickyFooter } from '@/components/ui';
+import { openSubscription } from '@/domains/billing/paywallSource';
 import { listCharacters } from '@/domains/characters/service';
 import { CompanionRequestError, requestStoryRecap } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
@@ -261,10 +262,10 @@ export default function BookScreen() {
           </View>
         ) : null}
 
-        {/* The recap surface (Interface v2.0 → D-093 → D-094): members get
-            the story thus far written for them the moment the hub opens;
-            free readers keep the walnut lock card, which opens the recap
-            screen and its subscription offer. */}
+        {/* The recap surface (Interface v2.0 → D-093 → D-094 → D-096): members
+            get the story thus far written for them the moment the hub opens
+            and nothing to tap - the longer recap screen is gone; free readers
+            keep the walnut lock card, which opens the Subscription screen. */}
         {entries.length > 0 ? (
           <View style={styles.clubCardWrap}>
             {companionEntitled ? (
@@ -273,9 +274,6 @@ export default function BookScreen() {
                 loading={storyRecapQuery.isPending || storyRecapQuery.isFetching}
                 errorMessage={storyRecapError}
                 onRetry={() => void storyRecapQuery.refetch()}
-                onOpenFullRecap={() =>
-                  router.push({ pathname: '/book-summary', params: { id: String(bookId) } })
-                }
               />
             ) : (
               <BookClubCard
@@ -284,9 +282,7 @@ export default function BookScreen() {
                 entitled={false}
                 openLabel="Read the recap"
                 lockedNote="Your notes only · No spoilers"
-                onPress={() =>
-                  router.push({ pathname: '/book-summary', params: { id: String(bookId) } })
-                }
+                onPress={() => openSubscription(router, 'summary_lock')}
               />
             )}
           </View>

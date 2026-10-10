@@ -9,7 +9,7 @@ import { cardShadow, colors, fonts, gold, radii, sizes, spacing } from '@/lib/th
 
 /**
  * The locked-state card for premium companion features. Shared by the Book
- * Club, Recall match, and story-so-far screens. It never decides access
+ * Club and Recall match screens. It never decides access
  * itself - the caller renders it only after the server said "not entitled"
  * - and it hands off to the Subscription screen, where the free trial and
  * plans live (D-068). `source` names the lock the reader came from (D-086).

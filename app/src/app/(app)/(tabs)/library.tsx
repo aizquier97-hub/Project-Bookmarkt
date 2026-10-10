@@ -15,9 +15,10 @@ import { Button, HeaderAction } from '@/components/ui';
 import { queryKeys } from '@/lib/queryKeys';
 import { colors, fonts, radii, spacing } from '@/lib/theme';
 
-// Two covers across (D-089): the Figma shelf gives each cover room to read
-// as an object, with the title and author set beneath it in Lora / Inter.
-const COLUMNS = 2;
+// Three covers across (D-096, after the Figma "Library" frame): the shelf
+// reads as a shelf again - the owner found two across "too zoomed in" -
+// with the title, author, and progress set beneath each cover in Lora / Inter.
+const COLUMNS = 3;
 
 /**
  * The library shelf (D-040; moved from home to /library in D-064 when the
@@ -74,7 +75,12 @@ export default function LibraryScreen() {
     return (
       <View style={styles.bookRow}>
         {item.books.map((book) => (
-          <BookCard key={book.id} book={book} summary={summaries.get(book.id)} />
+          <BookCard
+            key={book.id}
+            book={book}
+            summary={summaries.get(book.id)}
+            columns={COLUMNS}
+          />
         ))}
         {/* Spacers keep partial rows on the same grid geometry. */}
         {item.books.length < COLUMNS
@@ -196,8 +202,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 25,
-    lineHeight: 32,
+    fontSize: 22,
+    lineHeight: 28,
   },
   sectionCount: {
     color: colors.muted,
@@ -206,6 +212,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     marginBottom: spacing.lg,
+    alignItems: 'flex-start',
   },
   spacer: {
     flex: 1,

@@ -526,9 +526,15 @@ function comprehensionHash(material: string): string {
 }
 
 /** Bump when the story-recap prompt changes shape: every cached recap rewrites. */
-const STORY_RECAP_VERSION = "v1";
+const STORY_RECAP_VERSION = "v2";
 const STORY_RECAP_ENTRY_COUNT = 3;
-const STORY_RECAP_MAX_CHARS = 600;
+/** The prompt's target; the recap is meant to be skimmed, not read (D-096). */
+const STORY_RECAP_TARGET_WORDS = 45;
+/** Hard ceilings for what the card shows: whole sentences only, never a cut. */
+const STORY_RECAP_MAX_WORDS = 70;
+const STORY_RECAP_MAX_CHARS = 420;
+/** A single note is handed to the model at most this long (whitespace-collapsed). */
+const STORY_RECAP_NOTE_MAX_CHARS = 700;
 
 /**
  * Story-recap material (D-094): the reader's last three notes on one book,
@@ -551,8 +557,11 @@ function buildStoryRecapMaterial(
   const keyParts: string[] = [];
   const boundaries: { type: string; upper: number }[] = [];
   recent.forEach((row, index) => {
-    const text = String(row.text ?? "").trim().replace(/\s+/g, " ");
-    const reflection = String(row.reflection ?? "").trim().replace(/\s+/g, " ");
+    const text = truncate(String(row.text ?? "").trim().replace(/\s+/g, " "), STORY_RECAP_NOTE_MAX_CHARS);
+    const reflection = truncate(
+      String(row.reflection ?? "").trim().replace(/\s+/g, " "),
+      STORY_RECAP_NOTE_MAX_CHARS,
+    );
     if (!text && !reflection) return;
     lines.push(`${index + 1}. ${reflection ? `${text} || Reflection: ${reflection}` : text}`);
     keyParts.push(`${row.id}:${text}:${reflection}`);
@@ -584,13 +593,53 @@ function buildStoryRecapPrompt(params: {
 }): string {
   const noun = params.entryCount === 1 ? "note" : "notes";
   return [
-    `A reader is about to pick up "${params.bookTitle}"${params.author ? ` by ${params.author}` : ""} again and wants to skim what happened in their last ${params.entryCount} ${noun}, listed below oldest first and numbered; a leading "page N" or "chapter N" is where the note was made.`,
+    `A reader is about to pick up "${params.bookTitle}"${params.author ? ` by ${params.author}` : ""} again and wants a three-second skim of what happened in their last ${params.entryCount} ${noun}, listed below oldest first and numbered; a leading "page N" or "chapter N" is where the note was made.`,
     params.material,
-    `Write the story so far from THESE ${noun} ONLY: exactly one short, plain, factual sentence per note, in the same order, at most ${params.entryCount} sentences and 60 words in all.`,
-    "Use the notes' own names and events; add nothing they do not say; never go past the latest note. Where the reader wrote a reflection rather than an event, state the reflection in a few words.",
-    "No preamble, no headings, no page numbers, no closing line about where the reader is.",
+    `Write the story so far from THESE ${noun} ONLY, as a very short recap a reader can skim in one glance: at most ${params.entryCount} sentences and ${STORY_RECAP_TARGET_WORDS} words in all, each sentence under 15 words, in the notes' order.`,
+    "Compress hard. Keep only the one or two most important events or turns from each note; drop detail, description, side characters and lists. Use the notes' own names; add nothing they do not say; never go past the latest note. Where a note is only a reflection, state it in a few words.",
+    "Every sentence must be complete and end with a period. No preamble, no headings, no page numbers, no closing line about where the reader is.",
     'Respond ONLY with JSON: {"reply": string}.',
   ].join("\n");
+}
+
+/** The sentence-ending pattern the recap clamp cuts on (closing quotes allowed). */
+const SENTENCE_END = /[.!?]["\u201d\u2019)]*$/;
+
+/**
+ * Keep the recap to whole sentences under the word and character ceilings
+ * (D-096): the reader saw a recap end "killed by a nu…" after a flat
+ * character cut. Sentences are kept in order until the next would cross a
+ * ceiling; a trailing fragment with no end punctuation (a truncated model
+ * reply) is dropped when a whole sentence precedes it, and a lone over-long
+ * fragment is cut at a word break and closed with a period. Never "…".
+ */
+function clampStoryRecap(reply: string): string {
+  const sentences = reply.match(/[^.!?]+(?:[.!?]+["\u201d\u2019)]*|$)/g)?.map((s) => s.trim()).filter(Boolean) ?? [];
+  const kept: string[] = [];
+  let words = 0;
+  let chars = 0;
+  for (const sentence of sentences) {
+    const sentenceWords = sentence.split(/\s+/).length;
+    if (kept.length > 0 && (words + sentenceWords > STORY_RECAP_MAX_WORDS || chars + 1 + sentence.length > STORY_RECAP_MAX_CHARS)) {
+      break;
+    }
+    kept.push(sentence);
+    words += sentenceWords;
+    chars += (kept.length > 1 ? 1 : 0) + sentence.length;
+  }
+  if (kept.length > 1 && !SENTENCE_END.test(kept[kept.length - 1])) {
+    kept.pop();
+  }
+  let out = kept.join(" ").trim();
+  if (out.length > STORY_RECAP_MAX_CHARS) {
+    const cut = out.slice(0, STORY_RECAP_MAX_CHARS);
+    const lastSpace = cut.lastIndexOf(" ");
+    out = (lastSpace > 40 ? cut.slice(0, lastSpace) : cut).replace(/[\s,;:\u2014-]+$/, "");
+  }
+  if (out && !SENTENCE_END.test(out)) {
+    out = `${out}.`;
+  }
+  return out;
 }
 
 function parseStoryRecapJson(text: string): string | null {
@@ -600,11 +649,16 @@ function parseStoryRecapJson(text: string): string | null {
     const parsed = JSON.parse(stripped) as { reply?: unknown };
     reply = String(parsed?.reply ?? "").trim();
   } catch {
-    reply = stripped.trim();
+    // A reply cut off mid-JSON still carries the text: lift it out rather
+    // than showing the reader a brace.
+    const partial = stripped.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)/);
+    reply = partial
+      ? partial[1].replace(/\\n/g, " ").replace(/\\"/g, '"').replace(/\\\\/g, "\\").trim()
+      : stripped.startsWith("{") ? "" : stripped.trim();
   }
   reply = reply.replace(/\s+/g, " ");
   if (!reply) return null;
-  return reply.length > STORY_RECAP_MAX_CHARS ? `${reply.slice(0, STORY_RECAP_MAX_CHARS - 1).trimEnd()}\u2026` : reply;
+  return clampStoryRecap(reply) || null;
 }
 
 function buildComprehensionPrompt(params: {
@@ -1383,7 +1437,7 @@ serve(async (req) => {
             ],
             generationConfig: {
               temperature: 0,
-              maxOutputTokens: 256,
+              maxOutputTokens: 400,
               responseMimeType: "application/json",
               thinkingConfig: { thinkingBudget: 0 },
             },

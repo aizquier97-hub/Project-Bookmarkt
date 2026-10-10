@@ -15,7 +15,7 @@ import {
 
 import { listCharacters } from '@/domains/characters/service';
 import { splitEntryText } from '@/domains/entries/display';
-import { parseEntryKind } from '@/domains/entries/markers';
+import { entryBodyForEditing, parseEntryKind, replaceEntryBody } from '@/domains/entries/markers';
 import {
   applyMentionToText,
   filterNamesForMention,
@@ -71,7 +71,14 @@ export default function EntryDetailScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const updateMutation = useMutation({
-    mutationFn: () => updateEntry(entryId, bookId, draft),
+    // The reader edits only their own words (D-096); the stored position
+    // header and kind marker are put back around the new body on save.
+    mutationFn: async () => {
+      if (!draft.trim()) {
+        throw new Error('Entry text cannot be empty.');
+      }
+      await updateEntry(entryId, bookId, replaceEntryBody(entry?.text, draft));
+    },
     onSuccess: () => {
       setEditing(false);
       setError(null);
@@ -121,7 +128,7 @@ export default function EntryDetailScreen() {
                   label="Edit"
                   accessibilityLabel="Edit the entry"
                   onPress={() => {
-                    setDraft(entry.text);
+                    setDraft(entryBodyForEditing(entry.text));
                     setError(null);
                     setEditing(true);
                   }}
@@ -306,7 +313,7 @@ export default function EntryDetailScreen() {
                 <Pressable
                   style={styles.ghostButton}
                   onPress={() => {
-                    setDraft(entry.text);
+                    setDraft(entryBodyForEditing(entry.text));
                     setError(null);
                     setEditing(true);
                   }}
