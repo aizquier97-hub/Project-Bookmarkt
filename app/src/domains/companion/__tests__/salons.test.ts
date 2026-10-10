@@ -1,5 +1,5 @@
 import type { CompanionChatMessage } from '../api';
-import { buildSalons } from '../salons';
+import { abandonedSalons, buildSalons, completedSalons, replayCards } from '../salons';
 
 const SALON_A = 'aaaaaaaa-1111-4111-8111-111111111111';
 const SALON_B = 'bbbbbbbb-2222-4222-8222-222222222222';
@@ -62,5 +62,84 @@ describe('buildSalons', () => {
     expect(salons[0].pairs).toEqual([{ question: null, answer: 'A thought on my own.' }]);
     expect(salons[0].lastProbe).toBeNull();
     expect(salons[0].insight).toBeNull();
+  });
+
+  it('keeps the latest insight when a completed salon is continued', () => {
+    // Continuing (D-098) re-opens the salon on its takeaway: the deck
+    // persists that text as a new opener, so the reaction pairs with it.
+    const salons = buildSalons([
+      msg({ role: 'companion', feature: 'observation', content: 'Opener?' }),
+      msg({ role: 'reader', content: 'First answer.' }),
+      msg({ role: 'companion', content: 'Synthesis, never answered.' }),
+      msg({ role: 'companion', feature: 'insight', content: 'First takeaway.' }),
+      msg({ role: 'companion', feature: 'observation', content: 'First takeaway.' }),
+      msg({ role: 'reader', content: 'A later reaction.' }),
+      msg({ role: 'companion', content: 'A new probe?' }),
+      msg({ role: 'companion', feature: 'insight', content: 'Second takeaway.' }),
+    ]);
+    expect(salons[0].insight).toBe('Second takeaway.');
+    expect(salons[0].pairs).toEqual([
+      { question: 'Opener?', answer: 'First answer.' },
+      { question: 'Synthesis, never answered.', answer: null },
+      { question: 'First takeaway.', answer: 'A later reaction.' },
+      { question: 'A new probe?', answer: null },
+    ]);
+    expect(replayCards(salons[0])).toEqual([
+      { question: 'Opener?', answer: 'First answer.' },
+      { question: 'First takeaway.', answer: 'A later reaction.' },
+    ]);
+  });
+});
+
+describe('completed and abandoned salons (D-098)', () => {
+  beforeEach(() => {
+    nextId = 1;
+  });
+
+  it('splits salons by whether an insight was stored', () => {
+    const salons = buildSalons([
+      msg({ role: 'companion', feature: 'observation', content: 'Nobody answered this.', salonId: SALON_A }),
+      msg({ role: 'companion', feature: 'observation', content: 'Finished opener.', salonId: SALON_B }),
+      msg({ role: 'reader', content: 'An answer.', salonId: SALON_B }),
+      msg({ role: 'companion', feature: 'insight', content: 'The takeaway.', salonId: SALON_B }),
+    ]);
+    expect(completedSalons(salons).map((s) => s.id)).toEqual([SALON_B]);
+    expect(abandonedSalons(salons).map((s) => s.id)).toEqual([SALON_A]);
+  });
+
+  it('treats a salon with answers but no insight as abandoned', () => {
+    const salons = buildSalons([
+      msg({ role: 'companion', feature: 'observation', content: 'Opener?' }),
+      msg({ role: 'reader', content: 'Answered, then left.' }),
+      msg({ role: 'companion', content: 'Follow-up?' }),
+    ]);
+    expect(completedSalons(salons)).toEqual([]);
+    expect(abandonedSalons(salons)).toHaveLength(1);
+  });
+});
+
+describe('replayCards', () => {
+  beforeEach(() => {
+    nextId = 1;
+  });
+
+  it('keeps only answered questions, dropping the trailing unanswered probe', () => {
+    const [salon] = buildSalons([
+      msg({ role: 'companion', feature: 'observation', content: 'Q1?' }),
+      msg({ role: 'reader', content: 'A1.' }),
+      msg({ role: 'companion', content: 'Q2?' }),
+      msg({ role: 'reader', content: 'A2.' }),
+      msg({ role: 'companion', content: 'Synthesis probe, never answered.' }),
+      msg({ role: 'companion', feature: 'insight', content: 'Insight.' }),
+    ]);
+    expect(replayCards(salon)).toEqual([
+      { question: 'Q1?', answer: 'A1.' },
+      { question: 'Q2?', answer: 'A2.' },
+    ]);
+  });
+
+  it('keeps an unprompted answer as a card with no question', () => {
+    const [salon] = buildSalons([msg({ role: 'reader', content: 'On my own.' })]);
+    expect(replayCards(salon)).toEqual([{ question: null, answer: 'On my own.' }]);
   });
 });

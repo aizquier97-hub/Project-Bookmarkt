@@ -807,6 +807,13 @@ capture.
         screen and its links are gone (free lock cards open Subscription);
         the recap card sits transparent on the parchment; the Library goes
         three covers across after the Figma frame.
+    - Revised 2026-10-10 (D-098): Book Club pass - only discussions that
+        reached their insight are kept (abandoned ones are purged); the log
+        shows the takeaway alone; tapping it opens a swipeable replay
+        (Question 1 -> ... -> Insight, answers read-only) with "Continue
+        this discussion"; the mic / "Type my own thought" row is pinned
+        above the Android bar; "Save to journal" is gone - insights live
+        in the Book Club only.
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs

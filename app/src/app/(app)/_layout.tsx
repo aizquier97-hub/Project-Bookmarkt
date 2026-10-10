@@ -53,6 +53,8 @@ export default function AppLayout() {
         <Stack.Screen name="book-characters" options={{ title: 'Characters' }} />
         <Stack.Screen name="book-photos" options={{ title: 'Photos' }} />
         <Stack.Screen name="add-photo" options={{ title: 'Add a photo' }} />
+        {/* A past Book Club discussion relived card by card (D-098). */}
+        <Stack.Screen name="salon-replay" options={{ title: 'Discussion' }} />
       </Stack>
       {/* Once per device, over whatever screen the reader landed on (D-084). */}
       <FirstRunTour />
