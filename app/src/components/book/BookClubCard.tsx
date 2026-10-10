@@ -50,11 +50,7 @@ export function BookClubCard({
           <Text style={styles.footerText}>{entitled ? openLabel : 'Unlock with Book Club'}</Text>
           {entitled ? <Ionicons name="chevron-forward" size={14} color={gold.base} /> : null}
         </View>
-        {!entitled && lockedNote ? (
-          <Text style={styles.footerNote} numberOfLines={1}>
-            {lockedNote}
-          </Text>
-        ) : null}
+        {!entitled && lockedNote ? <Text style={styles.footerNote}>{lockedNote}</Text> : null}
       </View>
     </Pressable>
   );
@@ -83,14 +79,19 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: fonts.serif, fontSize: 20, lineHeight: 26, color: colors.onWalnut },
   body: { fontFamily: fonts.sans, fontSize: 13, lineHeight: 18, color: colors.onWalnutMuted },
+  // The action never shrinks or truncates; when the muted note no longer fits
+  // beside it (large type, narrow phones) it wraps onto its own line under
+  // the action instead of printing over it (D-097).
   footer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.sm,
+    columnGap: spacing.sm,
+    rowGap: spacing.xs,
     marginTop: 2,
   },
-  footerAction: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 },
+  footerAction: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 0 },
   lock: {
     width: 22,
     height: 22,

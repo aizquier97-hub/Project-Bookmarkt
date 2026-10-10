@@ -44,7 +44,7 @@ export function AppHeader({
         <Pressable
           onPress={onBack}
           hitSlop={8}
-          style={[styles.back, backLabel ? styles.backLabelled : null]}
+          style={[styles.back, backLabel ? styles.backLabelled : styles.backIconOnly]}
           accessibilityRole="button"
           accessibilityLabel={backLabel ? `Back to ${backLabel}` : 'Go back'}
         >
@@ -108,17 +108,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   back: {
-    width: sizes.touch,
     height: sizes.touch,
     marginLeft: -12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // The labelled form sizes to its text: no fixed width, and neither the
-  // row nor the label may shrink, or "Book" wraps to "Boo / k" beside the
-  // flex:1 title slot (seen on Android, D-095).
+  backIconOnly: {
+    width: sizes.touch,
+  },
+  // The labelled form sizes to its text. It must never carry the icon-only
+  // fixed width: overriding `width` with `undefined` in the style array did
+  // not reliably clear it on Android, so the label was squeezed into the
+  // leftover ~10 pt and showed as "Boo / k" (D-095) and then "Lib…" (D-097).
+  // The width now lives only on the icon-only form, and neither the row nor
+  // the label may shrink beside the flex:1 title slot.
   backLabelled: {
-    width: undefined,
     flexDirection: 'row',
     flexShrink: 0,
     paddingRight: spacing.sm,
