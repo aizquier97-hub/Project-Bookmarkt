@@ -814,6 +814,12 @@ capture.
         this discussion"; the mic / "Type my own thought" row is pinned
         above the Android bar; "Save to journal" is gone - insights live
         in the Book Club only.
+    - Revised 2026-10-10 (D-099): the hub is one "Start a new discussion"
+        button over the log (the "last time, your takeaway" card repeated
+        the first log card); Book Club openers and Recall boards arrive in
+        about three seconds instead of twelve - thinking is off for the
+        one-shot note-reading calls, the openers are fetched while the hub
+        shows, and the Recall board deals itself on open.
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs

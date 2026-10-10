@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -180,6 +180,21 @@ function RecallMatch({ bookId }: { bookId: number }) {
     setBoardKey((key) => key + 1);
   };
 
+  // The board deals itself (D-099): opening Recall is the intent to play, so
+  // the call that used to wait for a tap starts with the screen and the
+  // intro card is only its loading face. The deal button stays for the
+  // retry after an error or a deck too thin for a board.
+  const autoDealtRef = useRef(false);
+  useEffect(() => {
+    if (autoDealtRef.current) {
+      return;
+    }
+    autoDealtRef.current = true;
+    dealMutation.mutate();
+    // dealMutation is recreated every render; the ref guards the single fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleWon = useCallback(
     (result: GameResult) => {
       trackAnalyticsEvent(
@@ -222,13 +237,14 @@ function RecallMatch({ bookId }: { bookId: number }) {
   );
 
   if (!cards) {
+    const dealing = dealMutation.isPending;
     return (
       <ScrollView contentContainerStyle={styles.introContainer}>
         <Stack.Screen options={{ title: 'Recall' }} />
         <View style={styles.introCard}>
           <Text style={styles.eyebrow}>Your words, remembered</Text>
           <Text style={styles.introTitle} accessibilityRole="header">
-            Deal a board
+            {dealing ? 'Dealing your board' : 'Deal a board'}
           </Text>
           <Text style={styles.introBody}>
             Up to {MAX_PAIRS} cue cards written from your own entries and character maps - nothing
@@ -253,7 +269,14 @@ function RecallMatch({ bookId }: { bookId: number }) {
             Turn two tiles at a time and pair each cue with its answer. The clock starts on your
             first turn.
           </Text>
-          {dealButton('Deal a board', 'Deal a memory-match board')}
+          {dealing ? (
+            <View style={styles.dealingRow} accessibilityLiveRegion="polite">
+              <ActivityIndicator size="small" color={colors.muted} />
+              <Text style={styles.dealingText}>Reading your notes into cards…</Text>
+            </View>
+          ) : (
+            dealButton('Deal a board', 'Deal a memory-match board')
+          )}
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
@@ -443,6 +466,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  dealingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: sizes.button,
+  },
+  dealingText: {
+    fontFamily: fonts.sans,
+    color: colors.muted,
+    fontSize: 14,
   },
   error: {
     fontFamily: fonts.sans,
