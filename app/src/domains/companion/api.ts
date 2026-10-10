@@ -16,9 +16,6 @@ export type CompanionToolFeature = 'cue_cards' | 'quiz' | 'club_prep' | 'word_ba
 
 export type WordBankLevel = 'simple' | 'standard' | 'scholarly';
 
-/** Detail levels for story summaries (gold bookmark, D-055). */
-export type RecapDetail = 'brief' | 'standard' | 'detailed';
-
 /** One flip card: a terse cue on the front, the answer on the back (D-055). */
 export interface CompanionCueCard {
   front: string;
@@ -474,26 +471,6 @@ export function sendCompanionMessage(
   turn?: number,
 ): Promise<CompanionSendResult> {
   return invokeCompanion({ feature: 'dialogue', bookId, message: message.trim(), salonId, turn });
-}
-
-export function requestCompanionRecap(
-  bookId: number,
-  detail: RecapDetail,
-): Promise<CompanionSendResult> {
-  return invokeCompanion({ feature: 'recap', bookId, detail });
-}
-
-/**
- * Gold-bookmark story summary (D-055): retell the stretch between two of
- * the reader's bookmarks at the chosen level of detail.
- */
-export function requestRangedRecap(
-  bookId: number,
-  startEntryId: number,
-  endEntryId: number,
-  detail: RecapDetail,
-): Promise<CompanionSendResult> {
-  return invokeCompanion({ feature: 'recap', bookId, detail, startEntryId, endEntryId });
 }
 
 /**

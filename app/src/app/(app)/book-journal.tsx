@@ -21,6 +21,7 @@ import { bookSectionStyles as shared } from '@/components/book/shared';
 import { CharacterSuggestions } from '@/components/CharacterSuggestions';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { StickyFooter } from '@/components/ui';
+import { openSubscription } from '@/domains/billing/paywallSource';
 import {
   CompanionRequestError,
   refreshEntrySummaries,
@@ -282,9 +283,7 @@ export default function BookJournalScreen() {
                   body="Your full entries are always free to open."
                   entitled={false}
                   openLabel="Read the recap"
-                  onPress={() =>
-                    router.push({ pathname: '/book-summary', params: { id: String(bookId) } })
-                  }
+                  onPress={() => openSubscription(router, 'summary_lock')}
                 />
               </View>
             ) : null}

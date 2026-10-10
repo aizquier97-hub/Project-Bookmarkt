@@ -10,24 +10,28 @@ import { computeCompletionPercent, shelfTitleTypography } from '@/domains/librar
 import { cardShadow, colors, fonts, gold, spineColorFor } from '@/lib/theme';
 
 /**
- * One book in the library grid (D-040): the flat, cover-first card every app
- * in this space uses (StoryGraph, Goodreads, Fable, Kindle). Cover art
- * renders at true 2:3 with rounded corners; title, author, and a thin
- * progress bar sit beneath it. Finished books earn a gold checkmark badge on
- * the cover corner. Books without art get a flat colored placeholder cover
- * with the title set word-safe, never mid-word.
+ * One book in the library grid (D-040; three across after the Figma
+ * "Library" frame, D-096): the flat, cover-first card every app in this
+ * space uses (StoryGraph, Goodreads, Fable, Kindle). Cover art renders at
+ * true 2:3 with rounded corners; a serif title, the author, and a thin
+ * progress bar with its percent sit beneath it. Finished books earn a gold
+ * checkmark badge on the cover corner. Books without art get a flat colored
+ * placeholder cover with the title set word-safe, never mid-word.
  */
 export function BookCard({
   book,
   summary,
+  columns = 3,
 }: {
   book: Book;
   summary: BookPositionSummary | undefined;
+  /** How many covers sit across the shelf; sizes the placeholder title. */
+  columns?: 2 | 3;
 }) {
   const router = useRouter();
   const finished = Boolean(book.finished_at);
   const percent = computeCompletionPercent(summary?.position ?? null, book.total_pages, finished);
-  const titleType = shelfTitleTypography(book.name);
+  const titleType = shelfTitleTypography(book.name, columns);
 
   // Broken cover art falls back to the placeholder so the grid has no holes.
   const [coverFailed, setCoverFailed] = useState(false);
@@ -69,6 +73,8 @@ export function BookCard({
                 { fontSize: titleType.fontSize, lineHeight: titleType.lineHeight },
               ]}
               numberOfLines={titleType.maxLines}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
             >
               {book.name}
             </Text>
@@ -134,7 +140,7 @@ const styles = StyleSheet.create({
   },
   cover: {
     aspectRatio: 2 / 3,
-    borderRadius: 8,
+    borderRadius: 6,
     overflow: 'hidden',
     backgroundColor: colors.surface2,
     ...cardShadow,
@@ -144,7 +150,7 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     flex: 1,
-    padding: 10,
+    padding: 8,
     justifyContent: 'center',
     gap: 6,
   },
@@ -177,27 +183,27 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 17,
-    lineHeight: 23,
+    fontSize: 15,
+    lineHeight: 20,
     fontFamily: fonts.serif,
-    marginTop: 12,
+    marginTop: 8,
   },
   author: {
     fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     marginTop: 2,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginTop: 8,
+    gap: 6,
+    marginTop: 6,
   },
   progressTrack: {
     flex: 1,
-    height: 4,
+    height: 3,
     borderRadius: 2,
     backgroundColor: colors.surface2,
     overflow: 'hidden',
@@ -209,19 +215,22 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontFamily: fonts.sans,
-    color: colors.muted,
-    fontSize: 12,
+    color: colors.accent,
+    fontSize: 11,
+    lineHeight: 14,
     fontVariant: ['tabular-nums'],
   },
   finishedText: {
     fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 11,
+    lineHeight: 14,
   },
   positionText: {
     fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 12,
-    marginTop: 5,
+    fontSize: 11,
+    lineHeight: 14,
+    marginTop: 6,
   },
 });

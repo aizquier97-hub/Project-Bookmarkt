@@ -15,6 +15,9 @@ import { cardShadow, colors, fonts, radii, spacing, spineColorFor } from '@/lib/
  * the freshest active book with its cover, position, and progress in one
  * tap target, replacing the old in-grid halo/bubble (which forced the
  * spotlight book to differ from its neighbors and crowded the shelf).
+ * D-096 sizes it to the Figma "Library" frame: 56-wide cover, serif 18
+ * title, progress bar with "Page N · N%", then a hairline and the last-entry
+ * line.
  */
 export function ContinueReadingCard({
   book,
@@ -79,7 +82,12 @@ export function ContinueReadingCard({
           ) : null}
         </View>
       </View>
-      {lastEntry ? <Text style={styles.subLine}>Last entry {lastEntry}</Text> : null}
+      {lastEntry ? (
+        <>
+          <View style={styles.divider} />
+          <Text style={styles.subLine}>Last entry {lastEntry}</Text>
+        </>
+      ) : null}
     </Pressable>
   );
 }
@@ -107,7 +115,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   thumb: {
-    width: 64,
+    width: 56,
     aspectRatio: 2 / 3,
     borderRadius: 4,
     overflow: 'hidden',
@@ -132,14 +140,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 18,
+    lineHeight: 24,
     fontFamily: fonts.serif,
   },
   author: {
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     fontFamily: fonts.sans,
   },
   progressTrack: {
@@ -160,6 +168,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontVariant: ['tabular-nums'],
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: -spacing.xs,
   },
   subLine: {
     fontFamily: fonts.sans,

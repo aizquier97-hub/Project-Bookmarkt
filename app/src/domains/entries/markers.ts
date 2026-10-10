@@ -39,6 +39,37 @@ export function flagEntryTextImportant(text: string): string {
     ? `${lines[0]}\n${MARKERS.important}\n${body}`
     : `${MARKERS.important}\n${value}`;
 }
+
+/** Split a stored entry text into its optional position header and the rest. */
+function splitHeaderLine(text: string): { header: string | null; rest: string } {
+  const value = String(text ?? '');
+  const lines = value.split('\n');
+  const hasHeader = /^\[manual entry\b[^\]]*\]$/i.test((lines[0] ?? '').trim());
+  return hasHeader
+    ? { header: lines[0], rest: lines.slice(1).join('\n') }
+    : { header: null, rest: value };
+}
+
+/**
+ * The reader's own words from a stored entry text - the position header and
+ * kind marker stripped - for the edit field (D-096: readers were shown the
+ * raw `[Manual Entry - page 152]` / `[Quote]` lines, which mean nothing to
+ * them). Inner blank lines and spacing are kept as written.
+ */
+export function entryBodyForEditing(text: string | null | undefined): string {
+  return parseEntryKind(splitHeaderLine(String(text ?? '')).rest).body;
+}
+
+/**
+ * Put an edited body back into a stored entry text, keeping the original
+ * position header and kind marker exactly as they were so the edit changes
+ * only the words. The inverse of `entryBodyForEditing`.
+ */
+export function replaceEntryBody(originalText: string | null | undefined, newBody: string): string {
+  const { header, rest } = splitHeaderLine(String(originalText ?? ''));
+  const encoded = encodeEntryBody(parseEntryKind(rest).kind, newBody);
+  return header ? `${header}\n${encoded}` : encoded;
+}
 export function parseEntryKind(body: string | null | undefined): {
   kind: EntryKind;
   body: string;

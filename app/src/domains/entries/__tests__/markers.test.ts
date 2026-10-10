@@ -1,7 +1,9 @@
 import {
   encodeEntryBody,
+  entryBodyForEditing,
   flagEntryTextImportant,
   parseEntryKind,
+  replaceEntryBody,
 } from '@/domains/entries/markers';
 
 describe('entry kind markers (D-039 free feeders)', () => {
@@ -66,5 +68,45 @@ describe('entry kind markers (D-039 free feeders)', () => {
     const important = '[Manual Entry - page 3]\n[Important]\nA moment.';
     expect(flagEntryTextImportant(quote)).toBe(quote);
     expect(flagEntryTextImportant(important)).toBe(important);
+  });
+});
+
+describe('editing the body only (D-096)', () => {
+  it('hides the header and kind marker from the edit field', () => {
+    expect(entryBodyForEditing('[Manual Entry - page 152]\n[Quote]\nA line.')).toBe('A line.');
+    expect(entryBodyForEditing('[Manual Entry - chapter 3]\nJust where I am.')).toBe(
+      'Just where I am.',
+    );
+    expect(entryBodyForEditing('Legacy note.')).toBe('Legacy note.');
+    expect(entryBodyForEditing(null)).toBe('');
+  });
+
+  it('keeps the reader\'s paragraph breaks and spacing inside the body', () => {
+    const body = 'First thought.\n\nSecond thought.  Two spaces.';
+    const stored = `[Manual Entry - page 9]\n[Quote]\n${body}`;
+    expect(entryBodyForEditing(stored)).toBe(body);
+    expect(replaceEntryBody(stored, body)).toBe(stored);
+  });
+
+  it('puts an edited body back under the original header and marker', () => {
+    expect(replaceEntryBody('[Manual Entry - page 152]\n[Quote]\nOld.', 'New words.')).toBe(
+      '[Manual Entry - page 152]\n[Quote]\nNew words.',
+    );
+    expect(replaceEntryBody('[Manual Entry - page 1]\n[Important]\nOld.', 'New.')).toBe(
+      '[Manual Entry - page 1]\n[Important]\nNew.',
+    );
+    expect(replaceEntryBody('[Manual Entry - page 1]\nOld.', 'New.')).toBe(
+      '[Manual Entry - page 1]\nNew.',
+    );
+    expect(replaceEntryBody('Legacy note.', 'New.')).toBe('New.');
+    expect(replaceEntryBody('[Quote]\nOld.', 'New.')).toBe('[Quote]\nNew.');
+  });
+
+  it('round-trips through parseEntryKind after an edit', () => {
+    const edited = replaceEntryBody('[Manual Entry - page 4]\n[Quote]\nOld.', 'Fresh line.');
+    expect(parseEntryKind(edited.split('\n').slice(1).join('\n'))).toEqual({
+      kind: 'quote',
+      body: 'Fresh line.',
+    });
   });
 });

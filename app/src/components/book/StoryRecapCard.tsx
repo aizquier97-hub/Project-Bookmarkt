@@ -1,30 +1,30 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { CompanionStoryRecap } from '@/domains/companion/api';
-import { cardShadow, colors, fonts, radii, spacing } from '@/lib/theme';
+import { colors, fonts, radii, spacing } from '@/lib/theme';
 
 /**
  * The automatic "story thus far" card (D-094, after the Figma "Book hub ·
- * Premium" screen): a parchment card that writes itself the moment a member
- * opens the hub - no range to pick, no detail level, nothing to tap. One
- * short sentence per note for the last three notes, skimmable before a
- * sitting. While the recap is being written the card holds its place with a
- * spinner; a failure stays inline with a retry so the hub never jumps.
+ * Premium" screen): a card that writes itself the moment a member opens the
+ * hub - no range to pick, no detail level, nothing to tap. A few very short
+ * sentences over the last three notes, skimmable before a sitting. While the
+ * recap is being written the card holds its place with a spinner; a failure
+ * stays inline with a retry so the hub never jumps. D-096: the card sits
+ * straight on the parchment behind a hairline (no off-white fill, no
+ * shadow), as the Figma frame draws it, and the "Longer recap" link is gone
+ * along with the screen it opened.
  */
 export function StoryRecapCard({
   recap,
   loading,
   errorMessage,
   onRetry,
-  onOpenFullRecap,
 }: {
   recap: CompanionStoryRecap | null;
   loading: boolean;
   /** Set when the recap request failed; the card shows it with a retry action. */
   errorMessage: string | null;
   onRetry: () => void;
-  /** Opens the longer, range-picking recap screen for readers who want more. */
-  onOpenFullRecap?: () => void;
 }) {
   const footerLabel = recap
     ? [
@@ -56,47 +56,33 @@ export function StoryRecapCard({
         <Text style={styles.errorText}>{errorMessage}</Text>
       ) : null}
 
-      <View style={styles.footer}>
-        {footerLabel ? (
-          <Text style={styles.footerText} numberOfLines={1}>
-            {footerLabel}
-          </Text>
-        ) : errorMessage && !loading ? (
-          <Pressable
-            onPress={onRetry}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Try writing the recap again"
-          >
-            <Text style={styles.linkText}>Try again</Text>
-          </Pressable>
-        ) : (
-          <View />
-        )}
-        {recap && onOpenFullRecap ? (
-          <Pressable
-            onPress={onOpenFullRecap}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Open the longer recap"
-          >
-            <Text style={styles.linkText}>Longer recap ›</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      {footerLabel ? (
+        <Text style={styles.footerText} numberOfLines={1}>
+          {footerLabel}
+        </Text>
+      ) : errorMessage && !loading ? (
+        <Pressable
+          onPress={onRetry}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Try writing the recap again"
+          style={styles.retry}
+        >
+          <Text style={styles.linkText}>Try again</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.card,
     padding: spacing.md,
     gap: spacing.sm,
-    ...cardShadow,
   },
   header: { gap: 2 },
   title: { fontFamily: fonts.serif, fontSize: 20, lineHeight: 26, color: colors.text },
@@ -105,12 +91,7 @@ const styles = StyleSheet.create({
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 2 },
   pendingText: { fontFamily: fonts.sans, fontSize: 14, lineHeight: 20, color: colors.muted },
   errorText: { fontFamily: fonts.sans, fontSize: 14, lineHeight: 20, color: colors.muted },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  footerText: { fontFamily: fonts.sans, fontSize: 12, lineHeight: 16, color: colors.muted, flexShrink: 1 },
+  retry: { alignSelf: 'flex-start' },
+  footerText: { fontFamily: fonts.sans, fontSize: 12, lineHeight: 16, color: colors.muted },
   linkText: { fontFamily: fonts.sansMedium, fontSize: 12, lineHeight: 16, color: colors.accent },
 });
