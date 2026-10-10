@@ -882,6 +882,10 @@ export type Database = {
           name: string
           publication_year: number | null
           publisher: string | null
+          story_recap: string | null
+          story_recap_at: string | null
+          story_recap_hash: string | null
+          story_recap_range: string | null
           total_pages: number | null
           user_id: string | null
         }
@@ -907,6 +911,10 @@ export type Database = {
           name: string
           publication_year?: number | null
           publisher?: string | null
+          story_recap?: string | null
+          story_recap_at?: string | null
+          story_recap_hash?: string | null
+          story_recap_range?: string | null
           total_pages?: number | null
           user_id?: string | null
         }
@@ -932,6 +940,10 @@ export type Database = {
           name?: string
           publication_year?: number | null
           publisher?: string | null
+          story_recap?: string | null
+          story_recap_at?: string | null
+          story_recap_hash?: string | null
+          story_recap_range?: string | null
           total_pages?: number | null
           user_id?: string | null
         }

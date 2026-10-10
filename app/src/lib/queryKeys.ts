@@ -23,6 +23,8 @@ export const queryKeys = {
   companionTrialEligibility: ['companion-trial-eligibility'] as const,
   companionMessages: (bookId: number) => ['companion-messages', bookId] as const,
   companionRecap: (bookId: number) => ['companion-recap', bookId] as const,
+  /** The automatic "story thus far" recap on the book hub (D-094); keyed by the last notes' fingerprint. */
+  storyRecap: (bookId: number, notesKey: string) => ['story-recap', bookId, notesKey] as const,
   companionObservations: (bookId: number) => ['companion-observations', bookId] as const,
   companionPrimer: (bookId: number) => ['companion-primer', bookId] as const,
   /** Characters the companion spotted in one saved note (D-077); keyed by note hash. */

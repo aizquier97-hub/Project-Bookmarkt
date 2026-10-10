@@ -111,6 +111,8 @@ export interface CompanionSendResult {
   insight: string;
   /** Present only for comprehension (D-065): the rubric assessment, or null when unassessed. */
   comprehension: CompanionComprehension | null;
+  /** Present only for story_recap (D-094): the brief recap, or null when the book has no notes. */
+  storyRecap: CompanionStoryRecap | null;
 }
 
 /** Comprehension rubric marks (D-065), each 0-4. */
@@ -131,6 +133,18 @@ export interface CompanionComprehension {
   /** Hash of the assessed material; equal hashes mean the notes have not changed. */
   hash: string | null;
   /** True when the score came from the cache on the book row (no quota spent). */
+  cached: boolean;
+}
+
+/** The automatic "story thus far" recap of a book's last three notes (D-094). */
+export interface CompanionStoryRecap {
+  content: string;
+  /** Position span of the notes recapped, e.g. "pp. 203–269"; null when the notes carry none. */
+  rangeLabel: string | null;
+  entryCount: number;
+  hash: string | null;
+  writtenAt: string | null;
+  /** True when the recap came from the cache on the book row (no quota spent). */
   cached: boolean;
 }
 
@@ -254,6 +268,23 @@ export interface RawSendResponse {
   isConvergence?: unknown;
   insight?: unknown;
   comprehension?: unknown;
+  storyRecap?: unknown;
+}
+
+function parseStoryRecap(raw: unknown): CompanionStoryRecap | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const item = raw as Record<string, unknown>;
+  const content = String(item.content ?? '').trim();
+  if (!content) return null;
+  const entryCount = Number(item.entryCount);
+  return {
+    content,
+    rangeLabel: typeof item.rangeLabel === 'string' && item.rangeLabel.trim() ? item.rangeLabel.trim() : null,
+    entryCount: Number.isFinite(entryCount) && entryCount > 0 ? Math.round(entryCount) : 0,
+    hash: typeof item.hash === 'string' ? item.hash : null,
+    writtenAt: typeof item.writtenAt === 'string' ? item.writtenAt : null,
+    cached: item.cached === true,
+  };
 }
 
 function clampMark(value: unknown): number {
@@ -382,6 +413,7 @@ export function normalizeSendResponse(data: RawSendResponse): CompanionSendResul
     isConvergence: data.isConvergence === true,
     insight: typeof data.insight === 'string' ? data.insight.trim() : '',
     comprehension: parseComprehension(data.comprehension),
+    storyRecap: parseStoryRecap(data.storyRecap),
   };
 }
 
@@ -398,7 +430,8 @@ async function invokeCompanion(body: {
     | 'observation_open'
     | 'insight'
     | 'comprehension'
-    | 'character_extract';
+    | 'character_extract'
+    | 'story_recap';
   bookId: number;
   message?: string;
   detail?: string;
@@ -484,6 +517,16 @@ export function requestCueCards(bookId: number): Promise<CompanionSendResult> {
  */
 export function requestComprehensionScore(bookId: number): Promise<CompanionSendResult> {
   return invokeCompanion({ feature: 'comprehension', bookId });
+}
+
+/**
+ * The automatic "story thus far" recap of a book's last three notes (D-094).
+ * Cached server-side by the notes' hash, so revisiting an unchanged book
+ * costs no quota; resolves null when the book has no notes yet.
+ */
+export async function requestStoryRecap(bookId: number): Promise<CompanionStoryRecap | null> {
+  const result = await invokeCompanion({ feature: 'story_recap', bookId });
+  return result.storyRecap;
 }
 
 /**

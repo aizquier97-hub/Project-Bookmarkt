@@ -155,6 +155,45 @@ describe('normalizeSendResponse character extraction (D-077)', () => {
   });
 });
 
+describe('normalizeSendResponse story recap (D-094)', () => {
+  it('shapes the recap payload and keeps the cache flag', () => {
+    const result = normalizeSendResponse({
+      reply: { content: 'Carl clears the burrow.', provenance: 'your_notes' },
+      storyRecap: {
+        content: '  Carl clears the burrow. Odette offers advice. ',
+        rangeLabel: 'pp. 203–269',
+        entryCount: '3',
+        hash: 'djb2:abc:40:v1',
+        writtenAt: '2026-10-10T09:00:00.000Z',
+        cached: true,
+      },
+    });
+    expect(result.storyRecap).toEqual({
+      content: 'Carl clears the burrow. Odette offers advice.',
+      rangeLabel: 'pp. 203–269',
+      entryCount: 3,
+      hash: 'djb2:abc:40:v1',
+      writtenAt: '2026-10-10T09:00:00.000Z',
+      cached: true,
+    });
+  });
+
+  it('is null when the book has no notes or the payload is malformed', () => {
+    expect(normalizeSendResponse({ code: 'NO_ENTRIES', storyRecap: null }).storyRecap).toBeNull();
+    expect(normalizeSendResponse({ storyRecap: { content: '   ' } }).storyRecap).toBeNull();
+    expect(normalizeSendResponse({}).storyRecap).toBeNull();
+    const bare = normalizeSendResponse({ storyRecap: { content: 'One line.', rangeLabel: '' } });
+    expect(bare.storyRecap).toEqual({
+      content: 'One line.',
+      rangeLabel: null,
+      entryCount: 0,
+      hash: null,
+      writtenAt: null,
+      cached: false,
+    });
+  });
+});
+
 describe('hashNoteText', () => {
   it('is stable for the same text and differs for different text', () => {
     expect(hashNoteText('Kvothe met Denna at the Eolian.')).toBe(

@@ -789,6 +789,13 @@ capture.
         a one-line "Journal summary" label and a free-reader paywall state;
         photos are added one at a time with a title and description on
         `/add-photo`; the tab bar draws the system inset as a deeper band.
+    - Revised 2026-10-10 (D-094): fifth pass - the story thus far writes
+        itself on the book hub (companion `story_recap`: one short sentence
+        per note for the three newest notes, cached on the topic row by the
+        notes' hash, free readers keep the lock card); the Recall and Book
+        Club tabs share one free / premium shape after the final Figma frames
+        with hairline book rows; free-reader journal cards read "Journal
+        entry" over a locked "Journal summary · Book Club" footer.
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs

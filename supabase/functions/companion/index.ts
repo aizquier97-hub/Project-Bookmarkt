@@ -37,7 +37,8 @@ type Feature =
   | "observation_open"
   | "insight"
   | "comprehension"
-  | "character_extract";
+  | "character_extract"
+  | "story_recap";
 
 const FEATURES: Feature[] = [
   "dialogue",
@@ -55,6 +56,7 @@ const FEATURES: Feature[] = [
   "insight",
   "comprehension",
   "character_extract",
+  "story_recap",
 ];
 
 /**
@@ -510,6 +512,88 @@ function comprehensionScore(marks: ComprehensionMarks): number {
 /** Material hash plus the rubric revision: a new rubric regrades every book. */
 function comprehensionHash(material: string): string {
   return `${hashContent(material)}:${COMPREHENSION_RUBRIC_VERSION}`;
+}
+
+/** Bump when the story-recap prompt changes shape: every cached recap rewrites. */
+const STORY_RECAP_VERSION = "v1";
+const STORY_RECAP_ENTRY_COUNT = 3;
+const STORY_RECAP_MAX_CHARS = 600;
+
+/**
+ * Story-recap material (D-094): the reader's last three notes on one book,
+ * oldest first, one numbered line each (reflection appended). The hash
+ * over ids + text + reflections decides whether the cached recap on the
+ * topic row is still current; the range label is the position span those
+ * three notes cover, read from their leading "page N"/"chapter N".
+ */
+function buildStoryRecapMaterial(
+  rows: { id: number; text: string | null; created_at: string | null; reflection?: string | null }[],
+): { material: string; entryCount: number; hash: string; rangeLabel: string | null } {
+  const sorted = [...rows].sort((a, b) => {
+    const left = String(a.created_at ?? "");
+    const right = String(b.created_at ?? "");
+    if (left !== right) return left < right ? -1 : 1;
+    return a.id - b.id;
+  });
+  const recent = sorted.slice(-STORY_RECAP_ENTRY_COUNT);
+  const lines: string[] = [];
+  const keyParts: string[] = [];
+  const boundaries: { type: string; upper: number }[] = [];
+  recent.forEach((row, index) => {
+    const text = String(row.text ?? "").trim().replace(/\s+/g, " ");
+    const reflection = String(row.reflection ?? "").trim().replace(/\s+/g, " ");
+    if (!text && !reflection) return;
+    lines.push(`${index + 1}. ${reflection ? `${text} || Reflection: ${reflection}` : text}`);
+    keyParts.push(`${row.id}:${text}:${reflection}`);
+    const boundary = parseBoundary(row.text);
+    if (boundary) boundaries.push(boundary);
+  });
+  let rangeLabel: string | null = null;
+  if (boundaries.length > 0) {
+    const type = boundaries[boundaries.length - 1].type;
+    const sameType = boundaries.filter((b) => b.type === type).map((b) => b.upper);
+    const low = Math.min(...sameType);
+    const high = Math.max(...sameType);
+    const prefix = type === "chapter" ? "ch." : (low === high ? "p." : "pp.");
+    rangeLabel = low === high ? `${prefix} ${high}` : `${prefix} ${low}\u2013${high}`;
+  }
+  return {
+    material: lines.join("\n"),
+    entryCount: lines.length,
+    hash: `${hashContent(keyParts.join("\u001f"))}:${STORY_RECAP_VERSION}`,
+    rangeLabel,
+  };
+}
+
+function buildStoryRecapPrompt(params: {
+  bookTitle: string;
+  author: string | null;
+  entryCount: number;
+  material: string;
+}): string {
+  const noun = params.entryCount === 1 ? "note" : "notes";
+  return [
+    `A reader is about to pick up "${params.bookTitle}"${params.author ? ` by ${params.author}` : ""} again and wants to skim what happened in their last ${params.entryCount} ${noun}, listed below oldest first and numbered; a leading "page N" or "chapter N" is where the note was made.`,
+    params.material,
+    `Write the story so far from THESE ${noun} ONLY: exactly one short, plain, factual sentence per note, in the same order, at most ${params.entryCount} sentences and 60 words in all.`,
+    "Use the notes' own names and events; add nothing they do not say; never go past the latest note. Where the reader wrote a reflection rather than an event, state the reflection in a few words.",
+    "No preamble, no headings, no page numbers, no closing line about where the reader is.",
+    'Respond ONLY with JSON: {"reply": string}.',
+  ].join("\n");
+}
+
+function parseStoryRecapJson(text: string): string | null {
+  const stripped = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  let reply = "";
+  try {
+    const parsed = JSON.parse(stripped) as { reply?: unknown };
+    reply = String(parsed?.reply ?? "").trim();
+  } catch {
+    reply = stripped.trim();
+  }
+  reply = reply.replace(/\s+/g, " ");
+  if (!reply) return null;
+  return reply.length > STORY_RECAP_MAX_CHARS ? `${reply.slice(0, STORY_RECAP_MAX_CHARS - 1).trimEnd()}\u2026` : reply;
 }
 
 function buildComprehensionPrompt(params: {
@@ -1019,6 +1103,68 @@ serve(async (req) => {
       }
       comprehensionMaterial = { ...built, hash };
     }
+    // Story recap (D-094) follows the same shape: the last three notes are
+    // read under the user's JWT before the quota gate; a matching hash on
+    // the topic row returns the cached recap with no quota and no provider
+    // call, and a book with nothing written short-circuits the same way.
+    let storyRecapMaterial:
+      | { material: string; entryCount: number; hash: string; rangeLabel: string | null; bookTitle: string; author: string | null }
+      | null = null;
+    if (feature === "story_recap") {
+      const [bookRow, entryRows] = await Promise.all([
+        userClient
+          .from("topics")
+          .select("id, name, author, story_recap, story_recap_range, story_recap_hash, story_recap_at")
+          .eq("id", bookId)
+          .maybeSingle(),
+        userClient
+          .from("entries")
+          .select("id, text, created_at, reflection")
+          .eq("topic_id", bookId)
+          .order("created_at", { ascending: false })
+          .limit(STORY_RECAP_ENTRY_COUNT),
+      ]);
+      if (bookRow.error || entryRows.error) {
+        return jsonResponse({ error: "Your notes could not be loaded. Please try again.", code: "CONTEXT_UNAVAILABLE" }, 503);
+      }
+      if (!bookRow.data) {
+        return jsonResponse({ error: "That book is not on your shelf.", code: "BOOK_NOT_FOUND" }, 404);
+      }
+      const built = buildStoryRecapMaterial(entryRows.data ?? []);
+      if (built.entryCount === 0) {
+        return jsonResponse({
+          code: "NO_ENTRIES",
+          reply: { content: "", provenance: "your_notes", declined: false },
+          boundaryLabel: null,
+          quota: null,
+          storyRecap: null,
+        });
+      }
+      const cachedBook = bookRow.data as {
+        name: string | null;
+        author: string | null;
+        story_recap: string | null;
+        story_recap_range: string | null;
+        story_recap_hash: string | null;
+        story_recap_at: string | null;
+      };
+      if (cachedBook.story_recap_hash === built.hash && cachedBook.story_recap) {
+        return jsonResponse({
+          reply: { content: cachedBook.story_recap, provenance: "your_notes", declined: false },
+          boundaryLabel: null,
+          quota: null,
+          storyRecap: {
+            content: cachedBook.story_recap,
+            rangeLabel: cachedBook.story_recap_range,
+            entryCount: built.entryCount,
+            hash: built.hash,
+            writtenAt: cachedBook.story_recap_at,
+            cached: true,
+          },
+        });
+      }
+      storyRecapMaterial = { ...built, bookTitle: String(cachedBook.name ?? "this book"), author: cachedBook.author ?? null };
+    }
     const TOOL_LIMITS: Partial<Record<Feature, { env: string; fallback: number; max: number }>> = {
       dialogue: { env: "COMPANION_DIALOGUE_DAILY_LIMIT", fallback: 50, max: 1000 },
       recap: { env: "COMPANION_RECAP_DAILY_LIMIT", fallback: 10, max: 200 },
@@ -1035,6 +1181,7 @@ serve(async (req) => {
       insight: { env: "COMPANION_INSIGHT_DAILY_LIMIT", fallback: 30, max: 500 },
       comprehension: { env: "COMPANION_COMPREHENSION_DAILY_LIMIT", fallback: 20, max: 500 },
       character_extract: { env: "COMPANION_TOOL_DAILY_LIMIT", fallback: 30, max: 500 },
+      story_recap: { env: "COMPANION_STORY_RECAP_DAILY_LIMIT", fallback: 30, max: 500 },
     };
     const limitSpec = TOOL_LIMITS[feature] ?? TOOL_LIMITS.dialogue!;
     const userDailyLimit = readPositiveLimit(
@@ -1193,6 +1340,88 @@ serve(async (req) => {
           rationale: graded.rationale,
           marks: graded.marks,
           hash: comprehensionMaterial.hash,
+          cached: false,
+        },
+      });
+    }
+    // Story recap (D-094): one brief call over the three notes assembled
+    // before the quota gate; the result is cached on the topic row.
+    if (feature === "story_recap" && storyRecapMaterial) {
+      const recapResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: buildStoryRecapPrompt({
+                      bookTitle: storyRecapMaterial.bookTitle,
+                      author: storyRecapMaterial.author,
+                      entryCount: storyRecapMaterial.entryCount,
+                      material: storyRecapMaterial.material,
+                    }),
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0,
+              maxOutputTokens: 256,
+              responseMimeType: "application/json",
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          }),
+        },
+      );
+      if (!recapResponse.ok) {
+        await finalize("failed", 502, {
+          upstream_status: recapResponse.status,
+          error_code: "PROVIDER_ERROR",
+          error_message: truncate(await recapResponse.text(), 300),
+        });
+        return jsonResponse({ error: "Your recap could not be written just now.", code: "PROVIDER_ERROR" }, 502);
+      }
+      const recapJson = await recapResponse.json();
+      const recapText = parseStoryRecapJson(extractGeminiText(recapJson));
+      if (!recapText) {
+        await finalize("failed", 502, { error_code: "EMPTY_REPLY" });
+        return jsonResponse({ error: "Your recap could not be written just now.", code: "PROVIDER_ERROR" }, 502);
+      }
+      const writtenAt = new Date().toISOString();
+      const { error: writeError } = await userClient
+        .from("topics")
+        .update({
+          story_recap: recapText,
+          story_recap_range: storyRecapMaterial.rangeLabel,
+          story_recap_hash: storyRecapMaterial.hash,
+          story_recap_at: writtenAt,
+        })
+        .eq("id", bookId);
+      if (writeError) {
+        await finalize("failed", 503, { error_code: "PERSIST_FAILED", error_message: truncate(writeError.message, 300) });
+        return jsonResponse({ error: "The recap could not be saved. Please try again.", code: "PERSIST_FAILED" }, 503);
+      }
+      const recapUsage = recapJson?.usageMetadata ?? {};
+      await finalize("succeeded", 200, {
+        grounding_entries: storyRecapMaterial.entryCount,
+        grounding_characters: 0,
+        prompt_tokens: Number(recapUsage.promptTokenCount ?? 0) || null,
+        output_tokens: Number(recapUsage.candidatesTokenCount ?? 0) || null,
+      });
+      return jsonResponse({
+        reply: { content: recapText, provenance: "your_notes", declined: false },
+        boundaryLabel: null,
+        quota,
+        storyRecap: {
+          content: recapText,
+          rangeLabel: storyRecapMaterial.rangeLabel,
+          entryCount: storyRecapMaterial.entryCount,
+          hash: storyRecapMaterial.hash,
+          writtenAt,
           cached: false,
         },
       });

@@ -4,19 +4,34 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Book } from '@/domains/library/service';
-import { colors, fonts, spineColorFor } from '@/lib/theme';
+import { colors, fonts, spacing, spineColorFor } from '@/lib/theme';
 
 /**
- * One book as a tappable paper row (Interface v2.0): the pick-a-book step
- * both the Book Club and Recall tabs lead with, since both features are
- * grounded in a single book's records. Cover thumb, title, author, chevron.
+ * One book as a tappable hairline row (Interface v2.0 → D-094, after the
+ * Figma "Choose a book" lists): the pick-a-book step the Book Club, Recall,
+ * and reading-timer screens lead with, since each is grounded in a single
+ * book's records. Cover 48 × 72, serif title, muted author, a hairline
+ * under each row, and a chevron only where the tap actually opens the
+ * feature - the locked lists on the free tabs drop it.
  */
-export function BookPickerRow({ book, onPress }: { book: Book; onPress: () => void }) {
+export function BookPickerRow({
+  book,
+  onPress,
+  showChevron = true,
+  last = false,
+}: {
+  book: Book;
+  onPress: () => void;
+  /** Hide for the locked lists, where the row leads to the offer rather than the feature. */
+  showChevron?: boolean;
+  /** Drops the hairline under the final row of a list. */
+  last?: boolean;
+}) {
   const [coverFailed, setCoverFailed] = useState(false);
   const showCover = Boolean(book.cover_url) && !coverFailed;
   return (
     <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={({ pressed }) => [styles.row, last && styles.rowLast, pressed && styles.rowPressed]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Choose ${book.name}`}
@@ -44,7 +59,7 @@ export function BookPickerRow({ book, onPress }: { book: Book; onPress: () => vo
           </Text>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+      {showChevron ? <Ionicons name="chevron-forward" size={18} color={colors.muted} /> : null}
     </Pressable>
   );
 }
@@ -53,25 +68,21 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    elevation: 2,
-    shadowColor: '#2a1c11',
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
+    gap: spacing.md,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderStrong,
+  },
+  rowLast: {
+    borderBottomWidth: 0,
   },
   rowPressed: {
     opacity: 0.75,
   },
   thumb: {
-    width: 38,
-    height: 57,
-    borderRadius: 4,
+    width: 48,
+    height: 72,
+    borderRadius: 6,
     overflow: 'hidden',
     backgroundColor: colors.border,
   },
@@ -80,17 +91,18 @@ const styles = StyleSheet.create({
   },
   info: {
     flex: 1,
+    gap: 2,
   },
   title: {
     fontFamily: fonts.serif,
     color: colors.text,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 20,
+    lineHeight: 26,
   },
   author: {
     fontFamily: fonts.sans,
     color: colors.muted,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
