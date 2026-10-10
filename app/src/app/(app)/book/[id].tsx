@@ -6,10 +6,12 @@ import { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BookClubCard } from '@/components/book/BookClubCard';
+import { StoryRecapCard } from '@/components/book/StoryRecapCard';
 import { TrophyStrip } from '@/components/TrophyStrip';
 import { useToast } from '@/components/toast';
 import { Button, HeaderAction, SectionLabel, StickyFooter } from '@/components/ui';
 import { listCharacters } from '@/domains/characters/service';
+import { CompanionRequestError, requestStoryRecap } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
 import { getCurrentPosition } from '@/domains/entries/display';
 import { listEntries } from '@/domains/entries/service';
@@ -96,6 +98,34 @@ export default function BookScreen() {
 
   const book = bookQuery.data;
   const entries = useMemo(() => entriesQuery.data ?? [], [entriesQuery.data]);
+  // The automatic recap (D-094) is keyed by a fingerprint of the three
+  // newest notes: saving, editing, or deleting one changes the key, so the
+  // card refetches on its own and the server's hash decides whether a new
+  // recap is actually written.
+  const recapNotesKey = useMemo(
+    () =>
+      entries
+        .slice(0, 3)
+        .map((entry) => `${entry.id}:${entry.updated_at ?? ''}:${entry.text.length}:${entry.reflection?.length ?? 0}`)
+        .join('|'),
+    [entries],
+  );
+  const storyRecapQuery = useQuery({
+    queryKey: queryKeys.storyRecap(bookId, recapNotesKey),
+    queryFn: () => requestStoryRecap(bookId),
+    enabled: validId && companionEntitled && entries.length > 0,
+    staleTime: Infinity,
+    retry: false,
+  });
+  const storyRecapError =
+    storyRecapQuery.error instanceof CompanionRequestError
+      ? storyRecapQuery.error.code === 'COMPANION_DAILY_LIMIT_EXCEEDED' ||
+        storyRecapQuery.error.code === 'COMPANION_PROJECT_DAILY_LIMIT_EXCEEDED'
+        ? "Today's recap limit is reached. Your notes are still here, and the recap returns tomorrow."
+        : storyRecapQuery.error.message
+      : storyRecapQuery.error
+        ? 'Your recap could not be written just now.'
+        : null;
   const bookSessions = useMemo(
     () => (sessionsQuery.data ?? []).filter((session) => session.topic_id === bookId),
     [sessionsQuery.data, bookId],
@@ -231,21 +261,34 @@ export default function BookScreen() {
           </View>
         ) : null}
 
-        {/* The recap card (Interface v2.0 → D-093): the one premium surface
-            on the hub. Either state opens the story-so-far screen, which
-            handles the unentitled case itself. */}
+        {/* The recap surface (Interface v2.0 → D-093 → D-094): members get
+            the story thus far written for them the moment the hub opens;
+            free readers keep the walnut lock card, which opens the recap
+            screen and its subscription offer. */}
         {entries.length > 0 ? (
           <View style={styles.clubCardWrap}>
-            <BookClubCard
-              title="The story thus far"
-              body="An AI summary of your last entries."
-              entitled={companionEntitled}
-              openLabel="Read the recap"
-              lockedNote="Your notes only · No spoilers"
-              onPress={() =>
-                router.push({ pathname: '/book-summary', params: { id: String(bookId) } })
-              }
-            />
+            {companionEntitled ? (
+              <StoryRecapCard
+                recap={storyRecapQuery.data ?? null}
+                loading={storyRecapQuery.isPending || storyRecapQuery.isFetching}
+                errorMessage={storyRecapError}
+                onRetry={() => void storyRecapQuery.refetch()}
+                onOpenFullRecap={() =>
+                  router.push({ pathname: '/book-summary', params: { id: String(bookId) } })
+                }
+              />
+            ) : (
+              <BookClubCard
+                title="The story thus far"
+                body="An AI summary of your last entries."
+                entitled={false}
+                openLabel="Read the recap"
+                lockedNote="Your notes only · No spoilers"
+                onPress={() =>
+                  router.push({ pathname: '/book-summary', params: { id: String(bookId) } })
+                }
+              />
+            )}
           </View>
         ) : null}
 

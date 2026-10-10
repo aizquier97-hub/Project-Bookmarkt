@@ -11,8 +11,9 @@ import { cardShadow, colors, fonts, gold, radii, spacing } from '@/lib/theme';
  * screens): day and page range in the header, a serif headline, and a
  * footer that names what the headline is. Book Club readers see the
  * companion's summary ("Journal summary") or, before one exists, their own
- * first words ("Your words"). Free readers see "Unlock Book Club for
- * summary" with a locked footer - the full entry is always one tap away.
+ * first words ("Your words"). Free readers see a plain "Journal entry"
+ * headline over a locked "Journal summary · Book Club" footer (D-094) -
+ * the full entry is always one tap away.
  */
 export function JournalEntryCard({
   entry,
@@ -26,9 +27,9 @@ export function JournalEntryCard({
   const header = formatJournalCardHeader(entry);
   const kind = parseEntryKind(splitEntryText(entry.text).body).kind;
   const label = buildBookmarkLabel(entry);
-  const headline = entitled ? label.text : 'Unlock Book Club for summary';
+  const headline = entitled ? label.text : 'Journal entry';
   const footerLabel = !entitled
-    ? 'Journal summary locked'
+    ? 'Journal summary · Book Club'
     : label.fromCompanion
       ? 'Journal summary'
       : 'Your words';
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   position: { fontFamily: fonts.sans, fontSize: 13, color: colors.muted },
-  headline: { fontFamily: fonts.serif, fontSize: 18, lineHeight: 25, color: colors.text },
+  headline: { fontFamily: fonts.serif, fontSize: 20, lineHeight: 26, color: colors.text },
   headlineLocked: { color: colors.text },
   footer: {
     flexDirection: 'row',

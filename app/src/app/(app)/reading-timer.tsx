@@ -129,11 +129,12 @@ export default function ReadingTimerScreen() {
           {candidates.length === 0 ? (
             <EmptyState message="Add a book to your library to start a reading session." />
           ) : (
-            candidates.map((item) => (
+            candidates.map((item, index) => (
               <BookPickerRow
                 key={item.book.id}
                 book={item.book}
                 onPress={() => setBookId(item.book.id)}
+                last={index === candidates.length - 1}
               />
             ))
           )}
