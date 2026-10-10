@@ -18,9 +18,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { colors, fonts, spacing } from '@/lib/theme';
 
 export interface PickABookCopy {
-  /** Screen title, e.g. "Recall". */
-  title: string;
-  /** Serif tagline under the title, e.g. "Remember what you read." */
+  /** Serif tagline that opens the body, e.g. "Remember what you read." */
   tagline: string;
   /** Sans lede for free readers. */
   freeLede: string;
@@ -42,7 +40,8 @@ export interface PickABookCopy {
  * The shared body of the Recall and Book Club tabs (D-094, after the Figma
  * "Recall · Free / Premium" and "Book Club · Free / Premium" screens). Both
  * are premium features grounded in one book's records, so both lead with
- * the same shape: title, serif tagline, a lede, the grounding note, then
+ * the same shape: the tab header carries the screen title, so the body
+ * opens on the serif tagline, then a lede, the grounding note, then
  * the shelf. Free readers get the walnut Book Club card above a locked
  * "Your books" list (rows without a chevron); members get "Choose a book",
  * rows with a chevron, and a one-line hint. Either way a row hands the pick
@@ -112,10 +111,9 @@ export function PickABookTab({
       ListHeaderComponent={
         <View style={styles.header}>
           <View style={styles.titleBlock}>
-            <Text style={styles.title} accessibilityRole="header">
-              {copy.title}
+            <Text style={styles.tagline} accessibilityRole="header">
+              {copy.tagline}
             </Text>
-            <Text style={styles.tagline}>{copy.tagline}</Text>
             <Text style={styles.lede}>{entitled ? copy.memberLede : copy.freeLede}</Text>
             <Text style={styles.groundingNote}>{copy.groundingNote}</Text>
           </View>
@@ -179,12 +177,6 @@ const styles = StyleSheet.create({
   },
   titleBlock: {
     gap: spacing.sm,
-  },
-  title: {
-    fontFamily: fonts.serif,
-    color: colors.text,
-    fontSize: 32,
-    lineHeight: 40,
   },
   tagline: {
     fontFamily: fonts.serif,

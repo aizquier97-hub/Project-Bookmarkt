@@ -16,7 +16,6 @@ export default function BookClubTab() {
   return (
     <PickABookTab
       copy={{
-        title: 'Book Club',
         tagline: 'A book club of two.',
         freeLede: 'Talk one-to-one with your personalized companion.',
         memberLede: 'Talk one-to-one with a companion, using only your notes.',
