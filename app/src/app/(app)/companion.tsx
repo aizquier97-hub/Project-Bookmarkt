@@ -21,7 +21,9 @@ import { ErrorState, LoadingState } from '@/components/states';
 import { KeyboardPane } from '@/components/KeyboardPane';
 import { openSubscription } from '@/domains/billing/paywallSource';
 import {
+  COMPANION_MESSAGE_WINDOW,
   CompanionRequestError,
+  deleteSalonMessages,
   fetchCompanionMessages,
   openObservation,
   requestObservations,
@@ -29,7 +31,13 @@ import {
   sendCompanionMessage,
 } from '@/domains/companion/api';
 import { fetchCompanionEntitlement } from '@/domains/companion/entitlement';
-import { buildSalons, formatSalonDate } from '@/domains/companion/salons';
+import {
+  abandonedSalons,
+  buildSalons,
+  completedSalons,
+  formatSalonDate,
+  type Salon,
+} from '@/domains/companion/salons';
 import {
   createSalonTracker,
   endSalon,
@@ -41,8 +49,6 @@ import {
   type SalonEndReason,
   type SalonTracker,
 } from '@/domains/companion/salonSignals';
-import { getLatestProgressBoundary } from '@/domains/entries/progress';
-import { addEntry, listEntries } from '@/domains/entries/service';
 import { getBook } from '@/domains/library/service';
 import { trackAnalyticsEvent } from '@/domains/reporting/analytics';
 import { cleanupTranscript } from '@/domains/voice/cleanup';
@@ -63,6 +69,16 @@ type DeckPhase = 'hub' | 'primer' | 'deck' | 'closing';
 // After this many answers the deck offers - never forces - a wrap-up.
 const WRAP_UP_NUDGE_AFTER = 3;
 
+// Salons whose insight is being written right now (D-098). Module-wide, not
+// per screen instance: a reader can tap Done while "Distilling…" and re-open
+// the Book Club before the row lands, and the new instance's purge must not
+// mistake that salon for an abandoned one.
+const insightsInFlight = new Set<string>();
+
+// The purge leaves alone anything touched this recently: a salon that is
+// mid-request on another instance, or one whose rows are still arriving.
+const PURGE_SETTLE_MS = 60_000;
+
 interface DeckCard {
   question: string;
   stems: string[];
@@ -70,12 +86,16 @@ interface DeckCard {
   mirror: string | null;
   /** True when this is the synthesis card - the arc's gold "insight unlocked" close. */
   isConvergence: boolean;
+  /** Overrides "The companion asks" - e.g. when the card is a past takeaway (D-098). */
+  label?: string;
 }
 
 export default function CompanionScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
+  // `salon` (D-098): continue a completed discussion from its replay screen.
+  const params = useLocalSearchParams<{ id: string; salon?: string }>();
   const bookId = Number(params.id);
   const validId = Number.isInteger(bookId) && bookId > 0;
+  const continueSalonId = typeof params.salon === 'string' && params.salon ? params.salon : null;
 
   const entitlementQuery = useQuery({
     queryKey: queryKeys.companionEntitlement,
@@ -120,7 +140,7 @@ export default function CompanionScreen() {
   if (!entitlementQuery.data.entitled) {
     return <CompanionOffer />;
   }
-  return <SocraticDeck bookId={bookId} />;
+  return <SocraticDeck bookId={bookId} continueSalonId={continueSalonId} />;
 }
 
 /**
@@ -169,7 +189,13 @@ function CompanionOffer() {
  * voice, or typing - with the companion mirroring each answer back as the
  * next card. No scrolling transcript, no date picker.
  */
-function SocraticDeck({ bookId }: { bookId: number }) {
+function SocraticDeck({
+  bookId,
+  continueSalonId,
+}: {
+  bookId: number;
+  continueSalonId: string | null;
+}) {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -180,9 +206,8 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   // discussion's messages, so history and the archive stay per-session.
   const [salonId, setSalonId] = useState<string | null>(null);
   const [takeaway, setTakeaway] = useState<string | null>(null);
-  const [expandedSalonId, setExpandedSalonId] = useState<string | null>(null);
-  // The reader's own submitted answers this session (D-012: only these can
-  // be saved to the journal - never the companion's questions).
+  // The reader's own submitted answers this session - the closing card's
+  // "your thinking" list. The takeaway itself lives in the Book Club (D-098).
   const [answers, setAnswers] = useState<string[]>([]);
   // Convergence arc (D-059): answers within the current mini-arc (resets on
   // "Push further") and the synthesis card's takeaway awaiting save.
@@ -193,7 +218,30 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   const [sendError, setSendError] = useState<string | null>(null);
   const [quotaNotice, setQuotaNotice] = useState<string | null>(null);
   const [latestBoundary, setLatestBoundary] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+
+  // Only completed discussions are kept (D-098). The active salon is a
+  // candidate for discarding until its insight is stored; leaving the deck
+  // before that - or ending with nothing said - removes its rows. A salon
+  // whose insight is still being written is never discarded.
+  const activeSalonRef = useRef<{ id: string; keep: boolean } | null>(null);
+  const discardSalon = (id: string, reason: 'left' | 'empty' | 'stale') => {
+    if (insightsInFlight.has(id)) {
+      return;
+    }
+    trackAnalyticsEvent('salon_discarded', { reason }, bookId);
+    void deleteSalonMessages(bookId, id)
+      .then(() => queryClient.invalidateQueries({ queryKey: queryKeys.companionMessages(bookId) }))
+      .catch(() => {
+        // Hidden from the log regardless; the next hub visit retries the purge.
+      });
+  };
+  const beginSalon = (id: string, keep: boolean) => {
+    const previous = activeSalonRef.current;
+    if (previous && !previous.keep && previous.id !== id) {
+      discardSalon(previous.id, 'left');
+    }
+    activeSalonRef.current = { id, keep };
+  };
 
   // Salon telemetry (D-087): one tally per discussion - answers, how they
   // were seeded, convergences, duration - emitted when the salon ends,
@@ -209,14 +257,22 @@ function SocraticDeck({ bookId }: { bookId: number }) {
       trackAnalyticsEvent('salon_ended', summary, bookId);
     }
   };
+  const mountedRef = useRef(true);
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       const tracker = trackerRef.current;
       if (tracker) {
         const summary = endSalon(tracker, 'left');
         if (summary) {
           trackAnalyticsEvent('salon_ended', summary, bookId);
         }
+      }
+      const active = activeSalonRef.current;
+      if (active && !active.keep && !insightsInFlight.has(active.id)) {
+        trackAnalyticsEvent('salon_discarded', { reason: 'left' }, bookId);
+        void deleteSalonMessages(bookId, active.id).catch(() => {});
       }
     };
   }, [bookId]);
@@ -253,40 +309,85 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     queryKey: queryKeys.book(bookId),
     queryFn: () => getBook(bookId),
   });
-  // Entries back the save-to-journal position (the reader's latest logged
-  // boundary); usually already cached from the book screen.
-  const entriesQuery = useQuery({
-    queryKey: queryKeys.entries(bookId),
-    queryFn: () => listEntries(bookId),
-  });
 
-  // The stored conversation, grouped into salons for the hub and archive.
+  // The stored conversation, grouped into salons. Only completed ones -
+  // those that reached their insight - feed the hub and the log (D-098).
   const messagesQuery = useQuery({
     queryKey: queryKeys.companionMessages(bookId),
     queryFn: () => fetchCompanionMessages(bookId),
   });
-  const salons = useMemo(() => buildSalons(messagesQuery.data ?? []), [messagesQuery.data]);
+  const allSalons = useMemo(() => buildSalons(messagesQuery.data ?? []), [messagesQuery.data]);
+  const salons = useMemo(() => completedSalons(allSalons), [allSalons]);
   const latestSalon = salons[0] ?? null;
 
-  // Land returning readers on the hub; first-timers go straight to the primer.
+  // Land returning readers on the hub; first-timers go straight to the
+  // primer; a `salon` param re-opens that completed discussion (D-098).
   useEffect(() => {
     if (phase !== null || messagesQuery.isPending) {
       return;
     }
+    const toContinue = continueSalonId
+      ? (salons.find((salon) => salon.id === continueSalonId) ?? null)
+      : null;
+    if (toContinue) {
+      handleContinue(toContinue);
+      return;
+    }
     if (salons.length > 0) {
-      const latest = salons[0];
       trackAnalyticsEvent(
         'salon_hub_viewed',
-        {
-          salons: salons.length,
-          hasOpenProbe: Boolean(latest?.lastProbe),
-          hasTakeaway: Boolean(latest?.insight),
-        },
+        { salons: salons.length, discarded: abandonedSalons(allSalons).length },
         bookId,
       );
     }
     setPhase(salons.length > 0 ? 'hub' : 'primer');
-  }, [phase, messagesQuery.isPending, salons, bookId]);
+    // handleContinue is recreated every render; the phase guard makes this
+    // a single fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, messagesQuery.isPending, salons, continueSalonId, bookId]);
+
+  // Discussions that never reached their insight are purged once per visit
+  // (D-098) - from a fetch made for the purpose, never the cache, which may
+  // predate an insight stored seconds ago. Left alone: this visit's own
+  // salon, anything mid-insight, anything touched in the last minute, and
+  // everything when the window is full (older rows may hold the insight).
+  const purgedRef = useRef(false);
+  useEffect(() => {
+    if (purgedRef.current || messagesQuery.isPending) {
+      return;
+    }
+    purgedRef.current = true;
+    const protectedAtStart = new Set(insightsInFlight);
+    void queryClient
+      .fetchQuery({
+        queryKey: queryKeys.companionMessages(bookId),
+        queryFn: () => fetchCompanionMessages(bookId),
+        staleTime: 0,
+      })
+      .then((fresh) => {
+        if (!mountedRef.current || fresh.length >= COMPANION_MESSAGE_WINDOW) {
+          return;
+        }
+        const settledBefore = Date.now() - PURGE_SETTLE_MS;
+        const active = activeSalonRef.current?.id ?? null;
+        for (const stale of abandonedSalons(buildSalons(fresh))) {
+          if (
+            stale.id === active ||
+            stale.id === continueSalonId ||
+            protectedAtStart.has(stale.id) ||
+            new Date(stale.lastAt).getTime() > settledBefore
+          ) {
+            continue;
+          }
+          discardSalon(stale.id, 'stale');
+        }
+      })
+      .catch(() => {
+        // Nothing to purge from; the next visit tries again.
+      });
+    // discardSalon is recreated every render; purgedRef makes this one fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messagesQuery.isPending, bookId, continueSalonId, queryClient]);
 
   // Observation cards (D-056): grounded openers, each now carrying stems.
   // Only fetched when the reader is opening a fresh discussion (it spends
@@ -466,41 +567,10 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     },
   });
 
-  // End-of-session save (D-012): the entry is the reader's own answers,
-  // verbatim, filed at their latest logged position.
-  const entries = entriesQuery.data ?? [];
-  const journalBoundary =
-    getLatestProgressBoundary(entries, 'page') ?? getLatestProgressBoundary(entries, 'chapter');
-  const saveMutation = useMutation({
-    mutationFn: () => {
-      if (!journalBoundary) {
-        throw new Error('No progress boundary to file the entry at.');
-      }
-      return addEntry(bookId, {
-        text: answers.join('\n\n'),
-        progressType: journalBoundary.progressType,
-        progressValue: journalBoundary.upper,
-        source: 'salon',
-      });
-    },
-    onSuccess: () => {
-      setSaved(true);
-      setSendError(null);
-      trackAnalyticsEvent(
-        'salon_journal_saved',
-        { status: 'succeeded', answers: answers.length },
-        bookId,
-      );
-      void queryClient.invalidateQueries({ queryKey: queryKeys.entries(bookId) });
-    },
-    onError: () => {
-      trackAnalyticsEvent('salon_journal_saved', { status: 'error', answers: answers.length }, bookId);
-      setSendError('Could not save to your journal. Please try again.');
-    },
-  });
-
   // Closing a salon (D-058): distill the reader's answers into a takeaway,
-  // stored on the salon so the hub can re-orient them next visit.
+  // stored on the salon - that stored row is what makes the discussion a
+  // kept one (D-098). While it is being written the salon is shielded from
+  // every discard path; once it lands the salon is kept for good.
   const insightMutation = useMutation({
     mutationFn: (insightText?: string) => {
       if (!salonId) {
@@ -510,16 +580,30 @@ function SocraticDeck({ bookId }: { bookId: number }) {
       // otherwise the companion distills the session's answers (D-058).
       return requestSalonInsight(bookId, salonId, insightText);
     },
+    onMutate: () => {
+      if (salonId) {
+        insightsInFlight.add(salonId);
+      }
+    },
     onSuccess: (result) => {
+      if (activeSalonRef.current) {
+        activeSalonRef.current = { ...activeSalonRef.current, keep: true };
+      }
       setTakeaway(result.reply.content || null);
       trackAnalyticsEvent('companion_tool_used', { tool: 'insight', status: 'succeeded' }, bookId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.companionMessages(bookId) });
     },
     onError: (err) => {
       // The closing card still shows the reader's answers; the takeaway is a
-      // bonus, not a gate.
+      // bonus, not a gate. A fresh salon left without one is discarded on
+      // the way out, like any other unfinished discussion.
       const status = err instanceof CompanionRequestError ? err.code : 'error';
       trackAnalyticsEvent('companion_tool_used', { tool: 'insight', status }, bookId);
+    },
+    onSettled: () => {
+      if (salonId) {
+        insightsInFlight.delete(salonId);
+      }
     },
   });
 
@@ -529,11 +613,11 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     // message in this session lands under one id.
     const newSalonId = Crypto.randomUUID();
     setSalonId(newSalonId);
+    beginSalon(newSalonId, false);
     setAnswers([]);
     setArcAnswers(0);
     setPendingInsight(null);
     setTakeaway(null);
-    setSaved(false);
     const first = observations[0];
     finishSalon('left');
     trackerRef.current = createSalonTracker('new');
@@ -555,22 +639,24 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     });
   };
 
-  // Re-open the latest salon: the active card is its last unanswered probe;
-  // the server already holds the salon's history for the mirror's context.
-  const handleResume = () => {
-    const probe = latestSalon?.lastProbe;
-    if (!latestSalon || !probe) {
+  // Continue a completed discussion (D-098), reached from its replay screen:
+  // the active card is the takeaway the reader landed on, and they react to
+  // it with the push-further arc (one wedge, then a fresh synthesis, which
+  // becomes the salon's insight). The takeaway is persisted as the salon's
+  // new opener so the companion's history - and the replay - carry the
+  // reaction as an answer to it. The salon already has an insight, so it is
+  // kept whatever happens next.
+  const handleContinue = (salon: Salon) => {
+    if (!salon.insight) {
       return;
     }
     setSendError(null);
-    setSalonId(latestSalon.id);
+    setSalonId(salon.id);
+    beginSalon(salon.id, true);
     setAnswers([]);
-    // A resumed probe stands in for the wedge (D-059): one answer away from
-    // the synthesis, so returning readers still converge quickly.
-    setArcAnswers(1);
+    setArcAnswers(0);
     setPendingInsight(null);
     setTakeaway(null);
-    setSaved(false);
     finishSalon('left');
     trackerRef.current = createSalonTracker('resumed');
     trackAnalyticsEvent(
@@ -578,10 +664,16 @@ function SocraticDeck({ bookId }: { bookId: number }) {
       { mode: 'resumed', hasObservation: false, priorSalons: salons.length },
       bookId,
     );
-    advance(() => {
-      setPhase('deck');
-      setCard({ question: probe, stems: [], mirror: null, isConvergence: false });
+    openMutation.mutate({ prompt: salon.insight, salonId: salon.id });
+    setPhase('deck');
+    setCard({
+      question: salon.insight,
+      stems: [],
+      mirror: null,
+      isConvergence: false,
+      label: 'Where you landed last time',
     });
+    setComposerOpen(true);
   };
 
   const handleNewDiscussion = () => {
@@ -591,13 +683,17 @@ function SocraticDeck({ bookId }: { bookId: number }) {
   };
 
   // Both the ghost "End session" button and the post-nudge "Wrap up" land
-  // here; the reason tells them apart in the salon summary (D-087).
+  // here; the reason tells them apart in the salon summary (D-087). A
+  // session with nothing said is discarded, not logged (D-098).
   const handleEndSession = (reason: Extract<SalonEndReason, 'end_session' | 'wrap_up'>) => {
     if (sendMutation.isPending) {
       return;
     }
     if (salonId && answers.length > 0) {
       insightMutation.mutate(pendingInsight ?? undefined);
+    } else if (salonId && activeSalonRef.current && !activeSalonRef.current.keep) {
+      activeSalonRef.current = null;
+      discardSalon(salonId, 'empty');
     }
     finishSalon(reason);
     advance(() => setPhase('closing'));
@@ -656,6 +752,48 @@ function SocraticDeck({ bookId }: { bookId: number }) {
     transform: [{ translateX: slideX }, { rotate: slideRotate }],
   };
 
+  // The dictation controls (D-016), shared by the pinned answer footer and
+  // the composer bar (D-098) so speaking is never more than one tap away.
+  const recording = dictationStatus === 'recording';
+  const micButton =
+    dictationStatus !== 'unavailable' ? (
+      <Pressable
+        style={[styles.micButton, recording && styles.micButtonActive]}
+        onPress={() => {
+          if (recording) {
+            stopDictation();
+          } else {
+            void startDictation();
+          }
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={recording ? 'Finish dictating' : 'Speak your answer'}
+      >
+        <Ionicons
+          name={recording ? 'stop' : 'mic'}
+          size={18}
+          color={recording ? colors.onAccent : colors.text}
+        />
+      </Pressable>
+    ) : null;
+  const listeningRow = recording ? (
+    <View style={styles.listeningRow}>
+      <Ionicons name="mic" size={14} color={gold.deep} />
+      <Text style={styles.listeningText} numberOfLines={1}>
+        {dictationPartial || 'Listening…'}
+      </Text>
+      <Pressable
+        style={styles.listeningStop}
+        onPress={stopDictation}
+        accessibilityRole="button"
+        accessibilityLabel="Finish dictating"
+        hitSlop={8}
+      >
+        <Text style={styles.listeningStopText}>Done</Text>
+      </Pressable>
+    </View>
+  ) : null;
+
   return (
     <KeyboardPane style={styles.flex} keyboardVerticalOffset={88}>
       <Stack.Screen options={{ title: 'Book Club' }} />
@@ -686,113 +824,56 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                 <Text style={styles.cardLoadingText}>Opening the club room…</Text>
               </View>
             </View>
-          ) : phase === 'hub' && latestSalon ? (
+          ) : phase === 'hub' && latestSalon?.insight ? (
             <View style={styles.hubStack}>
               <View style={styles.paperCard}>
-                <Text style={styles.cardLabel}>
-                  {latestSalon.insight ? 'Last time, your takeaway' : 'Where you left off'}
-                </Text>
-                {latestSalon.insight ? (
-                  <View style={styles.takeawayBlock}>
-                    <Text style={styles.takeawayText}>{latestSalon.insight}</Text>
-                  </View>
-                ) : latestSalon.lastProbe ? (
-                  <Text style={styles.questionText}>
-                    A question is still on the table: “{latestSalon.lastProbe}”
-                  </Text>
-                ) : (
-                  <Text style={styles.cardBody}>
-                    Your last discussion is here when you want it.
-                  </Text>
-                )}
-                {latestSalon.lastProbe ? (
-                  <Pressable
-                    style={styles.goldButton}
-                    onPress={handleResume}
-                    accessibilityRole="button"
-                    accessibilityLabel="Continue your last discussion"
-                  >
-                    <Ionicons name="chatbubble-ellipses" size={15} color={colors.onAccent} />
-                    <Text style={styles.goldButtonText}>Continue discussion</Text>
-                  </Pressable>
-                ) : null}
+                <Text style={styles.cardLabel}>Last time, your takeaway</Text>
+                <View style={styles.takeawayBlock}>
+                  <Text style={styles.takeawayText}>{latestSalon.insight}</Text>
+                </View>
                 <Pressable
-                  style={latestSalon.lastProbe ? styles.plainButton : styles.goldButton}
+                  style={styles.goldButton}
                   onPress={handleNewDiscussion}
                   accessibilityRole="button"
                   accessibilityLabel="Start a new discussion"
                 >
-                  <Ionicons
-                    name="add"
-                    size={15}
-                    color={latestSalon.lastProbe ? colors.text : colors.onAccent}
-                  />
-                  <Text
-                    style={latestSalon.lastProbe ? styles.plainButtonText : styles.goldButtonText}
-                  >
-                    Start a new discussion
-                  </Text>
+                  <Ionicons name="add" size={15} color={colors.onAccent} />
+                  <Text style={styles.goldButtonText}>Start a new discussion</Text>
                 </Pressable>
               </View>
 
+              {/* The log (D-098): each completed discussion as its key insight;
+                  the card opens the replay, where the full exchange lives. */}
               <View style={styles.archiveSection}>
                 <Text style={styles.archiveHeading}>Past discussions</Text>
-                {salons.map((salon) => {
-                  const expanded = expandedSalonId === salon.id;
-                  return (
-                    <View key={salon.id} style={styles.archiveCard}>
-                      <Pressable
-                        style={styles.archiveHeader}
-                        onPress={() => {
-                          if (!expanded) {
-                            trackAnalyticsEvent(
-                              'salon_archive_opened',
-                              {
-                                index: salons.indexOf(salon),
-                                total: salons.length,
-                                hasTakeaway: Boolean(salon.insight),
-                                pairs: salon.pairs.length,
-                              },
-                              bookId,
-                            );
-                          }
-                          setExpandedSalonId(expanded ? null : salon.id);
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Discussion from ${formatSalonDate(salon.startedAt)}`}
-                      >
-                        <Text style={styles.archiveDate}>{formatSalonDate(salon.startedAt)}</Text>
-                        <Text style={styles.archivePreview} numberOfLines={1}>
-                          {salon.insight ?? salon.pairs[0]?.question ?? 'A quiet session.'}
-                        </Text>
-                        <Ionicons
-                          name={expanded ? 'chevron-up' : 'chevron-down'}
-                          size={14}
-                          color={colors.muted}
-                        />
-                      </Pressable>
-                      {expanded ? (
-                        <View style={styles.archiveBody}>
-                          {salon.pairs.map((pair, index) => (
-                            <View key={`${salon.id}-${index}`} style={styles.archivePair}>
-                              {pair.question ? (
-                                <Text style={styles.archiveQuestion}>{pair.question}</Text>
-                              ) : null}
-                              {pair.answer ? (
-                                <Text style={styles.archiveAnswer}>{pair.answer}</Text>
-                              ) : null}
-                            </View>
-                          ))}
-                          {salon.insight ? (
-                            <View style={styles.takeawayBlock}>
-                              <Text style={styles.takeawayText}>{salon.insight}</Text>
-                            </View>
-                          ) : null}
-                        </View>
-                      ) : null}
+                {salons.map((salon, index) => (
+                  <Pressable
+                    key={salon.id}
+                    style={({ pressed }) => [styles.archiveCard, pressed && styles.archiveCardPressed]}
+                    onPress={() => {
+                      trackAnalyticsEvent(
+                        'salon_archive_opened',
+                        { index, total: salons.length, pairs: salon.pairs.length },
+                        bookId,
+                      );
+                      router.push({
+                        pathname: '/salon-replay',
+                        params: { id: String(bookId), salon: salon.id },
+                      });
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Relive the discussion from ${formatSalonDate(salon.startedAt)}`}
+                  >
+                    <View style={styles.archiveHeader}>
+                      <Text style={styles.archiveDate}>{formatSalonDate(salon.startedAt)}</Text>
+                      <Text style={styles.archiveHint}>Relive</Text>
+                      <Ionicons name="chevron-forward" size={14} color={colors.muted} />
                     </View>
-                  );
-                })}
+                    <View style={styles.takeawayBlock}>
+                      <Text style={styles.takeawayText}>{salon.insight}</Text>
+                    </View>
+                  </Pressable>
+                ))}
               </View>
             </View>
           ) : phase === 'primer' ? (
@@ -839,7 +920,7 @@ function SocraticDeck({ bookId }: { bookId: number }) {
               <View style={[styles.paperCard, card.isConvergence && styles.convergenceCard]}>
                 <View style={styles.cardLabelRow}>
                   <Text style={[styles.cardLabel, card.isConvergence && styles.convergenceLabel]}>
-                    {card.isConvergence ? 'Insight unlocked' : 'The companion asks'}
+                    {card.isConvergence ? 'Insight unlocked' : (card.label ?? 'The companion asks')}
                   </Text>
                   <Text style={styles.cardCount}>Card {answers.length + 1}</Text>
                 </View>
@@ -867,6 +948,12 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                   <View style={styles.takeawayBlock}>
                     <Text style={styles.takeawayText}>{takeaway}</Text>
                   </View>
+                  {/* The insight is the Book Club's own record (D-098): kept
+                      under Past discussions, never filed as a journal entry. */}
+                  <View style={styles.savedRow}>
+                    <Ionicons name="checkmark-circle" size={15} color={gold.deep} />
+                    <Text style={styles.savedText}>Kept in your Book Club.</Text>
+                  </View>
                 </>
               ) : null}
               <Text style={styles.cardLabel}>Your thinking, this session</Text>
@@ -881,33 +968,9 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                 </View>
               ) : (
                 <Text style={styles.cardBody}>
-                  You kept your counsel this session — nothing to save yet.
+                  You kept your counsel this session — nothing to keep yet.
                 </Text>
               )}
-              {saved ? (
-                <View style={styles.savedRow}>
-                  <Ionicons name="checkmark-circle" size={15} color={gold.deep} />
-                  <Text style={styles.savedText}>Saved to your journal.</Text>
-                </View>
-              ) : null}
-              {answers.length > 0 && journalBoundary && !saved ? (
-                <Pressable
-                  style={[styles.goldButton, saveMutation.isPending && styles.goldButtonDisabled]}
-                  onPress={() => saveMutation.mutate()}
-                  disabled={saveMutation.isPending}
-                  accessibilityRole="button"
-                  accessibilityLabel="Save your answers to the journal"
-                >
-                  {saveMutation.isPending ? (
-                    <ActivityIndicator size="small" color={colors.onAccent} />
-                  ) : (
-                    <>
-                      <Ionicons name="bookmark" size={15} color={colors.onAccent} />
-                      <Text style={styles.goldButtonText}>Save to journal</Text>
-                    </>
-                  )}
-                </Pressable>
-              ) : null}
               <Pressable
                 style={styles.ghostButton}
                 onPress={() => router.back()}
@@ -974,66 +1037,6 @@ function SocraticDeck({ bookId }: { bookId: number }) {
                 </View>
               ) : null}
 
-              <View style={styles.answerActionsRow}>
-                {dictationStatus !== 'unavailable' ? (
-                  <Pressable
-                    style={[
-                      styles.micButton,
-                      dictationStatus === 'recording' && styles.micButtonActive,
-                    ]}
-                    onPress={() => {
-                      if (dictationStatus === 'recording') {
-                        stopDictation();
-                      } else {
-                        void startDictation();
-                      }
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      dictationStatus === 'recording' ? 'Finish dictating' : 'Speak your answer'
-                    }
-                  >
-                    <Ionicons
-                      name={dictationStatus === 'recording' ? 'stop' : 'mic'}
-                      size={18}
-                      color={dictationStatus === 'recording' ? colors.onAccent : colors.text}
-                    />
-                  </Pressable>
-                ) : null}
-                <Pressable
-                  style={styles.typeButton}
-                  onPress={() => {
-                    if (trackerRef.current) {
-                      noteDraftOrigin(trackerRef.current, 'typed');
-                    }
-                    setComposerOpen(true);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Type your own thought"
-                >
-                  <Ionicons name="pencil" size={14} color={colors.text} />
-                  <Text style={styles.typeButtonText}>Type my own thought</Text>
-                </Pressable>
-              </View>
-
-              {dictationStatus === 'recording' ? (
-                <View style={styles.listeningRow}>
-                  <Ionicons name="mic" size={14} color={gold.deep} />
-                  <Text style={styles.listeningText} numberOfLines={1}>
-                    {dictationPartial || 'Listening…'}
-                  </Text>
-                  <Pressable
-                    style={styles.listeningStop}
-                    onPress={stopDictation}
-                    accessibilityRole="button"
-                    accessibilityLabel="Finish dictating"
-                    hitSlop={8}
-                  >
-                    <Text style={styles.listeningStopText}>Done</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-
               {answers.length >= WRAP_UP_NUDGE_AFTER ? (
                 <View style={styles.nudgeRow}>
                   <Text style={styles.nudgeText}>A natural stopping point, if you want one.</Text>
@@ -1080,35 +1083,65 @@ function SocraticDeck({ bookId }: { bookId: number }) {
         ) : null}
       </ScrollView>
 
-      {phase === 'deck' && !sendMutation.isPending && !card?.isConvergence && (composerOpen || draft.length > 0) ? (
-        // Anchored below the scroll area (D-054 pattern) so Android's
-        // window-resize keeps it visible right above the keyboard.
-        <View style={[styles.composerBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <TextInput
-            style={styles.input}
-            value={draft}
-            onChangeText={(text) => {
-              if (trackerRef.current) {
-                noteDraftChanged(trackerRef.current, text.length);
-              }
-              setDraft(text);
-            }}
-            placeholder="Your answer, in your own words…"
-            placeholderTextColor={colors.muted}
-            multiline
-            maxLength={MAX_MESSAGE_CHARS}
-            autoFocus
-          />
-          <Pressable
-            style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-            onPress={handleSend}
-            disabled={!canSend}
-            accessibilityRole="button"
-            accessibilityLabel="Send your answer"
-          >
-            <Ionicons name="arrow-up" size={18} color={colors.onAccent} />
-          </Pressable>
-        </View>
+      {phase === 'deck' && !sendMutation.isPending && !card?.isConvergence ? (
+        composerOpen || draft.length > 0 ? (
+          // Anchored below the scroll area (D-054 pattern) so Android's
+          // window-resize keeps it visible right above the keyboard. The mic
+          // rides along (D-098) so dictation stays one tap away while typing.
+          <View style={[styles.composerBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            {listeningRow}
+            <View style={styles.composerRow}>
+              {micButton}
+              <TextInput
+                style={styles.input}
+                value={draft}
+                onChangeText={(text) => {
+                  if (trackerRef.current) {
+                    noteDraftChanged(trackerRef.current, text.length);
+                  }
+                  setDraft(text);
+                }}
+                placeholder="Your answer, in your own words…"
+                placeholderTextColor={colors.muted}
+                multiline
+                maxLength={MAX_MESSAGE_CHARS}
+                autoFocus
+              />
+              <Pressable
+                style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+                onPress={handleSend}
+                disabled={!canSend}
+                accessibilityRole="button"
+                accessibilityLabel="Send your answer"
+              >
+                <Ionicons name="arrow-up" size={18} color={colors.onAccent} />
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          // The ways to answer sit above the system bar as their own footer
+          // (D-098): the stems scroll with the card, this row never does.
+          <View style={[styles.answerFooter, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            {listeningRow}
+            <View style={styles.answerActionsRow}>
+              {micButton}
+              <Pressable
+                style={styles.typeButton}
+                onPress={() => {
+                  if (trackerRef.current) {
+                    noteDraftOrigin(trackerRef.current, 'typed');
+                  }
+                  setComposerOpen(true);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Type your own thought"
+              >
+                <Ionicons name="pencil" size={14} color={colors.text} />
+                <Text style={styles.typeButtonText}>Type my own thought</Text>
+              </Pressable>
+            </View>
+          </View>
+        )
       ) : null}
     </KeyboardPane>
   );
@@ -1180,7 +1213,7 @@ const styles = StyleSheet.create({
   stackLayerNear: { transform: [{ rotate: '-1.2deg' }] },
   stackLayerDeep: { transform: [{ rotate: '1.4deg' }], top: 12, bottom: -9, opacity: 0.7 },
 
-  // The orientation hub (D-058): last takeaway, two forks, and the archive.
+  // The orientation hub (D-058): last takeaway, a fresh start, and the log.
   hubStack: { gap: 14 },
   takeawayBlock: {
     borderLeftWidth: 3,
@@ -1196,24 +1229,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 26,
   },
-  plainButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    minHeight: sizes.button,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.button,
-    paddingHorizontal: spacing.md,
-  },
-  plainButtonText: {
-    fontFamily: fonts.sansSemiBold,
-    color: colors.accent,
-    fontSize: 15,
-  },
 
+  // The log (D-098): one card per completed discussion, insight only.
   archiveSection: { gap: 8, marginTop: 2 },
   archiveHeading: {
     fontFamily: fonts.sansMedium,
@@ -1228,42 +1245,29 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingTop: 11,
+    paddingBottom: 14,
+    gap: 10,
     ...cardShadow,
   },
+  archiveCardPressed: { opacity: 0.85 },
   archiveHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
   },
   archiveDate: {
     fontFamily: fonts.sansSemiBold,
+    flex: 1,
     fontSize: 13,
     color: colors.accent,
   },
-  archivePreview: {
-    fontFamily: fonts.sans,
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
+  archiveHint: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 12.5,
     color: colors.muted,
   },
-  archiveBody: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
-  },
-  archivePair: { gap: 4 },
-  archiveQuestion: {
-    fontFamily: fonts.sans,
-    fontSize: 13.5,
-    color: colors.muted,
-    lineHeight: 19,
-  },
-  archiveAnswer: { fontFamily: fonts.sans, fontSize: 14, color: colors.text, lineHeight: 20 },
 
   // The wrap-up nudge (D-058): offered after a few turns, never forced.
   nudgeRow: {
@@ -1410,6 +1414,16 @@ const styles = StyleSheet.create({
 
   answerArea: { gap: 10 },
 
+  // The pinned ways-to-answer row (D-098): parchment over the system bar.
+  answerFooter: {
+    gap: 10,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+
   // Perspective stems (D-056/D-057): answer starters under the question.
   stemRow: {
     flexDirection: 'column',
@@ -1492,8 +1506,6 @@ const styles = StyleSheet.create({
   listeningStopText: { fontFamily: fonts.sansSemiBold, color: colors.onAccent, fontSize: 12 },
 
   composerBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
     gap: 8,
     paddingHorizontal: 12,
     paddingTop: 8,
@@ -1506,6 +1518,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: -3 },
   },
+  composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   input: {
     fontFamily: fonts.sans,
     flex: 1,

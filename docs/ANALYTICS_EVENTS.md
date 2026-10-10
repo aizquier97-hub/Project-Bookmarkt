@@ -86,15 +86,17 @@ Book Club shelf picks).
 | `club_book_picked` | `shelfIndex`, `shelfSize`, `hasEntries`, `finished` | book | D-087 | A book is chosen on the Book Club tab, before the entitlement gate decides what the reader sees. |
 | `recall_book_picked` | same shape | book | D-087 | A book is chosen on the Recall tab. |
 | `companion_opened` | - | book | D-04x | |
-| `salon_hub_viewed` | `salons`, `hasOpenProbe`, `hasTakeaway` | book | D-087 | A returning reader lands on the orientation hub (first-timers go straight to the primer). |
+| `salon_hub_viewed` | `salons` (completed), `discarded` (abandoned salons seen in the cache) | book | D-087 / D-098 | A returning reader lands on the orientation hub (first-timers go straight to the primer). |
 | `companion_tool_used` (`tool: primer`) | `status`: `succeeded` \| `NO_ENTRIES` \| error code | book | D-087 | The primer settles, once per visit. `NO_ENTRIES` is the "write a note first" dead end. |
-| `salon_started` | `mode`: `new` \| `resumed`; `hasObservation`; `priorSalons` | book | D-087 | "Start discussion" or "Continue discussion". |
+| `salon_started` | `mode`: `new` \| `resumed`; `hasObservation`; `priorSalons` | book | D-087 / D-098 | "Start discussion", or "Continue this discussion" from the replay screen (`resumed`). |
 | `companion_message_sent` | `status`: `succeeded` \| error code; on success also `turn` (1-3 arc position), `answerIndex` (1-based within the salon), `inputMethod`: `chip` \| `voice` \| `typed`, `chars`, `convergence` | book | D-04x / D-087 | Each answer sent. `inputMethod` is whichever seeded the draft first (a chip the reader then edited is still `chip`). |
 | `salon_convergence_reached` | `answers`, `convergences` | book | D-087 | The synthesis card lands. |
-| `salon_fork` | `choice`: `save_finish` \| `push_further`; `answers` | book | D-087 | The reader's answer to the convergence fork. |
+| `salon_fork` | `choice`: `save_finish` \| `push_further` \| `continue_replay`; `answers` (or `cards` for `continue_replay`) | book | D-087 / D-098 | The reader's answer to the convergence fork, or "Continue this discussion" on the replay screen. |
 | `salon_ended` | `reason`: `end_session` \| `wrap_up` \| `save_finish` \| `left`; `mode`, `answers`, `convergences`, `pushedFurther`, `durationSeconds`, `chip`, `voice`, `typed` | book | D-087 | Exactly once per salon: an explicit ending, or `left` when the screen unmounts mid-deck (`salonSignals.ts`). |
-| `salon_journal_saved` | `status`, `answers` | book | D-087 | "Save to journal" on the closing card (the entry itself is `manual_entry_added` with `source: salon`). |
-| `salon_archive_opened` | `index`, `total`, `hasTakeaway`, `pairs` | book | D-087 | A past discussion is expanded on the hub. |
+| `salon_journal_saved` | - | book | D-087 (retired D-098) | No longer emitted: the closing card has no "Save to journal"; insights live in the Book Club only. Old rows remain queryable. |
+| `salon_discarded` | `reason`: `left` \| `empty` \| `stale` | book | D-098 | A discussion that never reached its insight is deleted: the reader left the deck, ended with nothing said, or the hub purged an older one. |
+| `salon_replay_viewed` | `cards`, `hasInsight` | book | D-098 | The replay screen opens on a past discussion, once per visit. |
+| `salon_archive_opened` | `index`, `total`, `pairs` | book | D-087 / D-098 | A past discussion's card is tapped on the hub (opens the replay screen). |
 | `companion_tool_used` | `tool`, `status`, tool-specific counts (`cards`, `found`, `moves`, ...) | book | D-04x | |
 | `recap_teaser_tapped` | `entryCount` | book | D-04x | "Where you left off" is opened (before entitlement is known). |
 | `recap_viewed` | `entitled`, `hasStoredRecap`, `entryCount` | book | D-087 | What the open card actually showed once entitlement settled: the locked copy (also a `paywall_hit` with `feature: recap`), a stored recap, or the empty retell prompt. |
@@ -235,8 +237,8 @@ select
   count(*) filter (where event_name = 'salon_started') as salons_started,
   count(*) filter (where event_name = 'paywall_hit'
                      and event_properties->>'feature' in ('companion', 'club_lock')) as locked,
-  count(*) filter (where event_name = 'salon_journal_saved'
-                     and event_properties->>'status' = 'succeeded') as saved_to_journal
+  count(*) filter (where event_name = 'salon_replay_viewed') as replays_opened,
+  count(*) filter (where event_name = 'salon_discarded') as discarded
 from analytics_events where created_at > now() - interval '30 days';
 
 -- "Where you left off": how often the open card is the locked copy

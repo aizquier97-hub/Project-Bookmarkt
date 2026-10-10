@@ -603,7 +603,12 @@ export function requestSalonInsight(
   });
 }
 
-const MESSAGE_PAGE_SIZE = 200;
+/**
+ * How many of a book's newest rows one fetch returns. A result this long may
+ * be truncated, so callers that act destructively on what is missing (the
+ * D-098 purge) must treat it as an incomplete picture.
+ */
+export const COMPANION_MESSAGE_WINDOW = 200;
 
 /** The stored conversation for a book, oldest first (RLS scopes to owner). */
 export async function fetchCompanionMessages(bookId: number): Promise<CompanionChatMessage[]> {
@@ -613,11 +618,28 @@ export async function fetchCompanionMessages(bookId: number): Promise<CompanionC
     .eq('topic_id', bookId)
     .neq('feature', 'recap')
     .order('created_at', { ascending: false })
-    .limit(MESSAGE_PAGE_SIZE);
+    .limit(COMPANION_MESSAGE_WINDOW);
   if (error) {
     throw error;
   }
   return (data ?? []).reverse().map(mapCompanionMessageRow);
+}
+
+/**
+ * Discard a salon that was never carried to completion (D-098): every row
+ * under that salon id - opener, answers, probes - goes, so the Book Club log
+ * keeps only discussions that reached their insight. RLS scopes the delete
+ * to the owner's own rows.
+ */
+export async function deleteSalonMessages(bookId: number, salonId: string): Promise<void> {
+  const { error } = await supabase
+    .from('companion_messages')
+    .delete()
+    .eq('topic_id', bookId)
+    .eq('salon_id', salonId);
+  if (error) {
+    throw error;
+  }
 }
 
 /** The most recent stored recap for a book, if one exists. */

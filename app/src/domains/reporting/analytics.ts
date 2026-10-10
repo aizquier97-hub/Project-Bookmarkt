@@ -72,8 +72,11 @@ export type AnalyticsEventName =
   | 'salon_convergence_reached'
   | 'salon_fork'
   | 'salon_ended'
-  | 'salon_journal_saved'
   | 'salon_archive_opened'
+  // Book Club log (D-098): a past discussion relived card by card, and the
+  // discussions discarded because they never reached their insight.
+  | 'salon_replay_viewed'
+  | 'salon_discarded'
   | 'recap_viewed'
   | 'recap_detail_changed'
   | 'reading_session_started'

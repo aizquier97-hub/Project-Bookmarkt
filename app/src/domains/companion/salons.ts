@@ -70,6 +70,44 @@ export function buildSalons(messages: CompanionChatMessage[]): Salon[] {
   return salons;
 }
 
+/**
+ * A salon counts as carried to completion once its insight is stored
+ * (D-098): only these appear in the Book Club log. Everything else - an
+ * opener nobody answered, a deck left mid-way - is discarded, not archived.
+ */
+export function isCompletedSalon(salon: Salon): boolean {
+  return salon.insight !== null;
+}
+
+export function completedSalons(salons: Salon[]): Salon[] {
+  return salons.filter(isCompletedSalon);
+}
+
+export function abandonedSalons(salons: Salon[]): Salon[] {
+  return salons.filter((salon) => !isCompletedSalon(salon));
+}
+
+/** One page of the replay deck (D-098): a question the reader answered. */
+export interface ReplayCard {
+  question: string | null;
+  answer: string;
+}
+
+/**
+ * The cards a reader can relive, oldest first: each question they actually
+ * answered. A trailing probe nobody answered (the synthesis card's own
+ * question, for instance) is not a card - the insight that follows is.
+ */
+export function replayCards(salon: Salon): ReplayCard[] {
+  const cards: ReplayCard[] = [];
+  for (const pair of salon.pairs) {
+    if (pair.answer) {
+      cards.push({ question: pair.question, answer: pair.answer });
+    }
+  }
+  return cards;
+}
+
 /** Short date label for the archive ("Sep 5"). */
 export function formatSalonDate(iso: string): string {
   const date = new Date(iso);
