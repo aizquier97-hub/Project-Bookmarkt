@@ -318,7 +318,6 @@ function SocraticDeck({
   });
   const allSalons = useMemo(() => buildSalons(messagesQuery.data ?? []), [messagesQuery.data]);
   const salons = useMemo(() => completedSalons(allSalons), [allSalons]);
-  const latestSalon = salons[0] ?? null;
 
   // Land returning readers on the hub; first-timers go straight to the
   // primer; a `salon` param re-opens that completed discussion (D-098).
@@ -390,15 +389,18 @@ function SocraticDeck({
   }, [messagesQuery.isPending, bookId, continueSalonId, queryClient]);
 
   // Observation cards (D-056): grounded openers, each now carrying stems.
-  // Only fetched when the reader is opening a fresh discussion (it spends
-  // quota). The D-057 primer call that used to run beside it is gone (D-090):
-  // its bullets are no longer shown, so the deck opens one call sooner.
+  // Fetched as soon as the hub shows (D-099), not only at the primer: the
+  // hub's one action is "Start a new discussion", so reading the notes
+  // while the reader looks over past discussions means the tap usually
+  // opens the deck at once. It spends one opener call per visit, as the
+  // tap always did. The D-057 primer call that used to run beside it is
+  // gone (D-090): its bullets are no longer shown.
   const observationsQuery = useQuery({
     queryKey: queryKeys.companionObservations(bookId),
     queryFn: () => requestObservations(bookId),
     staleTime: 10 * 60_000,
     retry: false,
-    enabled: phase === 'primer',
+    enabled: phase === 'hub' || phase === 'primer',
   });
   const observations = observationsQuery.data?.observations ?? [];
 
@@ -431,12 +433,13 @@ function SocraticDeck({
   }, [phase, observationsReady, noEntries]);
 
   // Opener outcome (D-087, was the primer's): did the openers land, come
-  // back empty (NO_ENTRIES), or fail - once per visit.
+  // back empty (NO_ENTRIES), or fail - once per visit, on the hub or the
+  // primer, whichever is showing when they settle (D-099).
   const openersTrackedRef = useRef(false);
   const observationsData = observationsQuery.data;
   useEffect(() => {
     if (
-      phase !== 'primer' ||
+      (phase !== 'hub' && phase !== 'primer') ||
       openersTrackedRef.current ||
       (!observationsData && !observationsError)
     ) {
@@ -679,6 +682,11 @@ function SocraticDeck({
   const handleNewDiscussion = () => {
     setSendError(null);
     autoStartedRef.current = false;
+    // A prefetch that failed on the hub gets the second try the tap used to
+    // be (D-099); a quota refusal simply fails again, spending nothing.
+    if (observationsQuery.isError && !observationsQuery.isFetching) {
+      void observationsQuery.refetch();
+    }
     advance(() => setPhase('primer'));
   };
 
@@ -824,23 +832,20 @@ function SocraticDeck({
                 <Text style={styles.cardLoadingText}>Opening the club room…</Text>
               </View>
             </View>
-          ) : phase === 'hub' && latestSalon?.insight ? (
+          ) : phase === 'hub' ? (
             <View style={styles.hubStack}>
-              <View style={styles.paperCard}>
-                <Text style={styles.cardLabel}>Last time, your takeaway</Text>
-                <View style={styles.takeawayBlock}>
-                  <Text style={styles.takeawayText}>{latestSalon.insight}</Text>
-                </View>
-                <Pressable
-                  style={styles.goldButton}
-                  onPress={handleNewDiscussion}
-                  accessibilityRole="button"
-                  accessibilityLabel="Start a new discussion"
-                >
-                  <Ionicons name="add" size={15} color={colors.onAccent} />
-                  <Text style={styles.goldButtonText}>Start a new discussion</Text>
-                </Pressable>
-              </View>
+              {/* The hub (D-099): one button and the log. The "last time,
+                  your takeaway" card it used to open with repeated the first
+                  past discussion word for word. */}
+              <Pressable
+                style={styles.goldButton}
+                onPress={handleNewDiscussion}
+                accessibilityRole="button"
+                accessibilityLabel="Start a new discussion"
+              >
+                <Ionicons name="add" size={15} color={colors.onAccent} />
+                <Text style={styles.goldButtonText}>Start a new discussion</Text>
+              </Pressable>
 
               {/* The log (D-098): each completed discussion as its key insight;
                   the card opens the replay, where the full exchange lives. */}
@@ -878,7 +883,7 @@ function SocraticDeck({
             </View>
           ) : phase === 'primer' ? (
             <View style={styles.paperCard}>
-              {observationsQuery.isError ? (
+              {observationsQuery.isError && !observationsQuery.isFetching ? (
                 <>
                   <Text style={styles.cardLabel}>Before we begin</Text>
                   <Text style={styles.cardBody}>

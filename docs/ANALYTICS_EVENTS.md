@@ -87,7 +87,7 @@ Book Club shelf picks).
 | `recall_book_picked` | same shape | book | D-087 | A book is chosen on the Recall tab. |
 | `companion_opened` | - | book | D-04x | |
 | `salon_hub_viewed` | `salons` (completed), `discarded` (abandoned salons seen in the cache) | book | D-087 / D-098 | A returning reader lands on the orientation hub (first-timers go straight to the primer). |
-| `companion_tool_used` (`tool: primer`) | `status`: `succeeded` \| `NO_ENTRIES` \| error code | book | D-087 | The primer settles, once per visit. `NO_ENTRIES` is the "write a note first" dead end. |
+| `companion_tool_used` (`tool: observations`) | `status`: `succeeded` \| `NO_ENTRIES` \| error code | book | D-087, D-099 | The grounded openers settle, once per visit - since D-099 they are fetched as soon as the hub shows, so this can fire before "Start a new discussion" is tapped. `NO_ENTRIES` is the "write a note first" dead end. |
 | `salon_started` | `mode`: `new` \| `resumed`; `hasObservation`; `priorSalons` | book | D-087 / D-098 | "Start discussion", or "Continue this discussion" from the replay screen (`resumed`). |
 | `companion_message_sent` | `status`: `succeeded` \| error code; on success also `turn` (1-3 arc position), `answerIndex` (1-based within the salon), `inputMethod`: `chip` \| `voice` \| `typed`, `chars`, `convergence` | book | D-04x / D-087 | Each answer sent. `inputMethod` is whichever seeded the draft first (a chip the reader then edited is still `chip`). |
 | `salon_convergence_reached` | `answers`, `convergences` | book | D-087 | The synthesis card lands. |

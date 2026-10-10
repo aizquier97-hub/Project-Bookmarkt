@@ -103,6 +103,25 @@ const corsHeaders = {
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 
 const GEMINI_MODEL = "gemini-2.5-flash";
+/**
+ * Features whose first provider call runs with thinking off (D-099). The
+ * 2.5 models think by default, and on the one-shot tools that read notes
+ * into a fixed JSON shape that bought seconds, not quality: cue cards and
+ * openers were landing in 10-14 s for ~300 output tokens, against 2-3 s
+ * for the recap and rubric calls that already run without it. The
+ * discussion itself and its closing insight keep the model's own judgement
+ * on how long to think.
+ */
+const THINKING_OFF_FEATURES: ReadonlySet<Feature> = new Set<Feature>([
+  "cue_cards",
+  "observations",
+  "quiz",
+  "club_prep",
+  "word_bank",
+  "structure_aid",
+  "suggest_flags",
+  "character_extract",
+]);
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_DIMS = 768;
 const MAX_SEARCH_ENTRIES = 400;
@@ -2068,7 +2087,7 @@ serve(async (req) => {
           }),
         },
       );
-    let geminiResponse = await callGemini(null);
+    let geminiResponse = await callGemini(THINKING_OFF_FEATURES.has(feature) ? 0 : null);
     if (!geminiResponse.ok) {
       const upstreamStatus = geminiResponse.status;
       await finalize("failed", 502, {
@@ -2082,8 +2101,9 @@ serve(async (req) => {
     let parsed = parseCompanionJson(extractGeminiText(geminiJson));
     // An empty answer (D-090): usually thinking tokens ate the output budget
     // or the JSON came back truncated. One retry with thinking off is cheap
-    // and almost always lands; the diagnostics of the first attempt travel on
-    // the usage row so a repeat can be read later.
+    // and almost always lands (for the features that already ran without
+    // thinking it is a plain second try); the diagnostics of the first
+    // attempt travel on the usage row so a repeat can be read later.
     let retried = false;
     if (!parsed.reply) {
       const firstText = extractGeminiText(geminiJson);
