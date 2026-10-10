@@ -796,6 +796,10 @@ capture.
         Club tabs share one free / premium shape after the final Figma frames
         with hairline book rows; free-reader journal cards read "Journal
         entry" over a locked "Journal summary · Book Club" footer.
+    - Revised 2026-10-10 (D-095): sixth pass - per-entry journal summaries
+        become one readable sentence (at most 16 words, versioned cache
+        key `s2`); the All / Quotes / Important chips and the important
+        flag leave the journal; the header back label no longer wraps.
 - [x] Design native phone navigation and define whether tablets are supported in
       v1; desktop is not a reading-product target. (Done - bottom-tab
       navigation shipped per D-040: Library, Bookmarks, and Settings tabs

@@ -106,11 +106,18 @@ describe('entrySummaryIsStale', () => {
     expect(entrySummaryIsStale({ text: 'Some note', ai_summary: null, ai_summary_hash: null })).toBe(true);
   });
 
-  it('is false when the cached hash matches the current text', () => {
+  it('is false when the cached hash matches the current text and prompt version', () => {
     const text = '[Manual Entry - page 12]\nSome note';
     expect(
-      entrySummaryIsStale({ text, ai_summary: 'A summary.', ai_summary_hash: djb2(text) }),
+      entrySummaryIsStale({ text, ai_summary: 'A summary.', ai_summary_hash: `${djb2(text)}:s2` }),
     ).toBe(false);
+  });
+
+  it('is true for a summary written by the older fragment prompt (D-095)', () => {
+    const text = '[Manual Entry - page 12]\nSome note';
+    expect(
+      entrySummaryIsStale({ text, ai_summary: 'Some note', ai_summary_hash: djb2(text) }),
+    ).toBe(true);
   });
 
   it('is true after the text is edited', () => {
@@ -118,7 +125,7 @@ describe('entrySummaryIsStale', () => {
       entrySummaryIsStale({
         text: 'Edited note',
         ai_summary: 'A summary.',
-        ai_summary_hash: djb2('Original note'),
+        ai_summary_hash: `${djb2('Original note')}:s2`,
       }),
     ).toBe(true);
   });

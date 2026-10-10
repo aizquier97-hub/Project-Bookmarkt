@@ -228,9 +228,17 @@ function hashEntryText(text: string): string {
 }
 
 /**
+ * Entry-summary prompt version - mirrors ENTRY_SUMMARY_VERSION in the
+ * companion function (D-095), so a prompt change marks every cached
+ * summary stale once.
+ */
+const ENTRY_SUMMARY_VERSION = 's2';
+
+/**
  * True when an entry's cached companion summary is missing or was computed
- * from older text. Client-side twin of the server's staleness check, so the
- * book screen only spends a companion call when something actually changed.
+ * from older text or an older prompt. Client-side twin of the server's
+ * staleness check, so the journal only spends a companion call when
+ * something actually changed.
  */
 export function entrySummaryIsStale(entry: {
   text: string | null;
@@ -244,5 +252,5 @@ export function entrySummaryIsStale(entry: {
   if (!String(entry.ai_summary ?? '').trim()) {
     return true;
   }
-  return entry.ai_summary_hash !== hashEntryText(text);
+  return entry.ai_summary_hash !== `${hashEntryText(text)}:${ENTRY_SUMMARY_VERSION}`;
 }
